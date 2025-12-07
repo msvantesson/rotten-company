@@ -1,9 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Create Supabase client using env vars
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 )
 
 export default async function CategoryDetail({
@@ -11,19 +10,27 @@ export default async function CategoryDetail({
 }: {
   params: { slug: string }
 }) {
-  // Normalize slug to avoid casing/space issues
   const slug = params.slug.toLowerCase().trim()
 
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .eq('slug', slug)
+  let category = null
+  let errorMsg = null
 
-  if (error) {
-    console.error('Supabase error:', error.message)
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('slug', slug)
+
+    if (error) {
+      errorMsg = error.message
+      console.error('Supabase error:', error.message)
+    } else {
+      category = data?.[0] ?? null
+    }
+  } catch (err: any) {
+    errorMsg = err.message
+    console.error('Unexpected error:', err)
   }
-
-  const category = data?.[0]
 
   return (
     <div style={{ padding: '2rem' }}>
@@ -33,7 +40,10 @@ export default async function CategoryDetail({
           <p>{category.description ?? 'No description available'}</p>
         </>
       ) : (
-        <h1>Category not found</h1>
+        <>
+          <h1>Category not found</h1>
+          {errorMsg && <p style={{ color: 'red' }}>Error: {errorMsg}</p>}
+        </>
       )}
     </div>
   )
