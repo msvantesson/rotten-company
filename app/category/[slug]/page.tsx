@@ -1,8 +1,24 @@
-export default function CategoryDetail({ params }: { params: { slug: string } }) {
+import { supabase } from '@/lib/supabaseClient'
+
+export default async function CategoryDetail({ params }: { params: { slug: string } }) {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('slug', params.slug)
+    .single()
+
+  if (error) {
+    return <div>Error loading category: {error.message}</div>
+  }
+
+  if (!data) {
+    return <div>Category not found</div>
+  }
+
   return (
     <div>
-      <h1>Category: {params.slug}</h1>
-      <p>This is a test page for dynamic routing.</p>
+      <h1>{data.name}</h1>
+      <p>{data.description}</p>
     </div>
   )
 }
