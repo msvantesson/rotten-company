@@ -1,9 +1,17 @@
+import { createClient } from '@supabase/supabase-js'
+
+// Initialize Supabase client with your env vars
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+)
+
 export default async function CategoryDetail({
   params,
 }: {
-  params?: { slug?: string }
+  params: { slug: string }
 }) {
-  const slug = params?.slug ? params.slug.toLowerCase().trim() : null
+  const slug = params?.slug?.toLowerCase().trim()
 
   if (!slug) {
     return (
