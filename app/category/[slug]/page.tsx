@@ -4,24 +4,22 @@ export default async function CategoryDetail({ params }: { params: { slug: strin
   const { data, error } = await supabase
     .from('categories')
     .select('*')
+    .eq('slug', params.slug)
 
   if (error) {
-    return <div>Error loading categories: {error.message}</div>
+    return <div>Error loading category: {error.message}</div>
   }
 
   if (!data || data.length === 0) {
-    return <div>No categories found</div>
+    return <div>Category not found</div>
   }
+
+  const category = data[0]
 
   return (
     <div>
-      <h1>Testing categories</h1>
-      <ul>
-        {data.map(cat => (
-          <li key={cat.id}>
-            {cat.slug} — {cat.name} — {cat.description ?? 'No description'}
-          </li>
-        ))}
-      </ul>
+      <h1>{category.name}</h1>
+      <p>{category.description ?? 'No description available'}</p>
     </div>
   )
+}
