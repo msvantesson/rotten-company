@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Initialize Supabase client with your env vars
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
@@ -11,15 +10,9 @@ export default async function CategoryDetail({
 }: {
   params: { slug: string }
 }) {
-  const slug = params?.slug?.toLowerCase().trim()
+  console.log('Route params:', params) // Debug log
 
-  if (!slug) {
-    return (
-      <div style={{ padding: '2rem' }}>
-        <h1>Error: No slug provided</h1>
-      </div>
-    )
-  }
+  const slug = params.slug.toLowerCase().trim()
 
   const { data, error } = await supabase
     .from('categories')
