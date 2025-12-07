@@ -1,40 +1,30 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
-)
-
 export default async function CategoryDetail({
   params,
 }: {
-  params: { slug: string }
+  params: { slug?: string }
 }) {
-  console.log('Route params:', params) // Debug log
-
-  const slug = params.slug.toLowerCase().trim()
-
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .eq('slug', slug)
-
-  if (error) {
-    console.error('Supabase error:', error.message)
-  }
-
-  const category = data?.[0]
+  // Debug logs will show up in Vercel function logs
+  console.log('Route params:', params)
+  console.log('Slug value:', params?.slug)
+  console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+  console.log(
+    'Supabase Key:',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 6) + '...'
+  )
 
   return (
     <div style={{ padding: '2rem' }}>
-      {category ? (
-        <>
-          <h1>{category.slug}</h1>
-          <p>{category.description ?? 'No description available'}</p>
-        </>
-      ) : (
-        <h1>Category not found</h1>
-      )}
+      <h1>Debug Page</h1>
+      <pre>{JSON.stringify(params, null, 2)}</pre>
+      <p>
+        Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'undefined'}
+      </p>
+      <p>
+        Supabase Key:{' '}
+        {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+          ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.slice(0, 6) + '...'
+          : 'undefined'}
+      </p>
     </div>
   )
 }
