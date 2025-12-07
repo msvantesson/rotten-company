@@ -2,27 +2,27 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
+import React from 'react'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 )
 
-export default async function CategoryDetail({
-  params,
-}: {
+type Props = {
   params: { slug?: string }
-}) {
-  // Debug: always log incoming params (check Vercel logs or local terminal)
+}
+
+export default async function CategoryDetail({ params }: Props) {
+  // Debug: log incoming params (check terminal or Vercel logs)
   console.log('Route params:', params)
 
-  // Normalize and guard the slug
   const slug = (params?.slug ?? '').toString().toLowerCase().trim()
 
   if (!slug) {
     console.warn('No slug provided in params; returning debug output.')
     return (
-      <div style={{ padding: '2rem' }}>
+      <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
         <h1>Debug Route Params</h1>
         <pre>{JSON.stringify(params, null, 2)}</pre>
         <p>
@@ -47,10 +47,10 @@ export default async function CategoryDetail({
     const category = data?.[0] ?? null
 
     return (
-      <div style={{ padding: '2rem' }}>
+      <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
         {category ? (
           <>
-            <h1>{category.slug}</h1>
+            <h1 style={{ textTransform: 'capitalize' }}>{category.slug}</h1>
             <p>{category.description ?? 'No description available'}</p>
           </>
         ) : (
@@ -61,7 +61,7 @@ export default async function CategoryDetail({
   } catch (err) {
     console.error('Unexpected error fetching category:', err)
     return (
-      <div style={{ padding: '2rem' }}>
+      <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
         <h1>Error</h1>
         <p>There was an unexpected error fetching the category. Check server logs for details.</p>
       </div>
