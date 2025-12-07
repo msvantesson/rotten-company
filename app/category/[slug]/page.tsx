@@ -5,20 +5,21 @@ export default async function CategoryDetail({ params }: { params: { slug: strin
     .from('categories')
     .select('*')
     .eq('slug', params.slug)
-    .single()
 
   if (error) {
     return <div>Error loading category: {error.message}</div>
   }
 
-  if (!data) {
+  if (!data || data.length === 0) {
     return <div>Category not found</div>
   }
 
+  const category = data[0]
+
   return (
     <div>
-      <h1>{data.name}</h1>
-      <p>{data.description}</p>
+      <h1>{category.name}</h1>
+      <p>{category.description ?? 'No description available'}</p>
     </div>
   )
 }
