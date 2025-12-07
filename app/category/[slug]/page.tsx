@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 
 // Force Next.js to treat this route as dynamic
