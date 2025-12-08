@@ -1,40 +1,23 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/app/lib/supabaseClient'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
-)
-
-export default async function CategoryDetail({
-  params,
-}: {
-  params: { slug: string }
-}) {
-  console.log('Route params:', params) // Debug log
-
-  const slug = params.slug.toLowerCase().trim()
-
+export default async function CategoryDetail({ params }: { params: { slug: string } }) {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
-    .eq('slug', slug)
+    .ilike('slug', params.slug)
 
   if (error) {
-    console.error('Supabase error:', error.message)
+    console.error('Supabase error:', error)
+    return <div>Error loading category</div>
   }
 
   const category = data?.[0]
+  if (!category) return <div>Category not found</div>
 
   return (
-    <div style={{ padding: '2rem' }}>
-      {category ? (
-        <>
-          <h1>{category.slug}</h1>
-          <p>{category.description ?? 'No description available'}</p>
-        </>
-      ) : (
-        <h1>Category not found</h1>
-      )}
+    <div>
+      <h1>{category.name}</h1>
+      <p>{category.description}</p>
     </div>
   )
 }
