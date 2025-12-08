@@ -6,11 +6,21 @@ export default async function CategoryDetail({
 }: {
   params: { slug: string }
 }) {
+  // Supabase client is guaranteed non-null because of Option 3 typing
   const supabase = getSupabaseClient()
-  const { data } = await supabase
+
+  // Debug log to confirm slug
+  console.log('Slug used for query:', params.slug)
+
+  const { data, error } = await supabase
     .from('categories')
     .select('*')
     .eq('slug', params.slug)
+
+  if (error) {
+    console.error('Supabase error:', error)
+    return <div>Error loading category</div>
+  }
 
   const category = data?.[0]
 
