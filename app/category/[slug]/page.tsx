@@ -1,20 +1,11 @@
 // app/category/[slug]/page.tsx
-import { getSupabaseClient } from '@/app/lib/supabaseClient'
+import { supabase } from '@/app/lib/supabaseClient'
 
-
-export default async function CategoryDetail({
-  params,
-}: {
-  params: { slug: string }
-}) {
-  const supabase = getSupabaseClient()
-
-  console.log('Slug param:', params.slug)
-
+export default async function CategoryDetail({ params }: { params: { slug: string } }) {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
-    .ilike('slug', params.slug) // case-insensitive
+    .ilike('slug', params.slug)
 
   if (error) {
     console.error('Supabase error:', error)
@@ -22,10 +13,7 @@ export default async function CategoryDetail({
   }
 
   const category = data?.[0]
-
-  if (!category) {
-    return <div>Category not found</div>
-  }
+  if (!category) return <div>Category not found</div>
 
   return (
     <div>
