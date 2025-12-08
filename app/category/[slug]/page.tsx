@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '@/app/lib/supabaseClient'
 
+
 export default async function CategoryDetail({ params }) {
   console.log('Route params:', params)
 
