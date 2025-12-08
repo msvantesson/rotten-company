@@ -1,23 +1,19 @@
 // app/category/[slug]/page.tsx
 import { getSupabaseClient } from '@/app/lib/supabaseClient'
 
-interface CategoryPageProps {
-  params: {
-    slug: string
-  }
-}
+export default async function CategoryDetail(
+  props: { params: { slug: string } }
+) {
+  const { params } = props
+  const slug = params.slug
 
-export default async function CategoryDetail({ params }: CategoryPageProps) {
   console.log('Route params:', params)
+  console.log('Slug used for query:', slug)
 
   const supabase = getSupabaseClient()
   if (!supabase) {
     return <div>Supabase not configured</div>
   }
-
-  // Ensure params.slug is a string
-  const slug = String(params.slug)
-  console.log('Slug used for query:', slug)
 
   const { data, error } = await supabase
     .from('categories')
