@@ -1,13 +1,15 @@
 // app/category/[slug]/page.tsx
 import { getSupabaseClient } from '@/app/lib/supabaseClient'
 
-export default async function CategoryDetail(
-  props: { params: { slug: string } }
-) {
-  const { params } = props
-  const slug = params.slug
+interface CategoryPageProps {
+  params: {
+    slug: string
+  }
+}
 
-  console.log('Route params:', params)
+export default async function CategoryDetail({ params }: CategoryPageProps) {
+  // params is a plain object, not a Promise
+  const slug = params.slug
   console.log('Slug used for query:', slug)
 
   const supabase = getSupabaseClient()
