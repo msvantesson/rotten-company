@@ -3,7 +3,7 @@
 import { supabase } from '@/app/lib/supabaseClient'
 import { useEffect } from 'react'
 
-export default function RoleDebug() {
+export default function RoleDebugPage() {
   useEffect(() => {
     const checkRole = async () => {
       const { data, error } = await supabase.rpc('debug_role')
@@ -12,5 +12,5 @@ export default function RoleDebug() {
     checkRole()
   }, [])
 
-  return <div>Check console for role debug</div>
+  return <div>Open your browser console to see role debug output</div>
 }
