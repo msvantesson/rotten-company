@@ -10,15 +10,16 @@ export default function CategoryDetail({ params }: { params: { slug: string } })
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    console.log('Slug param:', params.slug) // debug log
     const fetchCategory = async () => {
-      setLoading(true)
       const { data, error } = await supabase
         .from('categories')
         .select('*')
-        .eq('slug', params.slug) // use eq for exact match
+        .ilike('slug', params.slug) // case-insensitive match
+
+      console.log('Supabase query result:', data, error) // debug log
 
       if (error) {
-        console.error('Supabase error:', error)
         setError(error.message)
       } else {
         setCategory(data?.[0] ?? null)
