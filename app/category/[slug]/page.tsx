@@ -6,7 +6,6 @@ export default async function CategoryDetail({
 }: {
   params: { slug: string }
 }) {
-  // Supabase client is guaranteed non-null because of Option 3 typing
   const supabase = getSupabaseClient()
 
   // Debug log to confirm slug
@@ -24,10 +23,14 @@ export default async function CategoryDetail({
 
   const category = data?.[0]
 
+  if (!category) {
+    return <div>Category not found</div>
+  }
+
   return (
     <div>
-      <h1>{category?.name ?? 'Not found'}</h1>
-      <p>{category?.description ?? 'No description available'}</p>
+      <h1>{category.name}</h1>
+      <p>{category.description}</p>
     </div>
   )
 }
