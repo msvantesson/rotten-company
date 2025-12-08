@@ -1,25 +1,40 @@
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@supabase/supabase-js'
 
-export default async function CategoryDetail({ params }: { params: { slug: string } }) {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+)
+
+export default async function CategoryDetail({
+  params,
+}: {
+  params: { slug: string }
+}) {
+  console.log('Route params:', params) // Debug log
+
+  const slug = params.slug.toLowerCase().trim()
+
   const { data, error } = await supabase
     .from('categories')
     .select('*')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
 
   if (error) {
-    return <div>Error loading category: {error.message}</div>
+    console.error('Supabase error:', error.message)
   }
 
-  if (!data || data.length === 0) {
-    return <div>Category not found</div>
-  }
-
-  const category = data[0]
+  const category = data?.[0]
 
   return (
-    <div>
-      <h1>{category.name}</h1>
-      <p>{category.description ?? 'No description available'}</p>
+    <div style={{ padding: '2rem' }}>
+      {category ? (
+        <>
+          <h1>{category.slug}</h1>
+          <p>{category.description ?? 'No description available'}</p>
+        </>
+      ) : (
+        <h1>Category not found</h1>
+      )}
     </div>
   )
 }
