@@ -3,21 +3,30 @@
 
 import { supabase } from '@/app/lib/supabaseClient'
 import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 
-export default function CategoryDetail({ params }: { params: { slug: string } }) {
+export default function CategoryDetail() {
+  const params = useParams() as { slug?: string }
   const [category, setCategory] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    console.log('Slug param:', params.slug) // debug log
+    if (!params?.slug) {
+      console.log('Slug param missing')
+      setLoading(false)
+      return
+    }
+
+    console.log('Slug param:', params.slug)
+
     const fetchCategory = async () => {
       const { data, error } = await supabase
         .from('categories')
         .select('*')
-        .ilike('slug', params.slug) // case-insensitive match
+        .ilike('slug', params.slug)
 
-      console.log('Supabase query result:', data, error) // debug log
+      console.log('Supabase query result:', data, error)
 
       if (error) {
         setError(error.message)
@@ -27,7 +36,7 @@ export default function CategoryDetail({ params }: { params: { slug: string } })
       setLoading(false)
     }
     fetchCategory()
-  }, [params.slug])
+  }, [params?.slug])
 
   if (loading) return <div>Loading category…</div>
   if (error) return <div>Error loading category: {error}</div>
