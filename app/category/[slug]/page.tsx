@@ -9,12 +9,13 @@ export default async function CategoryDetail({
   const supabase = getSupabaseClient()
 
   // Debug log to confirm slug
-  console.log('Slug used for query:', params.slug)
+  console.log('Slug param:', params.slug)
 
+  // Query categories table, case-insensitive match on slug
   const { data, error } = await supabase
     .from('categories')
     .select('*')
-    .eq('slug', params.slug)
+    .ilike('slug', params.slug)
 
   if (error) {
     console.error('Supabase error:', error)
