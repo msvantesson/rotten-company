@@ -8,14 +8,6 @@ interface CategoryPageProps {
 }
 
 export default async function CategoryDetail({ params }: CategoryPageProps) {
-  // Debug logs to check environment variables at runtime
-  console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-  console.log(
-    'Supabase Key:',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.slice(0, 5) + '...'
-      : 'undefined'
-  )
   console.log('Route params:', params)
 
   const supabase = getSupabaseClient()
@@ -23,10 +15,14 @@ export default async function CategoryDetail({ params }: CategoryPageProps) {
     return <div>Supabase not configured</div>
   }
 
+  // Ensure params.slug is a string
+  const slug = String(params.slug)
+  console.log('Slug used for query:', slug)
+
   const { data, error } = await supabase
     .from('categories')
     .select('*')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
 
   if (error) {
     console.error('Supabase error:', error)
