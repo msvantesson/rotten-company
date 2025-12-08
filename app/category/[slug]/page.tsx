@@ -1,7 +1,12 @@
 import { getSupabaseClient } from '@/app/lib/supabaseClient'
 
+interface CategoryPageProps {
+  params: {
+    slug: string
+  }
+}
 
-export default async function CategoryDetail({ params }) {
+export default async function CategoryDetail({ params }: CategoryPageProps) {
   console.log('Route params:', params)
 
   const supabase = getSupabaseClient()
