@@ -1,14 +1,11 @@
 // app/category/[slug]/page.tsx
 import { getSupabaseClient } from '@/app/lib/supabaseClient'
 
-interface CategoryPageProps {
-  params: {
-    slug: string
-  }
-}
-
-export default async function CategoryDetail({ params }: CategoryPageProps) {
-  // params is a plain object, not a Promise
+export default async function CategoryDetail({
+  params,
+}: {
+  params: { slug: string }
+}) {
   const slug = params.slug
   console.log('Slug used for query:', slug)
 
