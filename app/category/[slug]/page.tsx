@@ -1,6 +1,7 @@
 // app/category/[slug]/page.tsx
 import { getSupabaseClient } from '@/app/lib/supabaseClient'
 
+
 export default async function CategoryDetail({
   params,
 }: {
