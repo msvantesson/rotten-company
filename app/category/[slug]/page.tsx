@@ -1,23 +1,16 @@
+'use client'
+
 import { supabase } from '@/app/lib/supabaseClient'
+import { useEffect } from 'react'
 
-export default async function CategoryDetail({ params }: { params: { slug: string } }) {
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .ilike('slug', params.slug)
+export default function RoleDebug() {
+  useEffect(() => {
+    const checkRole = async () => {
+      const { data, error } = await supabase.rpc('debug_role')
+      console.log('role debug:', data, error)
+    }
+    checkRole()
+  }, [])
 
-  if (error) {
-    console.error('Supabase error:', error)
-    return <div>Error loading category</div>
-  }
-
-  const category = data?.[0]
-  if (!category) return <div>Category not found</div>
-
-  return (
-    <div>
-      <h1>{category.name}</h1>
-      <p>{category.description}</p>
-    </div>
-  )
+  return <div>Check console for role debug</div>
 }
