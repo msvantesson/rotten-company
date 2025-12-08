@@ -6,27 +6,14 @@ export default async function CategoryDetail({
 }: {
   params: { slug: string }
 }) {
-  const slug = params.slug
-  console.log('Slug used for query:', slug)
-
   const supabase = getSupabaseClient()
-  if (!supabase) {
-    return <div>Supabase not configured</div>
-  }
-
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('categories')
     .select('*')
-    .eq('slug', slug)
-
-  if (error) {
-    console.error('Supabase error:', error)
-    return <div>Error loading category</div>
-  }
-
-  console.log('Supabase query result:', data)
+    .eq('slug', params.slug)
 
   const category = data?.[0]
+
   return (
     <div>
       <h1>{category?.name ?? 'Not found'}</h1>
