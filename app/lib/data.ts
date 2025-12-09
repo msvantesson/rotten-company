@@ -1,22 +1,31 @@
 // app/lib/data.ts
 import { createClient } from "@supabase/supabase-js";
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Fetch a single entity by slug.
- * Supports: company, leader, manager, owner
+ * Handles pluralization and special cases (categories, owners_investors).
  */
 export async function fetchEntityBySlug(
-  entity: "company" | "leader" | "manager" | "owner",
+  entity: "company" | "leader" | "manager" | "owner" | "category",
   slug: string
 ) {
-  // Table names: companies, leaders, managers, owners_investors
-  const table = entity === "owner" ? "owners_investors" : `${entity}s`;
+  let table: string;
+
+  switch (entity) {
+    case "owner":
+      table = "owners_investors";
+      break;
+    case "category":
+      table = "categories"; // ✅ correct plural
+      break;
+    default:
+      table = `${entity}s`;
+  }
 
   const { data, error } = await supabase
     .from(table)
@@ -24,27 +33,32 @@ export async function fetchEntityBySlug(
     .eq("slug", slug)
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error(`Error fetching ${entity} with slug ${slug}:`, error);
+    return null;
+  }
+
   return data;
 }
 
 /**
  * Fetch approved evidence linked to an entity.
- * Uses correct FK column names from schema.
  */
 export async function fetchApprovedEvidence(
-  entity: "company" | "leader" | "manager" | "owner",
+  entity: "company" | "leader" | "manager" | "owner" | "category",
   entityId: number
 ) {
-  // FK columns: company_id, leader_id, manager_id, owner_id
-  const column = entity === "owner" ? "owner_id" : `${entity}_id`;
-
   const { data, error } = await supabase
     .from("evidence")
     .select("*")
-    .eq(column, entityId)
+    .eq("entity_type", entity)
+    .eq("entity_id", entityId)
     .eq("status", "approved");
 
-  if (error) throw error;
+  if (error) {
+    console.error(`Error fetching evidence for ${entity} ${entityId}:`, error);
+    return [];
+  }
+
   return data || [];
 }
