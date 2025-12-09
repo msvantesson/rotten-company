@@ -1,6 +1,6 @@
-// src/app/company/[slug]/page.tsx
-import { fetchEntityBySlug, fetchApprovedEvidence } from "@/src/lib/api";
-import { badgeForScore } from "@/src/lib/scoring";
+// app/company/[slug]/page.tsx
+import { fetchEntityBySlug, fetchApprovedEvidence } from "../../lib/api";
+import { badgeForScore } from "../../lib/scoring";
 
 export default async function CompanyPage({ params }: { params: { slug: string } }) {
   // Fetch company by slug
@@ -27,3 +27,4 @@ export default async function CompanyPage({ params }: { params: { slug: string }
     </div>
   );
 }
+
