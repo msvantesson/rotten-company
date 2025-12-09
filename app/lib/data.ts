@@ -20,9 +20,11 @@ export async function fetchEntityBySlug(
     case "owner":
       table = "owners_investors";
       break;
-    case "category":
-      table = "categories"; // ✅ correct plural
-      break;
+
+      case "category":
+    table = "categories";
+    break;
+
     default:
       table = `${entity}s`;
   }
