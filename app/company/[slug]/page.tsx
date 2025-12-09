@@ -8,7 +8,7 @@ export default async function CompanyPage({
   params: any;
 }) {
   const resolvedParams = await Promise.resolve(params);
-  const slug = resolvedParams?.slug as string | undefined;
+  const slug = resolvedParams?.slug ? decodeURIComponent(String(resolvedParams.slug)) : undefined;
 
   if (!slug) {
     return (
