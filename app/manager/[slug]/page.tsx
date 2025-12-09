@@ -1,33 +1,24 @@
-// app/manager/[slug]/page.tsx
 import { fetchEntityBySlug, fetchApprovedEvidence } from "@/lib/data";
 
 export default async function ManagerPage({ params }: { params: { slug: string } }) {
   try {
     const manager = await fetchEntityBySlug("manager", params.slug);
-    if (!manager) return <div>Manager not found</div>;
+    if (!manager) return <div>No manager found for slug: {params.slug}</div>;
 
     const evidence = await fetchApprovedEvidence("manager", manager.id);
 
     return (
       <div>
         <h1>{manager.name}</h1>
-        <p>Role: {manager.role}</p>
-        <p>RottenMeter: {manager.rotten_score}</p>
-        <h2>Evidence</h2>
-        {evidence.length === 0 ? (
-          <p>No approved evidence yet.</p>
-        ) : (
-          <ul>
-            {evidence.map((e: any) => (
-              <li key={e.id}>
-                <strong>{e.title}</strong> — {e.summary} · {e.severity}
-              </li>
-            ))}
-          </ul>
-        )}
+        <p>{manager.description}</p>
+        <h2>Approved Evidence</h2>
+        {evidence.length ? (
+          <ul>{evidence.map((e: any) => <li key={e.id}>{e.title}</li>)}</ul>
+        ) : <p>No approved evidence yet.</p>}
       </div>
     );
   } catch (err) {
-    return <div>Error loading manager: {(err as Error).message}</div>;
+    console.error(err);
+    return <div>Unexpected error occurred.</div>;
   }
 }
