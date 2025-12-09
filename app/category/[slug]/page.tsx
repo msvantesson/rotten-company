@@ -1,4 +1,3 @@
-// app/category/[slug]/page.tsx
 import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
 
 export default async function CategoryPage({
@@ -6,15 +5,10 @@ export default async function CategoryPage({
 }: {
   params: { slug: string };
 }) {
-  // ✅ params.slug will now be defined
   const category = await fetchEntityBySlug("category", params.slug);
 
   if (!category) {
-    return (
-      <div>
-        <h1>No category found for slug: {params.slug}</h1>
-      </div>
-    );
+    return <h1>No category found for slug: {params.slug}</h1>;
   }
 
   const evidence = await fetchApprovedEvidence("category", category.id);
