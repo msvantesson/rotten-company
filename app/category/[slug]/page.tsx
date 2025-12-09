@@ -1,45 +1,47 @@
 // app/category/[slug]/page.tsx
-'use client'
+import { createClient } from "@supabase/supabase-js";
 
-import { supabase } from '@/app/lib/supabaseClient'
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-export default function CategoryDetail() {
-  const params = useParams() as { slug: string }
-  const [category, setCategory] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchCategory = async () => {
-      console.log('Slug param:', params.slug)
-
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .ilike('slug', params.slug) // now typed as string
-
-      console.log('Supabase query result:', data, error)
-
-      if (error) {
-        setError(error.message)
-      } else {
-        setCategory(data?.[0] ?? null)
-      }
-      setLoading(false)
+export default async function CategoryPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  try {
+    // Defensive check: ensure slug exists
+    if (!params.slug) {
+      throw new Error("Slug param is missing");
     }
-    fetchCategory()
-  }, [params.slug])
 
-  if (loading) return <div>Loading category…</div>
-  if (error) return <div>Error loading category: {error}</div>
-  if (!category) return <div>Category not found</div>
+    const { data, error } = await supabase
+      .from("categories")
+      .select("*")
+      .ilike("slug", params.slug!); // non-null assertion
 
-  return (
-    <div>
-      <h1>{category.name}</h1>
-      <p>{category.description}</p>
-    </div>
-  )
+    if (error) {
+      console.error("Supabase error:", error);
+      return <div>Failed to load category.</div>;
+    }
+
+    if (!data || data.length === 0) {
+      return <div>No category found for slug: {params.slug}</div>;
+    }
+
+    const category = data[0];
+
+    return (
+      <div>
+        <h1>{category.name}</h1>
+        <p>Slug: {category.slug}</p>
+        <p>Description: {category.description}</p>
+      </div>
+    );
+  } catch (err) {
+    console.error("Unexpected error:", err);
+    return <div>Unexpected error occurred.</div>;
+  }
 }
