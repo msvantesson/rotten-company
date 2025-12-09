@@ -1,47 +1,24 @@
-// app/category/[slug]/page.tsx
-import { createClient } from "@supabase/supabase-js";
+import { fetchEntityBySlug, fetchApprovedEvidence } from "@/lib/data";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-export default async function CategoryPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
+export default async function CategoryPage({ params }: { params: { slug: string } }) {
   try {
-    // Defensive check: ensure slug exists
-    if (!params.slug) {
-      throw new Error("Slug param is missing");
-    }
+    const category = await fetchEntityBySlug("category", params.slug);
+    if (!category) return <div>No category found for slug: {params.slug}</div>;
 
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .ilike("slug", params.slug!); // non-null assertion
-
-    if (error) {
-      console.error("Supabase error:", error);
-      return <div>Failed to load category.</div>;
-    }
-
-    if (!data || data.length === 0) {
-      return <div>No category found for slug: {params.slug}</div>;
-    }
-
-    const category = data[0];
+    const evidence = await fetchApprovedEvidence("category", category.id);
 
     return (
       <div>
         <h1>{category.name}</h1>
-        <p>Slug: {category.slug}</p>
-        <p>Description: {category.description}</p>
+        <p>{category.description}</p>
+        <h2>Approved Evidence</h2>
+        {evidence.length ? (
+          <ul>{evidence.map((e: any) => <li key={e.id}>{e.title}</li>)}</ul>
+        ) : <p>No approved evidence yet.</p>}
       </div>
     );
   } catch (err) {
-    console.error("Unexpected error:", err);
+    console.error(err);
     return <div>Unexpected error occurred.</div>;
   }
 }
