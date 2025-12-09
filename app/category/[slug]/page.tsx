@@ -7,14 +7,15 @@ export default async function CategoryPage({
 }: {
   params: any;
 }) {
-  // Resolve params in case the runtime provides a thenable/promise
   const resolvedParams = await Promise.resolve(params);
-  console.log("DEBUG resolvedParams:", JSON.stringify(resolvedParams));
+  const slug = resolvedParams?.slug as string | undefined;
 
-  const slug = resolvedParams?.slug;
   if (!slug) {
-    console.error("DEBUG: resolvedParams.slug is undefined", JSON.stringify(resolvedParams));
-    throw new Error("DEBUG: params.slug is undefined. params: " + JSON.stringify(resolvedParams));
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>No category found for slug</h1>
+      </div>
+    );
   }
 
   const category = await fetchEntityBySlug("category", slug);
