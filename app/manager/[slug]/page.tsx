@@ -1,28 +1,33 @@
 // app/manager/[slug]/page.tsx
-import { fetchEntityBySlug, fetchApprovedEvidence } from "../../lib/api";
-import { badgeForScore } from "../../lib/scoring";
+import { fetchEntityBySlug, fetchApprovedEvidence } from "@/lib/data";
 
 export default async function ManagerPage({ params }: { params: { slug: string } }) {
-  const manager = await fetchEntityBySlug("manager", params.slug);
-  const evidence = await fetchApprovedEvidence("manager", manager.id);
+  try {
+    const manager = await fetchEntityBySlug("manager", params.slug);
+    if (!manager) return <div>Manager not found</div>;
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{manager.name}</h1>
-      <p>
-        RottenMeter: {manager.rotten_score} ({badgeForScore(manager.rotten_score)})
-      </p>
-      <p>Role: {manager.role}</p>
-      <section>
-        <h2 className="text-xl font-semibold">Evidence</h2>
-        <ul>
-          {evidence.map((e: any) => (
-            <li key={e.id}>
-              <strong>{e.title}</strong> — {e.category} · {e.severity}
-            </li>
-          ))}
-        </ul>
-      </section>
-    </div>
-  );
+    const evidence = await fetchApprovedEvidence("manager", manager.id);
+
+    return (
+      <div>
+        <h1>{manager.name}</h1>
+        <p>Role: {manager.role}</p>
+        <p>RottenMeter: {manager.rotten_score}</p>
+        <h2>Evidence</h2>
+        {evidence.length === 0 ? (
+          <p>No approved evidence yet.</p>
+        ) : (
+          <ul>
+            {evidence.map((e: any) => (
+              <li key={e.id}>
+                <strong>{e.title}</strong> — {e.summary} · {e.severity}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  } catch (err) {
+    return <div>Error loading manager: {(err as Error).message}</div>;
+  }
 }
