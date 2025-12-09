@@ -6,6 +6,7 @@ export default async function CategoryPage({
 }: {
   params: { slug: string };
 }) {
+  // ✅ params.slug will now be defined
   const category = await fetchEntityBySlug("category", params.slug);
 
   if (!category) {
