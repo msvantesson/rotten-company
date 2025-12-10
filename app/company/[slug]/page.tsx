@@ -1,15 +1,10 @@
-// app/company/[slug]/page.tsx
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabaseClient";
-
+import { supabase } from "@/lib/supabaseClient";
 
 export default async function CompanyPage({ params }: { params: { slug: string } }) {
-  const supabase = createClient();
-
-  // Decode slug from URL
+  // Use the supabase client directly
   const rawSlug = decodeURIComponent(params.slug);
 
-  // Try to fetch company by slug
   const { data: company } = await supabase
     .from("companies")
     .select("id, name, slug")
@@ -20,7 +15,6 @@ export default async function CompanyPage({ params }: { params: { slug: string }
     notFound();
   }
 
-  // Fetch approved evidence for this company
   const { data: evidence } = await supabase
     .from("evidence")
     .select("id, title, content")
@@ -30,7 +24,6 @@ export default async function CompanyPage({ params }: { params: { slug: string }
   return (
     <div>
       <h1>{company.name}</h1>
-
       <h2>Approved Evidence</h2>
       {evidence && evidence.length > 0 ? (
         <ul>
