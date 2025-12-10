@@ -1,53 +1,45 @@
 // app/company/[slug]/page.tsx
-import React from "react";
-import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
+import { notFound } from "next/navigation";
+import { createClient } from "@/utils/supabase/server";
 
-export default async function CompanyPage({
-  params,
-}: {
-  params: any;
-}) {
-  const resolvedParams = await Promise.resolve(params);
-  const slug = resolvedParams?.slug ? decodeURIComponent(String(resolvedParams.slug)) : undefined;
+export default async function CompanyPage({ params }: { params: { slug: string } }) {
+  const supabase = createClient();
 
-  if (!slug) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h1>No company found for slug</h1>
-      </div>
-    );
-  }
+  // Decode slug from URL
+  const rawSlug = decodeURIComponent(params.slug);
 
-  const company = await fetchEntityBySlug("company", slug);
+  // Try to fetch company by slug
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id, name, slug")
+    .eq("slug", rawSlug)
+    .single();
+
   if (!company) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h1>No company found for slug: {slug}</h1>
-      </div>
-    );
+    notFound();
   }
 
-  const evidence = await fetchApprovedEvidence("company", company.id);
+  // Fetch approved evidence for this company
+  const { data: evidence } = await supabase
+    .from("evidence")
+    .select("id, title, content")
+    .eq("company_id", company.id)
+    .eq("status", "approved");
 
   return (
-    <main style={{ padding: 24 }}>
-      <header>
-        <h1>{company.name}</h1>
-        <p>{company.description}</p>
-      </header>
+    <div>
+      <h1>{company.name}</h1>
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Approved Evidence</h2>
-        {evidence.length === 0 ? (
-          <p>No approved evidence yet.</p>
-        ) : (
-          <ul>
-            {evidence.map((item: any) => (
-              <li key={item.id}>{item.title}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+      <h2>Approved Evidence</h2>
+      {evidence && evidence.length > 0 ? (
+        <ul>
+          {evidence.map((item) => (
+            <li key={item.id}>{item.title}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>No approved evidence yet.</p>
+      )}
+    </div>
   );
 }
