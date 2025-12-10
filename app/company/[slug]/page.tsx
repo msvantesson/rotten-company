@@ -1,6 +1,7 @@
 // app/company/[slug]/page.tsx
 import { notFound } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/lib/supabaseClient";
+
 
 export default async function CompanyPage({ params }: { params: { slug: string } }) {
   const supabase = createClient();
