@@ -8,7 +8,7 @@ export default async function CompanyPage({
   params,
 }: {
   params: { slug: string };
-}) {
+}) { 
   const rawSlug = params?.slug ? decodeURIComponent(params.slug) : null;
 
   if (!rawSlug) {
