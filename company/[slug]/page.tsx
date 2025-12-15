@@ -1,3 +1,8 @@
+console.log("DEBUG: params =", params);
+console.log("DEBUG: rawSlug =", rawSlug);
+console.log("DEBUG: company =", company);
+console.log("DEBUG: companyError =", companyError);
+
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
