@@ -9,15 +9,17 @@ import { supabase } from "@/lib/supabaseClient";
 export default async function CompanyPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }> | { slug: string };
 }) {
-  const rawSlug = params?.slug ? decodeURIComponent(params.slug) : "";
+  // params can be a Promise in this Next.js version; await it safely
+  const resolvedParams = (await params) as { slug?: string } | undefined;
+  const rawSlug = resolvedParams?.slug ? decodeURIComponent(resolvedParams.slug) : "";
 
   // SSR debug: log params, rawSlug, and request headers
   try {
-    const hdrsObj = await headers(); // await the Promise
+    const hdrsObj = await headers();
     const hdrs = Object.fromEntries(hdrsObj.entries());
-    console.log("SSR DEBUG — params:", params);
+    console.log("SSR DEBUG — params:", resolvedParams);
     console.log("SSR DEBUG — rawSlug:", rawSlug);
     console.log("SSR DEBUG — headers:", hdrs);
   } catch (e) {
