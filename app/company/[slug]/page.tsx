@@ -3,56 +3,39 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
-import { headers } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
 
-export default async function CompanyPage({
-  params,
-}: {
-  params: Promise<{ slug: string }> | { slug: string };
-}) {
-  // params can be a Promise in this Next.js version; await it safely
+type Params = Promise<{ slug: string }> | { slug: string };
+type Evidence = { id: number; title: string; summary?: string };
+type Company = { id: number; name: string; slug: string } | null;
+
+export default async function CompanyPage({ params }: { params: Params }) {
   const resolvedParams = (await params) as { slug?: string } | undefined;
   const rawSlug = resolvedParams?.slug ? decodeURIComponent(resolvedParams.slug) : "";
 
-  // SSR debug: log params, rawSlug, and request headers
-  try {
-    const hdrsObj = await headers();
-    const hdrs = Object.fromEntries(hdrsObj.entries());
-    console.log("SSR DEBUG — params:", resolvedParams);
-    console.log("SSR DEBUG — rawSlug:", rawSlug);
-    console.log("SSR DEBUG — headers:", hdrs);
-  } catch (e) {
-    console.log("SSR DEBUG — headers read failed:", String(e));
-  }
-
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("id, name, slug")
-    .eq("slug", rawSlug)
-    .maybeSingle();
-
-  console.log("COMPANY PAGE DEBUG — company:", company);
-  console.log("COMPANY PAGE DEBUG — companyError:", companyError);
+  const { data: company, error: companyError }: { data: Company; error: any } =
+    await supabase
+      .from("companies")
+      .select("id, name, slug")
+      .eq("slug", rawSlug)
+      .maybeSingle();
 
   if (!company) {
     return (
       <div style={{ padding: "2rem" }}>
         <h1>No company found</h1>
-        <p>Slug: {rawSlug || "null"}</p>
+        <p><strong>Slug</strong>: {rawSlug || "null"}</p>
         <pre>{JSON.stringify(companyError, null, 2)}</pre>
       </div>
     );
   }
 
-  const { data: evidence, error: evidenceError } = await supabase
-    .from("evidence")
-    .select("id, title, summary")
-    .eq("company_id", company.id)
-    .eq("status", "approved");
-
-  console.log("COMPANY PAGE DEBUG — evidence:", evidence);
-  console.log("COMPANY PAGE DEBUG — evidenceError:", evidenceError);
+  const { data: evidence, error: evidenceError }: { data: Evidence[] | null; error: any } =
+    await supabase
+      .from("evidence")
+      .select("id, title, summary")
+      .eq("company_id", company.id)
+      .eq("status", "approved");
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -62,12 +45,17 @@ export default async function CompanyPage({
       {evidence && evidence.length > 0 ? (
         <ul>
           {evidence.map((item) => (
-            <li key={item.id}>{item.title}</li>
+            <li key={item.id}>
+              <strong>{item.title}</strong>
+              {item.summary ? <div style={{ marginTop: 6 }}>{item.summary}</div> : null}
+            </li>
           ))}
         </ul>
       ) : (
         <p>No approved evidence found.</p>
       )}
+
+      {evidenceError ? <pre style={{ marginTop: 12 }}>{JSON.stringify(evidenceError, null, 2)}</pre> : null}
     </div>
   );
 }
