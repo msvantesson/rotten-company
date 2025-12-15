@@ -1,8 +1,9 @@
 export const dynamic = "force-dynamic";
 export const dynamicParams = false;
-
+export const fetchCache = "force-no-store";
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+
 
 
 export default async function CompanyPage({ params }: { params: { slug: string } }) {
