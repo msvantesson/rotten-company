@@ -16,9 +16,10 @@ export default async function CompanyPage({ params }: { params: { slug: string }
     .eq("slug", rawSlug)
     .single();
 
-  if (!company) {
-    notFound();
-  }
+if (!company) {
+  return <div>NO COMPANY FOUND FOR SLUG: {rawSlug}</div>;
+}
+
 
   const { data: evidence } = await supabase
     .from("evidence")
