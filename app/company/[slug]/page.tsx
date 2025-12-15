@@ -9,14 +9,11 @@ export default async function CompanyPage({
 }: {
   params: { slug: string };
 }) {
-  // ✅ Extract slug safely
   const rawSlug = params?.slug ? decodeURIComponent(params.slug) : "";
 
-  // ✅ Debug logs
   console.log("COMPANY PAGE DEBUG — params:", params);
   console.log("COMPANY PAGE DEBUG — rawSlug:", rawSlug);
 
-  // ✅ Fetch company using maybeSingle to avoid coercion errors
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id, name, slug")
@@ -26,9 +23,39 @@ export default async function CompanyPage({
   console.log("COMPANY PAGE DEBUG — company:", company);
   console.log("COMPANY PAGE DEBUG — companyError:", companyError);
 
-  // ✅ If no company found, show fallback
   if (!company) {
     return (
       <div style={{ padding: "2rem" }}>
         <h1>No company found</h1>
-        <p>Slug: {rawSlug
+        <p>Slug: {rawSlug || "null"}</p>
+        <pre>{JSON.stringify(companyError, null, 2)}</pre>
+      </div>
+    );
+  }
+
+  const { data: evidence, error: evidenceError } = await supabase
+    .from("evidence")
+    .select("id, title, content")
+    .eq("company_id", company.id)
+    .eq("status", "approved");
+
+  console.log("COMPANY PAGE DEBUG — evidence:", evidence);
+  console.log("COMPANY PAGE DEBUG — evidenceError:", evidenceError);
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <h1>{company.name}</h1>
+      <h2>Approved Evidence</h2>
+
+      {evidence && evidence.length > 0 ? (
+        <ul>
+          {evidence.map((item) => (
+            <li key={item.id}>{item.title}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>No approved evidence found.</p>
+      )}
+    </div>
+  );
+}
