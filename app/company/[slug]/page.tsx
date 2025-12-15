@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+export const dynamic = "force-dynamic";
+
 
 export default async function CompanyPage({ params }: { params: { slug: string } }) {
   // Use the supabase client directly
