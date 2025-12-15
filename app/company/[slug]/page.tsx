@@ -15,7 +15,8 @@ export default async function CompanyPage({
 
   // SSR debug: log params, rawSlug, and request headers
   try {
-    const hdrs = Object.fromEntries(headers().entries());
+    const hdrsObj = await headers(); // await the Promise
+    const hdrs = Object.fromEntries(hdrsObj.entries());
     console.log("SSR DEBUG — params:", params);
     console.log("SSR DEBUG — rawSlug:", rawSlug);
     console.log("SSR DEBUG — headers:", hdrs);
