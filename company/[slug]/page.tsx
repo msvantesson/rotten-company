@@ -13,8 +13,8 @@ export default async function CompanyPage({
   const rawSlug = params?.slug ? decodeURIComponent(params.slug) : "";
 
   // ✅ Debug logs (safe + inside component)
-  console.log("DEBUG: params =", params);
-  console.log("DEBUG: rawSlug =", rawSlug);
+  console.log("COMPANY PAGE DEBUG — params:", params);
+  console.log("COMPANY PAGE DEBUG — rawSlug:", rawSlug);
 
   // ✅ Fetch company
   const { data: company, error: companyError } = await supabase
@@ -23,13 +23,13 @@ export default async function CompanyPage({
     .eq("slug", rawSlug)
     .single();
 
-  console.log("DEBUG: company =", company);
-  console.log("DEBUG: companyError =", companyError);
+  console.log("COMPANY PAGE DEBUG — company:", company);
+  console.log("COMPANY PAGE DEBUG — companyError:", companyError);
 
-  // ✅ If no company found, show fallback UI (not 404)
+  // ✅ If no company found, show visible fallback (NOT a Next.js 404)
   if (!company) {
     return (
-      <div>
+      <div style={{ padding: "2rem" }}>
         <h1>No company found</h1>
         <p>Slug: {rawSlug}</p>
         <pre>{JSON.stringify(companyError, null, 2)}</pre>
@@ -44,12 +44,12 @@ export default async function CompanyPage({
     .eq("company_id", company.id)
     .eq("status", "approved");
 
-  console.log("DEBUG: evidence =", evidence);
-  console.log("DEBUG: evidenceError =", evidenceError);
+  console.log("COMPANY PAGE DEBUG — evidence:", evidence);
+  console.log("COMPANY PAGE DEBUG — evidenceError:", evidenceError);
 
   // ✅ Render page
   return (
-    <div>
+    <div style={{ padding: "2rem" }}>
       <h1>{company.name}</h1>
       <h2>Approved Evidence</h2>
 
