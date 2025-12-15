@@ -18,7 +18,9 @@ export default async function CompanyPage({
     .from("companies")
     .select("id, name, slug")
     .eq("slug", rawSlug)
-    .single();
+    .maybeSingle();
+
+   
 
   console.log("COMPANY PAGE DEBUG — company:", company);
   console.log("COMPANY PAGE DEBUG — companyError:", companyError);
