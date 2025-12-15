@@ -1,7 +1,9 @@
+// app/company/[slug]/page.tsx
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
+import { headers } from "next/headers";
 import { supabase } from "@/lib/supabaseClient";
 
 export default async function CompanyPage({
@@ -11,8 +13,15 @@ export default async function CompanyPage({
 }) {
   const rawSlug = params?.slug ? decodeURIComponent(params.slug) : "";
 
-  console.log("COMPANY PAGE DEBUG — params:", params);
-  console.log("COMPANY PAGE DEBUG — rawSlug:", rawSlug);
+  // SSR debug: log params, rawSlug, and request headers
+  try {
+    const hdrs = Object.fromEntries(headers().entries());
+    console.log("SSR DEBUG — params:", params);
+    console.log("SSR DEBUG — rawSlug:", rawSlug);
+    console.log("SSR DEBUG — headers:", hdrs);
+  } catch (e) {
+    console.log("SSR DEBUG — headers read failed:", String(e));
+  }
 
   const { data: company, error: companyError } = await supabase
     .from("companies")
@@ -35,7 +44,7 @@ export default async function CompanyPage({
 
   const { data: evidence, error: evidenceError } = await supabase
     .from("evidence")
-    .select("id, title, content")
+    .select("id, title, summary")
     .eq("company_id", company.id)
     .eq("status", "approved");
 
