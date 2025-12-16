@@ -21,17 +21,17 @@ export function EvidenceList({ evidence }: Props) {
   return (
     <div className="space-y-6">
       {evidence.map((item) => (
-        <div key={item.id} className="border p-4 rounded-md">
-          <h3 className="font-semibold text-lg">{item.title}</h3>
+        <div key={item.id} className="border p-4 rounded-md bg-white shadow-sm">
+          <h3 className="font-semibold text-lg text-gray-900">{item.title}</h3>
           <p className="text-sm text-gray-700">{item.summary}</p>
 
-          {item.file_url && (
+          {item.file_url && item.file_type && (
             <div className="mt-3">
-              {item.file_type?.startsWith("image") && (
+              {item.file_type.startsWith("image") && (
                 <img
                   src={item.file_url}
                   alt={item.title}
-                  className="max-w-full h-auto rounded-md"
+                  className="max-w-full h-auto rounded-md border"
                 />
               )}
 
@@ -40,13 +40,13 @@ export function EvidenceList({ evidence }: Props) {
                   href={item.file_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 underline"
+                  className="inline-block mt-2 text-blue-600 underline"
                 >
                   View PDF
                 </a>
               )}
 
-              {item.file_type?.startsWith("audio") && (
+              {item.file_type.startsWith("audio") && (
                 <audio controls src={item.file_url} className="mt-2 w-full" />
               )}
             </div>
