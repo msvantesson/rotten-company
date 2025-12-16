@@ -4,9 +4,19 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { supabase } from "@/lib/supabaseClient";
+import { EvidenceList } from "@/components/EvidenceList";
 
 type Params = Promise<{ slug: string }> | { slug: string };
-type Evidence = { id: number; title: string; summary?: string };
+
+type Evidence = {
+  id: number;
+  title: string;
+  summary?: string;
+  file_url?: string;
+  file_type?: string;
+  file_size?: number;
+};
+
 type Company = { id: number; name: string; slug: string } | null;
 
 export default async function CompanyPage({ params }: { params: Params }) {
@@ -33,7 +43,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   const { data: evidence, error: evidenceError }: { data: Evidence[] | null; error: any } =
     await supabase
       .from("evidence")
-      .select("id, title, summary")
+      .select("id, title, summary, file_url, file_type, file_size")
       .eq("company_id", company.id)
       .eq("status", "approved");
 
@@ -42,20 +52,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
       <h1>{company.name}</h1>
       <h2>Approved Evidence</h2>
 
-      {evidence && evidence.length > 0 ? (
-        <ul>
-          {evidence.map((item) => (
-            <li key={item.id}>
-              <strong>{item.title}</strong>
-              {item.summary ? <div style={{ marginTop: 6 }}>{item.summary}</div> : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>No approved evidence found.</p>
-      )}
+      <EvidenceList evidence={evidence || []} />
 
-      {evidenceError ? <pre style={{ marginTop: 12 }}>{JSON.stringify(evidenceError, null, 2)}</pre> : null}
+      {evidenceError ? (
+        <pre style={{ marginTop: 12 }}>{JSON.stringify(evidenceError, null, 2)}</pre>
+      ) : null}
     </div>
   );
 }
