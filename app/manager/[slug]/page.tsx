@@ -1,53 +1,56 @@
-// app/manager/[slug]/page.tsx
-import React from "react";
-import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
+export const fetchCache = "force-no-store";
 
-export default async function ManagerPage({
-  params,
-}: {
-  params: any;
-}) {
-  const resolvedParams = await Promise.resolve(params);
-  const slug = resolvedParams?.slug as string | undefined;
+import { supabase } from "@/lib/supabaseClient";
 
-  if (!slug) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h1>No manager found for slug</h1>
-      </div>
-    );
-  }
+type Params = Promise<{ slug: string }> | { slug: string };
+type Evidence = { id: number; title: string; summary?: string };
+type Manager = { id: number; name: string; role: string | null; slug: string } | null;
 
-  const manager = await fetchEntityBySlug("manager", slug);
+export default async function ManagerPage({ params }: { params: Params }) {
+  const resolvedParams = (await params) as { slug?: string };
+  const rawSlug = resolvedParams?.slug ? decodeURIComponent(resolvedParams.slug) : "";
+
+  const { data: manager } = await supabase
+    .from("managers")
+    .select("id, name, role, slug")
+    .eq("slug", rawSlug)
+    .maybeSingle();
+
   if (!manager) {
     return (
-      <div style={{ padding: 24 }}>
-        <h1>No manager found for slug: {slug}</h1>
+      <div style={{ padding: "2rem" }}>
+        <h1>No manager found</h1>
+        <p>Slug: {rawSlug}</p>
       </div>
     );
   }
 
-  const evidence = await fetchApprovedEvidence("manager", manager.id);
+  const { data: evidence } = await supabase
+    .from("evidence")
+    .select("id, title, summary")
+    .eq("manager_id", manager.id)
+    .eq("status", "approved");
 
   return (
-    <main style={{ padding: 24 }}>
-      <header>
-        <h1>{manager.name}</h1>
-        <p>{manager.description}</p>
-      </header>
+    <div style={{ padding: "2rem" }}>
+      <h1>{manager.name}</h1>
+      {manager.role && <p>{manager.role}</p>}
+      <h2>Approved Evidence</h2>
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Approved Evidence</h2>
-        {evidence.length === 0 ? (
-          <p>No approved evidence yet.</p>
-        ) : (
-          <ul>
-            {evidence.map((item: any) => (
-              <li key={item.id}>{item.title}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+      {evidence?.length ? (
+        <ul>
+          {evidence.map((item) => (
+            <li key={item.id} style={{ marginBottom: "1rem" }}>
+              <strong>{item.title}</strong>
+              {item.summary && <div style={{ marginTop: 6 }}>{item.summary}</div>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>No approved evidence found.</p>
+      )}
+    </div>
   );
 }
