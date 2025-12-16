@@ -1,53 +1,56 @@
-// app/owner/[slug]/page.tsx
-import React from "react";
-import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
+export const fetchCache = "force-no-store";
 
-export default async function OwnerPage({
-  params,
-}: {
-  params: any;
-}) {
-  const resolvedParams = await Promise.resolve(params);
-  const slug = resolvedParams?.slug as string | undefined;
+import { supabase } from "@/lib/supabaseClient";
 
-  if (!slug) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h1>No owner/investor found for slug</h1>
-      </div>
-    );
-  }
+type Params = Promise<{ slug: string }> | { slug: string };
+type Evidence = { id: number; title: string; summary?: string };
+type Owner = { id: number; name: string; type: string; slug: string } | null;
 
-  const owner = await fetchEntityBySlug("owner", slug);
+export default async function OwnerPage({ params }: { params: Params }) {
+  const resolvedParams = (await params) as { slug?: string };
+  const rawSlug = resolvedParams?.slug ? decodeURIComponent(resolvedParams.slug) : "";
+
+  const { data: owner } = await supabase
+    .from("owners_investors")
+    .select("id, name, type, slug")
+    .eq("slug", rawSlug)
+    .maybeSingle();
+
   if (!owner) {
     return (
-      <div style={{ padding: 24 }}>
-        <h1>No owner/investor found for slug: {slug}</h1>
+      <div style={{ padding: "2rem" }}>
+        <h1>No owner/investor found</h1>
+        <p>Slug: {rawSlug}</p>
       </div>
     );
   }
 
-  const evidence = await fetchApprovedEvidence("owner", owner.id);
+  const { data: evidence } = await supabase
+    .from("evidence")
+    .select("id, title, summary")
+    .eq("owner_id", owner.id)
+    .eq("status", "approved");
 
   return (
-    <main style={{ padding: 24 }}>
-      <header>
-        <h1>{owner.name}</h1>
-        <p>{owner.description}</p>
-      </header>
+    <div style={{ padding: "2rem" }}>
+      <h1>{owner.name}</h1>
+      <p>{owner.type}</p>
+      <h2>Approved Evidence</h2>
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Approved Evidence</h2>
-        {evidence.length === 0 ? (
-          <p>No approved evidence yet.</p>
-        ) : (
-          <ul>
-            {evidence.map((item: any) => (
-              <li key={item.id}>{item.title}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+      {evidence?.length ? (
+        <ul>
+          {evidence.map((item) => (
+            <li key={item.id} style={{ marginBottom: "1rem" }}>
+              <strong>{item.title}</strong>
+              {item.summary && <div style={{ marginTop: 6 }}>{item.summary}</div>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>No approved evidence found.</p>
+      )}
+    </div>
   );
 }
