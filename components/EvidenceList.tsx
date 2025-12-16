@@ -3,7 +3,7 @@ import React from "react";
 type EvidenceItem = {
   id: number;
   title: string;
-  summary: string;
+  summary?: string; // ✅ make optional
   file_url?: string;
   file_type?: string;
   file_size?: number;
