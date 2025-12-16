@@ -3,6 +3,7 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { supabase } from "@/lib/supabaseClient";
+import { EvidenceList } from "@/components/EvidenceList";
 
 type Params = Promise<{ slug: string }> | { slug: string };
 type Evidence = { id: number; title: string; summary?: string };
