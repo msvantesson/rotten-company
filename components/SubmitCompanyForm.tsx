@@ -100,4 +100,23 @@ export default function SubmitCompanyForm() {
         placeholder="Description (optional)"
         value={formData.description}
         onChange={(e) =>
-          setForm
+          setFormData({ ...formData, description: e.target.value })
+        }
+        className="w-full border p-2 rounded"
+      />
+
+      <textarea
+        placeholder="Why are you submitting this company? (optional)"
+        value={formData.why}
+        onChange={(e) => setFormData({ ...formData, why: e.target.value })}
+        className="w-full border p-2 rounded"
+      />
+
+      <button type="submit" className="bg-black text-white px-4 py-2 rounded">
+        Submit Company
+      </button>
+
+      {status && <p className="text-sm mt-2">{status}</p>}
+    </form>
+  );
+}
