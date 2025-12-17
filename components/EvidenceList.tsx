@@ -46,9 +46,7 @@ export function EvidenceList({ evidence }: Props) {
                 </a>
               )}
 
-              {item.file_type.startsWith("audio") && (
-                <audio controls src={item.file_url} className="mt-2 w-full" />
-              )}
+            
             </div>
           )}
         </div>
