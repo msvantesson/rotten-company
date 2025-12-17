@@ -1,11 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 import EvidenceUpload from "@/components/EvidenceUpload";
 
 export default function TestUploadPage() {
+  const router = useRouter();
   const [entityId, setEntityId] = useState<number>(1);
-  const [entityType, setEntityType] = useState<"company" | "leader" | "manager" | "owner">("company");
+  const [entityType, setEntityType] = useState<
+    "company" | "leader" | "manager" | "owner"
+  >("company");
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [userPresent, setUserPresent] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        setUserPresent(false);
+        setCheckingAuth(false);
+        router.push("/login");
+        return;
+      }
+
+      setUserPresent(true);
+      setCheckingAuth(false);
+    };
+
+    checkAuth();
+  }, [router]);
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-sm text-gray-600">Checking authentication…</p>
+      </div>
+    };
+  }
+
+  if (!userPresent) {
+    // Brief state before redirect; in practice user will be moved to /login
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-sm text-gray-600">Redirecting to login…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-xl mx-auto p-6 space-y-6">
@@ -15,7 +60,9 @@ export default function TestUploadPage() {
         <label className="block text-sm font-medium">Entity Type</label>
         <select
           value={entityType}
-          onChange={(e) => setEntityType(e.target.value as any)}
+          onChange={(e) =>
+            setEntityType(e.target.value as "company" | "leader" | "manager" | "owner")
+          }
           className="border p-2 rounded w-full"
         >
           <option value="company">Company</option>
