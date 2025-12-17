@@ -3,156 +3,121 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-type Props = {
-  entityId: number;
-  entityType: "company" | "leader" | "manager" | "owner";
-};
+function sanitizeFileName(name: string) {
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9.\-_]/g, "-")
+    .toLowerCase();
+}
 
-export function EvidenceUpload({ entityId, entityType }: Props) {
+export default function EvidenceUpload() {
+  const [entityType, setEntityType] = useState("company");
+  const [entityId, setEntityId] = useState("");
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const allowedTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "application/pdf",
-  ];
-
-const maxSizeMB: Record<string, number> = {
-  "image/jpeg": 5,
-  "image/png": 5,
-  "image/webp": 5,
-  "application/pdf": 10,
-};
-
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
+  const handleSubmit = async () => {
+    setError("");
     setSuccess(false);
 
-    if (!file) {
-      setError("Please select a file.");
-      return;
-    }
-
-    if (!allowedTypes.includes(file.type)) {
-      setError("Unsupported file type.");
-      return;
-    }
-
-    const maxMB = maxSizeMB[file.type];
-    if (file.size > maxMB * 1024 * 1024) {
-      setError(`File exceeds ${maxMB}MB limit.`);
+    if (!entityType || !entityId || !title || !file) {
+      setError("All fields except summary are required.");
       return;
     }
 
     setLoading(true);
 
-    const filePath = `${entityType}/${entityId}/${Date.now()}-${file.name}`;
+    const safeName = sanitizeFileName(file.name);
+    const filePath = `${entityType}/${entityId}/${Date.now()}-${safeName}`;
 
-    const { error: uploadError } = await supabase.storage
+    const { data, error: uploadError } = await supabase.storage
       .from("evidence")
-      .upload(filePath, file);
+      .upload(filePath, file, {
+        upsert: false, // prevent overwriting existing files
+      });
 
-if (uploadError) {
-  console.error("Upload error:", uploadError); // ← Add this line
-  setLoading(false);
-  setError("Upload failed.");
-  return;
-}
-
-
-    const { data: publicUrlData } = supabase.storage
-      .from("evidence")
-      .getPublicUrl(filePath);
-
-    const fileUrl = publicUrlData.publicUrl;
-
-    const insertPayload: any = {
-      title,
-      summary,
-      file_url: fileUrl,
-      file_type: file.type,
-      file_size: file.size,
-      status: "pending",
-    };
-
-    if (entityType === "company") insertPayload.company_id = entityId;
-    if (entityType === "leader") insertPayload.leader_id = entityId;
-    if (entityType === "manager") insertPayload.manager_id = entityId;
-    if (entityType === "owner") insertPayload.owner_id = entityId;
-
-    const { error: insertError } = await supabase
-      .from("evidence")
-      .insert(insertPayload);
-
-    setLoading(false);
-
-    if (insertError) {
-      setError("Failed to save evidence.");
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      setLoading(false);
+      setError("Upload failed.");
       return;
     }
 
+    const { error: insertError } = await supabase.from("evidence").insert([
+      {
+        entity_type: entityType,
+        entity_id: Number(entityId),
+        title,
+        summary,
+        file_path: filePath,
+      },
+    ]);
+
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      setLoading(false);
+      setError("Database insert failed.");
+      return;
+    }
+
+    setLoading(false);
     setSuccess(true);
     setTitle("");
     setSummary("");
     setFile(null);
-  }
+  };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 border p-4 rounded-md">
-      <h3 className="font-semibold text-lg">Submit Evidence</h3>
+    <div>
+      <h2>Evidence Upload Test</h2>
 
-      <div>
-        <label className="block text-sm font-medium">Title</label>
-        <input
-          type="text"
-          className="border p-2 w-full rounded"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-        />
-      </div>
+      <label>Entity Type</label>
+      <select value={entityType} onChange={(e) => setEntityType(e.target.value)}>
+        <option value="company">Company</option>
+        <option value="leader">Leader</option>
+        <option value="manager">Manager</option>
+        <option value="owner">Owner</option>
+      </select>
 
-      <div>
-        <label className="block text-sm font-medium">Summary (optional)</label>
-        <textarea
-          className="border p-2 w-full rounded"
-          value={summary}
-          onChange={(e) => setSummary(e.target.value)}
-        />
-      </div>
+      <label>Entity ID</label>
+      <input
+        type="number"
+        value={entityId}
+        onChange={(e) => setEntityId(e.target.value)}
+      />
 
-      <div>
-        <label className="block text-sm font-medium">File</label>
-        <input
-          type="file"
-          accept=".jpg,.jpeg,.png,.webp,.pdf"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          required
-        />
-      </div>
+      <label>Title</label>
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
 
-      {error && <p className="text-red-600 text-sm">{error}</p>}
-      {success && (
-        <p className="text-green-600 text-sm">
-          Evidence submitted for moderation.
-        </p>
-      )}
+      <label>Summary (optional)</label>
+      <input
+        type="text"
+        value={summary}
+        onChange={(e) => setSummary(e.target.value)}
+      />
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
-      >
-        {loading ? "Submitting..." : "Submit Evidence"}
+      <label>File</label>
+      <input
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp,.pdf"
+        onChange={(e) => setFile(e.target.files?.[0] || null)}
+      />
+
+      <button onClick={handleSubmit} disabled={loading}>
+        Submit Evidence
       </button>
-    </form>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+      {success && <p style={{ color: "green" }}>Evidence submitted for moderation.</p>}
+    </div>
   );
 }
