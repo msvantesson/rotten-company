@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/utils/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
+
 
 export default function SubmitCompanyForm({ user }) {
   const [formData, setFormData] = useState({
