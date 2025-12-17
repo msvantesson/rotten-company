@@ -1,56 +1,154 @@
-import React from "react";
+"use client";
 
-type EvidenceItem = {
-  id: number;
-  title: string;
-  summary?: string; // ✅ make optional
-  file_url?: string;
-  file_type?: string;
-  file_size?: number;
-};
+import { useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 type Props = {
-  evidence: EvidenceItem[];
+  entityId: number;
+  entityType: "company" | "leader" | "manager" | "owner";
 };
 
-export function EvidenceList({ evidence }: Props) {
-  if (!evidence || evidence.length === 0) {
-    return <p>No approved evidence found.</p>;
+export function EvidenceUpload({ entityId, entityType }: Props) {
+  const [title, setTitle] = useState("");
+  const [summary, setSummary] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+  ];
+
+  const maxSizeMB = {
+    "image/jpeg": 5,
+    "image/png": 5,
+    "image/webp": 5,
+    "application/pdf": 10,
+  };
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSuccess(false);
+
+    if (!file) {
+      setError("Please select a file.");
+      return;
+    }
+
+    if (!allowedTypes.includes(file.type)) {
+      setError("Unsupported file type.");
+      return;
+    }
+
+    const maxMB = maxSizeMB[file.type];
+    if (file.size > maxMB * 1024 * 1024) {
+      setError(`File exceeds ${maxMB}MB limit.`);
+      return;
+    }
+
+    setLoading(true);
+
+    // Upload to Supabase Storage
+    const filePath = `${entityType}/${entityId}/${Date.now()}-${file.name}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("evidence")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      setLoading(false);
+      setError("Upload failed.");
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("evidence")
+      .getPublicUrl(filePath);
+
+    const fileUrl = publicUrlData.publicUrl;
+
+    // Insert into evidence table
+    const insertPayload: any = {
+      title,
+      summary,
+      file_url: fileUrl,
+      file_type: file.type,
+      file_size: file.size,
+      status: "pending",
+    };
+
+    // Attach to correct entity
+    if (entityType === "company") insertPayload.company_id = entityId;
+    if (entityType === "leader") insertPayload.leader_id = entityId;
+    if (entityType === "manager") insertPayload.manager_id = entityId;
+    if (entityType === "owner") insertPayload.owner_id = entityId;
+
+    const { error: insertError } = await supabase
+      .from("evidence")
+      .insert(insertPayload);
+
+    setLoading(false);
+
+    if (insertError) {
+      setError("Failed to save evidence.");
+      return;
+    }
+
+    setSuccess(true);
+    setTitle("");
+    setSummary("");
+    setFile(null);
   }
 
   return (
-    <div className="space-y-6">
-      {evidence.map((item) => (
-        <div key={item.id} className="border p-4 rounded-md bg-white shadow-sm">
-          <h3 className="font-semibold text-lg text-gray-900">{item.title}</h3>
-          <p className="text-sm text-gray-700">{item.summary}</p>
+    <form onSubmit={handleSubmit} className="space-y-4 border p-4 rounded-md">
+      <h3 className="font-semibold text-lg">Submit Evidence</h3>
 
-          {item.file_url && item.file_type && (
-            <div className="mt-3">
-              {item.file_type.startsWith("image") && (
-                <img
-                  src={item.file_url}
-                  alt={item.title}
-                  className="max-w-full h-auto rounded-md border"
-                />
-              )}
+      <div>
+        <label className="block text-sm font-medium">Title</label>
+        <input
+          type="text"
+          className="border p-2 w-full rounded"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+        />
+      </div>
 
-              {item.file_type === "application/pdf" && (
-                <a
-                  href={item.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block mt-2 text-blue-600 underline"
-                >
-                  View PDF
-                </a>
-              )}
+      <div>
+        <label className="block text-sm font-medium">Summary (optional)</label>
+        <textarea
+          className="border p-2 w-full rounded"
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+        />
+      </div>
 
-            
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
+      <div>
+        <label className="block text-sm font-medium">File</label>
+        <input
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,.pdf"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          required
+        />
+      </div>
+
+      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {success && <p className="text-green-600 text-sm">Evidence submitted for moderation.</p>}
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
+      >
+        {loading ? "Submitting..." : "Submit Evidence"}
+      </button>
+    </form>
   );
 }
