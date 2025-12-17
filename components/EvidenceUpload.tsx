@@ -23,12 +23,13 @@ export function EvidenceUpload({ entityId, entityType }: Props) {
     "application/pdf",
   ];
 
-  const maxSizeMB = {
-    "image/jpeg": 5,
-    "image/png": 5,
-    "image/webp": 5,
-    "application/pdf": 10,
-  };
+const maxSizeMB: Record<string, number> = {
+  "image/jpeg": 5,
+  "image/png": 5,
+  "image/webp": 5,
+  "application/pdf": 10,
+};
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
