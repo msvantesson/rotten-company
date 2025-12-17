@@ -10,9 +10,9 @@ interface EvidenceUploadProps {
 
 function sanitizeFileName(name: string) {
   return name
-    .normalize("NFKD") // split accented characters
-    .replace(/[\u0300-\u036f]/g, "") // remove accents
-    .replace(/[^a-zA-Z0-9.\-_]/g, "-") // replace invalid chars
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9.\-_]/g, "-")
     .toLowerCase();
 }
 
@@ -38,6 +38,17 @@ export default function EvidenceUpload({
 
     setLoading(true);
 
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      setLoading(false);
+      setError("User not authenticated.");
+      return;
+    }
+
     const safeName = sanitizeFileName(file.name);
     const filePath = `${entityType}/${entityId}/${Date.now()}-${safeName}`;
 
@@ -61,6 +72,7 @@ export default function EvidenceUpload({
         title,
         summary,
         file_path: filePath,
+        user_id: user.id,
       },
     ]);
 
@@ -79,37 +91,50 @@ export default function EvidenceUpload({
   };
 
   return (
-    <div>
-      <h2>Submit Evidence</h2>
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">Submit Evidence</h2>
 
-      <label>Title</label>
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">Title</label>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="border p-2 rounded w-full"
+        />
+      </div>
 
-      <label>Summary (optional)</label>
-      <input
-        type="text"
-        value={summary}
-        onChange={(e) => setSummary(e.target.value)}
-      />
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">Summary (optional)</label>
+        <input
+          type="text"
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          className="border p-2 rounded w-full"
+        />
+      </div>
 
-      <label>File</label>
-      <input
-        type="file"
-        accept=".jpg,.jpeg,.png,.webp,.pdf"
-        onChange={(e) => setFile(e.target.files?.[0] || null)}
-      />
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">File</label>
+        <input
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,.pdf"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          className="border p-2 rounded w-full"
+        />
+      </div>
 
-      <button onClick={handleSubmit} disabled={loading}>
+      <button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
+      >
         Submit Evidence
       </button>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p className="text-red-600 mt-2">{error}</p>}
       {success && (
-        <p style={{ color: "green" }}>Evidence submitted for moderation.</p>
+        <p className="text-green-600 mt-2">Evidence submitted for moderation.</p>
       )}
     </div>
   );
