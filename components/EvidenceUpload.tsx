@@ -3,17 +3,23 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+interface EvidenceUploadProps {
+  entityId: number;
+  entityType: "company" | "leader" | "manager" | "owner";
+}
+
 function sanitizeFileName(name: string) {
   return name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9.\-_]/g, "-")
+    .normalize("NFKD") // split accented characters
+    .replace(/[\u0300-\u036f]/g, "") // remove accents
+    .replace(/[^a-zA-Z0-9.\-_]/g, "-") // replace invalid chars
     .toLowerCase();
 }
 
-export default function EvidenceUpload() {
-  const [entityType, setEntityType] = useState("company");
-  const [entityId, setEntityId] = useState("");
+export default function EvidenceUpload({
+  entityId,
+  entityType,
+}: EvidenceUploadProps) {
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -25,8 +31,8 @@ export default function EvidenceUpload() {
     setError("");
     setSuccess(false);
 
-    if (!entityType || !entityId || !title || !file) {
-      setError("All fields except summary are required.");
+    if (!title || !file) {
+      setError("Title and file are required.");
       return;
     }
 
@@ -35,10 +41,10 @@ export default function EvidenceUpload() {
     const safeName = sanitizeFileName(file.name);
     const filePath = `${entityType}/${entityId}/${Date.now()}-${safeName}`;
 
-    const { data, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("evidence")
       .upload(filePath, file, {
-        upsert: false, // prevent overwriting existing files
+        upsert: false,
       });
 
     if (uploadError) {
@@ -51,7 +57,7 @@ export default function EvidenceUpload() {
     const { error: insertError } = await supabase.from("evidence").insert([
       {
         entity_type: entityType,
-        entity_id: Number(entityId),
+        entity_id: entityId,
         title,
         summary,
         file_path: filePath,
@@ -74,22 +80,7 @@ export default function EvidenceUpload() {
 
   return (
     <div>
-      <h2>Evidence Upload Test</h2>
-
-      <label>Entity Type</label>
-      <select value={entityType} onChange={(e) => setEntityType(e.target.value)}>
-        <option value="company">Company</option>
-        <option value="leader">Leader</option>
-        <option value="manager">Manager</option>
-        <option value="owner">Owner</option>
-      </select>
-
-      <label>Entity ID</label>
-      <input
-        type="number"
-        value={entityId}
-        onChange={(e) => setEntityId(e.target.value)}
-      />
+      <h2>Submit Evidence</h2>
 
       <label>Title</label>
       <input
@@ -117,7 +108,9 @@ export default function EvidenceUpload() {
       </button>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
-      {success && <p style={{ color: "green" }}>Evidence submitted for moderation.</p>}
+      {success && (
+        <p style={{ color: "green" }}>Evidence submitted for moderation.</p>
+      )}
     </div>
   );
 }
