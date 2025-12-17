@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { EvidenceUpload } from "@/components/EvidenceUpload";
+import EvidenceUpload from "@/components/EvidenceUpload";
+
 
 export default function TestUploadPage() {
   const [entityId, setEntityId] = useState<number>(1);
