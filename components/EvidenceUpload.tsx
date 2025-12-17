@@ -60,11 +60,13 @@ const maxSizeMB: Record<string, number> = {
       .from("evidence")
       .upload(filePath, file);
 
-    if (uploadError) {
-      setLoading(false);
-      setError("Upload failed.");
-      return;
-    }
+if (uploadError) {
+  console.error("Upload error:", uploadError); // ← Add this line
+  setLoading(false);
+  setError("Upload failed.");
+  return;
+}
+
 
     const { data: publicUrlData } = supabase.storage
       .from("evidence")
