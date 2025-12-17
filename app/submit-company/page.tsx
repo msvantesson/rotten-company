@@ -1,7 +1,19 @@
 // app/submit-company/page.tsx
 
 import SubmitCompanyForm from '@/components/SubmitCompanyForm';
-import { createClient } from '@/utils/supabase/server';
+
+export default function SubmitCompanyPage() {
+  return (
+    <div className="p-6 max-w-2xl mx-auto">
+      <SubmitCompanyForm />
+    </div>
+  );
+}
+
+
+
+
+
 
 export default async function SubmitCompanyPage() {
   const supabase = createClient();
