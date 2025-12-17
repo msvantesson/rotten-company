@@ -3,7 +3,6 @@
 import { useState } from "react";
 import EvidenceUpload from "@/components/EvidenceUpload";
 
-
 export default function TestUploadPage() {
   const [entityId, setEntityId] = useState<number>(1);
   const [entityType, setEntityType] = useState<"company" | "leader" | "manager" | "owner">("company");
@@ -36,7 +35,9 @@ export default function TestUploadPage() {
         />
       </div>
 
-      <EvidenceUpload entityId={entityId} entityType={entityType} />
+      <div className="pt-4 border-t">
+        <EvidenceUpload entityId={entityId} entityType={entityType} />
+      </div>
     </div>
   );
 }
