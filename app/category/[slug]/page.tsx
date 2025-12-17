@@ -1,7 +1,6 @@
 // app/category/[slug]/page.tsx
 import React from "react";
 import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
-import { EvidenceList } from "@/components/EvidenceList";
 
 export default async function CategoryPage({
   params,
