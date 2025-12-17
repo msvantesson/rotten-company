@@ -40,11 +40,10 @@ export default function TestUploadPage() {
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-sm text-gray-600">Checking authentication…</p>
       </div>
-    };
+    );
   }
 
   if (!userPresent) {
-    // Brief state before redirect; in practice user will be moved to /login
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-sm text-gray-600">Redirecting to login…</p>
@@ -61,7 +60,9 @@ export default function TestUploadPage() {
         <select
           value={entityType}
           onChange={(e) =>
-            setEntityType(e.target.value as "company" | "leader" | "manager" | "owner")
+            setEntityType(
+              e.target.value as "company" | "leader" | "manager" | "owner"
+            )
           }
           className="border p-2 rounded w-full"
         >
