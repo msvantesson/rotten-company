@@ -26,36 +26,38 @@ export default function SubmitEvidencePage() {
       setResults([]);
 
       const trimmed = query.trim();
-      if (!trimmed || trimmed.length < 2) {
-        return;
-      }
+      if (!trimmed || trimmed.length < 2) return;
 
       setLoading(true);
 
       try {
-        const [companiesRes, leadersRes, managersRes, ownersRes] =
-          await Promise.all([
-            supabase
-              .from("companies")
-              .select("id, name, country")
-              .ilike("name", `%${trimmed}%`)
-              .limit(5),
-            supabase
-              .from("leaders")
-              .select("id, name, role")
-              .ilike("name", `%${trimmed}%`)
-              .limit(5),
-            supabase
-              .from("managers")
-              .select("id, name, role")
-              .ilike("name", `%${trimmed}%`)
-              .limit(5),
-            supabase
-              .from("owners_investors")
-              .select("id, name, type")
-              .ilike("name", `%${trimmed}%`)
-              .limit(5),
-          ]);
+        const [companiesRes, leadersRes, managersRes, ownersRes] = await Promise.all([
+          supabase
+            .from("companies")
+            .select("id, name, slug, country")
+            .or(`name.ilike.%${trimmed}%,slug.ilike.%${trimmed}%`)
+            .limit(5),
+          supabase
+            .from("leaders")
+            .select("id, name, role")
+            .ilike("name", `%${trimmed}%`)
+            .limit(5),
+          supabase
+            .from("managers")
+            .select("id, name, role")
+            .ilike("name", `%${trimmed}%`)
+            .limit(5),
+          supabase
+            .from("owners_investors")
+            .select("id, name, type")
+            .ilike("name", `%${trimmed}%`)
+            .limit(5),
+        ]);
+
+        console.log("companies:", companiesRes.data);
+        console.log("leaders:", leadersRes.data);
+        console.log("managers:", managersRes.data);
+        console.log("owners:", ownersRes.data);
 
         const next: SearchResult[] = [];
 
@@ -105,7 +107,7 @@ export default function SubmitEvidencePage() {
 
         setResults(next);
       } catch (err) {
-        console.error(err);
+        console.error("Search error:", err);
         setError("There was a problem searching. Please try again.");
       } finally {
         setLoading(false);
