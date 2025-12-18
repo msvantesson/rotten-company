@@ -20,7 +20,6 @@ export default function SubmitEvidencePage() {
   const [selected, setSelected] = useState<SearchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Simple search when query changes
   useEffect(() => {
     const runSearch = async () => {
       setError(null);
@@ -28,15 +27,12 @@ export default function SubmitEvidencePage() {
 
       const trimmed = query.trim();
       if (!trimmed || trimmed.length < 2) {
-        // don't search on very short input
         return;
       }
 
       setLoading(true);
 
       try {
-        // Basic, brute-force search across all four tables.
-        // You can later replace this with a proper RPC or materialized view.
         const [companiesRes, leadersRes, managersRes, ownersRes] =
           await Promise.all([
             supabase
@@ -116,7 +112,6 @@ export default function SubmitEvidencePage() {
       }
     };
 
-    // very light debounce
     const timeout = setTimeout(runSearch, 250);
     return () => clearTimeout(timeout);
   }, [query]);
@@ -135,17 +130,14 @@ export default function SubmitEvidencePage() {
         instead.
       </p>
 
-      {/* Search input */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium">
-          Search for an entity
-        </label>
+        <label className="block text-sm font-medium">Search for an entity</label>
         <input
           type="text"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            setSelected(null); // reset selection when query changes
+            setSelected(null);
           }}
           placeholder="Type a company or person name..."
           className="border p-2 rounded w-full"
@@ -153,17 +145,12 @@ export default function SubmitEvidencePage() {
         {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
       </div>
 
-      {/* Search results list */}
       {query.trim().length >= 2 && !selected && (
         <div className="border rounded p-3 space-y-2">
-          {loading && (
-            <p className="text-sm text-gray-500">Searching…</p>
-          )}
+          {loading && <p className="text-sm text-gray-500">Searching…</p>}
 
           {!loading && results.length === 0 && (
-            <p className="text-sm text-gray-500">
-              No matching entities found.
-            </p>
+            <p className="text-sm text-gray-500">No matching entities found.</p>
           )}
 
           {!loading &&
@@ -190,7 +177,6 @@ export default function SubmitEvidencePage() {
         </div>
       )}
 
-      {/* Selected entity summary */}
       {selected && (
         <div className="border rounded p-3 bg-gray-50 space-y-1">
           <p className="text-sm text-gray-600">Submitting evidence about:</p>
@@ -215,25 +201,17 @@ export default function SubmitEvidencePage() {
         </div>
       )}
 
-      {/* Evidence upload section */}
       {selected && (
         <div className="pt-4 border-t">
-          <EvidenceUpload
-            entityId={selected.id}
-            entityType={selected.type}
-          />
+          <EvidenceUpload entityId={selected.id} entityType={selected.type} />
         </div>
       )}
 
-      {/* Fallback: submit a new company */}
       <div className="pt-4 border-t">
         <p className="text-sm text-gray-600">
           Can&apos;t find the company you&apos;re looking for?
         </p>
-        <a
-          href="/submit-company"
-          className="text-sm underline font-medium"
-        >
+        <a href="/submit-company" className="text-sm underline font-medium">
           Submit a new company
         </a>
       </div>
