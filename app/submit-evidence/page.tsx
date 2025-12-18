@@ -63,48 +63,49 @@ export default function SubmitEvidencePage() {
         const next: SearchResult[] = [];
 
         if (companiesRes.data) {
-          next.push(
-            ...companiesRes.data.map((c: any) => ({
-              id: c.id,
-              name: c.name,
-              type: "company",
-              extra: c.country ?? null,
-            }))
-          );
-        }
+  next.push(
+    ...companiesRes.data.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      type: "company" as EntityType,
+      extra: c.country ?? null,
+    }))
+  );
+}
 
-        if (leadersRes.data) {
-          next.push(
-            ...leadersRes.data.map((l: any) => ({
-              id: l.id,
-              name: l.name,
-              type: "leader",
-              extra: l.role ?? null,
-            }))
-          );
-        }
+if (leadersRes.data) {
+  next.push(
+    ...leadersRes.data.map((l: any) => ({
+      id: l.id,
+      name: l.name,
+      type: "leader" as EntityType,
+      extra: l.role ?? null,
+    }))
+  );
+}
 
-        if (managersRes.data) {
-          next.push(
-            ...managersRes.data.map((m: any) => ({
-              id: m.id,
-              name: m.name,
-              type: "manager",
-              extra: m.role ?? null,
-            }))
-          );
-        }
+if (managersRes.data) {
+  next.push(
+    ...managersRes.data.map((m: any) => ({
+      id: m.id,
+      name: m.name,
+      type: "manager" as EntityType,
+      extra: m.role ?? null,
+    }))
+  );
+}
 
-        if (ownersRes.data) {
-          next.push(
-            ...ownersRes.data.map((o: any) => ({
-              id: o.id,
-              name: o.name,
-              type: "owner",
-              extra: o.type ?? null,
-            }))
-          );
-        }
+if (ownersRes.data) {
+  next.push(
+    ...ownersRes.data.map((o: any) => ({
+      id: o.id,
+      name: o.name,
+      type: "owner" as EntityType,
+      extra: o.type ?? null,
+    }))
+  );
+}
+
 
         setResults(next);
       } catch (err) {
