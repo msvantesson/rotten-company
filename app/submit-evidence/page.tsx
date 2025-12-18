@@ -31,33 +31,34 @@ export default function SubmitEvidencePage() {
       setLoading(true);
 
       try {
-        const [companiesRes, leadersRes, managersRes, ownersRes] = await Promise.all([
-          supabase
-            .from("companies")
-            .select("id, name, slug, country")
-            .or(`name.ilike.%${trimmed}%,slug.ilike.%${trimmed}%`)
-            .limit(5),
-          supabase
-            .from("leaders")
-            .select("id, name, role")
-            .ilike("name", `%${trimmed}%`)
-            .limit(5),
-          supabase
-            .from("managers")
-            .select("id, name, role")
-            .ilike("name", `%${trimmed}%`)
-            .limit(5),
-          supabase
-            .from("owners_investors")
-            .select("id, name, type")
-            .ilike("name", `%${trimmed}%`)
-            .limit(5),
-        ]);
+        const companiesRes = await supabase
+          .from("companies")
+          .select("id, name, slug, country")
+          .or("name.ilike.%" + trimmed + "%,slug.ilike.%" + trimmed + "%")
+          .limit(5);
 
-        console.log("companies:", companiesRes.data);
-        console.log("leaders:", leadersRes.data);
-        console.log("managers:", managersRes.data);
-        console.log("owners:", ownersRes.data);
+        const leadersRes = await supabase
+          .from("leaders")
+          .select("id, name, role")
+          .ilike("name", "%" + trimmed + "%")
+          .limit(5);
+
+        const managersRes = await supabase
+          .from("managers")
+          .select("id, name, role")
+          .ilike("name", "%" + trimmed + "%")
+          .limit(5);
+
+        const ownersRes = await supabase
+          .from("owners_investors")
+          .select("id, name, type")
+          .ilike("name", "%" + trimmed + "%")
+          .limit(5);
+
+        console.log("companies:", companiesRes);
+        console.log("leaders:", leadersRes);
+        console.log("managers:", managersRes);
+        console.log("owners:", ownersRes);
 
         const next: SearchResult[] = [];
 
@@ -66,7 +67,7 @@ export default function SubmitEvidencePage() {
             ...companiesRes.data.map((c: any) => ({
               id: c.id,
               name: c.name,
-              type: "company" as const,
+              type: "company",
               extra: c.country ?? null,
             }))
           );
@@ -77,7 +78,7 @@ export default function SubmitEvidencePage() {
             ...leadersRes.data.map((l: any) => ({
               id: l.id,
               name: l.name,
-              type: "leader" as const,
+              type: "leader",
               extra: l.role ?? null,
             }))
           );
@@ -88,7 +89,7 @@ export default function SubmitEvidencePage() {
             ...managersRes.data.map((m: any) => ({
               id: m.id,
               name: m.name,
-              type: "manager" as const,
+              type: "manager",
               extra: m.role ?? null,
             }))
           );
@@ -99,7 +100,7 @@ export default function SubmitEvidencePage() {
             ...ownersRes.data.map((o: any) => ({
               id: o.id,
               name: o.name,
-              type: "owner" as const,
+              type: "owner",
               extra: o.type ?? null,
             }))
           );
@@ -158,7 +159,7 @@ export default function SubmitEvidencePage() {
           {!loading &&
             results.map((result) => (
               <button
-                key={`${result.type}-${result.id}`}
+                key={result.type + "-" + result.id}
                 type="button"
                 onClick={() => handleSelect(result)}
                 className="w-full text-left px-2 py-1 rounded hover:bg-gray-100"
