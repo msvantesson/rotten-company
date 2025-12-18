@@ -33,9 +33,8 @@ export default function SubmitEvidencePage() {
       try {
         const companiesRes = await supabase
           .from("companies")
-          .select("id, name, slug, country")
+          .select("id, name, slug")
           .or("name.ilike.%" + trimmed + "%,slug.ilike.%" + trimmed + "%")
-
           .limit(5);
 
         const leadersRes = await supabase
