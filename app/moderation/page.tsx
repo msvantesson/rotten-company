@@ -7,10 +7,10 @@ export default async function ModerationPage() {
     .eq("status", "pending");
 
   const hasEvidence = pendingEvidence && pendingEvidence.length > 0;
-  const randomIndex = hasEvidence
-    ? Math.floor(Math.random() * pendingEvidence.length)
+
+  const item = hasEvidence
+    ? pendingEvidence[Math.floor(Math.random() * pendingEvidence.length)]
     : null;
-  const item = hasEvidence ? pendingEvidence[randomIndex] : null;
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -24,7 +24,14 @@ export default async function ModerationPage() {
           <p><strong>Entity Type:</strong> {item.entity_type}</p>
           <p><strong>Entity ID:</strong> {item.entity_id}</p>
           <p><strong>Submitted:</strong> {new Date(item.created_at).toLocaleString()}</p>
-          <p><strong>File:</strong> <a href={item.file_url} target="_blank" rel="noopener noreferrer">View file</a></p>
+          {item.file_url && (
+            <p>
+              <strong>File:</strong>{" "}
+              <a href={item.file_url} target="_blank" rel="noopener noreferrer">
+                View file
+              </a>
+            </p>
+          )}
         </div>
       ) : (
         <div style={{ marginTop: "2rem", fontStyle: "italic", color: "#666" }}>
