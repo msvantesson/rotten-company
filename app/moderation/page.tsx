@@ -14,7 +14,7 @@ export default async function ModerationPage() {
     // Insert moderation vote
     const { error: voteError } = await supabase.from("moderation_votes").insert({
       evidence_id: evidenceId,
-      vote: true, // ✅ boolean, matches schema
+      vote: true, // boolean, matches schema
       reason: null,
     });
 
@@ -46,7 +46,7 @@ export default async function ModerationPage() {
 
     const { error: voteError } = await supabase.from("moderation_votes").insert({
       evidence_id: evidenceId,
-      vote: false, // ✅ boolean, matches schema
+      vote: false, // boolean, matches schema
       reason: typeof reason === "string" ? reason : null,
     });
 
@@ -73,6 +73,9 @@ export default async function ModerationPage() {
     .from("evidence")
     .select("*")
     .eq("status", "pending");
+
+  console.log("MODERATION: raw pendingEvidence", pendingEvidence);
+  console.log("MODERATION: error", error);
 
   const hasEvidence = pendingEvidence && pendingEvidence.length > 0;
 
@@ -116,76 +119,3 @@ export default async function ModerationPage() {
             <strong>Entity Type:</strong> {item.entity_type}
           </p>
           <p>
-            <strong>Entity ID:</strong> {item.entity_id}
-          </p>
-          <p>
-            <strong>Submitted:</strong>{" "}
-            {new Date(item.created_at).toLocaleString()}
-          </p>
-
-          {item.file_url && (
-            <p>
-              <strong>File:</strong>{" "}
-              <a href={item.file_url} target="_blank" rel="noopener noreferrer">
-                View file
-              </a>
-            </p>
-          )}
-
-          {/* ✅ Approve */}
-          <form action={approveEvidence} style={{ marginTop: "1rem" }}>
-            <input type="hidden" name="evidenceId" value={item.id} />
-            <button
-              style={{
-                padding: "0.5rem 1rem",
-                marginRight: "1rem",
-                background: "#4caf50",
-                color: "white",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Approve
-            </button>
-          </form>
-
-          {/* ✅ Reject */}
-          <form action={rejectEvidence} style={{ marginTop: "1rem" }}>
-            <input type="hidden" name="evidenceId" value={item.id} />
-
-            <textarea
-              name="reason"
-              placeholder="Rejection reason (optional)"
-              style={{
-                width: "100%",
-                height: "80px",
-                marginBottom: "0.5rem",
-                padding: "0.5rem",
-              }}
-            />
-
-            <button
-              style={{
-                padding: "0.5rem 1rem",
-                background: "#f44336",
-                color: "white",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Reject
-            </button>
-          </form>
-        </div>
-      ) : (
-        <div style={{ marginTop: "2rem", fontStyle: "italic", color: "#666" }}>
-          No pending evidence to moderate. You're all caught up.
-        </div>
-      )}
-
-      <pre style={{ background: "#eee", padding: "1rem", marginTop: "2rem" }}>
-        {JSON.stringify(pendingEvidence, null, 2)}
-      </pre>
-    </div>
-  );
-}
