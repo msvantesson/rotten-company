@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { supabase } from "@/lib/supabaseClient";
 import { revalidatePath } from "next/cache";
 
@@ -10,17 +12,27 @@ export default async function ModerationPage() {
     if (typeof evidenceId !== "string") return;
 
     // Insert moderation vote
-    await supabase.from("moderation_votes").insert({
+    const { error: voteError } = await supabase.from("moderation_votes").insert({
       evidence_id: evidenceId,
-      vote: "approved",
+      vote: true, // ✅ boolean, matches schema
       reason: null,
     });
 
+    if (voteError) {
+      console.error("approveEvidence: vote insert error", voteError);
+      return;
+    }
+
     // Update evidence status
-    await supabase
+    const { error: updateError } = await supabase
       .from("evidence")
       .update({ status: "approved" })
       .eq("id", evidenceId);
+
+    if (updateError) {
+      console.error("approveEvidence: evidence update error", updateError);
+      return;
+    }
 
     revalidatePath("/moderation");
   }
@@ -32,22 +44,32 @@ export default async function ModerationPage() {
     const reason = formData.get("reason");
     if (typeof evidenceId !== "string") return;
 
-    await supabase.from("moderation_votes").insert({
+    const { error: voteError } = await supabase.from("moderation_votes").insert({
       evidence_id: evidenceId,
-      vote: "rejected",
+      vote: false, // ✅ boolean, matches schema
       reason: typeof reason === "string" ? reason : null,
     });
 
-    await supabase
+    if (voteError) {
+      console.error("rejectEvidence: vote insert error", voteError);
+      return;
+    }
+
+    const { error: updateError } = await supabase
       .from("evidence")
       .update({ status: "rejected" })
       .eq("id", evidenceId);
 
+    if (updateError) {
+      console.error("rejectEvidence: evidence update error", updateError);
+      return;
+    }
+
     revalidatePath("/moderation");
   }
 
-  // ✅ Fetch pending evidence
-  const { data: pendingEvidence } = await supabase
+  // ✅ Fetch pending evidence (now on every request, not at build time)
+  const { data: pendingEvidence, error } = await supabase
     .from("evidence")
     .select("*")
     .eq("status", "pending");
@@ -61,6 +83,21 @@ export default async function ModerationPage() {
   return (
     <div style={{ padding: "2rem" }}>
       <h1>Moderation</h1>
+
+      {error && (
+        <div
+          style={{
+            marginTop: "1rem",
+            padding: "0.5rem",
+            background: "#ffe5e5",
+            color: "#900",
+            border: "1px solid #f99",
+          }}
+        >
+          <strong>Error loading pending evidence:</strong> {error.message}
+        </div>
+      )}
+
       <p>Pending evidence count: {pendingEvidence?.length ?? 0}</p>
 
       {hasEvidence && item ? (
