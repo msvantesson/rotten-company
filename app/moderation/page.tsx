@@ -1,9 +1,6 @@
-import { createClient } from "@/utils/supabase/server";
+import { supabase } from "@/lib/supabaseClient";
 
 export default async function ModerationPage() {
-  const supabase = createClient();
-
-  // Step 2: Fetch pending evidence
   const { data: pendingEvidence, error } = await supabase
     .from("evidence")
     .select("*")
