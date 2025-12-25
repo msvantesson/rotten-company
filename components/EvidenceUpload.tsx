@@ -23,6 +23,7 @@ export default function EvidenceUpload({
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [evidenceType, setEvidenceType] = useState("misconduct"); // NEW
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -49,9 +50,6 @@ export default function EvidenceUpload({
       return;
     }
 
-    // ✅ Debug log
-    console.log("Authenticated user ID:", user.id);
-
     const safeName = sanitizeFileName(file.name);
     const filePath = `${entityType}/${entityId}/${Date.now()}-${safeName}`;
 
@@ -68,16 +66,6 @@ export default function EvidenceUpload({
       return;
     }
 
-    // ✅ Debug log
-    console.log("Insert payload:", {
-      entity_type: entityType,
-      entity_id: entityId,
-      title,
-      summary,
-      file_path: filePath,
-      user_id: user.id,
-    });
-
     const { error: insertError } = await supabase.from("evidence").insert([
       {
         entity_type: entityType,
@@ -86,6 +74,7 @@ export default function EvidenceUpload({
         summary,
         file_path: filePath,
         user_id: user.id,
+        evidence_type: evidenceType, // NEW
       },
     ]);
 
@@ -101,11 +90,28 @@ export default function EvidenceUpload({
     setTitle("");
     setSummary("");
     setFile(null);
+    setEvidenceType("misconduct"); // reset
   };
 
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Submit Evidence</h2>
+
+      {/* Evidence Type Selector */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">Evidence Type</label>
+        <select
+          value={evidenceType}
+          onChange={(e) => setEvidenceType(e.target.value)}
+          className="border p-2 rounded w-full"
+        >
+          <option value="misconduct">Misconduct</option>
+          <option value="remediation">Remediation</option>
+          <option value="correction">Correction</option>
+          <option value="audit">Audit</option>
+          <option value="statement">Statement</option>
+        </select>
+      </div>
 
       <div className="space-y-2">
         <label className="block text-sm font-medium">Title</label>
