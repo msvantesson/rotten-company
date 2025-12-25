@@ -7,6 +7,7 @@ type EvidenceItem = {
   file_url?: string;
   file_type?: string;
   file_size?: number;
+  evidence_type?: string; // NEW
 };
 
 type Props = {
@@ -21,7 +22,19 @@ export function EvidenceList({ evidence }: Props) {
   return (
     <div className="space-y-6">
       {evidence.map((item) => (
-        <div key={item.id} className="border p-4 rounded-md bg-white shadow-sm">
+        <div
+          key={item.id}
+          className="border p-4 rounded-md bg-white shadow-sm space-y-2"
+        >
+          {/* Evidence Type Badge */}
+          {item.evidence_type && (
+            <span
+              className="inline-block px-2 py-1 text-xs font-semibold rounded bg-gray-200 text-gray-700 uppercase"
+            >
+              {item.evidence_type}
+            </span>
+          )}
+
           <h3 className="font-semibold text-lg text-gray-900">{item.title}</h3>
           <p className="text-sm text-gray-700">{item.summary}</p>
 
