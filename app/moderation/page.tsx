@@ -117,6 +117,11 @@ export default async function ModerationPage() {
             <strong>Summary:</strong> {item.summary}
           </p>
 
+          {/* ✅ NEW: Evidence Type */}
+          <p>
+            <strong>Evidence Type:</strong> {item.evidence_type}
+          </p>
+
           <p>
             <strong>Entity Type:</strong> {item.entity_type}
           </p>
