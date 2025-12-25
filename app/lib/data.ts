@@ -21,9 +21,9 @@ export async function fetchEntityBySlug(
       table = "owners_investors";
       break;
 
-      case "category":
-    table = "categories";
-    break;
+    case "category":
+      table = "categories";
+      break;
 
     default:
       table = `${entity}s`;
@@ -45,13 +45,12 @@ export async function fetchEntityBySlug(
 
 /**
  * Fetch approved evidence linked to an entity.
+ * This already includes `evidence_type` because we select "*".
  */
-import type { Evidence } from "./types";
-
 export async function fetchApprovedEvidence(
   entity: "company" | "leader" | "manager" | "owner" | "category",
   entityId: number
-): Promise<Evidence[]> {
+) {
   const { data, error } = await supabase
     .from("evidence")
     .select("*")
@@ -64,5 +63,6 @@ export async function fetchApprovedEvidence(
     return [];
   }
 
-  return (data as Evidence[]) || [];
+  // `data` already contains `evidence_type` from the database
+  return data || [];
 }
