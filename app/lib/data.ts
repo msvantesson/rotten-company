@@ -46,10 +46,12 @@ export async function fetchEntityBySlug(
 /**
  * Fetch approved evidence linked to an entity.
  */
+import type { Evidence } from "./types";
+
 export async function fetchApprovedEvidence(
   entity: "company" | "leader" | "manager" | "owner" | "category",
   entityId: number
-) {
+): Promise<Evidence[]> {
   const { data, error } = await supabase
     .from("evidence")
     .select("*")
@@ -62,5 +64,5 @@ export async function fetchApprovedEvidence(
     return [];
   }
 
-  return data || [];
+  return (data as Evidence[]) || [];
 }
