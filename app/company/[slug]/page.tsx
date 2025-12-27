@@ -6,6 +6,22 @@ export const fetchCache = "force-no-store";
 import { supabase } from "@/lib/supabaseClient";
 import { EvidenceList } from "@/components/EvidenceList";
 
+// --- Flavor taxonomy ---
+const CATEGORY_FLAVORS: Record<number, string> = {
+  1: "Rotten to the core",
+  2: "Smells like spin",
+  3: "Boardroom smoke and mirrors",
+  4: "Toxic workplace vibes",
+  5: "Ethics on life support",
+  6: "Greenwashing deluxe",
+  13: "Customer trust? Never heard of it",
+};
+
+function getFlavor(categoryId: number): string {
+  return CATEGORY_FLAVORS[categoryId] ?? "No flavor assigned";
+}
+
+// --- Types ---
 type Params = Promise<{ slug: string }> | { slug: string };
 
 type Evidence = {
@@ -31,6 +47,7 @@ type CategoryBreakdown = {
   category_name: string;
   evidence_count: number;
   avg_score: number | null;
+  flavor: string;
 };
 
 export default async function CompanyPage({ params }: { params: Params }) {
@@ -75,7 +92,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     .select("category_id, category_name, avg_score")
     .eq("company_id", company.id);
 
-  // 5. Merge both views
+  // 5. Merge both views + flavor text
   const mergedBreakdown: CategoryBreakdown[] =
     breakdown?.map((b) => {
       const match = rankings?.find((r) => r.category_id === b.category_id);
@@ -84,6 +101,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
         category_name: b.category_name,
         evidence_count: b.evidence_count,
         avg_score: match?.avg_score ?? null,
+        flavor: getFlavor(b.category_id),
       };
     }) ?? [];
 
@@ -103,6 +121,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
             <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Category</th>
             <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Evidence Count</th>
             <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Avg Rating</th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Flavor</th>
           </tr>
         </thead>
         <tbody>
@@ -113,6 +132,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
               <td style={{ padding: "8px" }}>
                 {row.avg_score !== null ? row.avg_score.toFixed(2) : "—"}
               </td>
+              <td style={{ padding: "8px" }}>{row.flavor}</td>
             </tr>
           ))}
         </tbody>
