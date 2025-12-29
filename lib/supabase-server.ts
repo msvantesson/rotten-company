@@ -1,6 +1,6 @@
 // /lib/supabase-server.ts
 import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 
 export function supabaseServer() {
   return createServerClient(
@@ -8,21 +8,14 @@ export function supabaseServer() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       cookies: {
-        get: async (name: string) => {
-          const store = await cookies();
-          return store.get(name);
+        get(name: string) {
+          return cookies().get(name)?.value;
         },
-        getAll: async () => {
-          const store = await cookies();
-          return store.getAll();
+        set(name: string, value: string, options: any) {
+          cookies().set(name, value, options);
         },
-        set: async (name: string, value: string, options: any) => {
-          const store = await cookies();
-          store.set(name, value, options);
-        },
-        delete: async (name: string, options: any) => {
-          const store = await cookies();
-          store.delete(name, options);
+        remove(name: string, options: any) {
+          cookies().delete(name, options);
         },
       },
     }
