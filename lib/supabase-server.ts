@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export async function supabaseServer() {
-  const cookieStore = await cookies(); // ← await the Promise
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,7 +17,7 @@ export async function supabaseServer() {
           cookieStore.set(name, value, options);
         },
         remove(name: string, options: any) {
-          cookieStore.delete(name, options);
+          cookieStore.delete({ name, ...options }); // ✅ fixed
         },
       },
     }
