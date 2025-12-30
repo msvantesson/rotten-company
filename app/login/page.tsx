@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { loginWithEmail } from "./actions";
 
-export default function LoginPage() {
-  const cookieStore = cookies();
+export default async function LoginPage() {
+  // IMPORTANT: In Next.js 16, cookies() must be awaited in async server components
+  const cookieStore = await cookies();
   const error = cookieStore.get("login_error")?.value;
 
   return (
