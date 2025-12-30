@@ -1,6 +1,10 @@
+import { cookies } from "next/headers";
 import { loginWithEmail } from "./actions";
 
 export default function LoginPage() {
+  const cookieStore = cookies();
+  const error = cookieStore.get("login_error")?.value;
+
   return (
     <div
       style={{
@@ -13,6 +17,10 @@ export default function LoginPage() {
       }}
     >
       <h1 style={{ marginBottom: "1.5rem", fontSize: "1.5rem" }}>Login</h1>
+
+      {error && (
+        <p style={{ color: "red", marginBottom: "1rem" }}>{error}</p>
+      )}
 
       <form action={loginWithEmail} className="flex flex-col gap-4">
         <div style={{ marginBottom: "1rem" }}>
