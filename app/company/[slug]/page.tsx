@@ -1,9 +1,8 @@
-// app/company/[slug]/page.tsx
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseServer } from "@/lib/supabase-server";
 import { EvidenceList } from "@/components/EvidenceList";
 
 // --- Flavor taxonomy ---
@@ -54,6 +53,9 @@ export default async function CompanyPage({ params }: { params: Params }) {
   const resolvedParams = (await params) as { slug?: string } | undefined;
   const rawSlug = resolvedParams?.slug ? decodeURIComponent(resolvedParams.slug) : "";
 
+  // IMPORTANT: use SSR Supabase client
+  const supabase = await supabaseServer();
+
   // 1. Fetch company
   const { data: company, error: companyError }: { data: Company; error: any } =
     await supabase
@@ -94,60 +96,4 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   // 5. Merge both views + flavor text
   const mergedBreakdown: CategoryBreakdown[] =
-    breakdown?.map((b) => {
-      const match = rankings?.find((r) => r.category_id === b.category_id);
-      return {
-        category_id: b.category_id,
-        category_name: b.category_name,
-        evidence_count: b.evidence_count,
-        avg_score: match?.avg_score ?? null,
-        flavor: getFlavor(b.category_id),
-      };
-    }) ?? [];
-
-  return (
-    <div style={{ padding: "2rem" }}>
-      <h1>{company.name}</h1>
-
-      <p><strong>Industry:</strong> {company.industry ?? "Unknown"}</p>
-      <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
-      <p><strong>Rotten Score:</strong> {company.rotten_score ?? 0}</p>
-
-      <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
-
-      <table style={{ borderCollapse: "collapse", marginBottom: "2rem" }}>
-        <thead>
-          <tr>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Category</th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Evidence Count</th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Avg Rating</th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Flavor</th>
-          </tr>
-        </thead>
-        <tbody>
-          {mergedBreakdown.map((row) => (
-            <tr key={row.category_id}>
-              <td style={{ padding: "8px" }}>{row.category_name}</td>
-              <td style={{ padding: "8px" }}>{row.evidence_count}</td>
-              <td style={{ padding: "8px" }}>
-                {row.avg_score !== null ? row.avg_score.toFixed(2) : "—"}
-              </td>
-              <td style={{ padding: "8px" }}>{row.flavor}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {(breakdownError || rankingsError) && (
-        <pre>{JSON.stringify({ breakdownError, rankingsError }, null, 2)}</pre>
-      )}
-
-      <h2>Approved Evidence</h2>
-      <EvidenceList evidence={evidence || []} />
-
-      {evidenceError ? (
-        <pre style={{ marginTop: 12 }}>{JSON.stringify(evidenceError, null, 2)}</pre>
-      ) : null}
-    </div>
-  );
-}
+    breakdown
