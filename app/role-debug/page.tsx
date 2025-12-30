@@ -1,25 +1,24 @@
-'use client'
+// app/role-debug/page.tsx
+import { supabaseServer } from '@/lib/supabase-server';
 
-import { supabase } from '@/app/lib/supabaseClient'
-import { useEffect, useState } from 'react'
+export default async function RoleDebugPage() {
+  const supabase = await supabaseServer();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-export default function RoleDebugPage() {
-  const [result, setResult] = useState<any>(null)
-
-  useEffect(() => {
-    const checkRole = async () => {
-      const { data, error } = await supabase.rpc('debug_role')
-      console.log('role debug:', data, error)
-      setResult({ data, error })
-    }
-    checkRole()
-  }, [])
+  const role = session?.user ? 'authenticated' : 'anonymous';
 
   return (
-    <div>
+    <div style={{ padding: '2rem' }}>
       <h1>Role Debug</h1>
-      <pre>{JSON.stringify(result, null, 2)}</pre>
-      <p>Open your browser console to see detailed output</p>
+      <p><strong>Role:</strong> {role}</p>
+      {session?.user && (
+        <>
+          <p><strong>Email:</strong> {session.user.email}</p>
+          <p><strong>User ID:</strong> {session.user.id}</p>
+        </>
+      )}
     </div>
-  )
+  );
 }
