@@ -7,7 +7,8 @@ export async function loginWithEmail(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
-  const cookieStore = cookies();
+  // IMPORTANT: cookies() must be awaited inside server actions
+  const cookieStore = await cookies();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
