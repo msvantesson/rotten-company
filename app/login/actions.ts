@@ -2,12 +2,12 @@
 
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 export async function loginWithEmail(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
-  // IMPORTANT: cookies() must be awaited inside server actions
   const cookieStore = await cookies();
 
   const supabase = createServerClient(
@@ -34,8 +34,12 @@ export async function loginWithEmail(formData: FormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    cookieStore.set("login_error", error.message, {
+      path: "/login",
+      maxAge: 5,
+    });
+    redirect("/login");
   }
 
-  return { success: true };
+  redirect("/role-debug");
 }
