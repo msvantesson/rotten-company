@@ -13,7 +13,8 @@
  * Direction: 0 = clean, 100 = extremely rotten.
  */
 
-import { FLAVOR_TEXT_BY_SCORE } from "./flavors";
+import { FLAVOR_TEXT_BY_SCORE } from "./micro-flavors";
+
 
 // ---------- Category taxonomy ----------
 
