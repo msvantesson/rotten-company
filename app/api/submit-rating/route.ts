@@ -1,8 +1,10 @@
+// /app/api/submit-rating/route.ts
+
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase-server";
+import { supabaseRoute } from "@/lib/supabase-route";
 
 export async function POST(req: Request) {
-  const supabase = await supabaseServer();
+  const supabase = supabaseRoute();
   const body = await req.json();
 
   const { companySlug, categorySlug, score } = body;
@@ -17,7 +19,15 @@ export async function POST(req: Request) {
   // Get logged-in user
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
+
+  if (userError) {
+    return NextResponse.json(
+      { error: "Failed to load user", details: userError.message },
+      { status: 500 }
+    );
+  }
 
   if (!user) {
     return NextResponse.json(
@@ -26,7 +36,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // ✅ Log full request for debugging
+  // Log request for debugging
   console.log("Rating request:", {
     companySlug,
     categorySlug,
@@ -34,7 +44,7 @@ export async function POST(req: Request) {
     userId: user.id,
   });
 
-  // ✅ Ensure user exists in `users` table
+  // Ensure user exists in `users` table
   const { error: upsertError } = await supabase.from("users").upsert({
     id: user.id,
     email: user.email,
