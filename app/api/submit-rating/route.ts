@@ -9,7 +9,10 @@ export async function POST(req: Request) {
 
   const { companySlug, categorySlug, score } = body;
 
-  if (!companySlug || !categorySlug || typeof score !== "number") {
+  // Parse score safely (it may come as a string)
+  const parsedScore = Number(score);
+
+  if (!companySlug || !categorySlug || isNaN(parsedScore)) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 }
@@ -40,7 +43,7 @@ export async function POST(req: Request) {
   console.log("Rating request:", {
     companySlug,
     categorySlug,
-    score,
+    score: parsedScore,
     userId: user.id,
   });
 
@@ -48,14 +51,15 @@ export async function POST(req: Request) {
   const { error: upsertError } = await supabase.from("users").upsert({
     id: user.id,
     email: user.email,
-    name: user.user_metadata.full_name ?? null,
-    avatar_url: user.user_metadata.avatar_url ?? null,
+    name: user.user_metadata?.full_name ?? null,
+    avatar_url: user.user_metadata?.avatar_url ?? null,
     moderation_credits: 0,
   });
 
   if (upsertError) {
+    console.error("User upsert failed:", upsertError);
     return NextResponse.json(
-      { error: "User upsert failed", details: upsertError.message },
+      { error: "User upsert failed", details: upsertError },
       { status: 500 }
     );
   }
@@ -95,10 +99,11 @@ export async function POST(req: Request) {
       user_id: user.id,
       company_id: company.id,
       category: category.id,
-      score,
+      score: parsedScore,
     });
 
   if (insertError) {
+    console.error("Rating insert failed:", insertError);
     return NextResponse.json(
       { error: "Rating insert failed", details: insertError.message },
       { status: 500 }
