@@ -4,11 +4,11 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-export async function loginWithEmail(formData: FormData) {
+export async function loginWithPassword(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
-  const cookieStore = await cookies();
+  const cookieStore = cookies(); // ✅ NO await
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
