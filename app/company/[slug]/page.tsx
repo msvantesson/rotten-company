@@ -4,6 +4,7 @@ export const fetchCache = "force-no-store";
 
 import { supabaseServer } from "@/lib/supabase-server";
 import { EvidenceList } from "@/components/EvidenceList";
+import RatingStars from "@/components/RatingStars";
 
 // --- Flavor taxonomy ---
 const CATEGORY_FLAVORS: Record<number, string> = {
@@ -94,7 +95,29 @@ export default async function CompanyPage({ params }: { params: Params }) {
     .select("category_id, category_name, avg_score")
     .eq("company_id", company.id);
 
-  // 5. Merge both views + flavor text
+  // 5. Fetch logged-in user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // 6. Fetch user's existing ratings (RLS ensures only their own)
+  let userRatings: Record<number, number> = {};
+
+  if (user) {
+    const { data: ratings } = await supabase
+      .from("ratings")
+      .select("category, score")
+      .eq("company_id", company.id)
+      .eq("user_id", user.id);
+
+    if (ratings) {
+      for (const r of ratings) {
+        userRatings[r.category] = r.score;
+      }
+    }
+  }
+
+  // 7. Merge both views + flavor text
   const mergedBreakdown: CategoryBreakdown[] =
     breakdown?.map((b) => {
       const match = rankings?.find((r) => r.category_id === b.category_id);
@@ -124,6 +147,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
             <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Evidence Count</th>
             <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Avg Rating</th>
             <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Flavor</th>
+            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Your Rating</th>
           </tr>
         </thead>
         <tbody>
@@ -135,6 +159,13 @@ export default async function CompanyPage({ params }: { params: Params }) {
                 {row.avg_score !== null ? row.avg_score.toFixed(2) : "—"}
               </td>
               <td style={{ padding: "8px" }}>{row.flavor}</td>
+              <td style={{ padding: "8px" }}>
+                <RatingStars
+                  companySlug={company.slug}
+                  categorySlug={row.category_name.toLowerCase().replace(/\s+/g, "-")}
+                  initialScore={userRatings[row.category_id] || null}
+                />
+              </td>
             </tr>
           ))}
         </tbody>
