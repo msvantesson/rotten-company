@@ -5,7 +5,9 @@ import { createServerClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
-  const cookieStore = cookies();
+  // ✅ MUST await cookies() in your environment
+  const cookieStore = await cookies();
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -24,12 +26,14 @@ export default async function LoginPage() {
     }
   );
 
+  // Get logged-in user
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/"); // or your auth provider redirect
+    // Not logged in — redirect to your provider
+    redirect("/");
   }
 
   // ✅ Insert or update user in your `users` table
@@ -41,5 +45,6 @@ export default async function LoginPage() {
     moderation_credits: 0,
   });
 
+  // Redirect after login
   redirect("/");
 }
