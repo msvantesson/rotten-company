@@ -1,87 +1,45 @@
+// /app/login/page.tsx
+
 import { cookies } from "next/headers";
-import { loginWithEmail } from "./actions";
+import { createServerClient } from "@supabase/ssr";
+import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
-  // IMPORTANT: In Next.js 16, cookies() must be awaited in async server components
-  const cookieStore = await cookies();
-  const error = cookieStore.get("login_error")?.value;
-
-  return (
-    <div
-      style={{
-        maxWidth: "400px",
-        margin: "4rem auto",
-        padding: "2rem",
-        border: "1px solid #ddd",
-        borderRadius: "8px",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <h1 style={{ marginBottom: "1.5rem", fontSize: "1.5rem" }}>Login</h1>
-
-      {error && (
-        <p style={{ color: "red", marginBottom: "1rem" }}>{error}</p>
-      )}
-
-      <form action={loginWithEmail} className="flex flex-col gap-4">
-        <div style={{ marginBottom: "1rem" }}>
-          <label
-            htmlFor="email"
-            style={{ display: "block", marginBottom: "0.5rem" }}
-          >
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            name="email"
-            required
-            style={{
-              width: "100%",
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: "1rem" }}>
-          <label
-            htmlFor="password"
-            style={{ display: "block", marginBottom: "0.5rem" }}
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            name="password"
-            required
-            style={{
-              width: "100%",
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-            }}
-          />
-        </div>
-
-        <button
-          type="submit"
-          style={{
-            width: "100%",
-            padding: "0.75rem",
-            backgroundColor: "black",
-            color: "white",
-            borderRadius: "4px",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "1rem",
-          }}
-        >
-          Login
-        </button>
-      </form>
-    </div>
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set(name, value, options);
+        },
+        remove(name: string, options: any) {
+          cookieStore.delete({ name, ...options });
+        },
+      },
+    }
   );
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/"); // or your auth provider redirect
+  }
+
+  // ✅ Insert or update user in your `users` table
+  await supabase.from("users").upsert({
+    id: user.id,
+    email: user.email,
+    name: user.user_metadata.full_name ?? null,
+    avatar_url: user.user_metadata.avatar_url ?? null,
+    moderation_credits: 0,
+  });
+
+  redirect("/");
 }
