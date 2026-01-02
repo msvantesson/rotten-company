@@ -1,13 +1,16 @@
 // /app/api/submit-rating/route.ts
 
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/utils/supabase/server";
+import { supabaseServer } from "@/lib/supabase-server";
 
 export async function POST(req: Request) {
-  const supabase = createServerClient();
+  // Create SSR Supabase client
+  const supabase = await supabaseServer();
+
+  // Parse request body
   const { companySlug, categorySlug, score } = await req.json();
 
-  // 1. Validate input
+  // Validate input
   if (!companySlug || !categorySlug || !score) {
     return NextResponse.json(
       { error: "Missing required fields" },
@@ -15,16 +18,20 @@ export async function POST(req: Request) {
     );
   }
 
-  // 2. Get current user
+  // Get current user
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (userError || !user) {
+    return NextResponse.json(
+      { error: "Not authenticated" },
+      { status: 401 }
+    );
   }
 
-  // 3. Look up company
+  // Look up company ID
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id")
@@ -38,7 +45,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // 4. Look up category
+  // Look up category ID
   const { data: category, error: categoryError } = await supabase
     .from("categories")
     .select("id")
@@ -52,12 +59,12 @@ export async function POST(req: Request) {
     );
   }
 
-  // 5. Insert rating (RLS enforces user_id = auth.uid())
+  // Insert rating (RLS enforces user_id = auth.uid())
   const { error: insertError } = await supabase.from("ratings").insert({
     company_id: company.id,
     category: category.id,
     score,
-    user_id: user.id, // RLS will verify this matches auth.uid()
+    user_id: user.id,
   });
 
   if (insertError) {
