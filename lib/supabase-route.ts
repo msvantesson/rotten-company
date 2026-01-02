@@ -1,3 +1,5 @@
+// /lib/supabase-route.ts
+
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
@@ -6,12 +8,13 @@ export function supabaseRoute() {
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // still NOT service role
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // ✅ still NOT service role
     {
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
+        // ✅ API routes ARE allowed to modify cookies
         set(name: string, value: string, options: any) {
           cookieStore.set(name, value, options);
         },
