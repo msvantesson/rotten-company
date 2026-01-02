@@ -4,8 +4,6 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export async function supabaseServer() {
-  const cookieStore = await cookies(); // cookies() returns a Promise
-
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -15,8 +13,9 @@ export async function supabaseServer() {
           const store = await cookies();
           return store.get(name)?.value;
         },
-        set() {},     // Pages cannot modify cookies
-        remove() {},  // Pages cannot modify cookies
+        // ❌ Pages cannot modify cookies in Next.js 16
+        set() {},
+        remove() {},
       },
     }
   );
