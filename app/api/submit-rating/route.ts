@@ -1,5 +1,3 @@
-// /app/api/submit-rating/route.ts
-
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 
@@ -28,8 +26,16 @@ export async function POST(req: Request) {
     );
   }
 
+  // ✅ Log full request for debugging
+  console.log("Rating request:", {
+    companySlug,
+    categorySlug,
+    score,
+    userId: user.id,
+  });
+
   // ✅ Ensure user exists in `users` table
-  await supabase.from("users").upsert({
+  const { error: upsertError } = await supabase.from("users").upsert({
     id: user.id,
     email: user.email,
     name: user.user_metadata.full_name ?? null,
@@ -37,30 +43,37 @@ export async function POST(req: Request) {
     moderation_credits: 0,
   });
 
+  if (upsertError) {
+    return NextResponse.json(
+      { error: "User upsert failed", details: upsertError.message },
+      { status: 500 }
+    );
+  }
+
   // Get company ID
-  const { data: company } = await supabase
+  const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id")
     .eq("slug", companySlug)
     .single();
 
-  if (!company) {
+  if (!company || companyError) {
     return NextResponse.json(
-      { error: "Company not found" },
+      { error: "Company not found", details: companyError?.message },
       { status: 404 }
     );
   }
 
   // Get category ID
-  const { data: category } = await supabase
+  const { data: category, error: categoryError } = await supabase
     .from("categories")
     .select("id")
     .eq("slug", categorySlug)
     .single();
 
-  if (!category) {
+  if (!category || categoryError) {
     return NextResponse.json(
-      { error: "Category not found" },
+      { error: "Category not found", details: categoryError?.message },
       { status: 404 }
     );
   }
@@ -77,7 +90,7 @@ export async function POST(req: Request) {
 
   if (insertError) {
     return NextResponse.json(
-      { error: insertError.message },
+      { error: "Rating insert failed", details: insertError.message },
       { status: 500 }
     );
   }
