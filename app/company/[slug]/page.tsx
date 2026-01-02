@@ -50,11 +50,16 @@ type CategoryBreakdown = {
   flavor: string;
 };
 
+type Category = {
+  id: number;
+  slug: string;
+  name: string;
+};
+
 export default async function CompanyPage({ params }: { params: Params }) {
   const resolvedParams = (await params) as { slug?: string } | undefined;
   const rawSlug = resolvedParams?.slug ? decodeURIComponent(resolvedParams.slug) : "";
 
-  // IMPORTANT: use SSR Supabase client
   const supabase = await supabaseServer();
 
   // 1. Fetch company
@@ -95,12 +100,31 @@ export default async function CompanyPage({ params }: { params: Params }) {
     .select("category_id, category_name, avg_score")
     .eq("company_id", company.id);
 
-  // 5. Fetch logged-in user
+  // 5. Merge both views + flavor text (may be empty for fresh companies)
+  const mergedBreakdown: CategoryBreakdown[] =
+    breakdown?.map((b) => {
+      const match = rankings?.find((r) => r.category_id === b.category_id);
+      return {
+        category_id: b.category_id,
+        category_name: b.category_name,
+        evidence_count: b.evidence_count,
+        avg_score: match?.avg_score ?? null,
+        flavor: getFlavor(b.category_id),
+      };
+    }) ?? [];
+
+  // 6. Fetch all categories for rating UI
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id, slug, name")
+    .order("id", { ascending: true }) as { data: Category[] | null };
+
+  // 7. Fetch logged-in user
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 6. Fetch user's existing ratings (RLS ensures only their own)
+  // 8. Fetch user's existing ratings for this company
   let userRatings: Record<number, number> = {};
 
   if (user) {
@@ -117,19 +141,6 @@ export default async function CompanyPage({ params }: { params: Params }) {
     }
   }
 
-  // 7. Merge both views + flavor text
-  const mergedBreakdown: CategoryBreakdown[] =
-    breakdown?.map((b) => {
-      const match = rankings?.find((r) => r.category_id === b.category_id);
-      return {
-        category_id: b.category_id,
-        category_name: b.category_name,
-        evidence_count: b.evidence_count,
-        avg_score: match?.avg_score ?? null,
-        flavor: getFlavor(b.category_id),
-      };
-    }) ?? [];
-
   return (
     <div style={{ padding: "2rem" }}>
       <h1>{company.name}</h1>
@@ -138,38 +149,63 @@ export default async function CompanyPage({ params }: { params: Params }) {
       <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
       <p><strong>Rotten Score:</strong> {company.rotten_score ?? 0}</p>
 
+      {/* --- Ratings UI (always visible, even if no evidence yet) --- */}
+      <h2 style={{ marginTop: "2rem" }}>Rate this company</h2>
+      {categories && categories.length > 0 ? (
+        <div style={{ marginBottom: "2rem" }}>
+          {categories.map((cat) => (
+            <div
+              key={cat.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 0",
+                borderBottom: "1px solid #eee",
+              }}
+            >
+              <span>{cat.name}</span>
+              <RatingStars
+                companySlug={company.slug}
+                categorySlug={cat.slug}
+                initialScore={userRatings[cat.id] ?? null}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p>No categories configured yet.</p>
+      )}
+
+      {/* --- Existing breakdown table (may be empty for fresh companies) --- */}
       <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
 
-      <table style={{ borderCollapse: "collapse", marginBottom: "2rem" }}>
-        <thead>
-          <tr>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Category</th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Evidence Count</th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Avg Rating</th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Flavor</th>
-            <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Your Rating</th>
-          </tr>
-        </thead>
-        <tbody>
-          {mergedBreakdown.map((row) => (
-            <tr key={row.category_id}>
-              <td style={{ padding: "8px" }}>{row.category_name}</td>
-              <td style={{ padding: "8px" }}>{row.evidence_count}</td>
-              <td style={{ padding: "8px" }}>
-                {row.avg_score !== null ? row.avg_score.toFixed(2) : "—"}
-              </td>
-              <td style={{ padding: "8px" }}>{row.flavor}</td>
-              <td style={{ padding: "8px" }}>
-                <RatingStars
-                  companySlug={company.slug}
-                  categorySlug={row.category_name.toLowerCase().replace(/\s+/g, "-")}
-                  initialScore={userRatings[row.category_id] || null}
-                />
-              </td>
+      {mergedBreakdown.length === 0 ? (
+        <p>No breakdown yet for this company.</p>
+      ) : (
+        <table style={{ borderCollapse: "collapse", marginBottom: "2rem" }}>
+          <thead>
+            <tr>
+              <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Category</th>
+              <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Evidence Count</th>
+              <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Avg Rating</th>
+              <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Flavor</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {mergedBreakdown.map((row) => (
+              <tr key={row.category_id}>
+                <td style={{ padding: "8px" }}>{row.category_name}</td>
+                <td style={{ padding: "8px" }}>{row.evidence_count}</td>
+                <td style={{ padding: "8px" }}>
+                  {row.avg_score !== null ? row.avg_score.toFixed(2) : "—"}
+                </td>
+                <td style={{ padding: "8px" }}>{row.flavor}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       {(breakdownError || rankingsError) && (
         <pre>{JSON.stringify({ breakdownError, rankingsError }, null, 2)}</pre>
