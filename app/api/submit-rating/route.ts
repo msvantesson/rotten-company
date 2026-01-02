@@ -1,5 +1,3 @@
-// /app/api/submit-rating/route.ts
-
 import { NextResponse } from "next/server";
 import { supabaseRoute } from "@/lib/supabase-route";
 
@@ -8,8 +6,6 @@ export async function POST(req: Request) {
   const body = await req.json();
 
   const { companySlug, categorySlug, score } = body;
-
-  // Parse score safely (it may come as a string)
   const parsedScore = Number(score);
 
   if (!companySlug || !categorySlug || isNaN(parsedScore)) {
@@ -19,7 +15,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Load authenticated user
   const {
     data: { user },
     error: userError,
@@ -39,15 +34,17 @@ export async function POST(req: Request) {
     );
   }
 
-  // Debug log
+  // 🔍 Full debug log
   console.log("Rating request:", {
     companySlug,
     categorySlug,
     score: parsedScore,
     userId: user.id,
+    email: user.email,
+    metadata: user.user_metadata,
   });
 
-  // Ensure user exists in `users` table
+  // 🔍 Upsert user with defensive destructuring
   const { error: upsertError } = await supabase.from("users").upsert({
     id: user.id,
     email: user.email,
@@ -64,7 +61,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Get company ID
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id")
@@ -78,7 +74,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Get category ID
   const { data: category, error: categoryError } = await supabase
     .from("categories")
     .select("id")
@@ -92,7 +87,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Insert or update rating
   const { error: insertError } = await supabase
     .from("ratings")
     .upsert({
