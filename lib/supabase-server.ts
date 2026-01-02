@@ -1,3 +1,5 @@
+// /lib/supabase-server.ts
+
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
@@ -12,7 +14,7 @@ export function supabaseServer() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        // ❌ DO NOT SET COOKIES IN PAGES
+        // ❌ Pages cannot modify cookies in Next.js 16
         set() {},
         remove() {},
       },
