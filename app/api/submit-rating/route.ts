@@ -4,68 +4,76 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 
 export async function POST(req: Request) {
-  // Create SSR Supabase client
   const supabase = await supabaseServer();
+  const body = await req.json();
 
-  // Parse request body
-  const { companySlug, categorySlug, score } = await req.json();
+  const { companySlug, categorySlug, score } = body;
 
-  // Validate input
-  if (!companySlug || !categorySlug || !score) {
+  if (!companySlug || !categorySlug || typeof score !== "number") {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 }
     );
   }
 
-  // Get current user
+  // Get logged-in user
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
+  if (!user) {
     return NextResponse.json(
       { error: "Not authenticated" },
       { status: 401 }
     );
   }
 
-  // Look up company ID
-  const { data: company, error: companyError } = await supabase
+  // ✅ Ensure user exists in `users` table
+  await supabase.from("users").upsert({
+    id: user.id,
+    email: user.email,
+    name: user.user_metadata.full_name ?? null,
+    avatar_url: user.user_metadata.avatar_url ?? null,
+    moderation_credits: 0,
+  });
+
+  // Get company ID
+  const { data: company } = await supabase
     .from("companies")
     .select("id")
     .eq("slug", companySlug)
     .single();
 
-  if (companyError || !company) {
+  if (!company) {
     return NextResponse.json(
       { error: "Company not found" },
       { status: 404 }
     );
   }
 
-  // Look up category ID
-  const { data: category, error: categoryError } = await supabase
+  // Get category ID
+  const { data: category } = await supabase
     .from("categories")
     .select("id")
     .eq("slug", categorySlug)
     .single();
 
-  if (categoryError || !category) {
+  if (!category) {
     return NextResponse.json(
       { error: "Category not found" },
       { status: 404 }
     );
   }
 
-  // Insert rating (RLS enforces user_id = auth.uid())
-  const { error: insertError } = await supabase.from("ratings").insert({
-    company_id: company.id,
-    category: category.id,
-    score,
-    user_id: user.id,
-  });
+  // Insert or update rating
+  const { error: insertError } = await supabase
+    .from("ratings")
+    .upsert({
+      user_id: user.id,
+      company_id: company.id,
+      category: category.id,
+      score,
+    });
 
   if (insertError) {
     return NextResponse.json(
