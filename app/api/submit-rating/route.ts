@@ -4,8 +4,7 @@ import { NextResponse } from "next/server";
 import { supabaseRoute } from "@/lib/supabase-route";
 
 export async function POST(req: Request) {
-  const supabase = await supabaseRoute();
-
+  const supabase = supabaseRoute(); // correct client for API routes
   const body = await req.json();
 
   const { companySlug, categorySlug, score } = body;
@@ -17,7 +16,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Get logged-in user
+  // Load authenticated user
   const {
     data: { user },
     error: userError,
@@ -37,7 +36,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Log request for debugging
+  // Debug log
   console.log("Rating request:", {
     companySlug,
     categorySlug,
