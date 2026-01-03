@@ -100,7 +100,16 @@ export default async function CompanyPage({ params }: { params: Params }) {
     .select("category_id, category_name, avg_score")
     .eq("company_id", company.id);
 
-  // 5. Merge both views + flavor text (may be empty for fresh companies)
+  // ⭐ 4.5 Fetch overall Rotten Score (computed via SQL view)
+  const { data: scoreRow, error: scoreError } = await supabase
+    .from("company_rotten_score")
+    .select("rotten_score")
+    .eq("company_id", company.id)
+    .maybeSingle();
+
+  const liveRottenScore = scoreRow?.rotten_score ?? null;
+
+  // 5. Merge both views + flavor text
   const mergedBreakdown: CategoryBreakdown[] =
     breakdown?.map((b) => {
       const match = rankings?.find((r) => r.category_id === b.category_id);
@@ -147,9 +156,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
       <p><strong>Industry:</strong> {company.industry ?? "Unknown"}</p>
       <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
-      <p><strong>Rotten Score:</strong> {company.rotten_score ?? 0}</p>
 
-      {/* --- Ratings UI (always visible, even if no evidence yet) --- */}
+      {/* ⭐ Replaced with live Rotten Score */}
+      <p><strong>Rotten Score:</strong> {liveRottenScore ?? "—"}</p>
+
+      {/* --- Ratings UI --- */}
       <h2 style={{ marginTop: "2rem" }}>Rate this company</h2>
       {categories && categories.length > 0 ? (
         <div style={{ marginBottom: "2rem" }}>
@@ -177,7 +188,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
         <p>No categories configured yet.</p>
       )}
 
-      {/* --- Existing breakdown table (may be empty for fresh companies) --- */}
+      {/* --- Breakdown table --- */}
       <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
 
       {mergedBreakdown.length === 0 ? (
