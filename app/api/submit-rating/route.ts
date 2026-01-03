@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseRoute } from "@/lib/supabase-route";
+console.log("🔥 Executing deployed submit-rating route"); // Trigger rebuild
 
 export async function POST(req: Request) {
   const supabase = await supabaseRoute();
