@@ -43,7 +43,14 @@ export async function POST(req: Request) {
     metadata: user.user_metadata,
   });
 
-const { error: upsertError } = await supabase.from("users").upsert( { id: user.id, email: user.email, name: user.user_metadata?.full_name ?? null, avatar_url: user.user_metadata?.avatar_url ?? null, moderation_credits: 0, }, { onConflict: "id" } );
+  const { error: upsertError } = await supabase.from("users").upsert(
+    {
+      id: user.id,
+      email: user.email,
+      name: user.user_metadata?.full_name ?? null,
+      avatar_url: user.user_metadata?.avatar_url ?? null,
+      moderation_credits: 0,
+    },
     { onConflict: "id" }
   );
 
