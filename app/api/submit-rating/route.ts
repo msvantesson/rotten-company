@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { supabaseRoute } from "@/lib/supabase-route";
-console.log("🔥 Executing deployed submit-rating route"); // Trigger rebuild
+import { supabaseServer } from "@/lib/supabase-server";
+
+console.log("🔥 Executing deployed submit-rating route");
 
 export async function POST(req: Request) {
-  const supabase = await supabaseRoute();
-  const body = await req.json();
+  // Use the SAME SSR client as your pages — stable in Vercel
+  const supabase = await supabaseServer();
 
+  const body = await req.json();
   const { companySlug, categorySlug, score } = body;
   const parsedScore = Number(score);
 
@@ -16,6 +18,7 @@ export async function POST(req: Request) {
     );
   }
 
+  // Load authenticated user (this now works in Vercel)
   const {
     data: { user },
     error: userError,
@@ -44,6 +47,7 @@ export async function POST(req: Request) {
     metadata: user.user_metadata,
   });
 
+  // Ensure user exists in "users" table
   const { error: upsertError } = await supabase.from("users").upsert(
     {
       id: user.id,
@@ -63,6 +67,7 @@ export async function POST(req: Request) {
     );
   }
 
+  // Fetch company
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id")
@@ -76,6 +81,7 @@ export async function POST(req: Request) {
     );
   }
 
+  // Fetch category
   const { data: category, error: categoryError } = await supabase
     .from("categories")
     .select("id")
@@ -89,6 +95,7 @@ export async function POST(req: Request) {
     );
   }
 
+  // Insert or update rating
   const { error: insertError } = await supabase.from("ratings").upsert({
     user_id: user.id,
     company_id: company.id,
