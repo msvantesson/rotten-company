@@ -15,7 +15,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Load authenticated user
   const {
     data: { user },
     error: userError,
@@ -35,7 +34,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Debug log
   console.log("Rating request:", {
     companySlug,
     categorySlug,
@@ -45,7 +43,6 @@ export async function POST(req: Request) {
     metadata: user.user_metadata,
   });
 
-  // 🔥 FIX: Upsert by ID only (avoid duplicate email constraint)
   const { error: upsertError } = await supabase.from("users").upsert(
     {
       id: user.id,
@@ -65,7 +62,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Fetch company
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id")
@@ -79,7 +75,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Fetch category
   const { data: category, error: categoryError } = await supabase
     .from("categories")
     .select("id")
@@ -93,7 +88,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Insert or update rating
   const { error: insertError } = await supabase.from("ratings").upsert({
     user_id: user.id,
     company_id: company.id,
