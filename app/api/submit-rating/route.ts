@@ -15,6 +15,7 @@ export async function POST(req: Request) {
     );
   }
 
+  // Get authenticated user
   const {
     data: { user },
     error: userError,
@@ -44,14 +45,17 @@ export async function POST(req: Request) {
     metadata: user.user_metadata,
   });
 
-  // 🔍 Upsert user with defensive destructuring
-  const { error: upsertError } = await supabase.from("users").upsert({
-    id: user.id,
-    email: user.email,
-    name: user.user_metadata?.full_name ?? null,
-    avatar_url: user.user_metadata?.avatar_url ?? null,
-    moderation_credits: 0,
-  });
+  // 🔥 FIX: Upsert by ID only (avoid email unique constraint)
+  const { error: upsertError } = await supabase.from("users").upsert(
+    {
+      id: user.id,
+      email: user.email,
+      name: user.user_metadata?.full_name ?? null,
+      avatar_url: user.user_metadata?.avatar_url ?? null,
+      moderation_credits: 0,
+    },
+    { onConflict: "id" } // ← THIS FIXES THE DUPLICATE EMAIL ERROR
+  );
 
   if (upsertError) {
     console.error("User upsert failed:", upsertError);
@@ -61,6 +65,7 @@ export async function POST(req: Request) {
     );
   }
 
+  // Fetch company
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id")
@@ -74,6 +79,7 @@ export async function POST(req: Request) {
     );
   }
 
+  // Fetch category
   const { data: category, error: categoryError } = await supabase
     .from("categories")
     .select("id")
@@ -87,14 +93,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const { error: insertError } = await supabase
-    .from("ratings")
-    .upsert({
-      user_id: user.id,
-      company_id: company.id,
-      category: category.id,
-      score: parsedScore,
-    });
+  // Insert rating
+  const { error: insertError } = await supabase.from("ratings").upsert({
+    user_id: user.id,
+    company_id: company.id,
+    category: category.id,
+    score: parsedScore,
+  });
 
   if (insertError) {
     console.error("Rating insert failed:", insertError);
