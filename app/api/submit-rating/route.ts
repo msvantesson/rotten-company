@@ -15,7 +15,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Get authenticated user
   const {
     data: { user },
     error: userError,
@@ -35,7 +34,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // 🔍 Full debug log
   console.log("Rating request:", {
     companySlug,
     categorySlug,
@@ -45,7 +43,6 @@ export async function POST(req: Request) {
     metadata: user.user_metadata,
   });
 
-  // 🔥 FIX: Upsert by ID only (avoid email unique constraint)
   const { error: upsertError } = await supabase.from("users").upsert(
     {
       id: user.id,
@@ -54,7 +51,7 @@ export async function POST(req: Request) {
       avatar_url: user.user_metadata?.avatar_url ?? null,
       moderation_credits: 0,
     },
-    { onConflict: "id" } // ← THIS FIXES THE DUPLICATE EMAIL ERROR
+    { onConflict: "id" }
   );
 
   if (upsertError) {
@@ -65,7 +62,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Fetch company
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id")
@@ -79,7 +75,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Fetch category
   const { data: category, error: categoryError } = await supabase
     .from("categories")
     .select("id")
@@ -93,7 +88,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Insert rating
   const { error: insertError } = await supabase.from("ratings").upsert({
     user_id: user.id,
     company_id: company.id,
