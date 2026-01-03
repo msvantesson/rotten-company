@@ -88,39 +88,27 @@ export default async function CompanyPage({ params }: { params: Params }) {
       .eq("company_id", company.id)
       .eq("status", "approved");
 
-  // 3. Fetch category breakdown (evidence counts)
-  const { data: breakdown, error: breakdownError } = await supabase
-    .from("company_category_breakdown")
-    .select("category_id, category_name, evidence_count")
+  // 3. Unified breakdown view
+  const { data: mergedBreakdown, error: breakdownError } = await supabase
+    .from("company_category_full_breakdown")
+    .select("category_id, category_name, evidence_count, avg_score")
     .eq("company_id", company.id);
 
-  // 4. Fetch category rankings (avg scores)
-  const { data: rankings, error: rankingsError } = await supabase
-    .from("category_company_rankings")
-    .select("category_id, category_name, avg_score")
-    .eq("company_id", company.id);
+  // Add flavor text
+  const breakdownWithFlavor: CategoryBreakdown[] =
+    mergedBreakdown?.map((row) => ({
+      ...row,
+      flavor: getFlavor(row.category_id),
+    })) ?? [];
 
-  // ⭐ 4.5 Fetch overall Rotten Score (computed via SQL view)
-  const { data: scoreRow, error: scoreError } = await supabase
+  // 4.5 Fetch overall Rotten Score (computed via SQL view)
+  const { data: scoreRow } = await supabase
     .from("company_rotten_score")
     .select("rotten_score")
     .eq("company_id", company.id)
     .maybeSingle();
 
   const liveRottenScore = scoreRow?.rotten_score ?? null;
-
-  // 5. Merge both views + flavor text
-  const mergedBreakdown: CategoryBreakdown[] =
-    breakdown?.map((b) => {
-      const match = rankings?.find((r) => r.category_id === b.category_id);
-      return {
-        category_id: b.category_id,
-        category_name: b.category_name,
-        evidence_count: b.evidence_count,
-        avg_score: match?.avg_score ?? null,
-        flavor: getFlavor(b.category_id),
-      };
-    }) ?? [];
 
   // 6. Fetch all categories for rating UI
   const { data: categories } = await supabase
@@ -157,7 +145,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
       <p><strong>Industry:</strong> {company.industry ?? "Unknown"}</p>
       <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
 
-      {/* ⭐ Replaced with live Rotten Score */}
+      {/* Live Rotten Score */}
       <p><strong>Rotten Score:</strong> {liveRottenScore ?? "—"}</p>
 
       {/* --- Ratings UI --- */}
@@ -191,7 +179,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
       {/* --- Breakdown table --- */}
       <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
 
-      {mergedBreakdown.length === 0 ? (
+      {breakdownWithFlavor.length === 0 ? (
         <p>No breakdown yet for this company.</p>
       ) : (
         <table style={{ borderCollapse: "collapse", marginBottom: "2rem" }}>
@@ -204,7 +192,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
             </tr>
           </thead>
           <tbody>
-            {mergedBreakdown.map((row) => (
+            {breakdownWithFlavor.map((row) => (
               <tr key={row.category_id}>
                 <td style={{ padding: "8px" }}>{row.category_name}</td>
                 <td style={{ padding: "8px" }}>{row.evidence_count}</td>
@@ -218,8 +206,8 @@ export default async function CompanyPage({ params }: { params: Params }) {
         </table>
       )}
 
-      {(breakdownError || rankingsError) && (
-        <pre>{JSON.stringify({ breakdownError, rankingsError }, null, 2)}</pre>
+      {breakdownError && (
+        <pre>{JSON.stringify({ breakdownError }, null, 2)}</pre>
       )}
 
       <h2>Approved Evidence</h2>
