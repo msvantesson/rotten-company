@@ -33,7 +33,9 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
 
   const score = scoreRow?.rotten_score ?? 0;
-  const { macroTier } = getFlavor(score);
+
+  // ✅ Extract microFlavor + macroTier
+  const { microFlavor, macroTier } = getFlavor(score);
 
   return new ImageResponse(
     React.createElement(
@@ -53,6 +55,7 @@ export async function GET(req: NextRequest) {
         },
       },
       [
+        // Header
         React.createElement(
           "div",
           {
@@ -65,6 +68,8 @@ export async function GET(req: NextRequest) {
           },
           "Rotten Company"
         ),
+
+        // Company name
         React.createElement(
           "div",
           {
@@ -77,6 +82,23 @@ export async function GET(req: NextRequest) {
           },
           company.name
         ),
+
+        // ✅ Micro‑flavor (new)
+        React.createElement(
+          "div",
+          {
+            key: "microFlavor",
+            style: {
+              fontSize: "32px",
+              fontWeight: 600,
+              marginBottom: "20px",
+              opacity: 0.95,
+            },
+          },
+          microFlavor
+        ),
+
+        // Score + tier
         React.createElement(
           "div",
           {
@@ -89,6 +111,8 @@ export async function GET(req: NextRequest) {
           },
           `Rotten Score: ${score.toFixed(2)} · ${macroTier}`
         ),
+
+        // Score bar
         React.createElement(
           "div",
           {
@@ -111,6 +135,8 @@ export async function GET(req: NextRequest) {
             },
           })
         ),
+
+        // Tagline
         React.createElement(
           "div",
           {
