@@ -1,12 +1,12 @@
 import { Metadata } from "next";
-import { createClient } from "@/lib/supabase-server";
+import { supabaseServer } from "@/lib/supabase-server";
 
 type Params = { slug: string };
 
 export async function generateMetadata(
   { params }: { params: Params }
 ): Promise<Metadata> {
-  const supabase = await createClient();
+  const supabase = await supabaseServer();
 
   const { data: company } = await supabase
     .from("companies")
