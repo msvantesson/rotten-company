@@ -1,14 +1,15 @@
-import { NextRequest } from "next/server";
 import { ImageResponse } from "next/og";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getFlavor } from "@/lib/get-flavor";
 import React from "react";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const preferredRegion = "iad1";
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const slug = searchParams.get("slug");
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const slug = url.searchParams.get("slug");
 
   if (!slug) {
     return new Response("Missing slug", { status: 400 });
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = await supabaseServer();
 
+  // Fetch company
   const { data: company } = await supabase
     .from("companies")
     .select("id, name, slug, industry")
@@ -26,6 +28,7 @@ export async function GET(req: NextRequest) {
     return new Response("Company not found", { status: 404 });
   }
 
+  // Fetch score
   const { data: scoreRow } = await supabase
     .from("company_rotten_score")
     .select("rotten_score")
@@ -34,17 +37,18 @@ export async function GET(req: NextRequest) {
 
   const score = scoreRow?.rotten_score ?? 0;
 
+  // Fetch breakdown
   const { data: breakdown } = await supabase
     .from("company_category_breakdown")
     .select("rating_count, evidence_count")
     .eq("company_id", company.id);
 
   const ratingCount = Array.isArray(breakdown)
-    ? breakdown.reduce((sum, b) => sum + b.rating_count, 0)
+    ? breakdown.reduce((sum, b) => sum + (b.rating_count ?? 0), 0)
     : 0;
 
   const evidenceCount = Array.isArray(breakdown)
-    ? breakdown.reduce((sum, b) => sum + b.evidence_count, 0)
+    ? breakdown.reduce((sum, b) => sum + (b.evidence_count ?? 0), 0)
     : 0;
 
   const totalSignals = ratingCount + evidenceCount;
@@ -77,7 +81,7 @@ export async function GET(req: NextRequest) {
           height: "630px",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "space-between",
+          justifyContent: "flex-start",
           padding: "60px",
           background: "#050816",
           color: "#f9fafb",
@@ -89,39 +93,30 @@ export async function GET(req: NextRequest) {
           "div",
           {
             key: "header",
-            style: {
-              fontSize: "24px",
-              opacity: 0.7,
-              marginBottom: "8px",
-            },
+            style: { fontSize: "24px", opacity: 0.7, marginBottom: "8px" },
           },
           "Rotten Company"
         ),
+
         React.createElement(
           "div",
           {
             key: "name",
-            style: {
-              fontSize: "56px",
-              fontWeight: 700,
-              marginBottom: "12px",
-            },
+            style: { fontSize: "56px", fontWeight: 700, marginBottom: "12px" },
           },
           company.name
         ),
+
         React.createElement(
           "div",
           {
             key: "microFlavor",
-            style: {
-              fontSize: "34px",
-              fontWeight: 600,
-              opacity: 0.95,
-              marginBottom: "24px",
-            },
+            style: { fontSize: "34px", fontWeight: 600, opacity: 0.95, marginBottom: "24px" },
           },
           microFlavor
         ),
+
+        // Score bar
         React.createElement(
           "div",
           {
@@ -144,52 +139,40 @@ export async function GET(req: NextRequest) {
             },
           })
         ),
+
         React.createElement(
           "div",
           {
             key: "score-tier",
-            style: {
-              fontSize: "28px",
-              fontWeight: 500,
-              marginBottom: "12px",
-            },
+            style: { fontSize: "28px", fontWeight: 500, marginBottom: "12px" },
           },
           `Rotten Score: ${score.toFixed(1)} · ${macroTier}`
         ),
+
         React.createElement(
           "div",
           {
             key: "signals",
-            style: {
-              fontSize: "22px",
-              opacity: 0.85,
-              lineHeight: 1.4,
-              marginBottom: "4px",
-            },
+            style: { fontSize: "22px", opacity: 0.85, marginBottom: "6px" },
           },
           `${evidenceCount} evidence · ${ratingCount} ratings · ${totalSignals} total signals`
         ),
+
         React.createElement(
           "div",
           {
             key: "confidence",
-            style: {
-              fontSize: "20px",
-              opacity: 0.7,
-              marginBottom: "8px",
-            },
+            style: { fontSize: "20px", opacity: 0.7, marginBottom: "8px" },
           },
           confidence
         ),
+
         company.industry &&
           React.createElement(
             "div",
             {
               key: "industry",
-              style: {
-                fontSize: "20px",
-                opacity: 0.6,
-              },
+              style: { fontSize: "20px", opacity: 0.6 },
             },
             `Industry: ${company.industry}`
           ),
