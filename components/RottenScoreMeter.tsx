@@ -16,7 +16,7 @@ export function RottenScoreMeter({ score }: { score: number }) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Micro flavor (primary voice) */}
       <div className="text-xl font-semibold leading-snug">
         {microFlavor}
@@ -38,6 +38,26 @@ export function RottenScoreMeter({ score }: { score: number }) {
         <span>{score.toFixed(2)}</span>
         <span>{macroTier}</span>
       </div>
+
+      {/* Why this score? explainer */}
+      <details className="mt-2 text-sm text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-md p-3">
+        <summary className="cursor-pointer font-medium text-neutral-800">
+          Why this score?
+        </summary>
+        <div className="mt-2 space-y-2">
+          <p>
+            This Rotten Score is a weighted combination of category ratings and underlying evidence.
+            Higher scores mean more severe, repeated, and well‑documented problems.
+          </p>
+          <p>
+            The <span className="font-semibold">tier</span> ({macroTier}) captures the overall level of concern,
+            while the <span className="font-semibold">micro flavor</span> gives a human‑readable snapshot of what people are actually warning about.
+          </p>
+          <p className="text-xs text-neutral-500">
+            For a deeper view, scroll down to the category breakdown and evidence list — that&apos;s where the score earns its teeth.
+          </p>
+        </div>
+      </details>
     </div>
   );
 }
