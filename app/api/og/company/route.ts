@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   const score = scoreRow?.rotten_score ?? 0;
 
-  // ✅ Extract microFlavor + macroTier
+  // Extract micro + macro flavor
   const { microFlavor, macroTier } = getFlavor(score);
 
   return new ImageResponse(
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
           company.name
         ),
 
-        // ✅ Micro‑flavor (new)
+        // Micro-flavor (dynamic)
         React.createElement(
           "div",
           {
@@ -134,19 +134,6 @@ export async function GET(req: NextRequest) {
               background: "#B22222",
             },
           })
-        ),
-
-        // Tagline
-        React.createElement(
-          "div",
-          {
-            key: "tagline",
-            style: {
-              fontSize: "18px",
-              opacity: 0.8,
-            },
-          },
-          "People don't leave reviews; they leave warnings."
         ),
       ]
     ),
