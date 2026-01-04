@@ -16,9 +16,10 @@ export async function GET(req: NextRequest) {
 
   const supabase = await supabaseServer();
 
+  // Fetch company
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug")
+    .select("id, name, slug, industry")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
     return new Response("Company not found", { status: 404 });
   }
 
+  // Fetch score
   const { data: scoreRow } = await supabase
     .from("company_rotten_score")
     .select("rotten_score")
@@ -34,8 +36,36 @@ export async function GET(req: NextRequest) {
 
   const score = scoreRow?.rotten_score ?? 0;
 
-  // Extract micro + macro flavor
+  // Fetch breakdown for counts
+  const { data: breakdown } = await supabase
+    .from("company_category_breakdown")
+    .select("rating_count, evidence_count")
+    .eq("company_id", company.id);
+
+  const ratingCount = breakdown?.reduce((s, r) => s + r.rating_count, 0) ?? 0;
+  const evidenceCount = breakdown?.reduce((s, r) => s + r.evidence_count, 0) ?? 0;
+  const totalSignals = ratingCount + evidenceCount;
+
+  const confidence =
+    totalSignals >= 50 ? "High confidence" :
+    totalSignals >= 10 ? "Medium confidence" :
+    "Low confidence";
+
+  // Flavor system
   const { microFlavor, macroTier } = getFlavor(score);
+
+  // Color logic
+  const getColor = () => {
+    if (score >= 90) return "#8B0000";      // deep hell red
+    if (score >= 75) return "#B22222";      // imperial red
+    if (score >= 60) return "#D2691E";      // burnt orange
+    if (score >= 45) return "#DAA520";      // golden warning
+    if (score >= 30) return "#CD853F";      // tan/brown
+    if (score >= 15) return "#A9A9A9";      // dark gray
+    return "#2E8B57";                       // clean green
+  };
+
+  const barColor = getColor();
 
   return new ImageResponse(
     React.createElement(
@@ -46,8 +76,8 @@ export async function GET(req: NextRequest) {
           height: "630px",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
-          padding: "80px",
+          justifyContent: "space-between",
+          padding: "60px",
           background: "#050816",
           color: "#f9fafb",
           fontFamily:
@@ -59,11 +89,11 @@ export async function GET(req: NextRequest) {
         React.createElement(
           "div",
           {
-            key: "title",
+            key: "header",
             style: {
               fontSize: "24px",
-              opacity: 0.8,
-              marginBottom: "16px",
+              opacity: 0.7,
+              marginBottom: "8px",
             },
           },
           "Rotten Company"
@@ -75,7 +105,7 @@ export async function GET(req: NextRequest) {
           {
             key: "name",
             style: {
-              fontSize: "48px",
+              fontSize: "56px",
               fontWeight: 700,
               marginBottom: "12px",
             },
@@ -83,33 +113,19 @@ export async function GET(req: NextRequest) {
           company.name
         ),
 
-        // Micro-flavor (dynamic)
+        // Micro flavor
         React.createElement(
           "div",
           {
             key: "microFlavor",
             style: {
-              fontSize: "32px",
+              fontSize: "34px",
               fontWeight: 600,
-              marginBottom: "20px",
               opacity: 0.95,
+              marginBottom: "24px",
             },
           },
           microFlavor
-        ),
-
-        // Score + tier
-        React.createElement(
-          "div",
-          {
-            key: "score",
-            style: {
-              fontSize: "24px",
-              marginBottom: "32px",
-              opacity: 0.9,
-            },
-          },
-          `Rotten Score: ${score.toFixed(2)} · ${macroTier}`
         ),
 
         // Score bar
@@ -119,11 +135,11 @@ export async function GET(req: NextRequest) {
             key: "bar-bg",
             style: {
               width: "100%",
-              height: "16px",
+              height: "20px",
               borderRadius: "9999px",
               background: "#111827",
               overflow: "hidden",
-              marginBottom: "16px",
+              marginBottom: "20px",
             },
           },
           React.createElement("div", {
@@ -131,10 +147,53 @@ export async function GET(req: NextRequest) {
             style: {
               height: "100%",
               width: `${score}%`,
-              background: "#B22222",
+              background: barColor,
             },
           })
         ),
+
+        // Score + tier
+        React.createElement(
+          "div",
+          {
+            key: "score-tier",
+            style: {
+              fontSize: "28px",
+              fontWeight: 500,
+              marginBottom: "12px",
+            },
+          },
+          `Rotten Score: ${score.toFixed(1)} · ${macroTier}`
+        ),
+
+        // Evidence + ratings + confidence
+        React.createElement(
+          "div",
+          {
+            key: "signals",
+            style: {
+              fontSize: "22px",
+              opacity: 0.85,
+              lineHeight: 1.4,
+            },
+          },
+          `${evidenceCount} evidence · ${ratingCount} ratings · ${totalSignals} total signals\n${confidence}`
+        ),
+
+        // Industry (optional)
+        company.industry &&
+          React.createElement(
+            "div",
+            {
+              key: "industry",
+              style: {
+                fontSize: "20px",
+                opacity: 0.6,
+                marginTop: "12px",
+              },
+            },
+            `Industry: ${company.industry}`
+          ),
       ]
     ),
     {
