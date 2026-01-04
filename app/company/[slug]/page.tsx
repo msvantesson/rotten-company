@@ -5,6 +5,8 @@ export const fetchCache = "force-no-store";
 import { supabaseServer } from "@/lib/supabase-server";
 import { EvidenceList } from "@/components/EvidenceList";
 import RatingStars from "@/components/RatingStars";
+import { RottenScoreMeter } from "@/components/RottenScoreMeter";
+import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 
 // --- Flavor taxonomy ---
 const CATEGORY_FLAVORS: Record<number, string> = {
@@ -42,7 +44,7 @@ type Company = {
   rotten_score?: number;
 } | null;
 
-type CategoryBreakdown = {
+type CategoryBreakdownRow = {
   category_id: number;
   category_name: string;
   evidence_count: number;
@@ -95,7 +97,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     .eq("company_id", company.id);
 
   // Add flavor text
-  const breakdownWithFlavor: CategoryBreakdown[] =
+  const breakdownWithFlavor: CategoryBreakdownRow[] =
     mergedBreakdown?.map((row) => ({
       ...row,
       flavor: getFlavor(row.category_id),
@@ -145,8 +147,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
       <p><strong>Industry:</strong> {company.industry ?? "Unknown"}</p>
       <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
 
-      {/* Live Rotten Score */}
-      <p><strong>Rotten Score:</strong> {liveRottenScore ?? "—"}</p>
+      {/* --- Rotten Score Meter (replaces plain text score) --- */}
+      <div style={{ marginTop: "1.5rem", marginBottom: "2rem" }}>
+        <RottenScoreMeter score={liveRottenScore ?? 0} />
+      </div>
 
       {/* --- Ratings UI --- */}
       <h2 style={{ marginTop: "2rem" }}>Rate this company</h2>
@@ -176,40 +180,18 @@ export default async function CompanyPage({ params }: { params: Params }) {
         <p>No categories configured yet.</p>
       )}
 
-      {/* --- Breakdown table --- */}
+      {/* --- Category Breakdown UI (replaces table) --- */}
       <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
 
-      {breakdownWithFlavor.length === 0 ? (
-        <p>No breakdown yet for this company.</p>
-      ) : (
-        <table style={{ borderCollapse: "collapse", marginBottom: "2rem" }}>
-          <thead>
-            <tr>
-              <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Category</th>
-              <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Evidence Count</th>
-              <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Avg Rating</th>
-              <th style={{ borderBottom: "1px solid #ccc", padding: "8px" }}>Flavor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {breakdownWithFlavor.map((row) => (
-              <tr key={row.category_id}>
-                <td style={{ padding: "8px" }}>{row.category_name}</td>
-                <td style={{ padding: "8px" }}>{row.evidence_count}</td>
-                <td style={{ padding: "8px" }}>
-                  {row.avg_score !== null ? row.avg_score.toFixed(2) : "—"}
-                </td>
-                <td style={{ padding: "8px" }}>{row.flavor}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <div style={{ marginBottom: "2rem" }}>
+        <CategoryBreakdown breakdown={breakdownWithFlavor} />
+      </div>
 
       {breakdownError && (
         <pre>{JSON.stringify({ breakdownError }, null, 2)}</pre>
       )}
 
+      {/* --- Evidence List --- */}
       <h2>Approved Evidence</h2>
       <EvidenceList evidence={evidence || []} />
 
