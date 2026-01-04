@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { ImageResponse } from "next/og";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getFlavor } from "@/lib/get-flavor";
+import React from "react";
 
 export const runtime = "nodejs";
 
@@ -35,9 +36,9 @@ export async function GET(req: NextRequest) {
   const { macroTier } = getFlavor(score);
 
   return new ImageResponse(
-    {
-      type: "div",
-      props: {
+    React.createElement(
+      "div",
+      {
         style: {
           width: "1200px",
           height: "630px",
@@ -50,87 +51,79 @@ export async function GET(req: NextRequest) {
           fontFamily:
             "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
         },
-        children: [
-          {
-            type: "div",
-            props: {
-              style: {
-                fontSize: "24px",
-                opacity: 0.8,
-                marginBottom: "16px",
-              },
-              children: "Rotten Company",
-            },
-          },
-          {
-            type: "div",
-            props: {
-              style: {
-                fontSize: "48px",
-                fontWeight: 700,
-                marginBottom: "12px",
-              },
-              children: company.name,
-            },
-          },
-          {
-            type: "div",
-            props: {
-              style: {
-                fontSize: "24px",
-                marginBottom: "32px",
-                opacity: 0.9,
-              },
-              children: [
-                "Rotten Score: ",
-                {
-                  type: "span",
-                  props: {
-                    style: { fontWeight: 700 },
-                    children: score.toFixed(2),
-                  },
-                },
-                " · ",
-                macroTier,
-              ],
-            },
-          },
-          {
-            type: "div",
-            props: {
-              style: {
-                width: "100%",
-                height: "16px",
-                borderRadius: "9999px",
-                background: "#111827",
-                overflow: "hidden",
-                marginBottom: "16px",
-              },
-              children: {
-                type: "div",
-                props: {
-                  style: {
-                    height: "100%",
-                    width: `${score}%`,
-                    background: "#B22222",
-                  },
-                },
-              },
-            },
-          },
-          {
-            type: "div",
-            props: {
-              style: {
-                fontSize: "18px",
-                opacity: 0.8,
-              },
-              children: "People don't leave reviews; they leave warnings.",
-            },
-          },
-        ],
       },
-    },
+      [
+        React.createElement(
+          "div",
+          {
+            key: "title",
+            style: {
+              fontSize: "24px",
+              opacity: 0.8,
+              marginBottom: "16px",
+            },
+          },
+          "Rotten Company"
+        ),
+        React.createElement(
+          "div",
+          {
+            key: "name",
+            style: {
+              fontSize: "48px",
+              fontWeight: 700,
+              marginBottom: "12px",
+            },
+          },
+          company.name
+        ),
+        React.createElement(
+          "div",
+          {
+            key: "score",
+            style: {
+              fontSize: "24px",
+              marginBottom: "32px",
+              opacity: 0.9,
+            },
+          },
+          `Rotten Score: ${score.toFixed(2)} · ${macroTier}`
+        ),
+        React.createElement(
+          "div",
+          {
+            key: "bar-bg",
+            style: {
+              width: "100%",
+              height: "16px",
+              borderRadius: "9999px",
+              background: "#111827",
+              overflow: "hidden",
+              marginBottom: "16px",
+            },
+          },
+          React.createElement("div", {
+            key: "bar-fill",
+            style: {
+              height: "100%",
+              width: `${score}%`,
+              background: "#B22222",
+            },
+          })
+        ),
+        React.createElement(
+          "div",
+          {
+            key: "tagline",
+            style: {
+              fontSize: "18px",
+              opacity: 0.8,
+            },
+          },
+          "People don't leave reviews; they leave warnings."
+        ),
+      ]
+    ),
     {
       width: 1200,
       height: 630,
