@@ -7,6 +7,7 @@ import { EvidenceList } from "@/components/EvidenceList";
 import RatingStars from "@/components/RatingStars";
 import { RottenScoreMeter } from "@/components/RottenScoreMeter";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
+import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 
 // --- Flavor taxonomy ---
 const CATEGORY_FLAVORS: Record<number, string> = {
@@ -140,64 +141,81 @@ export default async function CompanyPage({ params }: { params: Params }) {
     }
   }
 
+  // --- JSON-LD payload ---
+  const jsonLd = buildCompanyJsonLd({
+    company,
+    rottenScore: liveRottenScore,
+    breakdown: breakdownWithFlavor,
+  });
+
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>{company.name}</h1>
+    <>
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd, null, 2),
+        }}
+      />
 
-      <p><strong>Industry:</strong> {company.industry ?? "Unknown"}</p>
-      <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
+      <div style={{ padding: "2rem" }}>
+        <h1>{company.name}</h1>
 
-      {/* --- Rotten Score Meter (replaces plain text score) --- */}
-      <div style={{ marginTop: "1.5rem", marginBottom: "2rem" }}>
-        <RottenScoreMeter score={liveRottenScore ?? 0} />
-      </div>
+        <p><strong>Industry:</strong> {company.industry ?? "Unknown"}</p>
+        <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
 
-      {/* --- Ratings UI --- */}
-      <h2 style={{ marginTop: "2rem" }}>Rate this company</h2>
-      {categories && categories.length > 0 ? (
-        <div style={{ marginBottom: "2rem" }}>
-          {categories.map((cat) => (
-            <div
-              key={cat.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "8px 0",
-                borderBottom: "1px solid #eee",
-              }}
-            >
-              <span>{cat.name}</span>
-              <RatingStars
-                companySlug={company.slug}
-                categorySlug={cat.slug}
-                initialScore={userRatings[cat.id] ?? null}
-              />
-            </div>
-          ))}
+        {/* --- Rotten Score Meter --- */}
+        <div style={{ marginTop: "1.5rem", marginBottom: "2rem" }}>
+          <RottenScoreMeter score={liveRottenScore ?? 0} />
         </div>
-      ) : (
-        <p>No categories configured yet.</p>
-      )}
 
-      {/* --- Category Breakdown UI (replaces table) --- */}
-      <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
+        {/* --- Ratings UI --- */}
+        <h2 style={{ marginTop: "2rem" }}>Rate this company</h2>
+        {categories && categories.length > 0 ? (
+          <div style={{ marginBottom: "2rem" }}>
+            {categories.map((cat) => (
+              <div
+                key={cat.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "8px 0",
+                  borderBottom: "1px solid #eee",
+                }}
+              >
+                <span>{cat.name}</span>
+                <RatingStars
+                  companySlug={company.slug}
+                  categorySlug={cat.slug}
+                  initialScore={userRatings[cat.id] ?? null}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>No categories configured yet.</p>
+        )}
 
-      <div style={{ marginBottom: "2rem" }}>
-        <CategoryBreakdown breakdown={breakdownWithFlavor} />
+        {/* --- Category Breakdown UI --- */}
+        <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
+
+        <div style={{ marginBottom: "2rem" }}>
+          <CategoryBreakdown breakdown={breakdownWithFlavor} />
+        </div>
+
+        {breakdownError && (
+          <pre>{JSON.stringify({ breakdownError }, null, 2)}</pre>
+        )}
+
+        {/* --- Evidence List --- */}
+        <h2>Approved Evidence</h2>
+        <EvidenceList evidence={evidence || []} />
+
+        {evidenceError ? (
+          <pre style={{ marginTop: 12 }}>{JSON.stringify(evidenceError, null, 2)}</pre>
+        ) : null}
       </div>
-
-      {breakdownError && (
-        <pre>{JSON.stringify({ breakdownError }, null, 2)}</pre>
-      )}
-
-      {/* --- Evidence List --- */}
-      <h2>Approved Evidence</h2>
-      <EvidenceList evidence={evidence || []} />
-
-      {evidenceError ? (
-        <pre style={{ marginTop: 12 }}>{JSON.stringify(evidenceError, null, 2)}</pre>
-      ) : null}
-    </div>
+    </>
   );
 }
