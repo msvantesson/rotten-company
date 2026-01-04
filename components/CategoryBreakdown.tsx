@@ -3,10 +3,9 @@
 type BreakdownItem = {
   category_id: number;
   category_name: string;
+  evidence_count: number;
   avg_score: number | null;
-  rating_count: number;
-  evidence_weight: number | null;
-  weighted_score: number | null;
+  flavor: string;
 };
 
 export function CategoryBreakdown({
@@ -36,8 +35,8 @@ export function CategoryBreakdown({
             <div
               className="h-full transition-all duration-500"
               style={{
-                width: `${item.weighted_score ?? 0}%`,
-                backgroundColor: "#B22222", // consistent with main meter
+                width: `${item.avg_score ?? 0}%`,
+                backgroundColor: "#B22222",
               }}
             />
           </div>
@@ -45,22 +44,17 @@ export function CategoryBreakdown({
           {/* Stats row */}
           <div className="flex justify-between text-sm text-neutral-600">
             <span>
-              Score:{" "}
-              {item.weighted_score !== null
-                ? item.weighted_score.toFixed(2)
+              Avg Rating:{" "}
+              {item.avg_score !== null
+                ? item.avg_score.toFixed(2)
                 : "—"}
             </span>
 
             <span>
-              Ratings: {item.rating_count}
+              Evidence: {item.evidence_count}
             </span>
 
-            <span>
-              Evidence weight:{" "}
-              {item.evidence_weight !== null
-                ? item.evidence_weight.toFixed(2)
-                : "—"}
-            </span>
+            <span>{item.flavor}</span>
           </div>
         </div>
       ))}
