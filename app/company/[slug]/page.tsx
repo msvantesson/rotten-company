@@ -7,6 +7,7 @@ import { EvidenceList } from "@/components/EvidenceList";
 import RatingStars from "@/components/RatingStars";
 import { RottenScoreMeter } from "@/components/RottenScoreMeter";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
+import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 
 // --- Flavor taxonomy ---
@@ -22,6 +23,20 @@ const CATEGORY_FLAVORS: Record<number, string> = {
 
 function getFlavor(categoryId: number): string {
   return CATEGORY_FLAVORS[categoryId] ?? "No flavor assigned";
+}
+
+const CATEGORY_ICON_MAP: Record<number, string> = {
+  1: "💼",
+  2: "📰",
+  3: "🎭",
+  4: "🧪",
+  5: "🚨",
+  6: "🌱",
+  13: "💸",
+};
+
+function getCategoryIcon(categoryId: number): string {
+  return CATEGORY_ICON_MAP[categoryId] ?? "⚠️";
 }
 
 // --- Types ---
@@ -184,7 +199,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
                   borderBottom: "1px solid #eee",
                 }}
               >
-                <span>{cat.name}</span>
+                <span>
+                  {getCategoryIcon(cat.id)}{" "}
+                  {cat.name}
+                </span>
                 <RatingStars
                   companySlug={company.slug}
                   categorySlug={cat.slug}
@@ -215,6 +233,14 @@ export default async function CompanyPage({ params }: { params: Params }) {
         {evidenceError ? (
           <pre style={{ marginTop: 12 }}>{JSON.stringify(evidenceError, null, 2)}</pre>
         ) : null}
+
+        {/* --- Debug Panel (internal QA) --- */}
+        {user && (
+          <ScoreDebugPanel
+            score={liveRottenScore}
+            breakdown={breakdownWithFlavor}
+          />
+        )}
       </div>
     </>
   );
