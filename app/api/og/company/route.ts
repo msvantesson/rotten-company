@@ -87,4 +87,111 @@ export async function GET(req: Request) {
   const barColor = getColor();
 
   try {
-    return
+    return new ImageResponse(
+      React.createElement(
+        "div",
+        {
+          style: {
+            width: "1200px",
+            height: "630px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+            padding: "60px",
+            background: "#050816",
+            color: "#f9fafb",
+            fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+          },
+        },
+        [
+          React.createElement(
+            "div",
+            {
+              key: "header",
+              style: { fontSize: "24px", opacity: 0.7, marginBottom: "8px" },
+            },
+            "Rotten Company"
+          ),
+          React.createElement(
+            "div",
+            {
+              key: "name",
+              style: { fontSize: "56px", fontWeight: 700, marginBottom: "12px" },
+            },
+            company.name
+          ),
+          React.createElement(
+            "div",
+            {
+              key: "microFlavor",
+              style: { fontSize: "34px", fontWeight: 600, opacity: 0.95, marginBottom: "24px" },
+            },
+            microFlavor
+          ),
+          React.createElement(
+            "div",
+            {
+              key: "bar-bg",
+              style: {
+                width: "100%",
+                height: "20px",
+                borderRadius: "9999px",
+                background: "#111827",
+                overflow: "hidden",
+                marginBottom: "20px",
+              },
+            },
+            React.createElement("div", {
+              key: "bar-fill",
+              style: {
+                height: "100%",
+                width: `${score}%`,
+                background: barColor,
+              },
+            })
+          ),
+          React.createElement(
+            "div",
+            {
+              key: "score-tier",
+              style: { fontSize: "28px", fontWeight: 500, marginBottom: "12px" },
+            },
+            `Rotten Score: ${score.toFixed(1)} · ${macroTier}`
+          ),
+          React.createElement(
+            "div",
+            {
+              key: "signals",
+              style: { fontSize: "22px", opacity: 0.85, marginBottom: "6px" },
+            },
+            `${evidenceCount} evidence · ${ratingCount} ratings · ${totalSignals} total signals`
+          ),
+          React.createElement(
+            "div",
+            {
+              key: "confidence",
+              style: { fontSize: "20px", opacity: 0.7, marginBottom: "8px" },
+            },
+            confidence
+          ),
+          company.industry &&
+            React.createElement(
+              "div",
+              {
+                key: "industry",
+                style: { fontSize: "20px", opacity: 0.6 },
+              },
+              `Industry: ${company.industry}`
+            ),
+        ]
+      ),
+      {
+        width: 1200,
+        height: 630,
+      }
+    );
+  } catch (err: any) {
+    console.error("OG image render failed:", err);
+    return new Response("OG image render failed", { status: 500 });
+  }
+}
