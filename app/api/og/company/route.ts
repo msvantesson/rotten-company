@@ -36,14 +36,20 @@ export async function GET(req: NextRequest) {
 
   const score = scoreRow?.rotten_score ?? 0;
 
-  // Fetch breakdown for counts
+  // Fetch breakdown
   const { data: breakdown } = await supabase
     .from("company_category_breakdown")
     .select("rating_count, evidence_count")
     .eq("company_id", company.id);
 
-  const ratingCount = breakdown?.reduce((s, r) => s + r.rating_count, 0) ?? 0;
-  const evidenceCount = breakdown?.reduce((s, r) => s + r.evidence_count, 0) ?? 0;
+  const ratingCount = Array.isArray(breakdown)
+    ? breakdown.reduce((sum, b) => sum + b.rating_count, 0)
+    : 0;
+
+  const evidenceCount = Array.isArray(breakdown)
+    ? breakdown.reduce((sum, b) => sum + b.evidence_count, 0)
+    : 0;
+
   const totalSignals = ratingCount + evidenceCount;
 
   const confidence =
@@ -51,18 +57,16 @@ export async function GET(req: NextRequest) {
     totalSignals >= 10 ? "Medium confidence" :
     "Low confidence";
 
-  // Flavor system
   const { microFlavor, macroTier } = getFlavor(score);
 
-  // Color logic
   const getColor = () => {
-    if (score >= 90) return "#8B0000";      // deep hell red
-    if (score >= 75) return "#B22222";      // imperial red
-    if (score >= 60) return "#D2691E";      // burnt orange
-    if (score >= 45) return "#DAA520";      // golden warning
-    if (score >= 30) return "#CD853F";      // tan/brown
-    if (score >= 15) return "#A9A9A9";      // dark gray
-    return "#2E8B57";                       // clean green
+    if (score >= 90) return "#8B0000";
+    if (score >= 75) return "#B22222";
+    if (score >= 60) return "#D2691E";
+    if (score >= 45) return "#DAA520";
+    if (score >= 30) return "#CD853F";
+    if (score >= 15) return "#A9A9A9";
+    return "#2E8B57";
   };
 
   const barColor = getColor();
@@ -80,8 +84,7 @@ export async function GET(req: NextRequest) {
           padding: "60px",
           background: "#050816",
           color: "#f9fafb",
-          fontFamily:
-            "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+          fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
         },
       },
       [
