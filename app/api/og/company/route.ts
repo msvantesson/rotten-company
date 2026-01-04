@@ -16,7 +16,6 @@ export async function GET(req: NextRequest) {
 
   const supabase = await supabaseServer();
 
-  // Fetch company
   const { data: company } = await supabase
     .from("companies")
     .select("id, name, slug, industry")
@@ -27,7 +26,6 @@ export async function GET(req: NextRequest) {
     return new Response("Company not found", { status: 404 });
   }
 
-  // Fetch score
   const { data: scoreRow } = await supabase
     .from("company_rotten_score")
     .select("rotten_score")
@@ -36,7 +34,6 @@ export async function GET(req: NextRequest) {
 
   const score = scoreRow?.rotten_score ?? 0;
 
-  // Fetch breakdown
   const { data: breakdown } = await supabase
     .from("company_category_breakdown")
     .select("rating_count, evidence_count")
@@ -88,7 +85,6 @@ export async function GET(req: NextRequest) {
         },
       },
       [
-        // Header
         React.createElement(
           "div",
           {
@@ -101,8 +97,6 @@ export async function GET(req: NextRequest) {
           },
           "Rotten Company"
         ),
-
-        // Company name
         React.createElement(
           "div",
           {
@@ -115,8 +109,6 @@ export async function GET(req: NextRequest) {
           },
           company.name
         ),
-
-        // Micro flavor
         React.createElement(
           "div",
           {
@@ -130,8 +122,6 @@ export async function GET(req: NextRequest) {
           },
           microFlavor
         ),
-
-        // Score bar
         React.createElement(
           "div",
           {
@@ -154,8 +144,6 @@ export async function GET(req: NextRequest) {
             },
           })
         ),
-
-        // Score + tier
         React.createElement(
           "div",
           {
@@ -168,8 +156,6 @@ export async function GET(req: NextRequest) {
           },
           `Rotten Score: ${score.toFixed(1)} · ${macroTier}`
         ),
-
-        // Evidence + ratings + confidence
         React.createElement(
           "div",
           {
@@ -178,12 +164,23 @@ export async function GET(req: NextRequest) {
               fontSize: "22px",
               opacity: 0.85,
               lineHeight: 1.4,
+              marginBottom: "4px",
             },
           },
-          `${evidenceCount} evidence · ${ratingCount} ratings · ${totalSignals} total signals\n${confidence}`
+          `${evidenceCount} evidence · ${ratingCount} ratings · ${totalSignals} total signals`
         ),
-
-        // Industry (optional)
+        React.createElement(
+          "div",
+          {
+            key: "confidence",
+            style: {
+              fontSize: "20px",
+              opacity: 0.7,
+              marginBottom: "8px",
+            },
+          },
+          confidence
+        ),
         company.industry &&
           React.createElement(
             "div",
@@ -192,7 +189,6 @@ export async function GET(req: NextRequest) {
               style: {
                 fontSize: "20px",
                 opacity: 0.6,
-                marginTop: "12px",
               },
             },
             `Industry: ${company.industry}`
