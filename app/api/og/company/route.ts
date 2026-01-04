@@ -49,7 +49,7 @@ export async function GET(req: Request) {
     const score = scoreRow?.rotten_score ?? 0;
 
     const { data: breakdown, error: breakdownError } = await supabase
-      .from("company_category_breakdown") // ✅ Corrected table name
+      .from("company_category_breakdown")
       .select("rating_count, evidence_count")
       .eq("company_id", company.id);
 
@@ -124,6 +124,7 @@ export async function GET(req: Request) {
             {
               key: "bar-bg",
               style: {
+                display: "flex", // ✅ REQUIRED to avoid pipe error
                 width: "100%",
                 height: "20px",
                 borderRadius: "9999px",
