@@ -24,6 +24,16 @@ export default async function LeaderPage({ params }: { params: Params }) {
 
   const { leader, score, categories, inequality, evidence } = data;
 
+  const mappedEvidence = (evidence ?? []).map((ev) => ({
+    id: ev.id,
+    title: ev.title,
+    summary: ev.summary ?? "",
+    category: ev.category,
+    severity: ev.severity,
+    createdAt: ev.created_at,
+    companySlug: ev.company_id?.toString() ?? "",
+  }));
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <LeaderScorePanel
@@ -41,7 +51,7 @@ export default async function LeaderPage({ params }: { params: Params }) {
             : 0
         }
         categoryBreakdown={categories ?? []}
-        evidenceTimeline={evidence ?? []}
+        evidenceTimeline={mappedEvidence}
         payRatio={inequality?.pay_ratio ?? undefined}
       />
     </div>
