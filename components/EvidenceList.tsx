@@ -1,4 +1,11 @@
+"use client";
+
 import React from "react";
+
+type ManagerInfo = {
+  name: string;
+  report_count: number | null;
+};
 
 type EvidenceItem = {
   id: number;
@@ -8,10 +15,11 @@ type EvidenceItem = {
   file_type?: string;
   file_size?: number;
   evidence_type?: string;
-  severity?: number;       // NEW
-  recency_weight?: number; // NEW
-  file_weight?: number;    // NEW
-  total_weight?: number;   // NEW (severity × recency × file)
+  severity?: number;
+  recency_weight?: number;
+  file_weight?: number;
+  total_weight?: number;
+  manager?: ManagerInfo | null; // NEW
 };
 
 type Props = {
@@ -43,6 +51,12 @@ export function EvidenceList({ evidence }: Props) {
           recencyWeight: item.recency_weight,
           fileWeight: item.file_weight,
           totalWeight: item.total_weight,
+          manager: item.manager
+            ? {
+                name: item.manager.name,
+                reportCount: item.manager.report_count,
+              }
+            : undefined,
         };
 
         return (
@@ -68,6 +82,15 @@ export function EvidenceList({ evidence }: Props) {
             {/* Title + Summary */}
             <h3 className="font-semibold text-lg text-gray-900">{item.title}</h3>
             <p className="text-sm text-gray-700">{item.summary}</p>
+
+            {/* Manager Info (NEW) */}
+            {item.manager && (
+              <p className="text-sm text-gray-600 mt-1">
+                Reported manager: {item.manager.name}
+                {typeof item.manager.report_count === "number" &&
+                  ` (${item.manager.report_count} reports)`}
+              </p>
+            )}
 
             {/* Visual Weight Meter */}
             <div className="mt-2">
