@@ -1,4 +1,5 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/supabaseServer";
+
 import { Database } from "@/types/supabase";
 
 export async function getLeaderData(slug: string) {
