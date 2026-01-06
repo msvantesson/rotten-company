@@ -9,6 +9,7 @@ import { RottenScoreMeter } from "@/components/RottenScoreMeter";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
+import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 
 // --- Flavor taxonomy ---
 const CATEGORY_FLAVORS: Record<number, string> = {
@@ -41,15 +42,6 @@ function getCategoryIcon(categoryId: number): string {
 
 // --- Types ---
 type Params = Promise<{ slug: string }> | { slug: string };
-
-type Evidence = {
-  id: number;
-  title: string;
-  summary?: string;
-  file_url?: string;
-  file_type?: string;
-  file_size?: number;
-};
 
 type Company = {
   id: number;
@@ -98,13 +90,8 @@ export default async function CompanyPage({ params }: { params: Params }) {
     );
   }
 
-  // 2. Fetch approved evidence
-  const { data: evidence, error: evidenceError }: { data: Evidence[] | null; error: any } =
-    await supabase
-      .from("evidence")
-      .select("id, title, summary, file_url, file_type, file_size")
-      .eq("company_id", company.id)
-      .eq("status", "approved");
+  // 2. Fetch approved evidence (with manager info + report counts)
+  const evidence = await getEvidenceWithManagers(company.id);
 
   // 3. Unified breakdown view
   const { data: mergedBreakdown, error: breakdownError } = await supabase
@@ -112,14 +99,13 @@ export default async function CompanyPage({ params }: { params: Params }) {
     .select("category_id, category_name, evidence_count, avg_score")
     .eq("company_id", company.id);
 
-  // Add flavor text
   const breakdownWithFlavor: CategoryBreakdownRow[] =
     mergedBreakdown?.map((row) => ({
       ...row,
       flavor: getFlavor(row.category_id),
     })) ?? [];
 
-  // 4. Fetch overall Rotten Score (computed via SQL view)
+  // 4. Fetch overall Rotten Score
   const { data: scoreRow } = await supabase
     .from("company_rotten_score")
     .select("rotten_score")
@@ -128,7 +114,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   const liveRottenScore = scoreRow?.rotten_score ?? null;
 
-  // 5. Fetch all categories for rating UI
+  // 5. Fetch all categories
   const { data: categories } = await supabase
     .from("categories")
     .select("id, slug, name")
@@ -139,7 +125,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 7. Fetch user's existing ratings for this company
+  // 7. Fetch user's existing ratings
   let userRatings: Record<number, number> = {};
 
   if (user) {
@@ -156,20 +142,20 @@ export default async function CompanyPage({ params }: { params: Params }) {
     }
   }
 
-  // 8. Ownership signals (EQT, PE flags, etc.)
+  // 8. Ownership signals
   const { data: ownershipSignals } = await supabase
     .from("ownership_signals_summary")
     .select("*")
     .eq("company_id", company.id);
 
-  // 9. Destruction Lever (derived PE harm score)
+  // 9. Destruction Lever
   const { data: destructionLever } = await supabase
     .from("company_destruction_lever")
     .select("*")
     .eq("company_id", company.id)
     .maybeSingle();
 
-  // --- JSON-LD payload ---
+  // JSON-LD
   const jsonLd = buildCompanyJsonLd({
     company,
     rottenScore: liveRottenScore,
@@ -180,7 +166,6 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   return (
     <>
-      {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -194,12 +179,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
         <p><strong>Industry:</strong> {company.industry ?? "Unknown"}</p>
         <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
 
-        {/* --- Rotten Score Meter --- */}
         <div style={{ marginTop: "1.5rem", marginBottom: "2rem" }}>
           <RottenScoreMeter score={liveRottenScore ?? 0} />
         </div>
 
-        {/* --- Ratings UI --- */}
         <h2 style={{ marginTop: "2rem" }}>Rate this company</h2>
         {categories && categories.length > 0 ? (
           <div style={{ marginBottom: "2rem" }}>
@@ -215,8 +198,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
                 }}
               >
                 <span>
-                  {getCategoryIcon(cat.id)}{" "}
-                  {cat.name}
+                  {getCategoryIcon(cat.id)} {cat.name}
                 </span>
                 <RatingStars
                   companySlug={company.slug}
@@ -230,7 +212,6 @@ export default async function CompanyPage({ params }: { params: Params }) {
           <p>No categories configured yet.</p>
         )}
 
-        {/* --- Category Breakdown UI --- */}
         <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
 
         <div style={{ marginBottom: "2rem" }}>
@@ -241,15 +222,9 @@ export default async function CompanyPage({ params }: { params: Params }) {
           <pre>{JSON.stringify({ breakdownError }, null, 2)}</pre>
         )}
 
-        {/* --- Evidence List --- */}
         <h2>Approved Evidence</h2>
-        <EvidenceList evidence={evidence || []} />
+        <EvidenceList evidence={evidence} />
 
-        {evidenceError ? (
-          <pre style={{ marginTop: 12 }}>{JSON.stringify(evidenceError, null, 2)}</pre>
-        ) : null}
-
-        {/* --- Debug Panel (internal QA) --- */}
         {user && (
           <ScoreDebugPanel
             score={liveRottenScore}
