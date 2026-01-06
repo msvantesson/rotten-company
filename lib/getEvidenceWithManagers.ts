@@ -1,9 +1,10 @@
 import { supabase } from "@/lib/supabaseClient";
 
+type ManagerRow = {
+  name: string;
+};
+
 export async function getEvidenceWithManagers(companyId: number) {
-  //
-  // STEP 1 — Fetch all approved evidence for this company
-  //
   const { data, error } = await supabase
     .from("evidence")
     .select(`
@@ -31,22 +32,19 @@ export async function getEvidenceWithManagers(companyId: number) {
     throw error;
   }
 
-  //
-  // STEP 2 — Enrich each evidence item with manager report count
-  //
   const enriched = await Promise.all(
     (data ?? []).map(async (item) => {
-      // No manager? Return as-is.
-      if (!item.manager_id || !item.manager) {
+      const manager = item.manager as ManagerRow | null;
+
+      if (!item.manager_id || !manager) {
         return {
           ...item,
-          manager: item.manager
-            ? { name: item.manager.name, report_count: null }
+          manager: manager
+            ? { name: manager.name, report_count: null }
             : null,
         };
       }
 
-      // Count how many approved evidence items reference this manager
       const { count, error: countError } = await supabase
         .from("evidence")
         .select("*", { count: "exact", head: true })
@@ -60,7 +58,7 @@ export async function getEvidenceWithManagers(companyId: number) {
       return {
         ...item,
         manager: {
-          name: item.manager.name,
+          name: manager.name,
           report_count: count ?? 0,
         },
       };
