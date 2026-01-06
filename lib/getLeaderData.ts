@@ -1,9 +1,10 @@
-import { createClient } from "@/lib/supabase-server";
+import { supabaseServer } from "@/lib/supabase-server";
 import { Database } from "@/types/supabase";
 
 export async function getLeaderData(slug: string) {
-  const supabase = await createClient();
+  const supabase = await supabaseServer();
 
+  // 1. Leader
   const { data: leader, error: leaderError } = await supabase
     .from("leaders")
     .select("id, name, role, company_id, slug")
@@ -16,27 +17,30 @@ export async function getLeaderData(slug: string) {
 
   const leaderId = leader.id;
 
+  // 2. Rotten score
   const { data: score } = await supabase
     .from("leader_rotten_score")
     .select("*")
     .eq("leader_id", leaderId)
     .single();
 
+  // 3. Category breakdown
   const { data: categories } = await supabase
     .from("leader_category_breakdown")
     .select("*")
     .eq("leader_id", leaderId);
 
+  // 4. Inequality signal
   const { data: inequality } = await supabase
     .from("leader_inequality_signal")
     .select("*")
     .eq("leader_id", leaderId)
     .single();
 
+  // 5. Evidence timeline
   const { data: evidence } = await supabase
     .from("evidence")
-    .select(
-      `
+    .select(`
       id,
       title,
       summary,
@@ -45,8 +49,7 @@ export async function getLeaderData(slug: string) {
       created_at,
       company_id,
       leader_id
-    `
-    )
+    `)
     .eq("leader_id", leaderId)
     .eq("status", "approved")
     .order("created_at", { ascending: false });
@@ -56,6 +59,6 @@ export async function getLeaderData(slug: string) {
     score,
     categories,
     inequality,
-    evidence
+    evidence,
   };
 }
