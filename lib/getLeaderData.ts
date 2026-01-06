@@ -1,4 +1,5 @@
-import { createServerClient } from "@/lib/supabaseServer";
+import { createServerClient } from "@/lib/supabase/server";
+
 
 import { Database } from "@/types/supabase";
 
