@@ -20,7 +20,7 @@ export async function getEvidenceWithManagers(companyId: number) {
       file_weight,
       total_weight,
       manager_id,
-      manager:managers!manager_id (
+      manager:managers (
         name
       )
     `)
@@ -34,7 +34,13 @@ export async function getEvidenceWithManagers(companyId: number) {
 
   const enriched = await Promise.all(
     (data ?? []).map(async (item) => {
-      const manager = item.manager as ManagerRow | null;
+      // Normalize manager: Supabase may return an array or a single object
+      const rawManager = item.manager as ManagerRow | ManagerRow[] | null;
+
+      const manager =
+        rawManager && Array.isArray(rawManager)
+          ? rawManager[0] ?? null
+          : rawManager;
 
       if (!item.manager_id || !manager) {
         return {
