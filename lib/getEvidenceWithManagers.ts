@@ -20,7 +20,7 @@ export async function getEvidenceWithManagers(companyId: number) {
       file_weight,
       total_weight,
       manager_id,
-      manager:managers (
+      manager:managers!manager_id (
         name
       )
     `)
