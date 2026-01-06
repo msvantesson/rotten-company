@@ -5,6 +5,9 @@ type ManagerRow = {
 };
 
 export async function getEvidenceWithManagers(companyId: number) {
+  //
+  // STEP 1 — Fetch all approved evidence for this company
+  //
   const { data, error } = await supabase
     .from("evidence")
     .select(`
@@ -32,44 +35,77 @@ export async function getEvidenceWithManagers(companyId: number) {
     throw error;
   }
 
-  const enriched = await Promise.all(
-    (data ?? []).map(async (item) => {
-      // Normalize manager: Supabase may return an array or a single object
-      const rawManager = item.manager as ManagerRow | ManagerRow[] | null;
+  const evidence = data ?? [];
 
-      const manager =
-        rawManager && Array.isArray(rawManager)
-          ? rawManager[0] ?? null
-          : rawManager;
+  //
+  // STEP 2 — Extract unique manager IDs
+  //
+  const managerIds = Array.from(
+    new Set(
+      evidence
+        .map((item) => item.manager_id)
+        .filter((id): id is number => typeof id === "number")
+    )
+  );
 
-      if (!item.manager_id || !manager) {
-        return {
-          ...item,
-          manager: manager
-            ? { name: manager.name, report_count: null }
-            : null,
-        };
+  //
+  // STEP 3 — Batch fetch report counts for all managers
+  //
+  let countMap = new Map<number, number>();
+
+  if (managerIds.length > 0) {
+    const { data: countRows, error: countError } = await supabase
+      .from("evidence")
+      .select("manager_id", { count: "exact" })
+      .in("manager_id", managerIds)
+      .eq("status", "approved");
+
+    if (countError) {
+      console.error("Manager count batch error:", countError);
+    }
+
+    // Supabase returns one row per evidence, so we aggregate manually
+    const tempCount: Record<number, number> = {};
+
+    countRows?.forEach((row) => {
+      if (row.manager_id != null) {
+        tempCount[row.manager_id] = (tempCount[row.manager_id] ?? 0) + 1;
       }
+    });
 
-      const { count, error: countError } = await supabase
-        .from("evidence")
-        .select("*", { count: "exact", head: true })
-        .eq("manager_id", item.manager_id)
-        .eq("status", "approved");
+    for (const [id, count] of Object.entries(tempCount)) {
+      countMap.set(Number(id), count);
+    }
+  }
 
-      if (countError) {
-        console.error("Manager count error:", countError);
-      }
+  //
+  // STEP 4 — Normalize manager objects and attach counts
+  //
+  const enriched = evidence.map((item) => {
+    const rawManager = item.manager as ManagerRow | ManagerRow[] | null;
 
+    const manager =
+      rawManager && Array.isArray(rawManager)
+        ? rawManager[0] ?? null
+        : rawManager;
+
+    if (!item.manager_id || !manager) {
       return {
         ...item,
-        manager: {
-          name: manager.name,
-          report_count: count ?? 0,
-        },
+        manager: manager
+          ? { name: manager.name, report_count: null }
+          : null,
       };
-    })
-  );
+    }
+
+    return {
+      ...item,
+      manager: {
+        name: manager.name,
+        report_count: countMap.get(item.manager_id) ?? 0,
+      },
+    };
+  });
 
   return enriched;
 }
