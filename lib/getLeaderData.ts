@@ -1,11 +1,7 @@
-import { createServerClient } from "@/lib/supabase/server";
-
-
+import { supabase } from "@/lib/supabaseClient";
 import { Database } from "@/types/supabase";
 
 export async function getLeaderData(slug: string) {
-  const supabase = createServerClient<Database>();
-
   // 1. Fetch leader by slug
   const { data: leader, error: leaderError } = await supabase
     .from("leaders")
