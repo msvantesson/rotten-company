@@ -119,7 +119,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
       flavor: getFlavor(row.category_id),
     })) ?? [];
 
-  // 4.5 Fetch overall Rotten Score (computed via SQL view)
+  // 4. Fetch overall Rotten Score (computed via SQL view)
   const { data: scoreRow } = await supabase
     .from("company_rotten_score")
     .select("rotten_score")
@@ -128,18 +128,18 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   const liveRottenScore = scoreRow?.rotten_score ?? null;
 
-  // 6. Fetch all categories for rating UI
+  // 5. Fetch all categories for rating UI
   const { data: categories } = await supabase
     .from("categories")
     .select("id, slug, name")
     .order("id", { ascending: true }) as { data: Category[] | null };
 
-  // 7. Fetch logged-in user
+  // 6. Fetch logged-in user
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 8. Fetch user's existing ratings for this company
+  // 7. Fetch user's existing ratings for this company
   let userRatings: Record<number, number> = {};
 
   if (user) {
@@ -156,11 +156,26 @@ export default async function CompanyPage({ params }: { params: Params }) {
     }
   }
 
+  // 8. Ownership signals (EQT, PE flags, etc.)
+  const { data: ownershipSignals } = await supabase
+    .from("ownership_signals_summary")
+    .select("*")
+    .eq("company_id", company.id);
+
+  // 9. Destruction Lever (derived PE harm score)
+  const { data: destructionLever } = await supabase
+    .from("company_destruction_lever")
+    .select("*")
+    .eq("company_id", company.id)
+    .maybeSingle();
+
   // --- JSON-LD payload ---
   const jsonLd = buildCompanyJsonLd({
     company,
     rottenScore: liveRottenScore,
     breakdown: breakdownWithFlavor,
+    ownershipSignals,
+    destructionLever,
   });
 
   return (
