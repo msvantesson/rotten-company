@@ -1,10 +1,6 @@
-import { getFlavor } from "@/lib/get-flavor";
+// lib/jsonld-company.ts
 
-export function buildCompanyJsonLd({
-  company,
-  rottenScore,
-  breakdown,
-}: {
+type JsonLdInput = {
   company: {
     id: number;
     name: string;
@@ -18,66 +14,107 @@ export function buildCompanyJsonLd({
     category_name: string;
     evidence_count: number;
     avg_score: number | null;
-    final_score?: number | null; // optional if you want to include it
-    flavor: string;
+    final_score?: number | null;
+    flavor?: string;
   }[];
-}) {
-  const { microFlavor, macroTier } = getFlavor(rottenScore ?? 0);
+  ownershipSignals?: {
+    owner_name: string;
+    owner_slug: string;
+    owner_profile?: string;
+    signal_type: string;
+    severity: number;
+  }[] | null;
+  destructionLever?: {
+    destruction_lever_score?: number | null;
+    is_pe_destructive?: boolean | null;
+  } | null;
+};
 
-  const ratingCount = breakdown.reduce(
-    (sum, b) => sum + (b.avg_score !== null ? 1 : 0),
-    0
-  );
-
-  const evidenceCount = breakdown.reduce(
-    (sum, b) => sum + b.evidence_count,
-    0
-  );
-
-  const confidenceLevel = getConfidenceLevel(ratingCount, evidenceCount);
-
+export function buildCompanyJsonLd({
+  company,
+  rottenScore,
+  breakdown,
+  ownershipSignals = [],
+  destructionLever = null,
+}: JsonLdInput) {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
 
     name: company.name,
     url: `https://rotten-company.com/company/${company.slug}`,
-    industry: company.industry ?? undefined,
-    numberOfEmployees: company.size_employees ?? undefined,
+    description: `Rotten Score and accountability profile for ${company.name}.`,
 
     aggregateRating: {
       "@type": "AggregateRating",
-
-      ratingValue: rottenScore ? rottenScore.toFixed(1) : undefined,
-      bestRating: "100",
-      worstRating: "0",
-
-      ratingCount: ratingCount + evidenceCount,
-      reviewCount: ratingCount,
-      evidenceCount: evidenceCount,
-
-      confidenceLevel,
-      flavorTier: macroTier,
-      microFlavor,
+      ratingValue: rottenScore,
+      bestRating: "5",
+      worstRating: "1",
+      ratingCount: breakdown.reduce(
+        (sum, c) => sum + (c.evidence_count ?? 0),
+        0
+      ),
     },
 
-    categoryBreakdown: breakdown.map((b) => ({
-      categoryId: b.category_id,
-      categoryName: b.category_name,
-      evidenceCount: b.evidence_count,
-      averageRating: b.avg_score,
-      finalScore: b.final_score ?? undefined,
-      flavor: b.flavor,
+    knowsAbout: breakdown.map((c) => ({
+      "@type": "DefinedTerm",
+      name: c.category_name,
+      termCode: c.category_id,
+      inDefinedTermSet: "https://rotten-company.com/categories",
+      additionalProperty: [
+        {
+          "@type": "PropertyValue",
+          name: "ratingCount",
+          value: c.avg_score ?? null,
+        },
+        {
+          "@type": "PropertyValue",
+          name: "evidenceCount",
+          value: c.evidence_count,
+        },
+        {
+          "@type": "PropertyValue",
+          name: "finalScore",
+          value: c.final_score ?? null,
+        },
+      ],
     })),
-  };
-}
 
-function getConfidenceLevel(
-  ratingCount: number,
-  evidenceCount: number
-): "low" | "medium" | "high" {
-  const total = ratingCount + evidenceCount;
-  if (total >= 50) return "high";
-  if (total >= 10) return "medium";
-  return "low";
+    ownership:
+      ownershipSignals?.map((s) => ({
+        "@type": "Organization",
+        name: s.owner_name,
+        url: `https://rotten-company.com/owner/${s.owner_slug}`,
+        additionalProperty: [
+          {
+            "@type": "PropertyValue",
+            name: "ownerProfile",
+            value: s.owner_profile ?? null,
+          },
+          {
+            "@type": "PropertyValue",
+            name: "signalType",
+            value: s.signal_type,
+          },
+          {
+            "@type": "PropertyValue",
+            name: "signalSeverity",
+            value: s.severity,
+          },
+        ],
+      })) ?? [],
+
+    additionalProperty: [
+      {
+        "@type": "PropertyValue",
+        name: "destructionLeverScore",
+        value: destructionLever?.destruction_lever_score ?? null,
+      },
+      {
+        "@type": "PropertyValue",
+        name: "isPrivateEquityDestructive",
+        value: destructionLever?.is_pe_destructive ?? false,
+      },
+    ],
+  };
 }
