@@ -148,3 +148,67 @@ export default async function CompanyPage({ params }: { params: Params }) {
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(jsonLd, null, 2),
         }}
+      />
+
+      <div style={{ padding: "2rem" }}>
+        <h1>{company.name}</h1>
+
+        <p><strong>Industry:</strong> {company.industry ?? "Unknown"}</p>
+        <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
+
+        <div style={{ marginTop: "1.5rem", marginBottom: "2rem" }}>
+          <RottenScoreMeter score={liveRottenScore ?? 0} />
+        </div>
+
+        <h2 style={{ marginTop: "2rem" }}>Rate this company</h2>
+        {categories && categories.length > 0 ? (
+          <div style={{ marginBottom: "2rem" }}>
+            {categories.map((cat) => (
+              <div
+                key={cat.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "8px 0",
+                  borderBottom: "1px solid #eee",
+                }}
+              >
+                <span>
+                  {getCategoryIcon(cat.id)} {cat.name}
+                </span>
+                <RatingStars
+                  companySlug={company.slug}
+                  categorySlug={cat.slug}
+                  initialScore={userRatings[cat.id] ?? null}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>No categories configured yet.</p>
+        )}
+
+        <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
+
+        <div style={{ marginBottom: "2rem" }}>
+          <CategoryBreakdown breakdown={breakdownWithFlavor} />
+        </div>
+
+        {breakdownError && (
+          <pre>{JSON.stringify({ breakdownError }, null, 2)}</pre>
+        )}
+
+        <h2>Approved Evidence</h2>
+        <EvidenceList evidence={evidence} />
+
+        {user && (
+          <ScoreDebugPanel
+            score={liveRottenScore}
+            breakdown={breakdownWithFlavor}
+          />
+        )}
+      </div>
+    </>
+  );
+}
