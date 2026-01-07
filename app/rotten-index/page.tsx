@@ -28,7 +28,6 @@ const COUNTRY_NAME_MAP: Record<string, string> = {
   GB: "United Kingdom",
   US: "United States",
   CA: "Canada",
-  // Add more as needed; unknown codes will fall back to the code itself
 };
 
 function getCountryName(code: string | null | undefined): string {
@@ -121,13 +120,9 @@ export default async function RottenIndexPage({
       : null;
 
   // 2) Load all countries from companies (dynamic options)
-  const { data: countryRows, error: countryError } = await supabase
+  const { data: countryRows } = await supabase
     .from("companies")
     .select("country");
-
-  if (countryError) {
-    console.error("Error loading distinct countries from companies:", countryError);
-  }
 
   const countrySet = new Set<string>();
   if (countryRows) {
@@ -143,15 +138,11 @@ export default async function RottenIndexPage({
     getCountryName(a).localeCompare(getCountryName(b))
   );
 
-  // 3) Get all company scores, ordered by Rotten Score DESC
-  const { data: scoreRows, error: scoreError } = await supabase
+  // 3) Get all company scores
+  const { data: scoreRows } = await supabase
     .from("company_rotten_score")
     .select("company_id, rotten_score")
     .order("rotten_score", { ascending: false });
-
-  if (scoreError) {
-    console.error("Error loading company_rotten_score:", scoreError);
-  }
 
   if (!scoreRows || scoreRows.length === 0) {
     const emptyJsonLd = buildRottenIndexJsonLd([], selectedCountryCode);
@@ -166,49 +157,20 @@ export default async function RottenIndexPage({
         />
         <JsonLdDebugPanel data={emptyJsonLd} />
         <main className="max-w-5xl mx-auto px-4 py-10">
-          <header className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Global Rotten Index</h1>
-            <p className="text-gray-600">
-              Ranking companies by Rotten Score based on public evidence of harm,
-              misconduct, and corporate behavior.
-            </p>
-          </header>
-
-          <section className="mb-6 flex flex-wrap items-center gap-3">
-            <span className="text-sm text-gray-500">
-              Currently showing: <strong>Companies only</strong>
-            </span>
-          </section>
-
-          <p className="text-gray-600">
-            No companies found in the Rotten Index. Rotten Scores may not have been
-            calculated yet.
-          </p>
-
-          <section className="mt-8 text-sm text-gray-500">
-            <h2 className="font-semibold mb-1">Methodology</h2>
-            <p>
-              The Rotten Score is derived from category-level ratings, public
-              evidence, and weighted signals of corporate harm. Higher scores
-              indicate more severe and systemic issues.
-            </p>
-          </section>
+          <h1 className="text-3xl font-bold mb-2">Global Rotten Index</h1>
+          <p className="text-gray-600">No companies found.</p>
         </main>
       </>
     );
   }
 
-  // 4) Fetch company metadata for all scored companies
+  // 4) Fetch company metadata
   const companyIds = scoreRows.map((row) => row.company_id);
 
-  const { data: companyRows, error: companyError } = await supabase
+  const { data: companyRows } = await supabase
     .from("companies")
     .select("id, name, slug, industry, country")
     .in("id", companyIds);
-
-  if (companyError) {
-    console.error("Error loading companies for Rotten Index:", companyError);
-  }
 
   const companyById =
     companyRows?.reduce<
@@ -227,13 +189,11 @@ export default async function RottenIndexPage({
       return acc;
     }, {}) ?? {};
 
-  // 5) Merge scores + metadata; preserve score ordering
+  // 5) Merge scores + metadata
   let companies: IndexedCompany[] = scoreRows
     .map((row: any) => {
       const c = companyById[row.company_id];
-      if (!c) {
-        return null;
-      }
+      if (!c) return null;
       return {
         company_id: row.company_id,
         rotten_score: row.rotten_score ?? 0,
@@ -245,11 +205,14 @@ export default async function RottenIndexPage({
     })
     .filter((c): c is IndexedCompany => c !== null);
 
-  // 6) Apply country filter (if any)
+  // 6) Apply country filter (fixed)
   if (selectedCountryCode) {
-    companies = companies.filter(
-      (c) => c.country && c.country.toUpperCase() === selectedCountryCode
-    );
+    companies = companies.filter((c) => {
+      if (!c.country) return false;
+      return (
+        c.country.trim().toUpperCase() === selectedCountryCode.trim().toUpperCase()
+      );
+    });
   }
 
   const jsonLd = buildRottenIndexJsonLd(companies, selectedCountryCode);
@@ -260,7 +223,7 @@ export default async function RottenIndexPage({
 
   return (
     <>
-      {/* JSON-LD for the Global Rotten Index */}
+      {/* JSON-LD */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -268,7 +231,6 @@ export default async function RottenIndexPage({
         }}
       />
 
-      {/* Developer-only JSON-LD debug panel */}
       <JsonLdDebugPanel data={jsonLd} />
 
       <main className="max-w-5xl mx-auto px-4 py-10">
@@ -280,7 +242,7 @@ export default async function RottenIndexPage({
           </p>
         </header>
 
-        {/* Country filter + context */}
+        {/* Country filter */}
         <section className="mb-6 flex flex-wrap items-center gap-4">
           <span className="text-sm text-gray-500">
             Currently showing: <strong>{currentScopeLabel}</strong>
@@ -288,6 +250,7 @@ export default async function RottenIndexPage({
 
           <form
             method="GET"
+            action="/rotten-index"
             className="flex items-center gap-2 text-sm"
           >
             <label htmlFor="country" className="text-gray-600">
@@ -318,7 +281,7 @@ export default async function RottenIndexPage({
         {/* Company list */}
         {companies.length === 0 ? (
           <p className="text-gray-600">
-            No companies found in the Rotten Index
+            No companies found
             {selectedCountryCode ? ` for ${getCountryName(selectedCountryCode)}` : ""}.
           </p>
         ) : (
