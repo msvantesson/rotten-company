@@ -4,6 +4,7 @@ export const fetchCache = "force-no-store";
 
 import LeaderScorePanel from "./LeaderScorePanel";
 import { getLeaderData } from "@/lib/getLeaderData";
+import { buildLeaderJsonLd } from "@/lib/jsonld-leader";
 
 type Params = Promise<{ slug: string }> | { slug: string };
 
@@ -34,64 +35,20 @@ export default async function LeaderPage({ params }: { params: Params }) {
     companySlug: ev.company_id?.toString() ?? "",
   }));
 
-  // JSON-LD
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    name: leader.name,
-    jobTitle: leader.role ?? "",
-    url: `https://rotten-company.com/leader/${leader.slug}`,
-    worksFor: {
-      "@type": "Organization",
-      name: leader.company_name ?? "",
-      url: `https://rotten-company.com/company/${leader.company_id}`,
+  const jsonLd = buildLeaderJsonLd({
+    leader,
+    score: {
+      final_score: score?.final_score ?? 0,
+      raw_score: score?.raw_score ?? 0,
+      direct_evidence_score: score?.direct_evidence_score ?? 0,
+      inequality_score: score?.inequality_score ?? 0,
+      company_rotten_score: score?.company_rotten_score ?? 0,
     },
-    additionalProperty: [
-      {
-        "@type": "PropertyValue",
-        name: "finalScore",
-        value: score?.final_score ?? 0,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "rawScore",
-        value: score?.raw_score ?? 0,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "directEvidenceScore",
-        value: score?.direct_evidence_score ?? 0,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "inequalityScore",
-        value: score?.inequality_score ?? 0,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "companyInfluenceScore",
-        value: score?.company_rotten_score ?? 0,
-      },
-    ],
-    hasPart: mappedEvidence.map((ev) => ({
-      "@type": "CreativeWork",
-      name: ev.title,
-      description: ev.summary,
-      url: `https://rotten-company.com/evidence/${ev.id}`,
-      about: ev.category,
-      additionalProperty: [
-        {
-          "@type": "PropertyValue",
-          name: "severity",
-          value: ev.severity,
-        },
-      ],
-    })),
-  };
+    evidence: mappedEvidence,
+  });
 
   return (
     <>
-      {/* JSON-LD injection */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
