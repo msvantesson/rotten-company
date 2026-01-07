@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
@@ -27,16 +27,46 @@ export default function EvidenceUpload({
   const [summary, setSummary] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [evidenceType, setEvidenceType] = useState("misconduct");
+
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>(
+    []
+  );
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+
+  const [severity, setSeverity] = useState<number>(3); // default medium
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    async function loadCategories() {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name")
+        .order("name");
+
+      if (error) {
+        console.error("Error loading categories:", error);
+        return;
+      }
+
+      setCategories(data || []);
+    }
+
+    loadCategories();
+  }, []);
 
   const handleSubmit = async () => {
     setError("");
-    setSuccess(false);
 
     if (!title || !file) {
       setError("Title and file are required.");
+      return;
+    }
+
+    if (!categoryId) {
+      setError("Please select a category.");
       return;
     }
 
@@ -67,7 +97,7 @@ export default function EvidenceUpload({
       return;
     }
 
-    // Insert evidence and RETURN the new row
+    // Insert evidence with category + severity
     const { data: inserted, error: insertError } = await supabase
       .from("evidence")
       .insert([
@@ -81,6 +111,8 @@ export default function EvidenceUpload({
           file_size: file.size,
           user_id: user.id,
           evidence_type: evidenceType,
+          category_id: categoryId,
+          severity_suggested: severity,
         },
       ])
       .select()
@@ -93,19 +125,15 @@ export default function EvidenceUpload({
       return;
     }
 
-    // Redirect to the new Evidence Page
     router.push(`/evidence/${inserted.id}`);
-
-    setLoading(false);
-    setSuccess(true);
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h2 className="text-lg font-semibold">Submit Evidence</h2>
 
-      {/* Evidence Type Selector */}
-      <div className="space-y-2">
+      {/* Evidence Type */}
+      <div className="space-y-1">
         <label className="block text-sm font-medium">Evidence Type</label>
         <select
           value={evidenceType}
@@ -120,8 +148,41 @@ export default function EvidenceUpload({
         </select>
       </div>
 
+      {/* Category */}
+      <div className="space-y-1">
+        <label className="block text-sm font-medium">Category</label>
+        <select
+          value={categoryId ?? ""}
+          onChange={(e) => setCategoryId(Number(e.target.value))}
+          className="border p-2 rounded w-full"
+        >
+          <option value="">Select a category</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Severity */}
+      <div className="space-y-1">
+        <label className="block text-sm font-medium">
+          Severity (your suggestion)
+        </label>
+        <input
+          type="range"
+          min={1}
+          max={5}
+          value={severity}
+          onChange={(e) => setSeverity(Number(e.target.value))}
+          className="w-full"
+        />
+        <div className="text-sm text-gray-600">Selected: {severity}</div>
+      </div>
+
       {/* Title */}
-      <div className="space-y-2">
+      <div className="space-y-1">
         <label className="block text-sm font-medium">Title</label>
         <input
           type="text"
@@ -132,7 +193,7 @@ export default function EvidenceUpload({
       </div>
 
       {/* Summary */}
-      <div className="space-y-2">
+      <div className="space-y-1">
         <label className="block text-sm font-medium">Summary (optional)</label>
         <input
           type="text"
@@ -143,7 +204,7 @@ export default function EvidenceUpload({
       </div>
 
       {/* File */}
-      <div className="space-y-2">
+      <div className="space-y-1">
         <label className="block text-sm font-medium">File</label>
         <input
           type="file"
@@ -161,10 +222,7 @@ export default function EvidenceUpload({
         Submit Evidence
       </button>
 
-      {error && <p className="text-red-600 mt-2">{error}</p>}
-      {success && (
-        <p className="text-green-600 mt-2">Evidence submitted for moderation.</p>
-      )}
+      {error && <p className="text-red-600">{error}</p>}
     </div>
   );
 }
