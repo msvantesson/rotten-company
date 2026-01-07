@@ -2,8 +2,8 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
-import { getLeaderData } from "@/lib/getLeaderData";
 import LeaderScorePanel from "./LeaderScorePanel";
+import { getLeaderData } from "@/lib/getLeaderData";
 
 type Params = Promise<{ slug: string }> | { slug: string };
 
@@ -34,26 +34,91 @@ export default async function LeaderPage({ params }: { params: Params }) {
     companySlug: ev.company_id?.toString() ?? "",
   }));
 
+  // JSON-LD
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: leader.name,
+    jobTitle: leader.role ?? "",
+    url: `https://rotten-company.com/leader/${leader.slug}`,
+    worksFor: {
+      "@type": "Organization",
+      name: leader.company_name ?? "",
+      url: `https://rotten-company.com/company/${leader.company_id}`,
+    },
+    additionalProperty: [
+      {
+        "@type": "PropertyValue",
+        name: "finalScore",
+        value: score?.final_score ?? 0,
+      },
+      {
+        "@type": "PropertyValue",
+        name: "rawScore",
+        value: score?.raw_score ?? 0,
+      },
+      {
+        "@type": "PropertyValue",
+        name: "directEvidenceScore",
+        value: score?.direct_evidence_score ?? 0,
+      },
+      {
+        "@type": "PropertyValue",
+        name: "inequalityScore",
+        value: score?.inequality_score ?? 0,
+      },
+      {
+        "@type": "PropertyValue",
+        name: "companyInfluenceScore",
+        value: score?.company_rotten_score ?? 0,
+      },
+    ],
+    hasPart: mappedEvidence.map((ev) => ({
+      "@type": "CreativeWork",
+      name: ev.title,
+      description: ev.summary,
+      url: `https://rotten-company.com/evidence/${ev.id}`,
+      about: ev.category,
+      additionalProperty: [
+        {
+          "@type": "PropertyValue",
+          name: "severity",
+          value: ev.severity,
+        },
+      ],
+    })),
+  };
+
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <LeaderScorePanel
-        name={leader.name}
-        role={leader.role ?? ""}
-        companyName={leader.company_id.toString()}
-        slug={leader.slug}
-        finalScore={score?.final_score ?? 0}
-        rawScore={score?.raw_score ?? 0}
-        directEvidenceScore={score?.direct_evidence_score ?? 0}
-        inequalityScore={score?.inequality_score ?? 0}
-        companyInfluenceScore={
-          score?.company_rotten_score
-            ? score.company_rotten_score * 0.1
-            : 0
-        }
-        categoryBreakdown={categories ?? []}
-        evidenceTimeline={mappedEvidence}
-        payRatio={inequality?.pay_ratio ?? undefined}
+    <>
+      {/* JSON-LD injection */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd, null, 2),
+        }}
       />
-    </div>
+
+      <div className="max-w-4xl mx-auto p-6">
+        <LeaderScorePanel
+          name={leader.name}
+          role={leader.role ?? ""}
+          companyName={leader.company_name ?? ""}
+          slug={leader.slug}
+          finalScore={score?.final_score ?? 0}
+          rawScore={score?.raw_score ?? 0}
+          directEvidenceScore={score?.direct_evidence_score ?? 0}
+          inequalityScore={score?.inequality_score ?? 0}
+          companyInfluenceScore={
+            score?.company_rotten_score
+              ? score.company_rotten_score * 0.1
+              : 0
+          }
+          categoryBreakdown={categories ?? []}
+          evidenceTimeline={mappedEvidence}
+          payRatio={inequality?.pay_ratio ?? undefined}
+        />
+      </div>
+    </>
   );
 }
