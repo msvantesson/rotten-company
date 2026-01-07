@@ -11,7 +11,7 @@ import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 
-// --- Flavor taxonomy ---
+// --- Flavor taxonomy (category-level micro-flavors) ---
 const CATEGORY_FLAVORS: Record<number, string> = {
   1: "Rotten to the core",
   2: "Smells like spin",
@@ -155,7 +155,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     .eq("company_id", company.id)
     .maybeSingle();
 
-  // JSON-LD
+  // 10. JSON-LD
   const jsonLd = buildCompanyJsonLd({
     company,
     rottenScore: liveRottenScore,
@@ -166,6 +166,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   return (
     <>
+      {/* JSON-LD for SEO */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
