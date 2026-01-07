@@ -5,7 +5,8 @@ export const fetchCache = "force-no-store";
 import { supabaseServer } from "@/lib/supabase-server";
 import { EvidenceList } from "@/components/EvidenceList";
 import RatingStars from "@/components/RatingStars";
-import { RottenScoreMeter } from "@/components/RottenScoreMeter";
+import RottenScoreMeter from "@/components/RottenScoreMeter";
+
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
