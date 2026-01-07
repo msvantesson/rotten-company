@@ -4,9 +4,10 @@
 import { supabase } from '@/app/lib/supabaseClient'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import type { Category } from '@/lib/types'
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<any[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 

@@ -78,7 +78,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let userRatings: Record<number, number> = {};
+  const userRatings: Record<number, number> = {};
 
   if (user) {
     const { data: ratings } = await supabase

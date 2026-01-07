@@ -59,7 +59,7 @@ export async function getEvidenceWithManagers(companyId: number) {
   //
   // STEP 3 — Batch fetch report counts for all managers
   //
-  let countMap = new Map<number, number>();
+  const countMap = new Map<number, number>();
 
   if (managerIds.length > 0) {
     const { data: countRows, error: countError } = await supabase

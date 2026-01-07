@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import EvidenceUpload from "@/components/EvidenceUpload";
+import type { Company, Leader, Manager, Owner } from '@/lib/types';
 
 type EntityType = "company" | "leader" | "manager" | "owner";
 
@@ -64,7 +65,7 @@ export default function SubmitEvidencePage() {
 
         if (companiesRes.data) {
           next.push(
-            ...companiesRes.data.map((c: any) => ({
+            ...companiesRes.data.map((c: Company) => ({
               id: c.id,
               name: c.name,
               type: "company" as EntityType,
@@ -75,7 +76,7 @@ export default function SubmitEvidencePage() {
 
         if (leadersRes.data) {
           next.push(
-            ...leadersRes.data.map((l: any) => ({
+            ...leadersRes.data.map((l: Leader) => ({
               id: l.id,
               name: l.name,
               type: "leader" as EntityType,
@@ -86,7 +87,7 @@ export default function SubmitEvidencePage() {
 
         if (managersRes.data) {
           next.push(
-            ...managersRes.data.map((m: any) => ({
+            ...managersRes.data.map((m: Manager) => ({
               id: m.id,
               name: m.name,
               type: "manager" as EntityType,
@@ -97,7 +98,7 @@ export default function SubmitEvidencePage() {
 
         if (ownersRes.data) {
           next.push(
-            ...ownersRes.data.map((o: any) => ({
+            ...ownersRes.data.map((o: Owner) => ({
               id: o.id,
               name: o.name,
               type: "owner" as EntityType,

@@ -4,6 +4,8 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
+import type { CookieOptions } from '@/lib/types';
+
 export async function loginWithPassword(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
@@ -20,11 +22,11 @@ export async function loginWithPassword(formData: FormData) {
           const store = await cookies();
           return store.get(name)?.value;
         },
-        async set(name: string, value: string, options: any) {
+        async set(name: string, value: string, options: CookieOptions) {
           const store = await cookies();
           store.set(name, value, options);
         },
-        async remove(name: string, options: any) {
+        async remove(name: string, options: CookieOptions) {
           const store = await cookies();
           store.delete({ name, ...options });
         },

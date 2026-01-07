@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 
 type ManagerInfo = {
   name: string;
@@ -166,10 +167,13 @@ export default function EvidenceListGrouped({ evidence }: Props) {
                   {item.file_url && item.file_type && (
                     <div className="mt-3">
                       {item.file_type.startsWith("image") && (
-                        <img
+                        <Image
                           src={item.file_url}
                           alt={item.title}
                           className="max-w-full h-auto rounded-md border"
+                          width={800}
+                          height={600}
+                          style={{ maxWidth: '100%', height: 'auto' }}
                         />
                       )}
 

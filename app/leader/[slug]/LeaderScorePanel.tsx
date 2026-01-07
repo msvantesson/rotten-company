@@ -32,32 +32,23 @@ interface LeaderScorePanelProps {
 
 export default function LeaderScorePanel(props: LeaderScorePanelProps) {
   const {
-    name,
-    role,
-    companyName,
-    slug,
-    profileImageUrl,
     finalScore,
-    rawScore,
-    directEvidenceScore,
-    inequalityScore,
-    companyInfluenceScore,
-    categoryBreakdown,
-    evidenceTimeline,
-    payRatio
   } = props;
-
-  const flavorTier = getFlavorTier(finalScore);
 
   return (
     <div className="w-full space-y-8">
-      {/* ... unchanged UI code ... */}
+      <div className="p-6 border rounded-lg bg-white shadow-sm">
+        <h2 className="text-2xl font-bold mb-4">Leader Rotten Score</h2>
+        <div className="text-4xl font-bold mb-2">{finalScore}</div>
+        <div className="text-lg text-gray-600">{getFlavorTier(finalScore)}</div>
+      </div>
     </div>
   );
 }
 
 /* Helper Components */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function BreakdownItem({ label, value, tooltip }: {
   label: string;
   value: number;

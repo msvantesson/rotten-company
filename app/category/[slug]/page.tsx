@@ -5,6 +5,8 @@ export const fetchCache = "force-no-store";
 import React from "react";
 import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
 
+import type { Evidence } from "@/lib/types";
+
 // --- Category flavor taxonomy ---
 const CATEGORY_FLAVORS: Record<number, string> = {
   1: "Rotten to the core",
@@ -20,7 +22,7 @@ function getCategoryFlavor(categoryId: number): string {
   return CATEGORY_FLAVORS[categoryId] ?? "No flavor assigned";
 }
 
-export default async function CategoryPage({ params }: { params: any }) {
+export default async function CategoryPage({ params }: { params: Promise<{ slug?: string }> | { slug?: string } }) {
   const resolvedParams = await Promise.resolve(params);
   const slug = resolvedParams?.slug as string | undefined;
 
@@ -74,7 +76,7 @@ export default async function CategoryPage({ params }: { params: any }) {
     ],
 
     hasPart:
-      evidence.slice(0, 10).map((item: any) => ({
+      evidence.slice(0, 10).map((item: Evidence) => ({
         "@type": "CreativeWork",
         name: item.title,
         url: `https://rotten-company.com/evidence/${item.id}`,
@@ -107,7 +109,7 @@ export default async function CategoryPage({ params }: { params: any }) {
             <p>No approved evidence yet.</p>
           ) : (
             <ul>
-              {evidence.map((item: any) => (
+              {evidence.map((item: Evidence) => (
                 <li key={item.id} style={{ marginBottom: 8 }}>
                   <a
                     href={`/evidence/${item.id}`}

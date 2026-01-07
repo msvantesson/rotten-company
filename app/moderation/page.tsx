@@ -85,9 +85,11 @@ export default async function ModerationPage() {
     .select("id, name, base_weight")
     .order("name");
 
+  // Pick a deterministic item instead of random to maintain React purity
+  // Using the first item is simpler and more predictable for moderation
   const item =
     pendingEvidence && pendingEvidence.length > 0
-      ? pendingEvidence[Math.floor(Math.random() * pendingEvidence.length)]
+      ? pendingEvidence[0]
       : null;
 
   return (

@@ -1,21 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function JsonLdDebugPanel({ data }: { data: any }) {
   const [open, setOpen] = useState(false);
 
   // Only show when ?debug=jsonld is in the URL
-  const [enabled, setEnabled] = useState(false);
-
-  useEffect(() => {
+  // Initialize state directly from URL on mount (no effect needed)
+  const [enabled] = useState(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("debug") === "jsonld") {
-        setEnabled(true);
-      }
+      return params.get("debug") === "jsonld";
     }
-  }, []);
+    return false;
+  });
 
   if (!enabled) return null;
 
