@@ -1,5 +1,6 @@
 "use client";
-import { getFlavorBundle } from "@/app/lib/flavor-bundle";
+
+import { getFlavorBundle } from "@/lib/flavor-bundle";
 
 
 export function RottenScoreMeter({
