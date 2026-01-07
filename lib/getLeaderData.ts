@@ -24,7 +24,8 @@ export async function getLeaderData(slug: string) {
     return null;
   }
 
-  const company_name = leader.companies?.name ?? null;
+  // companies is ALWAYS an array from Supabase
+  const company_name = leader.companies?.[0]?.name ?? null;
 
   // 2. Fetch leader score
   const { data: score, error: scoreError } = await supabase
@@ -77,7 +78,7 @@ export async function getLeaderData(slug: string) {
       role: leader.role,
       slug: leader.slug,
       company_id: leader.company_id,
-      company_name,
+      company_name, // <-- FIXED
     },
     score,
     categories,
