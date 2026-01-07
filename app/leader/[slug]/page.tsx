@@ -5,6 +5,7 @@ export const fetchCache = "force-no-store";
 import LeaderScorePanel from "./LeaderScorePanel";
 import { getLeaderData } from "@/lib/getLeaderData";
 import { buildLeaderJsonLd } from "@/lib/jsonld-leader";
+import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 
 type Params = Promise<{ slug: string }> | { slug: string };
 
@@ -49,12 +50,16 @@ export default async function LeaderPage({ params }: { params: Params }) {
 
   return (
     <>
+      {/* JSON-LD injection */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(jsonLd, null, 2),
         }}
       />
+
+      {/* Developer-only JSON-LD Debug Panel */}
+      <JsonLdDebugPanel data={jsonLd} />
 
       <div className="max-w-4xl mx-auto p-6">
         <LeaderScorePanel
