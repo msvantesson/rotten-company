@@ -12,22 +12,22 @@ function clampScore(raw: number | null): number {
   return Math.max(0, Math.min(100, raw));
 }
 
-// Simple red -> yellow -> green gradient based on score
+// Simple red → yellow → green gradient based on score
 function getScoreColor(score: number): string {
   // 0 = red (0deg), 50 = yellow (60deg), 100 = green (120deg)
-  const hue = (score / 100) * 120; // 0–120
+  const hue = (score / 100) * 120;
   return `hsl(${hue}, 80%, 45%)`;
 }
 
-export function RottenScoreMeter({ score }: RottenScoreMeterProps) {
+export default function RottenScoreMeter({ score }: RottenScoreMeterProps) {
   const clamped = clampScore(score);
   const [animatedWidth, setAnimatedWidth] = useState(0);
 
-  // Flavor engine: company-level tier + micro flavor
+  // Company-level flavor engine
   const { microFlavor, macroTier } = getRottenFlavor(clamped);
 
   useEffect(() => {
-    // Animate from 0 -> clamped on mount/update (client only)
+    // Animate from 0 → clamped on mount/update
     setAnimatedWidth(clamped);
   }, [clamped]);
 
@@ -41,6 +41,7 @@ export function RottenScoreMeter({ score }: RottenScoreMeterProps) {
           <span className="text-3xl font-semibold tabular-nums">
             {clamped.toFixed(0)}
           </span>
+
           <span className="text-sm uppercase tracking-wide text-neutral-600">
             / 100 Rotten Score
           </span>
@@ -63,11 +64,7 @@ export function RottenScoreMeter({ score }: RottenScoreMeterProps) {
       </div>
 
       {/* Micro flavor */}
-      <p className="text-sm text-neutral-700">
-        {microFlavor}
-      </p>
+      <p className="text-sm text-neutral-700">{microFlavor}</p>
     </div>
   );
 }
-
-export default RottenScoreMeter;
