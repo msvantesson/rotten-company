@@ -4,8 +4,6 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import type { CookieOptions } from '@/lib/types';
-
 export async function loginWithPassword(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
@@ -18,17 +16,19 @@ export async function loginWithPassword(formData: FormData) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        async get(name: string) {
-          const store = await cookies();
-          return store.get(name)?.value;
+        getAll() {
+          return cookieStore.getAll();
         },
-        async set(name: string, value: string, options: CookieOptions) {
-          const store = await cookies();
-          store.set(name, value, options);
-        },
-        async remove(name: string, options: CookieOptions) {
-          const store = await cookies();
-          store.delete({ name, ...options });
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
         },
       },
     }

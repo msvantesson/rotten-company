@@ -48,13 +48,3 @@ export interface Evidence {
   status?: string;
   manager_id?: number;
 }
-
-// Cookie options type for Supabase client
-export interface CookieOptions {
-  path?: string;
-  maxAge?: number;
-  domain?: string;
-  secure?: boolean;
-  httpOnly?: boolean;
-  sameSite?: 'lax' | 'strict' | 'none';
-}
