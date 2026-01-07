@@ -1,97 +1,42 @@
 "use client";
 
-import { getFlavorBundle } from "@/lib/flavor-bundle";
+import { useEffect, useState } from "react";
+import { getRottenFlavor } from "@/lib/flavor-engine";
 
+type RottenScoreMeterProps = {
+  score: number | null;
+};
 
-export function RottenScoreMeter({
-  score,
-  ratingCount = 0,
-  evidenceCount = 0,
-}: {
-  score: number;
-  ratingCount?: number;
-  evidenceCount?: number;
-}) {
-  //
-  // 🔥 Canonical flavor engine (macro + micro + color)
-  //
-  const {
-    score: finalScore,
-    tierName,
-    tierColor,
-    tierMicroFlavor,
-    scoreMicroFlavor,
-  } = getFlavorBundle(score);
+function clampScore(raw: number | null): number {
+  if (raw == null || Number.isNaN(raw)) return 0;
+  return Math.max(0, Math.min(100, raw));
+}
 
-  const totalSignals = ratingCount + evidenceCount;
+// Simple red -> yellow -> green gradient based on score
+function getScoreColor(score: number): string {
+  // 0 = red (0deg), 50 = yellow (60deg), 100 = green (120deg)
+  const hue = (score / 100) * 120; // 0–120
+  return `hsl(${hue}, 80%, 45%)`;
+}
 
-  const getConfidence = () => {
-    if (totalSignals >= 50) return "High confidence";
-    if (totalSignals >= 10) return "Medium confidence";
-    return "Low confidence";
-  };
+export function RottenScoreMeter({ score }: RottenScoreMeterProps) {
+  const clamped = clampScore(score);
+  const [animatedWidth, setAnimatedWidth] = useState(0);
+
+  // Flavor engine: company-level tier + micro flavor
+  const { microFlavor, macroTier } = getRottenFlavor(clamped);
+
+  useEffect(() => {
+    // Animate from 0 -> clamped on mount/update (client only)
+    setAnimatedWidth(clamped);
+  }, [clamped]);
+
+  const barColor = getScoreColor(clamped);
 
   return (
-    <div className="space-y-4">
-      {/* Score-specific micro flavor */}
-      <div className="text-xl font-semibold leading-snug">
-        {scoreMicroFlavor}
-      </div>
-
-      {/* Score bar */}
-      <div className="w-full h-3 bg-neutral-200 rounded-full overflow-hidden relative">
-        <div
-          className="h-full transition-all duration-700 ease-out"
-          style={{
-            width: `${finalScore}%`,
-            backgroundColor: tierColor,
-            boxShadow: finalScore >= 75 ? `0 0 12px ${tierColor}` : "none",
-          }}
-        />
-      </div>
-
-      {/* Score + tier */}
-      <div className="flex justify-between text-sm text-neutral-600">
-        <span>{finalScore.toFixed(2)}</span>
-        <span className="font-medium">{tierName}</span>
-      </div>
-
-      {/* Signals + confidence */}
-      <div className="flex justify-between text-xs text-neutral-500">
-        <span>{totalSignals} signals</span>
-        <span>{getConfidence()}</span>
-      </div>
-
-      {/* Why this score? */}
-      <details className="mt-2 text-sm text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-md p-3">
-        <summary className="cursor-pointer font-medium text-neutral-800">
-          Why this score?
-        </summary>
-        <div className="mt-2 space-y-2">
-          <p>
-            This Rotten Score is a weighted combination of category ratings and
-            underlying evidence. Higher scores mean more severe, repeated, and
-            well‑documented problems.
-          </p>
-
-          <p>
-            The{" "}
-            <span className="font-semibold">tier</span> ({tierName}) reflects
-            the overall level of concern, while the{" "}
-            <span className="font-semibold">micro flavor</span> captures the
-            human‑readable vibe of what people are reporting.
-          </p>
-
-          <p className="text-xs text-neutral-500">
-            In plain language: {tierMicroFlavor}
-          </p>
-
-          <p className="text-xs text-neutral-500">
-            Scroll down to the category breakdown and evidence list to see
-            exactly where the score comes from.
-          </p>
-        </div>
-      </details>
-    </div>
-  );
-}
+    <div className="w-full max-w-xl space-y-3">
+      {/* Score + tier row */}
+      <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-semibold tabular-nums">
+            {clamped.toFixed(0)}
