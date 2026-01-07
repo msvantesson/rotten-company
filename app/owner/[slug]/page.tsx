@@ -28,10 +28,16 @@ export default async function OwnerPage({ params }: { params: Params }) {
   }
 
   // 2. Fetch portfolio companies
-  const { data: portfolio } = await supabase
+  const { data: rawPortfolio } = await supabase
     .from("owner_portfolio_view")
     .select("company:companies(name, slug)")
     .eq("owner_id", owner.id);
+
+  // Normalize shape: company should be an object, not an array
+  const portfolio =
+    rawPortfolio?.map((p) => ({
+      company: Array.isArray(p.company) ? p.company[0] : p.company,
+    })) ?? [];
 
   // 3. Fetch ownership signals
   const { data: signals } = await supabase
@@ -59,7 +65,7 @@ export default async function OwnerPage({ params }: { params: Params }) {
   // 6. Build JSON-LD
   const jsonLd = buildOwnerJsonLd({
     owner,
-    portfolio: portfolio ?? [],
+    portfolio,
     breakdown,
     signals: signals ?? [],
     avgDestructionLever,
@@ -87,7 +93,7 @@ export default async function OwnerPage({ params }: { params: Params }) {
         <section style={{ marginTop: "2rem" }}>
           <h2>Portfolio Companies</h2>
 
-          {portfolio?.length ? (
+          {portfolio.length > 0 ? (
             <ul style={{ marginTop: 12, paddingLeft: 0, listStyle: "none" }}>
               {portfolio.map((p, i) => (
                 <li
