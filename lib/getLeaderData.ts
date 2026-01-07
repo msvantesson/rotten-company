@@ -24,7 +24,6 @@ export async function getLeaderData(slug: string) {
     return null;
   }
 
-  // Normalize company_name into a flat field
   const company_name = leader.companies?.name ?? null;
 
   // 2. Fetch leader score
@@ -41,4 +40,48 @@ export async function getLeaderData(slug: string) {
   // 3. Fetch category breakdown
   const { data: categories, error: categoriesError } = await supabase
     .from("leader_category_breakdown")
-    .select("*
+    .select("*")
+    .eq("leader_id", leader.id);
+
+  if (categoriesError) {
+    console.error("Leader category breakdown error:", categoriesError);
+  }
+
+  // 4. Inequality metrics
+  const { data: inequality, error: inequalityError } = await supabase
+    .from("leader_inequality")
+    .select("*")
+    .eq("leader_id", leader.id)
+    .maybeSingle();
+
+  if (inequalityError) {
+    console.error("Leader inequality error:", inequalityError);
+  }
+
+  // 5. Evidence
+  const { data: evidence, error: evidenceError } = await supabase
+    .from("evidence")
+    .select("*")
+    .eq("leader_id", leader.id)
+    .eq("status", "approved")
+    .order("created_at", { ascending: false });
+
+  if (evidenceError) {
+    console.error("Leader evidence error:", evidenceError);
+  }
+
+  return {
+    leader: {
+      id: leader.id,
+      name: leader.name,
+      role: leader.role,
+      slug: leader.slug,
+      company_id: leader.company_id,
+      company_name,
+    },
+    score,
+    categories,
+    inequality,
+    evidence,
+  };
+}
