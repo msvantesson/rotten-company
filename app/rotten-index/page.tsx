@@ -54,10 +54,17 @@ function buildRottenIndexJsonLd(companies: IndexedCompany[]) {
 export default async function RottenIndexPage() {
   const supabase = await supabaseServer();
 
-  // Fetch companies with Rotten Score, ordered by score DESC
   const { data, error } = await supabase
     .from("company_rotten_score")
-    .select("company_id, rotten_score, companies(name, slug, industry)")
+    .select(`
+      company_id,
+      rotten_score,
+      companies (
+        name,
+        slug,
+        industry
+      )
+    `)
     .order("rotten_score", { ascending: false });
 
   if (error) {
@@ -77,7 +84,6 @@ export default async function RottenIndexPage() {
 
   return (
     <>
-      {/* JSON-LD for the Global Rotten Index */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -85,7 +91,6 @@ export default async function RottenIndexPage() {
         }}
       />
 
-      {/* Developer-only JSON-LD debug panel */}
       <JsonLdDebugPanel data={jsonLd} />
 
       <main className="max-w-5xl mx-auto px-4 py-10">
@@ -97,12 +102,10 @@ export default async function RottenIndexPage() {
           </p>
         </header>
 
-        {/* Future-ready filter bar (companies-only for now) */}
         <section className="mb-6 flex flex-wrap items-center gap-3">
           <span className="text-sm text-gray-500">
             Currently showing: <strong>Companies only</strong>
           </span>
-          {/* Later you can add entity-type filters and category weighting here */}
         </section>
 
         {companies.length === 0 ? (
