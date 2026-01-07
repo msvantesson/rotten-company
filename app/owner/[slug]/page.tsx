@@ -4,6 +4,7 @@ export const fetchCache = "force-no-store";
 
 import { supabase } from "@/lib/supabaseClient";
 import { buildOwnerJsonLd } from "@/lib/jsonld-owner";
+import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 
 type Params = Promise<{ slug: string }> | { slug: string };
 
@@ -80,6 +81,9 @@ export default async function OwnerPage({ params }: { params: Params }) {
           __html: JSON.stringify(jsonLd, null, 2),
         }}
       />
+
+      {/* Developer-only JSON-LD Debug Panel */}
+      <JsonLdDebugPanel data={jsonLd} />
 
       <div style={{ padding: "2rem" }}>
         <h1>{owner.name}</h1>
