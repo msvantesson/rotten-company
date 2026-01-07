@@ -101,4 +101,26 @@ export default async function CategoryPage({ params }: { params: any }) {
         </header>
 
         <section style={{ marginTop: 24 }}>
-          <h2>Approved
+          <h2>Approved Evidence</h2>
+
+          {evidence.length === 0 ? (
+            <p>No approved evidence yet.</p>
+          ) : (
+            <ul>
+              {evidence.map((item: any) => (
+                <li key={item.id} style={{ marginBottom: 8 }}>
+                  <a
+                    href={`/evidence/${item.id}`}
+                    style={{ textDecoration: "none", fontWeight: 600 }}
+                  >
+                    {item.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </main>
+    </>
+  );
+}
