@@ -1,6 +1,6 @@
 "use client";
 
-import { getFlavor } from "@/lib/get-flavor";
+import { getRottenFlavor } from "@/lib/flavor-engine";
 
 export function RottenScoreMeter({
   score,
@@ -11,8 +11,8 @@ export function RottenScoreMeter({
   ratingCount?: number;
   evidenceCount?: number;
 }) {
-  const { microFlavor, macroTier } = getFlavor(score);
-
+ 
+  const { microFlavor, macroTier, color } = getRottenFlavor(score);
   const totalSignals = ratingCount + evidenceCount;
 
   const getConfidence = () => {
