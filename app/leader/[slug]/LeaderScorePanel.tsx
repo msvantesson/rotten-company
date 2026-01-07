@@ -46,23 +46,6 @@ export default function LeaderScorePanel(props: LeaderScorePanelProps) {
   );
 }
 
-/* Helper Components */
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function BreakdownItem({ label, value, tooltip }: {
-  label: string;
-  value: number;
-  tooltip?: string;
-}) {
-  return (
-    <div className="p-4 border rounded-lg bg-gray-50">
-      <p className="text-gray-600">{label}</p>
-      <p className="text-xl font-bold">{value}</p>
-      {tooltip && <p className="text-xs text-gray-400 mt-1">{tooltip}</p>}
-    </div>
-  );
-}
-
 function getFlavorTier(score: number): string {
   if (score <= 10) return "Fresh";
   if (score <= 30) return "Slightly Rotten";
