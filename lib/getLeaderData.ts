@@ -3,56 +3,42 @@ import { supabaseServer } from "@/lib/supabase-server";
 export async function getLeaderData(slug: string) {
   const supabase = await supabaseServer();
 
+  // 1. Fetch leader + company name
   const { data: leader, error: leaderError } = await supabase
     .from("leaders")
-    .select("id, name, role, company_id, slug")
+    .select(`
+      id,
+      name,
+      role,
+      slug,
+      company_id,
+      companies (
+        name
+      )
+    `)
     .eq("slug", slug)
-    .single();
+    .maybeSingle();
 
   if (leaderError || !leader) {
+    console.error("Leader fetch error:", leaderError);
     return null;
   }
 
-  const leaderId = leader.id;
+  // Normalize company_name into a flat field
+  const company_name = leader.companies?.name ?? null;
 
-  const { data: score } = await supabase
-    .from("leader_rotten_score")
+  // 2. Fetch leader score
+  const { data: score, error: scoreError } = await supabase
+    .from("leader_scores")
     .select("*")
-    .eq("leader_id", leaderId)
-    .single();
+    .eq("leader_id", leader.id)
+    .maybeSingle();
 
-  const { data: categories } = await supabase
+  if (scoreError) {
+    console.error("Leader score error:", scoreError);
+  }
+
+  // 3. Fetch category breakdown
+  const { data: categories, error: categoriesError } = await supabase
     .from("leader_category_breakdown")
-    .select("*")
-    .eq("leader_id", leaderId);
-
-  const { data: inequality } = await supabase
-    .from("leader_inequality_signal")
-    .select("*")
-    .eq("leader_id", leaderId)
-    .single();
-
-  const { data: evidence } = await supabase
-    .from("evidence")
-    .select(`
-      id,
-      title,
-      summary,
-      category,
-      severity,
-      created_at,
-      company_id,
-      leader_id
-    `)
-    .eq("leader_id", leaderId)
-    .eq("status", "approved")
-    .order("created_at", { ascending: false });
-
-  return {
-    leader,
-    score,
-    categories,
-    inequality,
-    evidence,
-  };
-}
+    .select("*
