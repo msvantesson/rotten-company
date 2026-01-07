@@ -285,3 +285,19 @@ export default async function CompanyPage({ params }: { params: Params }) {
         <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
 
         <div style={{ marginBottom: "2rem" }}>
+          <CategoryBreakdown breakdown={breakdownWithFlavor} />
+        </div>
+
+        <h2>Approved Evidence</h2>
+        <EvidenceList evidence={evidence} />
+
+        {user && (
+          <ScoreDebugPanel
+            score={liveRottenScore}
+            breakdown={breakdownWithFlavor}
+          />
+        )}
+      </div>
+    </>
+  );
+}
