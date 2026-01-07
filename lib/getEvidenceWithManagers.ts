@@ -4,6 +4,10 @@ type ManagerRow = {
   name: string;
 };
 
+type CategoryRow = {
+  name: string;
+};
+
 export async function getEvidenceWithManagers(companyId: number) {
   //
   // STEP 1 — Fetch all approved evidence for this company
@@ -23,6 +27,10 @@ export async function getEvidenceWithManagers(companyId: number) {
       file_weight,
       total_weight,
       manager_id,
+      category_id,
+      category:categories (
+        name
+      ),
       manager:managers (
         name
       )
@@ -64,7 +72,6 @@ export async function getEvidenceWithManagers(companyId: number) {
       console.error("Manager count batch error:", countError);
     }
 
-    // Supabase returns one row per evidence, so we aggregate manually
     const tempCount: Record<number, number> = {};
 
     countRows?.forEach((row) => {
@@ -83,27 +90,29 @@ export async function getEvidenceWithManagers(companyId: number) {
   //
   const enriched = evidence.map((item) => {
     const rawManager = item.manager as ManagerRow | ManagerRow[] | null;
+    const rawCategory = item.category as CategoryRow | CategoryRow[] | null;
 
     const manager =
       rawManager && Array.isArray(rawManager)
         ? rawManager[0] ?? null
         : rawManager;
 
-    if (!item.manager_id || !manager) {
-      return {
-        ...item,
-        manager: manager
-          ? { name: manager.name, report_count: null }
-          : null,
-      };
-    }
+    const category =
+      rawCategory && Array.isArray(rawCategory)
+        ? rawCategory[0] ?? null
+        : rawCategory;
 
     return {
       ...item,
-      manager: {
-        name: manager.name,
-        report_count: countMap.get(item.manager_id) ?? 0,
-      },
+      category: category ? { name: category.name } : null,
+      manager: manager
+        ? {
+            name: manager.name,
+            report_count: item.manager_id
+              ? countMap.get(item.manager_id) ?? 0
+              : null,
+          }
+        : null,
     };
   });
 
