@@ -5,105 +5,104 @@ import { supabase } from "@/lib/supabaseClient";
 import { revalidatePath } from "next/cache";
 
 export default async function ModerationPage() {
-  // ✅ Approve action
+  // -----------------------------
+  // SERVER ACTION: APPROVE
+  // -----------------------------
   async function approveEvidence(formData: FormData) {
     "use server";
 
     const evidenceId = formData.get("evidenceId");
+    const categoryId = formData.get("categoryId");
+    const severity = formData.get("severity");
+    const managerName = formData.get("managerName");
+    const managerReports = formData.get("managerReports");
+    const entityType = formData.get("entityType");
+    const entityId = formData.get("entityId");
+
     if (typeof evidenceId !== "string") return;
 
-    const { error: voteError } = await supabase.from("moderation_votes").insert({
+    // Insert moderation vote
+    await supabase.from("moderation_votes").insert({
       evidence_id: evidenceId,
       vote: true,
       reason: null,
     });
 
-    if (voteError) {
-      console.error("approveEvidence: vote insert error", voteError);
-      return;
-    }
-
-    const { error: updateError } = await supabase
+    // Update evidence with moderator decisions
+    await supabase
       .from("evidence")
-      .update({ status: "approved" })
+      .update({
+        status: "approved",
+        category_id: categoryId ? Number(categoryId) : null,
+        severity: severity ? Number(severity) : null,
+        manager_name: managerName || null,
+        manager_report_count: managerReports
+          ? Number(managerReports)
+          : null,
+        entity_type: entityType || null,
+        entity_id: entityId ? Number(entityId) : null,
+      })
       .eq("id", evidenceId);
-
-    if (updateError) {
-      console.error("approveEvidence: evidence update error", updateError);
-      return;
-    }
 
     revalidatePath("/moderation");
   }
 
-  // ✅ Reject action
+  // -----------------------------
+  // SERVER ACTION: REJECT
+  // -----------------------------
   async function rejectEvidence(formData: FormData) {
     "use server";
 
     const evidenceId = formData.get("evidenceId");
     const reason = formData.get("reason");
+
     if (typeof evidenceId !== "string") return;
 
-    const { error: voteError } = await supabase.from("moderation_votes").insert({
+    await supabase.from("moderation_votes").insert({
       evidence_id: evidenceId,
       vote: false,
       reason: typeof reason === "string" ? reason : null,
     });
 
-    if (voteError) {
-      console.error("rejectEvidence: vote insert error", voteError);
-      return;
-    }
-
-    const { error: updateError } = await supabase
+    await supabase
       .from("evidence")
       .update({ status: "rejected" })
       .eq("id", evidenceId);
 
-    if (updateError) {
-      console.error("rejectEvidence: evidence update error", updateError);
-      return;
-    }
-
     revalidatePath("/moderation");
   }
 
-  // ✅ Fetch pending evidence
-  const { data: pendingEvidence, error } = await supabase
+  // -----------------------------
+  // FETCH PENDING EVIDENCE
+  // -----------------------------
+  const { data: pendingEvidence } = await supabase
     .from("evidence")
     .select("*")
     .eq("status", "pending");
 
-  console.log("MODERATION: raw pendingEvidence", pendingEvidence);
-  console.log("MODERATION: error", error);
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id, name, base_weight")
+    .order("name");
 
-  const hasEvidence = pendingEvidence && pendingEvidence.length > 0;
-
-  const item = hasEvidence
-    ? pendingEvidence[Math.floor(Math.random() * pendingEvidence.length)]
-    : null;
+  const item =
+    pendingEvidence && pendingEvidence.length > 0
+      ? pendingEvidence[Math.floor(Math.random() * pendingEvidence.length)]
+      : null;
 
   return (
     <div style={{ padding: "2rem" }}>
-      <h1>Moderation</h1>
-
-      {error && (
-        <div
-          style={{
-            marginTop: "1rem",
-            padding: "0.5rem",
-            background: "#ffe5e5",
-            color: "#900",
-            border: "1px solid #f99",
-          }}
-        >
-          <strong>Error loading pending evidence:</strong> {error.message}
-        </div>
-      )}
+      <h1>Moderation Dashboard</h1>
 
       <p>Pending evidence count: {pendingEvidence?.length ?? 0}</p>
 
-      {hasEvidence && item ? (
+      {!item && (
+        <div style={{ marginTop: "2rem", fontStyle: "italic", color: "#666" }}>
+          No pending evidence to moderate.
+        </div>
+      )}
+
+      {item && (
         <div
           style={{
             marginTop: "2rem",
@@ -117,17 +116,12 @@ export default async function ModerationPage() {
             <strong>Summary:</strong> {item.summary}
           </p>
 
-          {/* ✅ NEW: Evidence Type */}
           <p>
             <strong>Evidence Type:</strong> {item.evidence_type}
           </p>
 
           <p>
-            <strong>Entity Type:</strong> {item.entity_type}
-          </p>
-
-          <p>
-            <strong>Entity ID:</strong> {item.entity_id}
+            <strong>Entity:</strong> {item.entity_type} #{item.entity_id}
           </p>
 
           <p>
@@ -138,19 +132,103 @@ export default async function ModerationPage() {
           {item.file_url && (
             <p>
               <strong>File:</strong>{" "}
-              <a href={item.file_url} target="_blank" rel="noopener noreferrer">
+              <a href={item.file_url} target="_blank">
                 View file
               </a>
             </p>
           )}
 
-          {/* ✅ Approve */}
+          {/* -----------------------------
+              CATEGORY + SEVERITY
+          ------------------------------ */}
           <form action={approveEvidence} style={{ marginTop: "1rem" }}>
             <input type="hidden" name="evidenceId" value={item.id} />
+
+            {/* Category */}
+            <label>
+              <strong>Category:</strong>
+            </label>
+            <select
+              name="categoryId"
+              defaultValue=""
+              style={{ display: "block", marginBottom: "1rem" }}
+            >
+              <option value="">Select category</option>
+              {categories?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Severity */}
+            <label>
+              <strong>Severity (1–5):</strong>
+            </label>
+            <input
+              type="range"
+              name="severity"
+              min="1"
+              max="5"
+              defaultValue={3}
+              style={{ width: "100%", marginBottom: "1rem" }}
+            />
+
+            {/* -----------------------------
+                MANAGER METADATA
+            ------------------------------ */}
+            <label>
+              <strong>Manager Name (optional):</strong>
+            </label>
+            <input
+              type="text"
+              name="managerName"
+              defaultValue={item.manager_name || ""}
+              style={{ width: "100%", marginBottom: "1rem" }}
+            />
+
+            <label>
+              <strong>Manager Report Count (optional):</strong>
+            </label>
+            <input
+              type="number"
+              name="managerReports"
+              defaultValue={item.manager_report_count || ""}
+              style={{ width: "100%", marginBottom: "1rem" }}
+            />
+
+            {/* -----------------------------
+                ENTITY CORRECTION
+            ------------------------------ */}
+            <label>
+              <strong>Entity Type:</strong>
+            </label>
+            <select
+              name="entityType"
+              defaultValue={item.entity_type}
+              style={{ display: "block", marginBottom: "1rem" }}
+            >
+              <option value="company">Company</option>
+              <option value="leader">Leader</option>
+              <option value="owner">Owner</option>
+            </select>
+
+            <label>
+              <strong>Entity ID:</strong>
+            </label>
+            <input
+              type="number"
+              name="entityId"
+              defaultValue={item.entity_id}
+              style={{ width: "100%", marginBottom: "1rem" }}
+            />
+
+            {/* -----------------------------
+                APPROVE BUTTON
+            ------------------------------ */}
             <button
               style={{
                 padding: "0.5rem 1rem",
-                marginRight: "1rem",
                 background: "#4caf50",
                 color: "white",
                 border: "none",
@@ -161,7 +239,9 @@ export default async function ModerationPage() {
             </button>
           </form>
 
-          {/* ✅ Reject */}
+          {/* -----------------------------
+              REJECT FORM
+          ------------------------------ */}
           <form action={rejectEvidence} style={{ marginTop: "1rem" }}>
             <input type="hidden" name="evidenceId" value={item.id} />
 
@@ -189,15 +269,7 @@ export default async function ModerationPage() {
             </button>
           </form>
         </div>
-      ) : (
-        <div style={{ marginTop: "2rem", fontStyle: "italic", color: "#666" }}>
-          No pending evidence to moderate. You're all caught up.
-        </div>
       )}
-
-      <pre style={{ background: "#eee", padding: "1rem", marginTop: "2rem" }}>
-        {JSON.stringify(pendingEvidence, null, 2)}
-      </pre>
     </div>
   );
 }
