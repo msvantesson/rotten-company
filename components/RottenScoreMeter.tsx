@@ -40,3 +40,34 @@ export function RottenScoreMeter({ score }: RottenScoreMeterProps) {
         <div className="flex items-baseline gap-2">
           <span className="text-3xl font-semibold tabular-nums">
             {clamped.toFixed(0)}
+          </span>
+          <span className="text-sm uppercase tracking-wide text-neutral-600">
+            / 100 Rotten Score
+          </span>
+        </div>
+
+        <div className="text-sm text-right text-neutral-700">
+          <div className="font-semibold">{macroTier}</div>
+        </div>
+      </div>
+
+      {/* Bar */}
+      <div className="w-full h-3 rounded-full bg-neutral-200 overflow-hidden shadow-inner">
+        <div
+          className="h-full rounded-full transition-[width] duration-700 ease-out"
+          style={{
+            width: `${animatedWidth}%`,
+            backgroundColor: barColor,
+          }}
+        />
+      </div>
+
+      {/* Micro flavor */}
+      <p className="text-sm text-neutral-700">
+        {microFlavor}
+      </p>
+    </div>
+  );
+}
+
+export default RottenScoreMeter;
