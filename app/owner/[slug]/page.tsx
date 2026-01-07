@@ -3,10 +3,9 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { supabase } from "@/lib/supabaseClient";
+import { buildOwnerJsonLd } from "@/lib/jsonld-owner";
 
 type Params = Promise<{ slug: string }> | { slug: string };
-type Evidence = { id: number; title: string; summary?: string };
-type Owner = { id: number; name: string; type: string; slug: string } | null;
 
 export default async function OwnerPage({ params }: { params: Params }) {
   const resolvedParams = (await params) as { slug?: string };
@@ -28,57 +27,43 @@ export default async function OwnerPage({ params }: { params: Params }) {
     );
   }
 
-  // 2. Fetch ownership signals (companies influenced)
+  // 2. Fetch portfolio companies
+  const { data: portfolio } = await supabase
+    .from("owner_portfolio_view")
+    .select("company:companies(name, slug)")
+    .eq("owner_id", owner.id);
+
+  // 3. Fetch ownership signals
   const { data: signals } = await supabase
     .from("ownership_signals_summary")
     .select("*")
     .eq("owner_slug", owner.slug)
     .order("severity", { ascending: false });
 
-  // 3. Fetch approved evidence
-  const { data: evidence } = await supabase
-    .from("evidence")
-    .select("id, title, summary")
+  // 4. Fetch breakdown (ratings, evidence, etc.)
+  const { data: breakdown } = await supabase
+    .from("owner_portfolio_breakdown")
+    .select("*")
     .eq("owner_id", owner.id)
-    .eq("status", "approved");
+    .maybeSingle();
 
-  const companyCount = signals?.length ?? 0;
+  // 5. Fetch destruction lever (optional)
+  const { data: destructionLever } = await supabase
+    .from("owner_destruction_lever")
+    .select("avgDestructionLever:avg_destruction_lever")
+    .eq("owner_id", owner.id)
+    .maybeSingle();
 
-  // 4. JSON-LD for SEO
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: owner.name,
-    url: `https://rotten-company.com/owner/${owner.slug}`,
-    description: owner.profile ?? `Ownership profile for ${owner.name}.`,
+  const avgDestructionLever = destructionLever?.avgDestructionLever ?? null;
 
-    additionalProperty: [
-      {
-        "@type": "PropertyValue",
-        name: "companyCount",
-        value: companyCount,
-      },
-    ],
-
-    hasPart:
-      signals?.map((s) => ({
-        "@type": "Organization",
-        name: s.company_name,
-        url: `https://rotten-company.com/company/${s.company_slug}`,
-        additionalProperty: [
-          {
-            "@type": "PropertyValue",
-            name: "signalType",
-            value: s.signal_type,
-          },
-          {
-            "@type": "PropertyValue",
-            name: "severity",
-            value: s.severity,
-          },
-        ],
-      })) ?? [],
-  };
+  // 6. Build JSON-LD
+  const jsonLd = buildOwnerJsonLd({
+    owner,
+    portfolio: portfolio ?? [],
+    breakdown,
+    signals: signals ?? [],
+    avgDestructionLever,
+  });
 
   return (
     <>
@@ -93,13 +78,46 @@ export default async function OwnerPage({ params }: { params: Params }) {
       <div style={{ padding: "2rem" }}>
         <h1>{owner.name}</h1>
         <p style={{ opacity: 0.8 }}>{owner.type}</p>
+
         {owner.profile && (
           <p style={{ marginTop: 8, opacity: 0.7 }}>{owner.profile}</p>
         )}
 
-        {/* Companies influenced */}
+        {/* Portfolio */}
         <section style={{ marginTop: "2rem" }}>
-          <h2>Companies Influenced</h2>
+          <h2>Portfolio Companies</h2>
+
+          {portfolio?.length ? (
+            <ul style={{ marginTop: 12, paddingLeft: 0, listStyle: "none" }}>
+              {portfolio.map((p, i) => (
+                <li
+                  key={i}
+                  style={{
+                    padding: "12px 0",
+                    borderBottom: "1px solid #eee",
+                  }}
+                >
+                  <a
+                    href={`/company/${p.company.slug}`}
+                    style={{
+                      fontSize: "1.1rem",
+                      fontWeight: 600,
+                      textDecoration: "none",
+                    }}
+                  >
+                    {p.company.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No portfolio companies found.</p>
+          )}
+        </section>
+
+        {/* Ownership Signals */}
+        <section style={{ marginTop: "2rem" }}>
+          <h2>Ownership Signals</h2>
 
           {signals?.length ? (
             <ul style={{ marginTop: 12, paddingLeft: 0, listStyle: "none" }}>
@@ -133,23 +151,16 @@ export default async function OwnerPage({ params }: { params: Params }) {
           )}
         </section>
 
-        {/* Evidence */}
+        {/* Breakdown */}
         <section style={{ marginTop: "2rem" }}>
-          <h2>Approved Evidence</h2>
+          <h2>Portfolio Breakdown</h2>
 
-          {evidence?.length ? (
-            <ul>
-              {evidence.map((item) => (
-                <li key={item.id} style={{ marginBottom: "1rem" }}>
-                  <strong>{item.title}</strong>
-                  {item.summary && (
-                    <div style={{ marginTop: 6 }}>{item.summary}</div>
-                  )}
-                </li>
-              ))}
-            </ul>
+          {breakdown ? (
+            <pre style={{ background: "#fafafa", padding: "1rem" }}>
+              {JSON.stringify(breakdown, null, 2)}
+            </pre>
           ) : (
-            <p>No approved evidence found.</p>
+            <p>No breakdown data available.</p>
           )}
         </section>
       </div>
