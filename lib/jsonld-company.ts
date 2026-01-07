@@ -2,6 +2,16 @@
 
 import { getRottenFlavor } from "@/lib/flavor-engine";
 
+type CategoryBreakdownJsonLd = {
+  category_id: number;
+  category_name: string;
+  rating_count: number;
+  avg_rating_score: number | null;
+  evidence_count: number;
+  evidence_score: number | null;
+  final_score: number;
+};
+
 type JsonLdInput = {
   company: {
     id: number;
@@ -11,14 +21,7 @@ type JsonLdInput = {
     size_employees?: number;
   };
   rottenScore: number | null;
-  breakdown: {
-    category_id: number;
-    category_name: string;
-    evidence_count: number;
-    avg_score: number | null;
-    final_score?: number | null;
-    flavor?: string;
-  }[];
+  breakdown: CategoryBreakdownJsonLd[];
   ownershipSignals?: {
     owner_name: string;
     owner_slug: string;
@@ -46,7 +49,7 @@ export function buildCompanyJsonLd({
 
   // Compute totals
   const ratingCount = breakdown.reduce(
-    (sum, c) => sum + (c.avg_score ? 1 : 0),
+    (sum, c) => sum + (c.rating_count ?? 0),
     0
   );
 
@@ -83,15 +86,16 @@ export function buildCompanyJsonLd({
       worstRating: 0,
     },
 
-    // Category breakdown
+    // Category breakdown (canonical)
     additionalProperty: breakdown.map((c) => ({
       "@type": "PropertyValue",
       name: c.category_name,
       value: {
+        ratingCount: c.rating_count,
+        avgRatingScore: c.avg_rating_score,
         evidenceCount: c.evidence_count,
-        avgScore: c.avg_score,
-        finalScore: c.final_score ?? null,
-        flavor: c.flavor ?? null,
+        evidenceScore: c.evidence_score,
+        finalScore: c.final_score,
       },
     })),
 
