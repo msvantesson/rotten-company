@@ -1,10 +1,27 @@
-// lib/jsonld-owner.ts
+// /lib/jsonld-owner.ts
 
 type OwnerJsonLdInput = {
-  owner: any;
-  portfolio: any[];
-  breakdown: any;
-  signals: any[];
+  owner: {
+    id: number;
+    name: string;
+    slug: string;
+    type: string;
+    profile?: string | null;
+  };
+  portfolio: {
+    company: { name: string; slug: string };
+  }[];
+  breakdown: {
+    total_employees?: number | null;
+    avg_category_score?: number | null;
+    total_ratings?: number | null;
+    company_count?: number | null;
+    total_evidence?: number | null;
+  } | null;
+  signals: {
+    signal_type: string;
+    severity: number;
+  }[];
   avgDestructionLever: number | null;
 };
 
@@ -15,27 +32,49 @@ export function buildOwnerJsonLd({
   signals,
   avgDestructionLever,
 }: OwnerJsonLdInput) {
+  const baseUrl = "https://rotten-company.com";
+
+  const schemaType =
+    owner.type === "individual" ? "Person" : "Organization";
+
   return {
     "@context": "https://schema.org",
-    "@type": "Organization",
+    "@type": schemaType,
+    "@id": `${baseUrl}/owner/${owner.slug}#identity`,
 
     name: owner.name,
-    url: `https://rotten-company.com/owner/${owner.slug}`,
-    description: `Portfolio accountability profile for ${owner.name}.`,
+    url: `${baseUrl}/owner/${owner.slug}`,
+    description:
+      owner.profile ??
+      `Portfolio accountability profile for ${owner.name}.`,
 
-    numberOfEmployees: breakdown?.total_employees ?? null,
-
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: breakdown?.avg_category_score ?? null,
-      ratingCount: breakdown?.total_ratings ?? null,
-    },
+    identifier: [
+      {
+        "@type": "PropertyValue",
+        name: "ownerId",
+        value: owner.id,
+      },
+      {
+        "@type": "PropertyValue",
+        name: "ownerType",
+        value: owner.type,
+      },
+    ],
 
     owns: portfolio.map((p) => ({
       "@type": "Organization",
+      "@id": `${baseUrl}/company/${p.company.slug}#identity`,
       name: p.company.name,
-      url: `https://rotten-company.com/company/${p.company.slug}`,
+      url: `${baseUrl}/company/${p.company.slug}`,
     })),
+
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: breakdown?.avg_category_score ?? undefined,
+      ratingCount: breakdown?.total_ratings ?? undefined,
+    },
+
+    numberOfEmployees: breakdown?.total_employees ?? undefined,
 
     additionalProperty: [
       {
@@ -46,16 +85,16 @@ export function buildOwnerJsonLd({
       {
         "@type": "PropertyValue",
         name: "totalEvidence",
-        value: breakdown?.total_evidence ?? null,
+        value: breakdown?.total_evidence ?? undefined,
       },
       {
         "@type": "PropertyValue",
         name: "avgDestructionLever",
-        value: avgDestructionLever ?? null,
+        value: avgDestructionLever ?? undefined,
       },
     ],
 
-    ownershipSignals: signals.map((s) => ({
+    hasPart: signals.map((s) => ({
       "@type": "PropertyValue",
       name: s.signal_type,
       value: s.severity,
