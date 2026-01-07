@@ -35,100 +35,219 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   const supabase = await supabaseServer();
 
-  const { data: company } = await supabase
+  // 1) Core company fetch — this is the only hard requirement
+  const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id, name, slug, industry, size_employees, rotten_score")
     .eq("slug", rawSlug)
     .maybeSingle();
 
+  if (companyError) {
+    console.error("Error loading company:", rawSlug, companyError);
+  }
+
   if (!company) {
+    // If this happens for rotten-widgets-gmbh, something is wrong in the DB,
+    // but we should at least see the slug.
     return (
       <div style={{ padding: "2rem" }}>
         <h1>No company found</h1>
-        <p><strong>Slug</strong>: {rawSlug || "null"}</p>
+        <p>
+          <strong>Slug</strong>: {rawSlug || "null"}
+        </p>
       </div>
     );
   }
 
-  const evidence = await getEvidenceWithManagers(company.id);
+  // 2) Everything below is "best-effort" and must never crash the page
 
-  const { data: mergedBreakdown } = await supabase
-    .from("company_category_full_breakdown")
-    .select(
-      "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score"
-    )
-    .eq("company_id", company.id);
+  // Evidence (wrapped in try/catch in case helper throws)
+  let evidence: any[] = [];
+  try {
+    evidence = (await getEvidenceWithManagers(company.id)) ?? [];
+  } catch (e) {
+    console.error("Error loading evidence for company:", company.id, e);
+    evidence = [];
+  }
 
-  const breakdownWithFlavor = mergedBreakdown ?? [];
+  // Category breakdown
+  let breakdownWithFlavor: any[] = [];
+  try {
+    const { data: mergedBreakdown, error: breakdownError } = await supabase
+      .from("company_category_full_breakdown")
+      .select(
+        "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score"
+      )
+      .eq("company_id", company.id);
 
-  const { data: scoreRow } = await supabase
-    .from("company_rotten_score")
-    .select("rotten_score")
-    .eq("company_id", company.id)
-    .maybeSingle();
+    if (breakdownError) {
+      console.error(
+        "Error loading company_category_full_breakdown for company:",
+        company.id,
+        breakdownError
+      );
+    }
 
-  const liveRottenScore = scoreRow?.rotten_score ?? null;
+    breakdownWithFlavor = mergedBreakdown ?? [];
+  } catch (e) {
+    console.error("Unexpected error building breakdown for company:", company.id, e);
+    breakdownWithFlavor = [];
+  }
 
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("id, slug, name")
-    .order("id", { ascending: true });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let userRatings: Record<number, number> = {};
-
-  if (user) {
-    const { data: ratings } = await supabase
-      .from("ratings")
-      .select("category, score")
+  // Live Rotten Score
+  let liveRottenScore: number | null = null;
+  try {
+    const { data: scoreRow, error: scoreError } = await supabase
+      .from("company_rotten_score")
+      .select("rotten_score")
       .eq("company_id", company.id)
-      .eq("user_id", user.id);
+      .maybeSingle();
 
-    if (ratings) {
-      for (const r of ratings) {
-        userRatings[r.category] = r.score;
+    if (scoreError) {
+      console.error("Error loading company_rotten_score for company:", company.id, scoreError);
+    }
+
+    liveRottenScore = scoreRow?.rotten_score ?? null;
+  } catch (e) {
+    console.error("Unexpected error loading Rotten Score for company:", company.id, e);
+    liveRottenScore = null;
+  }
+
+  // Categories
+  let categories: { id: number; slug: string; name: string }[] = [];
+  try {
+    const { data: categoriesData, error: categoriesError } = await supabase
+      .from("categories")
+      .select("id, slug, name")
+      .order("id", { ascending: true });
+
+    if (categoriesError) {
+      console.error("Error loading categories:", categoriesError);
+    }
+
+    categories = categoriesData ?? [];
+  } catch (e) {
+    console.error("Unexpected error loading categories:", e);
+    categories = [];
+  }
+
+  // Auth user
+  let user: { id: string } | null = null;
+  try {
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError) {
+      console.error("Error loading auth user:", authError);
+    }
+
+    user = authUser ?? null;
+  } catch (e) {
+    console.error("Unexpected error loading auth user:", e);
+    user = null;
+  }
+
+  // User ratings
+  let userRatings: Record<number, number> = {};
+  if (user) {
+    try {
+      const { data: ratings, error: ratingsError } = await supabase
+        .from("ratings")
+        .select("category, score")
+        .eq("company_id", company.id)
+        .eq("user_id", user.id);
+
+      if (ratingsError) {
+        console.error("Error loading user ratings:", ratingsError);
       }
+
+      if (ratings) {
+        for (const r of ratings) {
+          userRatings[r.category] = r.score;
+        }
+      }
+    } catch (e) {
+      console.error("Unexpected error loading user ratings:", e);
+      userRatings = {};
     }
   }
 
-  const { data: ownershipSignals } = await supabase
-    .from("ownership_signals_summary")
-    .select("*")
-    .eq("company_id", company.id);
+  // Ownership signals
+  let ownershipSignals: any[] = [];
+  try {
+    const { data: ownershipSignalsData, error: ownershipError } = await supabase
+      .from("ownership_signals_summary")
+      .select("*")
+      .eq("company_id", company.id);
 
-  const { data: destructionLever } = await supabase
-    .from("company_destruction_lever")
-    .select("*")
-    .eq("company_id", company.id)
-    .maybeSingle();
+    if (ownershipError) {
+      console.error("Error loading ownership_signals_summary for company:", company.id, ownershipError);
+    }
 
-  const jsonLd = buildCompanyJsonLd({
-    company,
-    rottenScore: liveRottenScore,
-    breakdown: breakdownWithFlavor,
-    ownershipSignals,
-    destructionLever,
-  });
+    ownershipSignals = ownershipSignalsData ?? [];
+  } catch (e) {
+    console.error("Unexpected error loading ownership_signals_summary:", e);
+    ownershipSignals = [];
+  }
+
+  // Destruction lever
+  let destructionLever: any | null = null;
+  try {
+    const { data: destructionLeverData, error: destructionError } = await supabase
+      .from("company_destruction_lever")
+      .select("*")
+      .eq("company_id", company.id)
+      .maybeSingle();
+
+    if (destructionError) {
+      console.error("Error loading company_destruction_lever for company:", company.id, destructionError);
+    }
+
+    destructionLever = destructionLeverData ?? null;
+  } catch (e) {
+    console.error("Unexpected error loading company_destruction_lever:", e);
+    destructionLever = null;
+  }
+
+  // JSON-LD: also must never crash the page
+  let jsonLd: any = null;
+  try {
+    jsonLd = buildCompanyJsonLd({
+      company,
+      rottenScore: liveRottenScore,
+      breakdown: breakdownWithFlavor,
+      ownershipSignals,
+      destructionLever,
+    });
+  } catch (e) {
+    console.error("Error building company JSON-LD for company:", company.id, e);
+    jsonLd = null;
+  }
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(jsonLd, null, 2),
-        }}
-      />
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd, null, 2),
+          }}
+        />
+      )}
 
-      <JsonLdDebugPanel data={jsonLd} />
+      <JsonLdDebugPanel data={jsonLd ?? { error: "JSON-LD generation failed" }} />
 
       <div style={{ padding: "2rem" }}>
         <h1>{company.name}</h1>
 
-        <p><strong>Industry:</strong> {company.industry ?? "Unknown"}</p>
-        <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
+        <p>
+          <strong>Industry:</strong> {company.industry ?? "Unknown"}
+        </p>
+        <p>
+          <strong>Employees:</strong> {company.size_employees ?? "Unknown"}
+        </p>
 
         <div style={{ marginTop: "1.5rem", marginBottom: "2rem" }}>
           <RottenScoreMeter score={liveRottenScore ?? 0} />
@@ -166,19 +285,3 @@ export default async function CompanyPage({ params }: { params: Params }) {
         <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
 
         <div style={{ marginBottom: "2rem" }}>
-          <CategoryBreakdown breakdown={breakdownWithFlavor} />
-        </div>
-
-        <h2>Approved Evidence</h2>
-        <EvidenceList evidence={evidence} />
-
-        {user && (
-          <ScoreDebugPanel
-            score={liveRottenScore}
-            breakdown={breakdownWithFlavor}
-          />
-        )}
-      </div>
-    </>
-  );
-}
