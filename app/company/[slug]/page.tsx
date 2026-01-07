@@ -3,7 +3,7 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { supabaseServer } from "@/lib/supabase-server";
-import { EvidenceList } from "@/components/EvidenceList";
+import EvidenceList from "@/components/EvidenceList"; // ✅ FIXED — default import
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
 
