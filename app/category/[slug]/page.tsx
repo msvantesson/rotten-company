@@ -22,17 +22,9 @@ function getCategoryFlavor(categoryId: number): string {
   return CATEGORY_FLAVORS[categoryId] ?? "No flavor assigned";
 }
 
-export default async function CategoryPage({ params }: { params: Promise<{ slug?: string }> | { slug?: string } }) {
-  const resolvedParams = await Promise.resolve(params);
-  const slug = resolvedParams?.slug as string | undefined;
-
-  if (!slug) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h1>No category found for slug</h1>
-      </div>
-    );
-  }
+export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = await params;
+  const slug = resolvedParams.slug;
 
   // 1. Fetch category metadata
   const category = await fetchEntityBySlug("category", slug);

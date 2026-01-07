@@ -30,10 +30,9 @@ interface LeaderScorePanelProps {
   payRatio?: number;
 }
 
-export default function LeaderScorePanel(props: LeaderScorePanelProps) {
-  const {
-    finalScore,
-  } = props;
+export default function LeaderScorePanel({
+  finalScore,
+}: LeaderScorePanelProps) {
 
   return (
     <div className="w-full space-y-8">

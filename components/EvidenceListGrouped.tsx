@@ -173,7 +173,6 @@ export default function EvidenceListGrouped({ evidence }: Props) {
                           className="max-w-full h-auto rounded-md border"
                           width={800}
                           height={600}
-                          style={{ maxWidth: '100%', height: 'auto' }}
                         />
                       )}
 
