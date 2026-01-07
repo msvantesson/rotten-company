@@ -259,7 +259,8 @@ export default async function RottenIndexPage({
             <select
               id="country"
               name="country"
-              defaultValue={selectedCountryCode ?? ""}
+              value={selectedCountryCode ?? ""}
+              onChange={() => {}}
               className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
             >
               <option value="">All countries</option>
