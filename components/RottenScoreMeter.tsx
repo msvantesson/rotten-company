@@ -1,6 +1,6 @@
 "use client";
 
-import { getRottenFlavor } from "@/lib/flavor-engine";
+import { getFlavorBundle } from "@/lib/flavor-bundle";
 
 export function RottenScoreMeter({
   score,
@@ -12,9 +12,15 @@ export function RottenScoreMeter({
   evidenceCount?: number;
 }) {
   //
-  // 🔥 Canonical flavor engine
+  // 🔥 Canonical flavor engine (macro + micro + color)
   //
-  const { microFlavor, macroTier, color } = getRottenFlavor(score);
+  const {
+    score: finalScore,
+    tierName,
+    tierColor,
+    tierMicroFlavor,
+    scoreMicroFlavor,
+  } = getFlavorBundle(score);
 
   const totalSignals = ratingCount + evidenceCount;
 
@@ -26,9 +32,9 @@ export function RottenScoreMeter({
 
   return (
     <div className="space-y-4">
-      {/* Micro flavor */}
+      {/* Score-specific micro flavor */}
       <div className="text-xl font-semibold leading-snug">
-        {microFlavor}
+        {scoreMicroFlavor}
       </div>
 
       {/* Score bar */}
@@ -36,17 +42,17 @@ export function RottenScoreMeter({
         <div
           className="h-full transition-all duration-700 ease-out"
           style={{
-            width: `${score}%`,
-            backgroundColor: color,
-            boxShadow: score >= 75 ? `0 0 12px ${color}` : "none",
+            width: `${finalScore}%`,
+            backgroundColor: tierColor,
+            boxShadow: finalScore >= 75 ? `0 0 12px ${tierColor}` : "none",
           }}
         />
       </div>
 
       {/* Score + tier */}
       <div className="flex justify-between text-sm text-neutral-600">
-        <span>{score.toFixed(2)}</span>
-        <span className="font-medium">{macroTier}</span>
+        <span>{finalScore.toFixed(2)}</span>
+        <span className="font-medium">{tierName}</span>
       </div>
 
       {/* Signals + confidence */}
@@ -62,15 +68,26 @@ export function RottenScoreMeter({
         </summary>
         <div className="mt-2 space-y-2">
           <p>
-            This Rotten Score is a weighted combination of category ratings and underlying evidence.
-            Higher scores mean more severe, repeated, and well‑documented problems.
+            This Rotten Score is a weighted combination of category ratings and
+            underlying evidence. Higher scores mean more severe, repeated, and
+            well‑documented problems.
           </p>
+
           <p>
-            The <span className="font-semibold">tier</span> ({macroTier}) reflects the overall level of concern,
-            while the <span className="font-semibold">micro flavor</span> captures the human‑readable vibe of what people are reporting.
+            The{" "}
+            <span className="font-semibold">tier</span> ({tierName}) reflects
+            the overall level of concern, while the{" "}
+            <span className="font-semibold">micro flavor</span> captures the
+            human‑readable vibe of what people are reporting.
           </p>
+
           <p className="text-xs text-neutral-500">
-            Scroll down to the category breakdown and evidence list to see exactly where the score comes from.
+            In plain language: {tierMicroFlavor}
+          </p>
+
+          <p className="text-xs text-neutral-500">
+            Scroll down to the category breakdown and evidence list to see
+            exactly where the score comes from.
           </p>
         </div>
       </details>
