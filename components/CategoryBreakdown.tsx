@@ -3,9 +3,11 @@
 type BreakdownItem = {
   category_id: number;
   category_name: string;
+  rating_count: number;
+  avg_rating_score: number | null;
   evidence_count: number;
-  avg_score: number | null;
-  flavor: string;
+  evidence_score: number | null;
+  final_score: number; // weighted contribution
 };
 
 const CATEGORY_PRESENTATION: Record<
@@ -59,12 +61,12 @@ export function CategoryBreakdown({
               <span>{item.category_name}</span>
             </div>
 
-            {/* Mini score bar */}
+            {/* Mini score bar (final weighted score) */}
             <div className="w-full h-2 bg-neutral-200 rounded-full overflow-hidden">
               <div
                 className="h-full transition-all duration-500"
                 style={{
-                  width: `${item.avg_score ?? 0}%`,
+                  width: `${item.final_score}%`,
                   backgroundColor: color,
                 }}
               />
@@ -74,12 +76,25 @@ export function CategoryBreakdown({
             <div className="flex flex-wrap gap-3 justify-between text-sm text-neutral-600">
               <span>
                 Avg Rating:{" "}
-                {item.avg_score !== null ? item.avg_score.toFixed(2) : "—"}
+                {item.avg_rating_score !== null
+                  ? item.avg_rating_score.toFixed(2)
+                  : "—"}
               </span>
 
-              <span>Evidence: {item.evidence_count}</span>
+              <span>Ratings: {item.rating_count}</span>
 
-              <span className="italic">{item.flavor}</span>
+              <span>
+                Evidence Score:{" "}
+                {item.evidence_score !== null
+                  ? item.evidence_score.toFixed(2)
+                  : "—"}
+              </span>
+
+              <span>Evidence Count: {item.evidence_count}</span>
+
+              <span className="font-medium text-neutral-700">
+                Contribution: {item.final_score.toFixed(1)} pts
+              </span>
             </div>
           </div>
         );
