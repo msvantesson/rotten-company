@@ -54,37 +54,105 @@ function buildRottenIndexJsonLd(companies: IndexedCompany[]) {
 export default async function RottenIndexPage() {
   const supabase = await supabaseServer();
 
-  const { data, error } = await supabase
+  // 1) Get all company scores, ordered by Rotten Score DESC
+  const { data: scoreRows, error: scoreError } = await supabase
     .from("company_rotten_score")
-    .select(`
-      company_id,
-      rotten_score,
-      companies (
-        name,
-        slug,
-        industry
-      )
-    `)
-    .order("rotten_score", { ascending: false })
-    .not("companies", "is", null);
+    .select("company_id, rotten_score")
+    .order("rotten_score", { ascending: false });
 
-  if (error) {
-    console.error("Error loading Rotten Index:", error);
+  if (scoreError) {
+    console.error("Error loading company_rotten_score:", scoreError);
   }
 
-  const companies: IndexedCompany[] =
-    data?.map((row: any) => ({
-      company_id: row.company_id,
-      rotten_score: row.rotten_score ?? 0,
-      name: row.companies?.name ?? "Unknown company",
-      slug: row.companies?.slug ?? "",
-      industry: row.companies?.industry ?? null,
-    })) ?? [];
+  if (!scoreRows || scoreRows.length === 0) {
+    const emptyJsonLd = buildRottenIndexJsonLd([]);
+    return (
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(emptyJsonLd, null, 2),
+          }}
+        />
+        <JsonLdDebugPanel data={emptyJsonLd} />
+        <main className="max-w-5xl mx-auto px-4 py-10">
+          <header className="mb-8">
+            <h1 className="text-3xl font-bold mb-2">Global Rotten Index</h1>
+            <p className="text-gray-600">
+              Ranking companies by Rotten Score based on public evidence of harm,
+              misconduct, and corporate behavior.
+            </p>
+          </header>
+          <section className="mb-6 flex flex-wrap items-center gap-3">
+            <span className="text-sm text-gray-500">
+              Currently showing: <strong>Companies only</strong>
+            </span>
+          </section>
+          <p className="text-gray-600">
+            No companies found in the Rotten Index. Rotten Scores may not have been
+            calculated yet.
+          </p>
+          <section className="mt-8 text-sm text-gray-500">
+            <h2 className="font-semibold mb-1">Methodology</h2>
+            <p>
+              The Rotten Score is derived from category-level ratings, public
+              evidence, and weighted signals of corporate harm. Higher scores
+              indicate more severe and systemic issues.
+            </p>
+          </section>
+        </main>
+      </>
+    );
+  }
+
+  // 2) Fetch company metadata for all IDs in the score view
+  const companyIds = scoreRows.map((row) => row.company_id);
+
+  const { data: companyRows, error: companyError } = await supabase
+    .from("companies")
+    .select("id, name, slug, industry")
+    .in("id", companyIds);
+
+  if (companyError) {
+    console.error("Error loading companies for Rotten Index:", companyError);
+  }
+
+  const companyById =
+    companyRows?.reduce<Record<number, { id: number; name: string; slug: string; industry: string | null }>>(
+      (acc, row) => {
+        acc[row.id] = {
+          id: row.id,
+          name: row.name,
+          slug: row.slug,
+          industry: row.industry ?? null,
+        };
+        return acc;
+      },
+      {}
+    ) ?? {};
+
+  // 3) Merge scores + metadata; preserve score ordering
+  const companies: IndexedCompany[] = scoreRows
+    .map((row) => {
+      const c = companyById[row.company_id];
+      if (!c) {
+        return null;
+      }
+      return {
+        company_id: row.company_id,
+        rotten_score: row.rotten_score ?? 0,
+        name: c.name,
+        slug: c.slug,
+        industry: c.industry,
+      };
+    })
+    .filter((c): c is IndexedCompany => c !== null);
 
   const jsonLd = buildRottenIndexJsonLd(companies);
 
   return (
     <>
+      {/* JSON-LD for the Global Rotten Index */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -92,6 +160,7 @@ export default async function RottenIndexPage() {
         }}
       />
 
+      {/* Developer-only JSON-LD debug panel */}
       <JsonLdDebugPanel data={jsonLd} />
 
       <main className="max-w-5xl mx-auto px-4 py-10">
@@ -110,7 +179,10 @@ export default async function RottenIndexPage() {
         </section>
 
         {companies.length === 0 ? (
-          <p className="text-gray-600">No companies found in the Rotten Index.</p>
+          <p className="text-gray-600">
+            No companies found in the Rotten Index. Rotten Scores may not have
+            been calculated yet.
+          </p>
         ) : (
           <ol className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
             {companies.map((c, index) => (
