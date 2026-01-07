@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 
-type CategoryBreakdownRow = {
+type CategoryBreakdownDebug = {
   category_id: number;
   category_name: string;
+  rating_count: number;
+  avg_rating_score: number | null;
   evidence_count: number;
-  avg_score: number | null;
-  flavor: string;
+  evidence_score: number | null;
+  final_score: number;
 };
 
 export function ScoreDebugPanel({
@@ -15,7 +17,7 @@ export function ScoreDebugPanel({
   breakdown,
 }: {
   score: number | null;
-  breakdown: CategoryBreakdownRow[];
+  breakdown: CategoryBreakdownDebug[];
 }) {
   const [open, setOpen] = useState(false);
 
