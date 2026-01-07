@@ -1,4 +1,6 @@
-// lib/jsonld-company.ts
+// /lib/jsonld-company.ts
+
+import { getRottenFlavor } from "@/lib/flavor-engine";
 
 type JsonLdInput = {
   company: {
@@ -37,49 +39,63 @@ export function buildCompanyJsonLd({
   ownershipSignals = [],
   destructionLever = null,
 }: JsonLdInput) {
+  const score = rottenScore ?? 0;
+
+  // 🔥 Canonical flavor engine
+  const { microFlavor, macroTier } = getRottenFlavor(score);
+
+  // Compute totals
+  const ratingCount = breakdown.reduce(
+    (sum, c) => sum + (c.avg_score ? 1 : 0),
+    0
+  );
+
+  const evidenceCount = breakdown.reduce(
+    (sum, c) => sum + (c.evidence_count ?? 0),
+    0
+  );
+
+  const totalSignals = ratingCount + evidenceCount;
+
+  const confidenceLevel =
+    totalSignals >= 50 ? "High" :
+    totalSignals >= 10 ? "Medium" :
+    "Low";
+
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
 
+    // Identity
     name: company.name,
     url: `https://rotten-company.com/company/${company.slug}`,
-    description: `Rotten Score and accountability profile for ${company.name}.`,
+    description: microFlavor,
+    industry: company.industry ?? undefined,
+    numberOfEmployees: company.size_employees ?? undefined,
 
+    // Canonical Rotten Score (0–100)
     aggregateRating: {
       "@type": "AggregateRating",
-      ratingValue: rottenScore,
-      bestRating: "5",
-      worstRating: "1",
-      ratingCount: breakdown.reduce(
-        (sum, c) => sum + (c.evidence_count ?? 0),
-        0
-      ),
+      ratingValue: score.toFixed(2),
+      ratingCount,
+      reviewCount: evidenceCount,
+      bestRating: 100,
+      worstRating: 0,
     },
 
-    knowsAbout: breakdown.map((c) => ({
-      "@type": "DefinedTerm",
+    // Category breakdown
+    additionalProperty: breakdown.map((c) => ({
+      "@type": "PropertyValue",
       name: c.category_name,
-      termCode: c.category_id,
-      inDefinedTermSet: "https://rotten-company.com/categories",
-      additionalProperty: [
-        {
-          "@type": "PropertyValue",
-          name: "ratingCount",
-          value: c.avg_score ?? null,
-        },
-        {
-          "@type": "PropertyValue",
-          name: "evidenceCount",
-          value: c.evidence_count,
-        },
-        {
-          "@type": "PropertyValue",
-          name: "finalScore",
-          value: c.final_score ?? null,
-        },
-      ],
+      value: {
+        evidenceCount: c.evidence_count,
+        avgScore: c.avg_score,
+        finalScore: c.final_score ?? null,
+        flavor: c.flavor ?? null,
+      },
     })),
 
+    // Ownership signals
     ownership:
       ownershipSignals?.map((s) => ({
         "@type": "Organization",
@@ -104,17 +120,22 @@ export function buildCompanyJsonLd({
         ],
       })) ?? [],
 
-    additionalProperty: [
-      {
-        "@type": "PropertyValue",
-        name: "destructionLeverScore",
-        value: destructionLever?.destruction_lever_score ?? null,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "isPrivateEquityDestructive",
-        value: destructionLever?.is_pe_destructive ?? false,
-      },
-    ],
+    // Destruction lever
+    destructionLever: destructionLever
+      ? {
+          "@type": "PropertyValue",
+          name: "Destruction Lever",
+          value: {
+            destructionLeverScore: destructionLever.destruction_lever_score ?? null,
+            isPrivateEquityDestructive: destructionLever.is_pe_destructive ?? false,
+          },
+        }
+      : undefined,
+
+    // Canonical flavor engine metadata
+    rottenTier: macroTier,
+    microFlavor,
+    confidenceLevel,
+    totalSignals,
   };
 }
