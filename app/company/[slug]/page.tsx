@@ -11,21 +11,7 @@ import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 
-// --- Flavor taxonomy (category-level micro-flavors) ---
-const CATEGORY_FLAVORS: Record<number, string> = {
-  1: "Rotten to the core",
-  2: "Smells like spin",
-  3: "Boardroom smoke and mirrors",
-  4: "Toxic workplace vibes",
-  5: "Ethics on life support",
-  6: "Greenwashing deluxe",
-  13: "Customer trust? Never heard of it",
-};
-
-function getFlavor(categoryId: number): string {
-  return CATEGORY_FLAVORS[categoryId] ?? "No flavor assigned";
-}
-
+// --- Category icons ---
 const CATEGORY_ICON_MAP: Record<number, string> = {
   1: "💼",
   2: "📰",
@@ -51,14 +37,6 @@ type Company = {
   size_employees?: number;
   rotten_score?: number;
 } | null;
-
-type CategoryBreakdownRow = {
-  category_id: number;
-  category_name: string;
-  evidence_count: number;
-  avg_score: number | null;
-  flavor: string;
-};
 
 type Category = {
   id: number;
@@ -93,17 +71,15 @@ export default async function CompanyPage({ params }: { params: Params }) {
   // 2. Fetch approved evidence (with manager info + report counts)
   const evidence = await getEvidenceWithManagers(company.id);
 
-  // 3. Unified breakdown view
+  // 3. Unified breakdown view (canonical fields)
   const { data: mergedBreakdown, error: breakdownError } = await supabase
     .from("company_category_full_breakdown")
-    .select("category_id, category_name, evidence_count, avg_score")
+    .select(
+      "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score"
+    )
     .eq("company_id", company.id);
 
-  const breakdownWithFlavor: CategoryBreakdownRow[] =
-    mergedBreakdown?.map((row) => ({
-      ...row,
-      flavor: getFlavor(row.category_id),
-    })) ?? [];
+  const breakdownWithFlavor = mergedBreakdown ?? [];
 
   // 4. Fetch overall Rotten Score
   const { data: scoreRow } = await supabase
@@ -172,67 +148,3 @@ export default async function CompanyPage({ params }: { params: Params }) {
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(jsonLd, null, 2),
         }}
-      />
-
-      <div style={{ padding: "2rem" }}>
-        <h1>{company.name}</h1>
-
-        <p><strong>Industry:</strong> {company.industry ?? "Unknown"}</p>
-        <p><strong>Employees:</strong> {company.size_employees ?? "Unknown"}</p>
-
-        <div style={{ marginTop: "1.5rem", marginBottom: "2rem" }}>
-          <RottenScoreMeter score={liveRottenScore ?? 0} />
-        </div>
-
-        <h2 style={{ marginTop: "2rem" }}>Rate this company</h2>
-        {categories && categories.length > 0 ? (
-          <div style={{ marginBottom: "2rem" }}>
-            {categories.map((cat) => (
-              <div
-                key={cat.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "8px 0",
-                  borderBottom: "1px solid #eee",
-                }}
-              >
-                <span>
-                  {getCategoryIcon(cat.id)} {cat.name}
-                </span>
-                <RatingStars
-                  companySlug={company.slug}
-                  categorySlug={cat.slug}
-                  initialScore={userRatings[cat.id] ?? null}
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p>No categories configured yet.</p>
-        )}
-
-        <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
-
-        <div style={{ marginBottom: "2rem" }}>
-          <CategoryBreakdown breakdown={breakdownWithFlavor} />
-        </div>
-
-        {breakdownError && (
-          <pre>{JSON.stringify({ breakdownError }, null, 2)}</pre>
-        )}
-
-        <h2>Approved Evidence</h2>
-        <EvidenceList evidence={evidence} />
-
-        {user && (
-          <ScoreDebugPanel
-            score={liveRottenScore}
-            breakdown={breakdownWithFlavor}
-          />
-        )}
-      </div>
-    </>
-  );
-}
