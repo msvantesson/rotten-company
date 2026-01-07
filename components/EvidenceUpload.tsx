@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
 interface EvidenceUploadProps {
   entityId: number;
@@ -20,10 +21,12 @@ export default function EvidenceUpload({
   entityId,
   entityType,
 }: EvidenceUploadProps) {
+  const router = useRouter();
+
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [evidenceType, setEvidenceType] = useState("misconduct"); // NEW
+  const [evidenceType, setEvidenceType] = useState("misconduct");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -55,9 +58,7 @@ export default function EvidenceUpload({
 
     const { error: uploadError } = await supabase.storage
       .from("evidence")
-      .upload(filePath, file, {
-        upsert: false,
-      });
+      .upload(filePath, file, { upsert: false });
 
     if (uploadError) {
       console.error("Upload error:", uploadError);
@@ -66,31 +67,37 @@ export default function EvidenceUpload({
       return;
     }
 
-    const { error: insertError } = await supabase.from("evidence").insert([
-      {
-        entity_type: entityType,
-        entity_id: entityId,
-        title,
-        summary,
-        file_path: filePath,
-        user_id: user.id,
-        evidence_type: evidenceType, // NEW
-      },
-    ]);
+    // Insert evidence and RETURN the new row
+    const { data: inserted, error: insertError } = await supabase
+      .from("evidence")
+      .insert([
+        {
+          entity_type: entityType,
+          entity_id: entityId,
+          title,
+          summary,
+          file_path: filePath,
+          file_type: file.type,
+          file_size: file.size,
+          user_id: user.id,
+          evidence_type: evidenceType,
+        },
+      ])
+      .select()
+      .single();
 
-    if (insertError) {
+    if (insertError || !inserted) {
       console.error("Insert error:", insertError);
       setLoading(false);
       setError("Database insert failed.");
       return;
     }
 
+    // Redirect to the new Evidence Page
+    router.push(`/evidence/${inserted.id}`);
+
     setLoading(false);
     setSuccess(true);
-    setTitle("");
-    setSummary("");
-    setFile(null);
-    setEvidenceType("misconduct"); // reset
   };
 
   return (
@@ -113,6 +120,7 @@ export default function EvidenceUpload({
         </select>
       </div>
 
+      {/* Title */}
       <div className="space-y-2">
         <label className="block text-sm font-medium">Title</label>
         <input
@@ -123,6 +131,7 @@ export default function EvidenceUpload({
         />
       </div>
 
+      {/* Summary */}
       <div className="space-y-2">
         <label className="block text-sm font-medium">Summary (optional)</label>
         <input
@@ -133,6 +142,7 @@ export default function EvidenceUpload({
         />
       </div>
 
+      {/* File */}
       <div className="space-y-2">
         <label className="block text-sm font-medium">File</label>
         <input
