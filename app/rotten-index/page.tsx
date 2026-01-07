@@ -65,7 +65,8 @@ export default async function RottenIndexPage() {
         industry
       )
     `)
-    .order("rotten_score", { ascending: false });
+    .order("rotten_score", { ascending: false })
+    .not("companies", "is", null);
 
   if (error) {
     console.error("Error loading Rotten Index:", error);
