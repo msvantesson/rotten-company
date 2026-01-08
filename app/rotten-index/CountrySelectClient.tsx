@@ -1,42 +1,23 @@
 "use client";
+import { useRouter } from "next/navigation";
 
-import React from "react";
-
-type Option = { dbValue: string; label: string };
-
-export default function CountrySelectClient({
-  id,
-  name,
-  value,
-  options,
-}: {
-  id?: string;
-  name: string;
-  value?: string | null;
-  options: Option[];
-}) {
-  const selectedValue = value || "";
+export default function CountrySelect({ initial = "" }) {
+  const router = useRouter();
+  function onChange(e) {
+    const val = e.target.value;
+    const url = new URL(window.location.href);
+    if (val) url.searchParams.set("country", val);
+    else url.searchParams.delete("country");
+    url.searchParams.set("_ts", Date.now().toString());
+    router.push(url.pathname + url.search); // triggers a real navigation and server re-render
+  }
 
   return (
-    <select
-      id={id}
-      name={name}
-      value={selectedValue}
-      onChange={(e) => {
-        const selected = e.target.value || "";
-        const encoded = encodeURIComponent(selected);
-        const ts = Date.now();
-        const url = selected ? `/rotten-index?country=${encoded}&_ts=${ts}` : `/rotten-index?_ts=${ts}`;
-        window.location.href = url;
-      }}
-      className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
-    >
+    <select id="country" name="country" defaultValue={initial} onChange={onChange}
+      className="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
       <option value="">All countries</option>
-      {options.map((opt) => (
-        <option key={opt.dbValue} value={opt.dbValue}>
-          {opt.label}
-        </option>
-      ))}
+      <option value="Denmark">Denmark</option>
+      <option value="Ireland">Ireland</option>
     </select>
   );
 }
