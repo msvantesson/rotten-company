@@ -238,12 +238,8 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
             <p className="text-gray-600">Ranking companies by Rotten Score based on public evidence of harm, misconduct, and corporate behavior.</p>
           </header>
 
-          <section className="mb-6 flex flex-wrap items-center gap-4">
-            <span className="text-sm text-gray-500">Currently showing: <strong>{currentScopeLabel}</strong></span>
-
-            {/* Client component handles dropdown interactivity and list fetching */}
-            <RottenIndexClientWrapper initialCountry={selectedCountryCode} initialOptions={countryOptions} />
-          </section>
+          {/* Client component handles dropdown interactivity and list fetching */}
+          <RottenIndexClientWrapper initialCountry={selectedCountryCode} initialOptions={countryOptions} />
 
           <section className="mt-8 text-sm text-gray-500">
             <h2 className="font-semibold mb-1">Methodology</h2>
