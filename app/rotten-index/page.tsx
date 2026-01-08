@@ -96,29 +96,50 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
 
   const supabase = await supabaseServer();
 
-  // Fetch countries
-  const { data: countryRows = [] } = await supabase.from("companies").select("country");
+  // Fetch countries safely
+  const { data: rawCountryRows } = await supabase
+    .from("companies")
+    .select("country");
+
+  const countryRows: { country: string | null }[] = Array.isArray(rawCountryRows)
+    ? rawCountryRows
+    : [];
+
   const countrySet = new Set<string>();
   for (const row of countryRows) {
-    if (row.country?.trim()) countrySet.add(row.country.trim());
+    if (row.country && row.country.trim().length > 0) {
+      countrySet.add(row.country.trim());
+    }
   }
+
   const countryOptions = [...countrySet]
     .map((dbValue) => ({ dbValue, label: getCountryDisplayName(dbValue) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   // Fetch scores
-  const { data: scoreRows = [] } = await supabase
+  const { data: rawScoreRows } = await supabase
     .from("company_rotten_score")
     .select("company_id, rotten_score")
     .order("rotten_score", { ascending: false });
 
+  const scoreRows: { company_id: number; rotten_score: number | string }[] =
+    Array.isArray(rawScoreRows) ? rawScoreRows : [];
+
   const companyIds = scoreRows.map((r) => r.company_id);
 
   // Fetch companies
-  const { data: companyRows = [] } = await supabase
+  const { data: rawCompanyRows } = await supabase
     .from("companies")
     .select("id, name, slug, industry, country")
     .in("id", companyIds);
+
+  const companyRows: {
+    id: number;
+    name: string;
+    slug: string;
+    industry: string | null;
+    country: string | null;
+  }[] = Array.isArray(rawCompanyRows) ? rawCompanyRows : [];
 
   const companyById: Record<number, any> = {};
   for (const c of companyRows) companyById[c.id] = c;
@@ -154,7 +175,10 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
           </p>
         </header>
 
-        <ClientWrapper initialCountry={selectedCountryCode} initialOptions={countryOptions} />
+        <ClientWrapper
+          initialCountry={selectedCountryCode}
+          initialOptions={countryOptions}
+        />
 
         <section className="mt-8 text-sm text-gray-500">
           <h2 className="font-semibold mb-1">Methodology</h2>
