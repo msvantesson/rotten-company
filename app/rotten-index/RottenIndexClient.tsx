@@ -32,12 +32,14 @@ export default function RottenIndexClient({
       setCompanies(null);
 
       const q = selected ? `?country=${encodeURIComponent(selected)}` : "";
+      console.log("[RottenIndexClient] Fetching companies with country:", selected, "URL:", `/api/rotten-index${q}`);
       const res = await fetch(`/api/rotten-index${q}`, { cache: "no-store" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error || `HTTP ${res.status}`);
       }
       const body = await res.json();
+      console.log("[RottenIndexClient] Received", body.companies?.length || 0, "companies");
       setCompanies(body.companies || []);
     } catch (err: any) {
       console.error("[RottenIndexClient] fetch error:", err);
@@ -53,6 +55,16 @@ export default function RottenIndexClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Update state if initialCountry prop changes (e.g., navigation)
+  useEffect(() => {
+    if (initialCountry !== undefined && initialCountry !== country) {
+      console.log("[RottenIndexClient] initialCountry changed to:", initialCountry);
+      setCountry(initialCountry || "");
+      fetchList(initialCountry || "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCountry]);
+
   return (
     <section>
       <div className="mb-6 flex items-center gap-4">
@@ -64,10 +76,12 @@ export default function RottenIndexClient({
           value={country}
           onChange={(e) => {
             const v = e.target.value || "";
+            console.log("[RottenIndexClient] Dropdown changed to:", v);
             setCountry(v);
             // Update URL without full reload for UX
             const url = v ? `/rotten-index?country=${encodeURIComponent(v)}` : `/rotten-index`;
             window.history.replaceState({}, "", url);
+            console.log("[RottenIndexClient] Calling fetchList with:", v);
             fetchList(v);
           }}
           className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
@@ -89,7 +103,9 @@ export default function RottenIndexClient({
       )}
 
       {!loading && !error && companies && companies.length > 0 && (
-        <ol className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
+        <>
+          {console.log("[RottenIndexClient] Rendering", companies.length, "companies:", companies.map(c => `${c.name} (${c.country})`).join(", "))}
+          <ol className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
           {companies.map((c, i) => (
             <li key={c.id} className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-4">
@@ -112,6 +128,7 @@ export default function RottenIndexClient({
             </li>
           ))}
         </ol>
+        </>
       )}
     </section>
   );
