@@ -103,7 +103,9 @@ export default function RottenIndexClient({
       )}
 
       {!loading && !error && companies && companies.length > 0 && (
-        <ol className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
+        <>
+          {console.log("[RottenIndexClient] Rendering", companies.length, "companies:", companies.map(c => `${c.name} (${c.country})`).join(", "))}
+          <ol className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
           {companies.map((c, i) => (
             <li key={c.id} className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-4">
@@ -126,6 +128,7 @@ export default function RottenIndexClient({
             </li>
           ))}
         </ol>
+        </>
       )}
     </section>
   );
