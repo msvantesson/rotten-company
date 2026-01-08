@@ -5,6 +5,7 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const country = url.searchParams.get("country") || null;
+    console.log("[api/rotten-index] Request for country:", country);
 
     const supabase = await supabaseServer();
 
@@ -60,9 +61,12 @@ export async function GET(request: Request) {
     // Filtrer case‑insensitive hvis country er angivet
     if (country && country.trim().length > 0) {
       const target = country.trim().toLowerCase();
+      console.log("[api/rotten-index] Filtering for country:", target, "from", companies.length, "companies");
       companies = companies.filter((c: any) => c.country && c.country.trim().toLowerCase() === target);
+      console.log("[api/rotten-index] After filtering:", companies.length, "companies remain");
     }
 
+    console.log("[api/rotten-index] Returning", companies.length, "companies");
     return NextResponse.json({ companies });
   } catch (err) {
     console.error("[api/rotten-index] fatal:", err);

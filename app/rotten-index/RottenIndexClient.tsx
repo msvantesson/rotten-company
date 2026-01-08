@@ -55,6 +55,16 @@ export default function RottenIndexClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Update state if initialCountry prop changes (e.g., navigation)
+  useEffect(() => {
+    if (initialCountry !== undefined && initialCountry !== country) {
+      console.log("[RottenIndexClient] initialCountry changed to:", initialCountry);
+      setCountry(initialCountry || "");
+      fetchList(initialCountry || "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCountry]);
+
   return (
     <section>
       <div className="mb-6 flex items-center gap-4">
