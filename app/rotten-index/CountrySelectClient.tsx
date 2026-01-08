@@ -15,7 +15,6 @@ export default function CountrySelectClient({
   value?: string | null;
   options: Option[];
 }) {
-  // value er den server‑leverede valgte værdi; brug den som controlled value
   const selectedValue = value || "";
 
   return (
@@ -26,10 +25,8 @@ export default function CountrySelectClient({
       onChange={(e) => {
         const selected = e.target.value || "";
         const encoded = encodeURIComponent(selected);
-        // Tilføj et timestamp for at undgå edge/HTTP cache returning en gammel side
         const ts = Date.now();
         const url = selected ? `/rotten-index?country=${encoded}&_ts=${ts}` : `/rotten-index?_ts=${ts}`;
-        // Force fuld navigation så serveren får query param og genrender
         window.location.href = url;
       }}
       className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
