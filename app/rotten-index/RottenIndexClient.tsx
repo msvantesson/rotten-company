@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -16,64 +16,56 @@ export default function RottenIndexClient({
   initialCountry,
   initialOptions,
 }: {
-  initialCountry?: string | null;
-  initialOptions?: { dbValue: string; label: string }[];
+  initialCountry: string | null;
+  initialOptions: { dbValue: string; label: string }[];
 }) {
-  const [country, setCountry] = useState<string>(initialCountry || "");
+  const [country, setCountry] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      return url.searchParams.get("country") || "";
+    }
+    return initialCountry || "";
+  });
+
   const [companies, setCompanies] = useState<Company[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const options = initialOptions || [];
+  const [loading, setLoading] = useState(true);
 
   async function fetchList(selected: string) {
-    try {
-      setLoading(true);
-      setError(null);
-      setCompanies(null);
-
-      const q = selected ? `?country=${encodeURIComponent(selected)}` : "";
-      const res = await fetch(`/api/rotten-index${q}`, { cache: "no-store" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error || `HTTP ${res.status}`);
-      }
-      const body = await res.json();
-      setCompanies(body.companies || []);
-    } catch (err: any) {
-      console.error("[RottenIndexClient] fetch error:", err);
-      setError(String(err.message || err));
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    const q = selected ? `?country=${encodeURIComponent(selected)}` : "";
+    const res = await fetch(`/api/rotten-index${q}`, { cache: "no-store" });
+    const body = await res.json();
+    setCompanies(body.companies || []);
+    setLoading(false);
   }
 
   useEffect(() => {
-    // initial fetch
     fetchList(country);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <section>
-      <div className="mb-6 flex items-center gap-4">
-        <label htmlFor="country" className="text-gray-600">Country:</label>
+    <section className="mb-6">
+      <div className="flex items-center gap-4 mb-6">
+        <label htmlFor="country" className="text-gray-600">
+          Country:
+        </label>
 
         <select
           id="country"
-          name="country"
           value={country}
           onChange={(e) => {
-            const v = e.target.value || "";
+            const v = e.target.value;
             setCountry(v);
-            // Update URL without full reload for UX
+
             const url = v ? `/rotten-index?country=${encodeURIComponent(v)}` : `/rotten-index`;
             window.history.replaceState({}, "", url);
+
             fetchList(v);
           }}
           className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
         >
           <option value="">All countries</option>
-          {options.map((opt) => (
+          {initialOptions.map((opt) => (
             <option key={opt.dbValue} value={opt.dbValue}>
               {opt.label}
             </option>
@@ -82,26 +74,22 @@ export default function RottenIndexClient({
       </div>
 
       {loading && <p className="text-gray-600">Loading…</p>}
-      {error && <p className="text-red-600">Error: {error}</p>}
 
-      {!loading && !error && companies && companies.length === 0 && (
-        <p className="text-gray-600">No companies found{country ? ` for ${country}` : ""}.</p>
+      {!loading && companies && companies.length === 0 && (
+        <p className="text-gray-600">No companies found.</p>
       )}
 
-      {!loading && !error && companies && companies.length > 0 && (
+      {!loading && companies && companies.length > 0 && (
         <ol className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
           {companies.map((c, i) => (
             <li key={c.id} className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-4">
-                <span className="text-gray-500 font-mono w-6 text-right">{i + 1}.</span>
-                <div>
-                  <Link href={`/company/${c.slug}`} className="text-lg font-semibold hover:underline">
-                    {c.name}
-                  </Link>
-                  <div className="text-sm text-gray-500">
-                    {c.industry || "Unknown industry"}
-                    {c.country ? ` · ${c.country}` : ""}
-                  </div>
+              <div>
+                <Link href={`/company/${c.slug}`} className="text-lg font-semibold hover:underline">
+                  {c.name}
+                </Link>
+                <div className="text-sm text-gray-500">
+                  {c.industry || "Unknown industry"}
+                  {c.country ? ` · ${c.country}` : ""}
                 </div>
               </div>
 
