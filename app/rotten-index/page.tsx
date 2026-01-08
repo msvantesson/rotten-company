@@ -4,7 +4,8 @@ export const fetchCache = "force-no-store";
 
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase-server";
-import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
+import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
+import ClientCountrySync from "@/components/ClientCountrySync";
 
 // --- Types ---
 
@@ -314,17 +315,7 @@ export default async function RottenIndexPage({
         }}
       />
 
-      <JsonLdDebugPanel data={jsonLd} />
-
-      {/* Debug output (server-side) */}
-      {showDebug && debugInfo && (
-        <section className="max-w-5xl mx-auto px-4 py-4 mb-6 bg-yellow-50 border border-yellow-200 rounded">
-          <h3 className="font-semibold mb-2">Debug info</h3>
-          <pre className="text-xs overflow-auto" style={{ whiteSpace: 'pre-wrap' }}>
-            {JSON.stringify(debugInfo, null, 2)}
-          </pre>
-        </section>
-      )}
+      <JsonLdDebugPanel data={jsonLd} debug={debugInfo} initiallyOpen={!!debugInfo} />
 
       <main className="max-w-5xl mx-auto px-4 py-10">
         <header className="mb-8">
@@ -366,6 +357,9 @@ export default async function RottenIndexPage({
               Apply
             </button>
           </form>
+
+          {/* Client-side sync: keep UI in sync with URL after hydration */}
+          <ClientCountrySync />
         </section>
 
         {/* Company list */}
