@@ -72,7 +72,7 @@ function getCountryDisplayName(value: string | null | undefined): string {
   if (found) return found;
   // Fallback: capitalize words
   return v
-    .split(/[\s_-]+/)
+    .split(/[^a-zA-Z]+/)
     .map((w) => (w.length ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
     .join(" ");
 }
@@ -281,6 +281,29 @@ export default async function RottenIndexPage({
     ? `Companies only — ${getCountryDisplayName(selectedDbValue || selectedCountryCode)}`
     : "Companies only — All countries";
 
+  // --- Debug helpers ---
+  const debugParam = (searchParams && (searchParams as any).debug) as string | string[] | undefined;
+  const showDebug = typeof debugParam === 'string' && debugParam.length > 0;
+  const debugInfo = showDebug
+    ? {
+        searchParamsCountry: selectedCountryCode,
+        selectedDbValue,
+        selectedNormalized,
+        countryOptions: countryOptions,
+        companiesSample: companies.slice(0, 200).map((c) => ({ id: c.company_id, name: c.name, country: c.country })),
+      }
+    : null;
+
+  // Server-side debug logging: emit structured info to the server console when ?debug is present.
+  if (showDebug && debugInfo) {
+    try {
+      console.log(`[rotten-index] Debug @ ${new Date().toISOString()}:`, JSON.stringify(debugInfo, null, 2));
+    } catch (e) {
+      // Fall back to logging the raw object if stringify fails
+      console.log("[rotten-index] Debug (raw):", debugInfo);
+    }
+  }
+
   return (
     <>
       {/* JSON-LD */}
@@ -292,6 +315,16 @@ export default async function RottenIndexPage({
       />
 
       <JsonLdDebugPanel data={jsonLd} />
+
+      {/* Debug output (server-side) */}
+      {showDebug && debugInfo && (
+        <section className="max-w-5xl mx-auto px-4 py-4 mb-6 bg-yellow-50 border border-yellow-200 rounded">
+          <h3 className="font-semibold mb-2">Debug info</h3>
+          <pre className="text-xs overflow-auto" style={{ whiteSpace: 'pre-wrap' }}>
+            {JSON.stringify(debugInfo, null, 2)}
+          </pre>
+        </section>
+      )}
 
       <main className="max-w-5xl mx-auto px-4 py-10">
         <header className="mb-8">
