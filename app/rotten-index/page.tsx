@@ -18,7 +18,7 @@ type IndexedCompany = {
 
 // --- Country display helper ---
 function getCountryDisplayName(value: string | null | undefined): string {
-  if (!value || value.trim().length === 0) return "All countries";
+  if (!value || value.trim().length === 0) return "Unknown";
   return value
     .split(/[^a-zA-Z]+/)
     .map((w) =>
@@ -78,12 +78,13 @@ function buildRottenIndexJsonLd(
             },
           ],
           industry: c.industry ?? undefined,
-          address: c.country
-            ? {
-                "@type": "PostalAddress",
-                addressCountry: getCountryDisplayName(c.country),
-              }
-            : undefined,
+          address:
+            c.country && c.country.trim().length > 0
+              ? {
+                  "@type": "PostalAddress",
+                  addressCountry: getCountryDisplayName(c.country),
+                }
+              : undefined,
         },
       };
     }),
@@ -101,12 +102,14 @@ export default async function RottenIndexPage({
   try {
     const supabase = await supabaseServer();
 
+    // Raw query param
     const selectedCountryCode =
       typeof searchParams?.country === "string" &&
       searchParams.country.trim().length > 0
         ? searchParams.country.trim()
         : null;
 
+    // Fetch distinct countries
     const { data: countryRows } = await supabase
       .from("companies")
       .select("country");
@@ -114,9 +117,9 @@ export default async function RottenIndexPage({
     const countrySet = new Set<string>();
     if (countryRows) {
       for (const row of countryRows) {
-        const code = (row as any).country as string | null;
-        if (code && code.trim().length > 0) {
-          countrySet.add(code.trim());
+        const raw = (row as any).country;
+        if (typeof raw === "string" && raw.trim().length > 0) {
+          countrySet.add(raw.trim());
         }
       }
     }
@@ -128,6 +131,7 @@ export default async function RottenIndexPage({
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
 
+    // Fetch scores
     const { data: scoreRows } = await supabase
       .from("company_rotten_score")
       .select("company_id, rotten_score")
@@ -152,34 +156,35 @@ export default async function RottenIndexPage({
       );
     }
 
+    // Fetch companies
     const companyIds = scoreRows.map((row) => row.company_id);
     const { data: companyRows } = await supabase
       .from("companies")
       .select("id, name, slug, industry, country")
       .in("id", companyIds);
 
-    const companyById =
-      companyRows?.reduce<
-        Record<
-          number,
-          {
-            id: number;
-            name: string;
-            slug: string;
-            industry: string | null;
-            country: string | null;
-          }
-        >
-      >((acc, row: any) => {
-        acc[row.id] = {
+    const companyById: Record<
+      number,
+      {
+        id: number;
+        name: string;
+        slug: string;
+        industry: string | null;
+        country: string | null;
+      }
+    > = {};
+
+    if (companyRows) {
+      for (const row of companyRows as any[]) {
+        companyById[row.id] = {
           id: row.id,
           name: row.name,
           slug: row.slug,
           industry: row.industry ?? null,
           country: row.country ?? null,
         };
-        return acc;
-      }, {}) ?? {};
+      }
+    }
 
     let companies: IndexedCompany[] = scoreRows
       .map((row: any) => {
@@ -196,10 +201,12 @@ export default async function RottenIndexPage({
       })
       .filter((c): c is IndexedCompany => c !== null);
 
+    // Filter by raw country string
     if (selectedCountryCode) {
-      companies = companies.filter(
-        (c) => c.country?.trim() === selectedCountryCode
-      );
+      companies = companies.filter((c) => {
+        if (!c.country) return false;
+        return c.country.trim() === selectedCountryCode;
+      });
     }
 
     const jsonLd = buildRottenIndexJsonLd(companies, selectedCountryCode);
@@ -272,5 +279,65 @@ export default async function RottenIndexPage({
               {companies.map((c, index) => (
                 <li
                   key={c.company_id}
-                  data-country={c.country ?? ""}
+                  data-country={c.country ? c.country : ""}
                   className="flex items-center justify-between px-4 py-3"
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="text-gray-500 font-mono w-6 text-right">
+                      {index + 1}.
+                    </span>
+                    <div>
+                      <Link
+                        href={`/company/${c.slug}`}
+                        className="text-lg font-semibold hover:underline"
+                      >
+                        {c.name}
+                      </Link>
+                      <div className="text-sm text-gray-500">
+                        {c.industry || "Unknown industry"}
+                        {c.country
+                          ? ` · ${getCountryDisplayName(c.country)}`
+                          : ""}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-xl font-bold">
+                      {c.rotten_score.toFixed(1)}
+                    </div>
+                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                      Rotten Score
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          <section className="mt-8 text-sm text-gray-500">
+            <h2 className="font-semibold mb-1">Methodology</h2>
+            <p>
+              The Rotten Score is derived from category-level ratings,
+              public evidence, and weighted signals of corporate harm.
+              Higher scores indicate more severe and systemic issues.
+            </p>
+          </section>
+        </main>
+      </>
+    );
+  } catch (err) {
+    console.error("[rotten-index] Fatal error:", err);
+    return (
+      <main className="max-w-5xl mx-auto px-4 py-10">
+        <h1 className="text-3xl font-bold mb-2">Global Rotten Index</h1>
+        <p className="text-red-600 mb-4">
+          Something went wrong while loading the Rotten Index.
+        </p>
+        <p className="text-gray-600 text-sm">
+          Check the server logs for details.
+        </p>
+      </main>
+    );
+  }
+}
