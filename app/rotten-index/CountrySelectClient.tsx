@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 
 type Option = { dbValue: string; label: string };
 
@@ -16,8 +15,6 @@ export default function CountrySelectClient({
   value?: string | null;
   options: Option[];
 }) {
-  const router = useRouter();
-
   return (
     <select
       id={id}
@@ -27,8 +24,8 @@ export default function CountrySelectClient({
         const selected = e.target.value || "";
         const encoded = encodeURIComponent(selected);
         const url = selected ? `/rotten-index?country=${encoded}` : `/rotten-index`;
-        // Use router.push to ensure server receives the query param
-        router.push(url);
+        // Force a full page load so the server component receives the query param
+        window.location.href = url;
       }}
       className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
     >
