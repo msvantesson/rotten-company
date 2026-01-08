@@ -66,10 +66,12 @@ export default function RottenIndexClient({
           value={country}
           onChange={(e) => {
             const v = e.target.value || "";
+            console.log("[RottenIndexClient] Dropdown changed to:", v);
             setCountry(v);
             // Update URL without full reload for UX
             const url = v ? `/rotten-index?country=${encodeURIComponent(v)}` : `/rotten-index`;
             window.history.replaceState({}, "", url);
+            console.log("[RottenIndexClient] Calling fetchList with:", v);
             fetchList(v);
           }}
           className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
