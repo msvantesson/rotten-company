@@ -352,9 +352,9 @@ export default async function RottenIndexPage({
               defaultValue={selectedDbValue ?? ""}
               className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
             >
-              <option value="">All countries</option>
+              <option value="" selected={selectedDbValue === ""}>All countries</option>
               {countryOptions.map((opt) => (
-                <option key={opt.dbValue} value={opt.dbValue}>
+                <option key={opt.dbValue} value={opt.dbValue} selected={selectedDbValue === opt.dbValue}>
                   {opt.label} ({opt.dbValue})
                 </option>
               ))}
