@@ -77,7 +77,7 @@ function buildRottenIndexJsonLd(
               value: c.rotten_score,
             },
           ],
-          industry: c.industry ?? undefined,
+          industry: c.industry || undefined,
           address:
             c.country && c.country.trim().length > 0
               ? {
@@ -180,8 +180,8 @@ export default async function RottenIndexPage({
           id: row.id,
           name: row.name,
           slug: row.slug,
-          industry: row.industry ?? null,
-          country: row.country ?? null,
+          industry: row.industry || null,
+          country: row.country || null,
         };
       }
     }
@@ -192,7 +192,7 @@ export default async function RottenIndexPage({
         if (!c) return null;
         return {
           company_id: row.company_id,
-          rotten_score: row.rotten_score ?? 0,
+          rotten_score: row.rotten_score || 0,
           name: c.name,
           slug: c.slug,
           industry: c.industry,
@@ -201,11 +201,12 @@ export default async function RottenIndexPage({
       })
       .filter((c): c is IndexedCompany => c !== null);
 
-    // Filter by raw country string
+    // Case-insensitive filtering
     if (selectedCountryCode) {
+      const target = selectedCountryCode.trim().toLowerCase();
       companies = companies.filter((c) => {
         if (!c.country) return false;
-        return c.country.trim() === selectedCountryCode;
+        return c.country.trim().toLowerCase() === target;
       });
     }
 
@@ -252,7 +253,7 @@ export default async function RottenIndexPage({
               <select
                 id="country"
                 name="country"
-                defaultValue={selectedCountryCode ?? ""}
+                defaultValue={selectedCountryCode || ""}
                 onChange={(e) => e.target.form?.submit()}
                 className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
               >
