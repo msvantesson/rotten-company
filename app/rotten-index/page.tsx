@@ -18,7 +18,7 @@ type IndexedCompany = {
 };
 
 // --- Country name mapping (ISO-2 → full name) ---
-
+// Add any country codes you expect to encounter here.
 const COUNTRY_NAME_MAP: Record<string, string> = {
   CH: "Switzerland",
   DE: "Germany",
@@ -28,11 +28,53 @@ const COUNTRY_NAME_MAP: Record<string, string> = {
   GB: "United Kingdom",
   US: "United States",
   CA: "Canada",
+  DK: "Denmark",
+  IE: "Ireland",
 };
 
 function getCountryName(code: string | null | undefined): string {
   if (!code) return "Unknown country";
-  return COUNTRY_NAME_MAP[code] ?? code;
+  return COUNTRY_NAME_MAP[code.toUpperCase()] ?? code;
+}
+
+// Normalize a country value (either an ISO code like "DK" or a full name like "Denmark")
+// into a canonical uppercase full-name string for safe comparisons.
+function normalizeCountry(value: string | null | undefined): string {
+  if (!value) return "";
+  const v = value.trim();
+  if (v.length === 0) return "";
+
+  // If it's a 2-letter code, map to the known full name (if available) or use the code.
+  if (v.length === 2) {
+    const code = v.toUpperCase();
+    const mapped = COUNTRY_NAME_MAP[code];
+    return (mapped ?? code).toUpperCase();
+  }
+
+  // Try reverse lookup: if value matches a known full name (case-insensitive), return the known name.
+  const foundEntry = Object.entries(COUNTRY_NAME_MAP).find(([_k, name]) => {
+    return name.toLowerCase() === v.toLowerCase();
+  });
+  if (foundEntry) return foundEntry[1].toUpperCase();
+
+  // Otherwise use the raw value uppercased (covers cases where DB stores full names).
+  return v.toUpperCase();
+}
+
+// Friendly display name for a country query value (tries ISO -> full name, or returns a prettified input)
+function getCountryDisplayName(value: string | null | undefined): string {
+  if (!value) return "All countries";
+  const v = value.trim();
+  if (v.length === 0) return "All countries";
+  if (v.length === 2) return COUNTRY_NAME_MAP[v.toUpperCase()] ?? v.toUpperCase();
+  // If it matches a known name case-insensitive, return the known-cased name
+  const found = Object.values(COUNTRY_NAME_MAP).find((n) => n.toLowerCase() === v.toLowerCase());
+  if (found) return found;
+  // Fallback: capitalize words
+  return v
+    .split(/[\s_-]+/)
+    .map((w) => (w.length ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(" ");
 }
 
 // --- JSON-LD builder ---
@@ -44,7 +86,7 @@ function buildRottenIndexJsonLd(
   const baseUrl = "https://rotten-company.com";
 
   const isCountryScoped = !!selectedCountryCode;
-  const countryName = selectedCountryCode ? getCountryName(selectedCountryCode) : null;
+  const countryName = selectedCountryCode ? getCountryDisplayName(selectedCountryCode) : null;
 
   const name = isCountryScoped
     ? `Global Rotten Index — Companies in ${countryName}`
@@ -92,8 +134,8 @@ function buildRottenIndexJsonLd(
           address: c.country
             ? {
                 "@type": "PostalAddress",
-                // Keep as full country name here; optionally use ISO code in addressCountry
-                addressCountry: getCountryName(c.country),
+                // Use the display name for addressCountry in JSON-LD
+                addressCountry: getCountryDisplayName(c.country),
               }
             : undefined,
         },
@@ -113,31 +155,53 @@ export default async function RottenIndexPage({
 }) {
   const supabase = await supabaseServer();
 
-  // 1) Read selected country from query params
+  // 1) Read selected country from query params (keep exact input so we can display and normalize)
   const rawCountryParam = searchParams?.country;
   const selectedCountryCode =
     typeof rawCountryParam === "string" && rawCountryParam.trim().length > 0
-      ? rawCountryParam.trim().toUpperCase()
+      ? rawCountryParam.trim()
       : null;
 
   // 2) Load all countries from companies (dynamic options)
-  const { data: countryRows } = await supabase
-    .from("companies")
-    .select("country");
+  const { data: countryRows } = await supabase.from("companies").select("country");
 
   const countrySet = new Set<string>();
   if (countryRows) {
     for (const row of countryRows) {
       const code = (row as any).country as string | null;
       if (code && code.trim().length > 0) {
-        countrySet.add(code.trim().toUpperCase());
+        // store the raw DB value (could be ISO or full name)
+        countrySet.add(code.trim());
       }
     }
   }
 
-  const availableCountries = Array.from(countrySet).sort((a, b) =>
-    getCountryName(a).localeCompare(getCountryName(b))
-  );
+  // build options with both dbValue (original casing) and normalized value for matching
+  const countryOptions = Array.from(countrySet)
+    .map((dbValue) => {
+      return {
+        dbValue,
+        norm: normalizeCountry(dbValue), // canonical uppercase representation, used for matching
+        label: getCountryDisplayName(dbValue), // friendly label for UI
+      };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  // determine which dbValue should be selected (so the option.value preserves normal casing like "Denmark")
+  let selectedDbValue = "";
+  let selectedNormalized = "";
+  if (selectedCountryCode) {
+    const targetNorm = normalizeCountry(selectedCountryCode);
+    const match = countryOptions.find((opt) => opt.norm === targetNorm);
+    if (match) {
+      selectedDbValue = match.dbValue;
+      selectedNormalized = match.norm;
+    } else {
+      // If no match among DB values, fall back to using the raw query param for display
+      selectedDbValue = selectedCountryCode;
+      selectedNormalized = normalizeCountry(selectedCountryCode);
+    }
+  }
 
   // 3) Get all company scores
   const { data: scoreRows } = await supabase
@@ -206,20 +270,15 @@ export default async function RottenIndexPage({
     })
     .filter((c): c is IndexedCompany => c !== null);
 
-  // 6) Apply country filter (fixed)
+  // 6) Apply country filter (robust)
   if (selectedCountryCode) {
-    companies = companies.filter((c) => {
-      if (!c.country) return false;
-      return (
-        c.country.trim().toUpperCase() === selectedCountryCode.trim().toUpperCase()
-      );
-    });
+    companies = companies.filter((c) => normalizeCountry(c.country) === selectedNormalized);
   }
 
   const jsonLd = buildRottenIndexJsonLd(companies, selectedCountryCode);
 
   const currentScopeLabel = selectedCountryCode
-    ? `Companies only — ${getCountryName(selectedCountryCode)}`
+    ? `Companies only — ${getCountryDisplayName(selectedDbValue || selectedCountryCode)}`
     : "Companies only — All countries";
 
   return (
@@ -249,25 +308,21 @@ export default async function RottenIndexPage({
             Currently showing: <strong>{currentScopeLabel}</strong>
           </span>
 
-          <form
-            method="GET"
-            action="/rotten-index"
-            className="flex items-center gap-2 text-sm"
-          >
+          <form method="GET" action="/rotten-index" className="flex items-center gap-2 text-sm">
             <label htmlFor="country" className="text-gray-600">
               Country:
             </label>
             <select
               id="country"
               name="country"
-              // Uncontrolled default value to avoid server → client hydration mismatch
-              defaultValue={selectedCountryCode ?? ""}
+              // defaultValue uses the DB-style value so the select shows normal casing (e.g. "Denmark")
+              defaultValue={selectedDbValue ?? ""}
               className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
             >
               <option value="">All countries</option>
-              {availableCountries.map((code) => (
-                <option key={code} value={code}>
-                  {getCountryName(code)} ({code})
+              {countryOptions.map((opt) => (
+                <option key={opt.dbValue} value={opt.dbValue}>
+                  {opt.label} ({opt.dbValue})
                 </option>
               ))}
             </select>
@@ -284,40 +339,28 @@ export default async function RottenIndexPage({
         {companies.length === 0 ? (
           <p className="text-gray-600">
             No companies found
-            {selectedCountryCode ? ` for ${getCountryName(selectedCountryCode)}` : ""}.
+            {selectedCountryCode ? ` for ${getCountryDisplayName(selectedDbValue || selectedCountryCode)}` : ""}.
           </p>
         ) : (
           <ol className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
             {companies.map((c, index) => (
-              <li
-                key={c.company_id}
-                className="flex items-center justify-between px-4 py-3"
-              >
+              <li key={c.company_id} className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-4">
-                  <span className="text-gray-500 font-mono w-6 text-right">
-                    {index + 1}.
-                  </span>
+                  <span className="text-gray-500 font-mono w-6 text-right">{index + 1}.</span>
                   <div>
-                    <Link
-                      href={`/company/${c.slug}`}
-                      className="text-lg font-semibold hover:underline"
-                    >
+                    <Link href={`/company/${c.slug}`} className="text-lg font-semibold hover:underline">
                       {c.name}
                     </Link>
                     <div className="text-sm text-gray-500">
                       {c.industry || "Unknown industry"}
-                      {c.country ? ` · ${getCountryName(c.country)}` : ""}
+                      {c.country ? ` · ${getCountryDisplayName(c.country)}` : ""}
                     </div>
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <div className="text-xl font-bold">
-                    {c.rotten_score.toFixed(1)}
-                  </div>
-                  <div className="text-xs uppercase tracking-wide text-gray-500">
-                    Rotten Score
-                  </div>
+                  <div className="text-xl font-bold">{c.rotten_score.toFixed(1)}</div>
+                  <div className="text-xs uppercase tracking-wide text-gray-500">Rotten Score</div>
                 </div>
               </li>
             ))}
