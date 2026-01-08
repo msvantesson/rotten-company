@@ -2,10 +2,12 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase-server";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
-import CountrySelectClient from "./CountrySelectClient";
+
+const RottenIndexClient = dynamic(() => import("./RottenIndexClient"), { ssr: false });
 
 type IndexedCompany = {
   company_id: number;
@@ -17,32 +19,22 @@ type IndexedCompany = {
 };
 
 function getCountryDisplayName(value: string | null | undefined): string {
-  if (!value || value.trim().length === 0) return "Unknown";
+  if (!value || value.trim().length === 0) return "All countries";
   return value
     .split(/[^a-zA-Z]+/)
-    .map((w) =>
-      w.length ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w
-    )
+    .map((w) => (w.length ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
     .join(" ");
 }
 
-function buildRottenIndexJsonLd(
-  companies: IndexedCompany[],
-  selectedCountryCode: string | null
-) {
+function buildRottenIndexJsonLd(companies: IndexedCompany[], selectedCountryCode: string | null) {
   const baseUrl = "https://rotten-company.com";
-  const isCountryScoped =
-    !!selectedCountryCode && selectedCountryCode.trim().length > 0;
-  const countryName = isCountryScoped
-    ? getCountryDisplayName(selectedCountryCode)
-    : null;
+  const isCountryScoped = !!selectedCountryCode && selectedCountryCode.trim().length > 0;
+  const countryName = isCountryScoped ? getCountryDisplayName(selectedCountryCode) : null;
 
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: isCountryScoped
-      ? `Global Rotten Index — Companies in ${countryName}`
-      : "Global Rotten Index — Companies",
+    name: isCountryScoped ? `Global Rotten Index — Companies in ${countryName}` : "Global Rotten Index — Companies",
     description: isCountryScoped
       ? `Ranking companies in ${countryName} by Rotten Score based on public evidence of harm, misconduct, and corporate behavior.`
       : "Ranking companies by Rotten Score based on public evidence of harm, misconduct, and corporate behavior.",
@@ -91,11 +83,7 @@ function buildRottenIndexJsonLd(
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
-export default async function RottenIndexPage({
-  searchParams,
-}: {
-  searchParams?: SearchParams;
-}) {
+export default async function RottenIndexPage({ searchParams }: { searchParams?: SearchParams }) {
   const startTs = Date.now();
   try {
     // Read raw country query param robustly
@@ -115,7 +103,7 @@ export default async function RottenIndexPage({
     const supabase = await supabaseServer();
     console.log("[rotten-index] supabaseServer() returned");
 
-    // Fetch countries
+    // Fetch countries (for dropdown options)
     let countryRows: any[] = [];
     try {
       const countryRes = await supabase.from("companies").select("country");
@@ -144,13 +132,10 @@ export default async function RottenIndexPage({
       .sort((a, b) => a.label.localeCompare(b.label));
     console.log("[rotten-index] countryOptions count:", countryOptions.length);
 
-    // Fetch scores
+    // Fetch scores and companies to build JSON-LD and server-side counts (non-interactive)
     let scoreRows: any[] = [];
     try {
-      const scoreRes = await supabase
-        .from("company_rotten_score")
-        .select("company_id, rotten_score")
-        .order("rotten_score", { ascending: false });
+      const scoreRes = await supabase.from("company_rotten_score").select("company_id, rotten_score").order("rotten_score", { ascending: false });
       if (scoreRes.error) {
         console.error("[rotten-index] scores query error:", String(scoreRes.error));
         throw scoreRes.error;
@@ -162,31 +147,13 @@ export default async function RottenIndexPage({
       throw err;
     }
 
-    if (!Array.isArray(scoreRows) || scoreRows.length === 0) {
-      console.log("[rotten-index] no scores found, rendering empty state");
-      const emptyJsonLd = buildRottenIndexJsonLd([], selectedCountryCode);
-      return (
-        <>
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(emptyJsonLd, null, 2) }} />
-          <main className="max-w-5xl mx-auto px-4 py-10">
-            <h1 className="text-3xl font-bold mb-2">Global Rotten Index</h1>
-            <p className="text-gray-600">No companies found.</p>
-          </main>
-        </>
-      );
-    }
-
     const companyIds = scoreRows.map((r: any) => r.company_id);
     console.log("[rotten-index] companyIds length:", companyIds.length);
 
-    // Fetch companies
     let companyRows: any[] = [];
     try {
       if (companyIds.length > 0) {
-        const companyRes = await supabase
-          .from("companies")
-          .select("id, name, slug, industry, country")
-          .in("id", companyIds);
+        const companyRes = await supabase.from("companies").select("id, name, slug, industry, country").in("id", companyIds);
         if (companyRes.error) {
           console.error("[rotten-index] companies query error:", String(companyRes.error));
           throw companyRes.error;
@@ -201,7 +168,7 @@ export default async function RottenIndexPage({
       throw err;
     }
 
-    const companyById: Record<number, { id: number; name: string; slug: string; industry: string | null; country: string | null; }> = {};
+    const companyById: Record<number, { id: number; name: string; slug: string; industry: string | null; country: string | null }> = {};
     if (Array.isArray(companyRows)) {
       for (const row of companyRows) {
         if (row && typeof row.id === "number") {
@@ -216,7 +183,7 @@ export default async function RottenIndexPage({
       }
     }
 
-    let companies: IndexedCompany[] = scoreRows
+    const companiesForJsonLd: IndexedCompany[] = scoreRows
       .map((row: any) => {
         const c = companyById[row.company_id];
         if (!c) return null;
@@ -232,24 +199,8 @@ export default async function RottenIndexPage({
       })
       .filter((c): c is IndexedCompany => c !== null);
 
-    console.log("[rotten-index] companies assembled count:", companies.length);
-
-    if (selectedCountryCode) {
-      const target = selectedCountryCode.trim().toLowerCase();
-      companies = companies.filter((c) => {
-        if (!c.country) return false;
-        return c.country.trim().toLowerCase() === target;
-      });
-      console.log("[rotten-index] companies after country filter:", companies.length);
-    }
-
-    let jsonLd;
-    try {
-      jsonLd = buildRottenIndexJsonLd(companies, selectedCountryCode);
-    } catch (err) {
-      console.error("[rotten-index] JSON-LD build error:", String(err));
-      jsonLd = buildRottenIndexJsonLd([], selectedCountryCode);
-    }
+    // Build JSON-LD from the full dataset (client will fetch filtered list)
+    const jsonLd = buildRottenIndexJsonLd(companiesForJsonLd, selectedCountryCode);
 
     const debugParam = (searchParams && (searchParams as any).debug) as string | string[] | undefined;
     const showDebug = typeof debugParam === "string" && debugParam.length > 0;
@@ -261,21 +212,19 @@ export default async function RottenIndexPage({
             {
               selectedCountryCode,
               countryOptionsCount: countryOptions.length,
-              companiesCount: companies.length,
-              sampleCompanies: companies.slice(0, 6).map((c) => ({ id: c.company_id, name: c.name, country: c.country })),
+              companiesCount: companiesForJsonLd.length,
+              sampleCompanies: companiesForJsonLd.slice(0, 6).map((c) => ({ id: c.company_id, name: c.name, country: c.country })),
             },
             null,
             2
           )
         );
       } catch (e) {
-        console.log("[rotten-index] Debug fallback:", { selectedCountryCode, countryOptionsCount: countryOptions.length, companiesCount: companies.length });
+        console.log("[rotten-index] Debug fallback:", { selectedCountryCode, countryOptionsCount: countryOptions.length, companiesCount: companiesForJsonLd.length });
       }
     }
 
-    const currentScopeLabel = selectedCountryCode
-      ? `Companies only — ${getCountryDisplayName(selectedCountryCode)}`
-      : "Companies only — All countries";
+    const currentScopeLabel = selectedCountryCode ? `Companies only — ${getCountryDisplayName(selectedCountryCode)}` : "Companies only — All countries";
 
     const endTs = Date.now();
     console.log(`[rotten-index] finished @ ${new Date(endTs).toISOString()} durationMs=${endTs - startTs}`);
@@ -295,51 +244,9 @@ export default async function RottenIndexPage({
           <section className="mb-6 flex flex-wrap items-center gap-4">
             <span className="text-sm text-gray-500">Currently showing: <strong>{currentScopeLabel}</strong></span>
 
-            <form method="GET" action="/rotten-index" className="flex items-center gap-2 text-sm">
-              <label htmlFor="country" className="text-gray-600">Country:</label>
-
-              <CountrySelectClient
-                id="country"
-                name="country"
-                value={selectedCountryCode || ""}
-                options={countryOptions}
-              />
-            </form>
+            {/* Client component handles dropdown interactivity and list fetching */}
+            <RottenIndexClient initialCountry={selectedCountryCode} initialOptions={countryOptions} />
           </section>
-
-          {companies.length === 0 ? (
-            <p className="text-gray-600">
-              No companies found{selectedCountryCode ? ` for ${getCountryDisplayName(selectedCountryCode)}` : ""}.
-            </p>
-          ) : (
-            <ol className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
-              {companies.map((c, index) => (
-                <li
-                  key={c.company_id}
-                  data-country={c.country ? c.country : ""}
-                  className="flex items-center justify-between px-4 py-3"
-                >
-                  <div className="flex items-center gap-4">
-                    <span className="text-gray-500 font-mono w-6 text-right">{index + 1}.</span>
-                    <div>
-                      <Link href={`/company/${c.slug}`} className="text-lg font-semibold hover:underline">
-                        {c.name}
-                      </Link>
-                      <div className="text-sm text-gray-500">
-                        {c.industry || "Unknown industry"}
-                        {c.country ? ` · ${getCountryDisplayName(c.country)}` : ""}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-xl font-bold">{c.rotten_score.toFixed(1)}</div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500">Rotten Score</div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
 
           <section className="mt-8 text-sm text-gray-500">
             <h2 className="font-semibold mb-1">Methodology</h2>
