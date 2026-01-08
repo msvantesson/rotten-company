@@ -5,7 +5,7 @@ export const fetchCache = "force-no-store";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase-server";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
-import ClientCountrySync from "@/components/ClientCountrySync";
+// ClientCountrySync import removed (temporary workaround reverted)
 
 // --- Types ---
 
@@ -242,7 +242,7 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
             <button type="submit" className="border border-gray-300 rounded px-3 py-1 text-sm bg-gray-50 hover:bg-gray-100">Apply</button>
           </form>
 
-          <ClientCountrySync />
+          {/* ClientCountrySync removed */}
         </section>
 
         {companies.length === 0 ? (
