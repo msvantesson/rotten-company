@@ -5,6 +5,7 @@ export const fetchCache = "force-no-store";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase-server";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
+import CountrySelectClient from "./CountrySelectClient";
 
 type IndexedCompany = {
   company_id: number;
@@ -114,8 +115,8 @@ export default async function RottenIndexPage({
     const supabase = await supabaseServer();
     console.log("[rotten-index] supabaseServer() returned");
 
-    // 1) Fetch countries with try/catch and detailed logging
-    let countryRows: any[] | null = null;
+    // Fetch countries
+    let countryRows: any[] = [];
     try {
       const countryRes = await supabase.from("companies").select("country");
       if (countryRes.error) {
@@ -123,13 +124,12 @@ export default async function RottenIndexPage({
       } else {
         countryRows = Array.isArray(countryRes.data) ? countryRes.data : [];
       }
-      console.log("[rotten-index] countries fetched count:", countryRows ? countryRows.length : 0);
+      console.log("[rotten-index] countries fetched count:", countryRows.length);
     } catch (err) {
       console.error("[rotten-index] countries query threw:", String(err));
       countryRows = [];
     }
 
-    // Build country options safely
     const countrySet = new Set<string>();
     if (Array.isArray(countryRows)) {
       for (const row of countryRows) {
@@ -144,7 +144,7 @@ export default async function RottenIndexPage({
       .sort((a, b) => a.label.localeCompare(b.label));
     console.log("[rotten-index] countryOptions count:", countryOptions.length);
 
-    // 2) Fetch scores with try/catch and logging
+    // Fetch scores
     let scoreRows: any[] = [];
     try {
       const scoreRes = await supabase
@@ -159,7 +159,6 @@ export default async function RottenIndexPage({
       console.log("[rotten-index] scores fetched count:", scoreRows.length);
     } catch (err) {
       console.error("[rotten-index] scores query threw:", String(err));
-      // Re-throw so we render the friendly error page below
       throw err;
     }
 
@@ -177,10 +176,10 @@ export default async function RottenIndexPage({
       );
     }
 
-    // 3) Fetch companies referenced by scores
     const companyIds = scoreRows.map((r: any) => r.company_id);
     console.log("[rotten-index] companyIds length:", companyIds.length);
 
+    // Fetch companies
     let companyRows: any[] = [];
     try {
       if (companyIds.length > 0) {
@@ -202,7 +201,6 @@ export default async function RottenIndexPage({
       throw err;
     }
 
-    // Map companies by id
     const companyById: Record<number, { id: number; name: string; slug: string; industry: string | null; country: string | null; }> = {};
     if (Array.isArray(companyRows)) {
       for (const row of companyRows) {
@@ -218,7 +216,6 @@ export default async function RottenIndexPage({
       }
     }
 
-    // Build companies list in score order
     let companies: IndexedCompany[] = scoreRows
       .map((row: any) => {
         const c = companyById[row.company_id];
@@ -237,7 +234,6 @@ export default async function RottenIndexPage({
 
     console.log("[rotten-index] companies assembled count:", companies.length);
 
-    // Case-insensitive filtering safe for NULL
     if (selectedCountryCode) {
       const target = selectedCountryCode.trim().toLowerCase();
       companies = companies.filter((c) => {
@@ -247,7 +243,6 @@ export default async function RottenIndexPage({
       console.log("[rotten-index] companies after country filter:", companies.length);
     }
 
-    // Build JSON-LD
     let jsonLd;
     try {
       jsonLd = buildRottenIndexJsonLd(companies, selectedCountryCode);
@@ -256,7 +251,6 @@ export default async function RottenIndexPage({
       jsonLd = buildRottenIndexJsonLd([], selectedCountryCode);
     }
 
-    // Optional debug logging to server logs when debug param present
     const debugParam = (searchParams && (searchParams as any).debug) as string | string[] | undefined;
     const showDebug = typeof debugParam === "string" && debugParam.length > 0;
     if (showDebug) {
@@ -304,20 +298,12 @@ export default async function RottenIndexPage({
             <form method="GET" action="/rotten-index" className="flex items-center gap-2 text-sm">
               <label htmlFor="country" className="text-gray-600">Country:</label>
 
-              <select
+              <CountrySelectClient
                 id="country"
                 name="country"
-                defaultValue={selectedCountryCode || ""}
-                onChange={(e) => e.target.form && e.target.form.submit()}
-                className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
-              >
-                <option value="">All countries</option>
-                {countryOptions.map((opt) => (
-                  <option key={opt.dbValue} value={opt.dbValue}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                value={selectedCountryCode || ""}
+                options={countryOptions}
+              />
             </form>
           </section>
 
@@ -336,7 +322,9 @@ export default async function RottenIndexPage({
                   <div className="flex items-center gap-4">
                     <span className="text-gray-500 font-mono w-6 text-right">{index + 1}.</span>
                     <div>
-                      <Link href={`/company/${c.slug}`} className="text-lg font-semibold hover:underline">{c.name}</Link>
+                      <Link href={`/company/${c.slug}`} className="text-lg font-semibold hover:underline">
+                        {c.name}
+                      </Link>
                       <div className="text-sm text-gray-500">
                         {c.industry || "Unknown industry"}
                         {c.country ? ` · ${getCountryDisplayName(c.country)}` : ""}
