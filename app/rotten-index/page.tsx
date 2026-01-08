@@ -92,6 +92,7 @@ function buildRottenIndexJsonLd(
           address: c.country
             ? {
                 "@type": "PostalAddress",
+                // Keep as full country name here; optionally use ISO code in addressCountry
                 addressCountry: getCountryName(c.country),
               }
             : undefined,
@@ -259,8 +260,8 @@ export default async function RottenIndexPage({
             <select
               id="country"
               name="country"
-              value={selectedCountryCode ?? ""}
-              onChange={() => {}}
+              // Uncontrolled default value to avoid server → client hydration mismatch
+              defaultValue={selectedCountryCode ?? ""}
               className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
             >
               <option value="">All countries</option>
