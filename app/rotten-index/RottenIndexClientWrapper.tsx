@@ -1,10 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
-
-const RottenIndexClient = dynamic(() => import("./RottenIndexClient"), {
-  ssr: false,
-});
+import RottenIndexClient from "./RottenIndexClient";
 
 export default function RottenIndexClientWrapper({
   initialCountry,
