@@ -249,7 +249,9 @@ export default async function RottenIndexPage({
   if (selectedCountryCode) {
     companies = companies.filter(
       (c) =>
-        c.country && normalizeCountry(c.country) === selectedNormalized
+        c.country &&
+        c.country.trim().toUpperCase() ===
+          selectedCountryCode.trim().toUpperCase()
     );
   }
 
@@ -336,6 +338,7 @@ export default async function RottenIndexPage({
               id="country"
               name="country"
               defaultValue={selectedCountryCode ?? ""}
+              onChange={(e) => e.target.form?.submit()}
               className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
             >
               <option value="">All countries</option>
@@ -345,13 +348,6 @@ export default async function RottenIndexPage({
                 </option>
               ))}
             </select>
-
-            <button
-              type="submit"
-              className="border border-gray-300 rounded px-3 py-1 text-sm bg-gray-50 hover:bg-gray-100"
-            >
-              Apply
-            </button>
           </form>
         </section>
 
