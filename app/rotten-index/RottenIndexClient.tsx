@@ -32,12 +32,14 @@ export default function RottenIndexClient({
       setCompanies(null);
 
       const q = selected ? `?country=${encodeURIComponent(selected)}` : "";
+      console.log("[RottenIndexClient] Fetching companies with country:", selected, "URL:", `/api/rotten-index${q}`);
       const res = await fetch(`/api/rotten-index${q}`, { cache: "no-store" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error || `HTTP ${res.status}`);
       }
       const body = await res.json();
+      console.log("[RottenIndexClient] Received", body.companies?.length || 0, "companies");
       setCompanies(body.companies || []);
     } catch (err: any) {
       console.error("[RottenIndexClient] fetch error:", err);
