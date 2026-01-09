@@ -24,26 +24,26 @@ export default async function BreakdownPage({
 }: {
   params: { slug: string };
 }) {
-  const supabase = await supabaseServer();
-  const slug = params.slug.toLowerCase(); // ✅ normalize slug
-
+  let debug: any = {};
   let company: any = null;
-  let companyError: any = null;
   let breakdown: any = null;
-  let breakdownError: any = null;
-
-  // ✅ Simple test query to confirm DB visibility
-  const testRes = await supabase
-    .from("companies")
-    .select("id, name, slug")
-    .limit(5);
-
-  const test = {
-    testData: testRes.data,
-    testError: testRes.error,
-  };
+  let rows: BreakdownRow[] = [];
 
   try {
+    const supabase = await supabaseServer();
+    const slug = params.slug.toLowerCase();
+    debug.slug = slug;
+
+    const testRes = await supabase
+      .from("companies")
+      .select("id, name, slug")
+      .limit(5);
+
+    debug.test = {
+      testData: testRes.data,
+      testError: testRes.error,
+    };
+
     const companyRes = await supabase
       .from("companies")
       .select("id, name, slug")
@@ -51,17 +51,12 @@ export default async function BreakdownPage({
       .maybeSingle();
 
     if (companyRes.error) {
-      companyError = companyRes.error;
-      company = null;
-    } else {
-      company = companyRes.data ?? null;
+      debug.companyError = companyRes.error;
     }
-  } catch (err) {
-    companyError = err;
-    company = null;
-  }
 
-  try {
+    company = companyRes.data ?? null;
+    debug.company = company;
+
     if (company) {
       const breakdownRes = await supabase
         .from("company_category_breakdown")
@@ -70,17 +65,26 @@ export default async function BreakdownPage({
         )
         .eq("company_id", company.id);
 
+      if (breakdownRes.error) {
+        debug.breakdownError = breakdownRes.error;
+      }
+
       breakdown = breakdownRes.data ?? null;
-      breakdownError = breakdownRes.error ?? null;
-    } else {
-      breakdown = null;
-      breakdownError = null;
+      debug.breakdown = breakdown;
+      rows = breakdown ?? [];
     }
   } catch (err) {
-    breakdownError = err;
+    debug.crash = String(err);
+    return (
+      <div className="max-w-3xl mx-auto py-8 space-y-8">
+        <h1 className="text-2xl font-bold mb-2 text-red-600">Server crash</h1>
+        <p className="text-muted-foreground">
+          Something went wrong while loading this page. Check the debug output below.
+        </p>
+        <Debug data={debug} />
+      </div>
+    );
   }
-
-  const rows = (breakdown ?? []) as BreakdownRow[];
 
   return (
     <div className="max-w-3xl mx-auto py-8 space-y-8">
@@ -102,13 +106,13 @@ export default async function BreakdownPage({
         </header>
       )}
 
-      {breakdownError && (
+      {debug.breakdownError && (
         <div className="rounded-md bg-red-100 text-red-800 px-3 py-2 text-sm">
           Could not load breakdown. Try refreshing the page.
         </div>
       )}
 
-      {company && rows.length === 0 && !breakdownError && (
+      {company && rows.length === 0 && !debug.breakdownError && (
         <div className="rounded-md border px-4 py-3 text-sm text-muted-foreground">
           This company does not have any category data yet. Once people start
           rating and adding evidence, the breakdown will appear here.
@@ -184,16 +188,7 @@ export default async function BreakdownPage({
         </div>
       )}
 
-      <Debug
-        data={{
-          slug,
-          company,
-          companyError,
-          breakdown,
-          breakdownError,
-          test,
-        }}
-      />
+      <Debug data={debug} />
     </div>
   );
 }
