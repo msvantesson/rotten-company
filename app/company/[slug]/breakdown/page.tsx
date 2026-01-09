@@ -1,8 +1,6 @@
 // app/company/[slug]/breakdown/page.tsx
 
-import { createClient } from "@/lib/supabase-server";
-
-
+import { supabaseServer } from "@/lib/supabase-server";
 import ScoreMeter from "@/components/score-meter";
 
 type BreakdownRow = {
@@ -15,26 +13,15 @@ type BreakdownRow = {
   final_score: number;
 };
 
-type Company = {
-  id: string;
-  name: string;
-  slug: string;
-};
+export default async function BreakdownPage({ params }: { params: { slug: string } }) {
+  const supabase = await supabaseServer();
 
-type BreakdownPageProps = {
-  params: {
-    slug: string;
-  };
-};
-
-export default async function BreakdownPage({ params }: BreakdownPageProps) {
-  const supabase = createClient();
-
+  // Fetch company
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id, name, slug")
     .eq("slug", params.slug)
-    .single<Company>();
+    .single();
 
   if (companyError || !company) {
     return (
@@ -47,6 +34,7 @@ export default async function BreakdownPage({ params }: BreakdownPageProps) {
     );
   }
 
+  // Fetch breakdown
   const { data: breakdown, error: breakdownError } = await supabase
     .from("company_category_breakdown")
     .select(
