@@ -26,31 +26,47 @@ export default async function BreakdownPage({
 }: {
   params: { slug: string };
 }) {
-  const supabase = supabaseServer();
+  // await here for consistency with other pages that call supabaseServer()
+  const supabase = await supabaseServer();
   const slug = params.slug;
 
-  // Fetch company
-  const {
-    data: company,
-    error: companyError,
-  } = await supabase
-    .from("companies")
-    .select("id, name, slug")
-    .eq("slug", slug)
-    .single();
+  let company: any = null;
+  let companyError: any = null;
+  let breakdown: any = null;
+  let breakdownError: any = null;
 
-  // Fetch breakdown only if company exists
-  const {
-    data: breakdown,
-    error: breakdownError,
-  } = company
-    ? await supabase
+  try {
+    // Use maybeSingle so absence of a company doesn't produce an exception-like error
+    const companyRes = await supabase
+      .from("companies")
+      .select("id, name, slug")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    company = companyRes.data ?? null;
+    companyError = companyRes.error ?? null;
+  } catch (err) {
+    companyError = err;
+  }
+
+  try {
+    if (company) {
+      const breakdownRes = await supabase
         .from("company_category_breakdown")
         .select(
           "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score"
         )
-        .eq("company_id", company.id)
-    : { data: null, error: null };
+        .eq("company_id", company.id);
+
+      breakdown = breakdownRes.data ?? null;
+      breakdownError = breakdownRes.error ?? null;
+    } else {
+      breakdown = null;
+      breakdownError = null;
+    }
+  } catch (err) {
+    breakdownError = err;
+  }
 
   const rows = (breakdown ?? []) as BreakdownRow[];
 
@@ -120,15 +136,9 @@ export default async function BreakdownPage({
 
               <details className="mt-3 group">
                 <summary className="cursor-pointer text-sm text-muted-foreground list-none flex items-center gap-1">
-                  <span className="underline underline-offset-2">
-                    Show details
-                  </span>
-                  <span className="text-xs text-muted-foreground group-open:hidden">
-                    ▼
-                  </span>
-                  <span className="text-xs text-muted-foreground hidden group-open:inline">
-                    ▲
-                  </span>
+                  <span className="underline underline-offset-2">Show details</span>
+                  <span className="text-xs text-muted-foreground group-open:hidden">▼</span>
+                  <span className="text-xs text-muted-foreground hidden group-open:inline">▲</span>
                 </summary>
 
                 <div className="mt-2 text-sm space-y-1">
