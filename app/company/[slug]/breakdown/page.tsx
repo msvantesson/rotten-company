@@ -4,8 +4,6 @@ import { supabaseServer } from "@/lib/supabase-server";
 import ScoreMeter from "@/components/score-meter";
 
 function Debug({ data }: { data: any }) {
-  if (process.env.NODE_ENV === "production") return null;
-
   return (
     <pre className="mt-6 p-4 bg-black text-green-400 text-xs rounded-lg overflow-auto">
       {JSON.stringify(data, null, 2)}
@@ -168,7 +166,7 @@ export default async function BreakdownPage({
         </div>
       )}
 
-      {/* 🔥 DEBUG PANEL */}
+      {/* 🔥 DEBUG PANEL — always visible */}
       <Debug
         data={{
           slug,
