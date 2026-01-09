@@ -1,6 +1,7 @@
 // app/company/[slug]/breakdown/page.tsx
 
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/utils/supabase/server-client";
+
 import ScoreMeter from "@/components/score-meter";
 
 type BreakdownRow = {
