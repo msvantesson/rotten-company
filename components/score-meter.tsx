@@ -1,9 +1,10 @@
-// components/score-meter.tsx
-
 "use client";
 
 import * as React from "react";
-import clsx from "clsx";
+
+function cx(...classes: (string | false | null | undefined)[]) {
+  return classes.filter(Boolean).join(" ");
+}
 
 type ScoreMeterProps = {
   score: number;
@@ -21,17 +22,14 @@ export default function ScoreMeter({ score, className }: ScoreMeterProps) {
   const clamped = clampScore(score);
 
   let colorClass = "bg-yellow-500";
-  if (clamped >= 70) {
-    colorClass = "bg-red-500";
-  } else if (clamped <= 30) {
-    colorClass = "bg-green-500";
-  }
+  if (clamped >= 70) colorClass = "bg-red-500";
+  else if (clamped <= 30) colorClass = "bg-green-500";
 
   return (
-    <div className={clsx("flex items-center gap-2", className)}>
+    <div className={cx("flex items-center gap-2", className)}>
       <div className="relative h-2 w-28 rounded-full bg-muted overflow-hidden">
         <div
-          className={clsx("h-full rounded-full transition-all", colorClass)}
+          className={cx("h-full rounded-full transition-all", colorClass)}
           style={{ width: `${clamped}%` }}
         />
       </div>
