@@ -6,6 +6,23 @@ import { supabaseServer } from "@/lib/supabase-server";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
+type ScoreRow = {
+  company_id: number;
+  rotten_score: number;
+};
+
+type CompanyRow = {
+  id: number;
+  name: string;
+  slug: string;
+  industry?: string | null;
+  country?: string | null;
+};
+
+type CountryRow = {
+  country?: string | null;
+};
+
 export default async function RottenIndexDiagnostics({
   searchParams,
 }: {
@@ -36,7 +53,7 @@ export default async function RottenIndexDiagnostics({
     });
 
     const companyIds = Array.isArray(scoreResult.data)
-      ? scoreResult.data.map((r: any) => r.company_id).slice(0, 200)
+      ? scoreResult.data.map((r: ScoreRow) => r.company_id).slice(0, 200)
       : [];
 
     const companyResult = companyIds.length
@@ -52,13 +69,13 @@ export default async function RottenIndexDiagnostics({
 
     // Sample rows for quick inspection
     const sampleCountries = Array.isArray(countryResult.data)
-      ? (countryResult.data as any[]).slice(0, 20)
+      ? (countryResult.data as CountryRow[]).slice(0, 20)
       : [];
     const sampleScores = Array.isArray(scoreResult.data)
-      ? (scoreResult.data as any[]).slice(0, 20)
+      ? (scoreResult.data as ScoreRow[]).slice(0, 20)
       : [];
     const sampleCompanies = Array.isArray(companyResult.data)
-      ? (companyResult.data as any[]).slice(0, 20)
+      ? (companyResult.data as CompanyRow[]).slice(0, 20)
       : [];
 
     // Render a simple diagnostic page with the raw values

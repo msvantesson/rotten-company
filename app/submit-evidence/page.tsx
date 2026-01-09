@@ -13,6 +13,31 @@ type SearchResult = {
   extra?: string | null;
 };
 
+type CompanyRow = {
+  id: number;
+  name: string;
+  slug: string;
+  country?: string | null;
+};
+
+type LeaderRow = {
+  id: number;
+  name: string;
+  role?: string | null;
+};
+
+type ManagerRow = {
+  id: number;
+  name: string;
+  role?: string | null;
+};
+
+type OwnerRow = {
+  id: number;
+  name: string;
+  type?: string | null;
+};
+
 export default function SubmitEvidencePage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -64,7 +89,7 @@ export default function SubmitEvidencePage() {
 
         if (companiesRes.data) {
           next.push(
-            ...companiesRes.data.map((c: any) => ({
+            ...companiesRes.data.map((c: CompanyRow) => ({
               id: c.id,
               name: c.name,
               type: "company" as EntityType,
@@ -75,7 +100,7 @@ export default function SubmitEvidencePage() {
 
         if (leadersRes.data) {
           next.push(
-            ...leadersRes.data.map((l: any) => ({
+            ...leadersRes.data.map((l: LeaderRow) => ({
               id: l.id,
               name: l.name,
               type: "leader" as EntityType,
@@ -86,7 +111,7 @@ export default function SubmitEvidencePage() {
 
         if (managersRes.data) {
           next.push(
-            ...managersRes.data.map((m: any) => ({
+            ...managersRes.data.map((m: ManagerRow) => ({
               id: m.id,
               name: m.name,
               type: "manager" as EntityType,
@@ -97,7 +122,7 @@ export default function SubmitEvidencePage() {
 
         if (ownersRes.data) {
           next.push(
-            ...ownersRes.data.map((o: any) => ({
+            ...ownersRes.data.map((o: OwnerRow) => ({
               id: o.id,
               name: o.name,
               type: "owner" as EntityType,

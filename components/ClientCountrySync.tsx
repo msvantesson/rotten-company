@@ -80,7 +80,7 @@ export default function ClientCountrySync() {
         selects.forEach((s) => s.removeEventListener("change", changeHandler));
         mo.disconnect();
       };
-    } catch (err) {
+    } catch {
       // swallow errors
     }
   }, []);

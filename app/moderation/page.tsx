@@ -87,7 +87,7 @@ export default async function ModerationPage() {
 
   const item =
     pendingEvidence && pendingEvidence.length > 0
-      ? pendingEvidence[Math.floor(Math.random() * pendingEvidence.length)]
+      ? pendingEvidence[0]
       : null;
 
   return (

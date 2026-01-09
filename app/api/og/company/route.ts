@@ -145,7 +145,7 @@ export async function GET(req: Request) {
       ),
       { width: 1200, height: 630 }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("OG route failed:", err);
     return new Response("OG route failed", { status: 500 });
   }

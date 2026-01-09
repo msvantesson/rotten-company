@@ -32,22 +32,22 @@ interface LeaderScorePanelProps {
 
 export default function LeaderScorePanel(props: LeaderScorePanelProps) {
   const {
-    name,
-    role,
-    companyName,
-    slug,
-    profileImageUrl,
+    name: _name,
+    role: _role,
+    companyName: _companyName,
+    slug: _slug,
+    profileImageUrl: _profileImageUrl,
     finalScore,
-    rawScore,
-    directEvidenceScore,
-    inequalityScore,
-    companyInfluenceScore,
-    categoryBreakdown,
-    evidenceTimeline,
-    payRatio
+    rawScore: _rawScore,
+    directEvidenceScore: _directEvidenceScore,
+    inequalityScore: _inequalityScore,
+    companyInfluenceScore: _companyInfluenceScore,
+    categoryBreakdown: _categoryBreakdown,
+    evidenceTimeline: _evidenceTimeline,
+    payRatio: _payRatio
   } = props;
 
-  const flavorTier = getFlavorTier(finalScore);
+  const _flavorTier = getFlavorTier(finalScore);
 
   return (
     <div className="w-full space-y-8">
@@ -58,7 +58,7 @@ export default function LeaderScorePanel(props: LeaderScorePanelProps) {
 
 /* Helper Components */
 
-function BreakdownItem({ label, value, tooltip }: {
+function _BreakdownItem({ label, value, tooltip }: {
   label: string;
   value: number;
   tooltip?: string;

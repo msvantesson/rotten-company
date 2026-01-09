@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function CountrySelect({
   options,
@@ -9,11 +9,15 @@ export default function CountrySelect({
   options: { dbValue: string; label: string }[];
   initialValue: string | null;
 }) {
-  const [value, setValue] = useState(initialValue ?? "");
+  // Use a derived initial value pattern
+  const [value, setValue] = useState(() => initialValue ?? "");
+  const [prevInitialValue, setPrevInitialValue] = useState(initialValue);
 
-  useEffect(() => {
+  // Handle prop changes (derived state pattern)
+  if (initialValue !== prevInitialValue) {
+    setPrevInitialValue(initialValue);
     setValue(initialValue ?? "");
-  }, [initialValue]);
+  }
 
   return (
     <select
