@@ -37,7 +37,7 @@ export default async function BreakdownPage(context: {
 
   let debug: any = {};
   let company: any = null;
-  let breakdown: any = null;
+  let breakdown: BreakdownRow[] | null = null;
   let rows: BreakdownRow[] = [];
 
   try {
@@ -79,7 +79,7 @@ export default async function BreakdownPage(context: {
         debug.breakdownError = breakdownRes.error;
       }
 
-      breakdown = breakdownRes.data ?? null;
+      breakdown = breakdownRes.data as BreakdownRow[] ?? null;
       debug.breakdown = breakdown;
       rows = breakdown ?? [];
     }
