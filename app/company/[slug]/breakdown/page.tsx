@@ -26,7 +26,6 @@ export default async function BreakdownPage({
 }: {
   params: { slug: string };
 }) {
-  // await here for consistency with other pages that call supabaseServer()
   const supabase = await supabaseServer();
   const slug = params.slug;
 
@@ -35,8 +34,19 @@ export default async function BreakdownPage({
   let breakdown: any = null;
   let breakdownError: any = null;
 
+  // --- SIMPLE TEST QUERY ---
+  const testRes = await supabase
+    .from("companies")
+    .select("id, name, slug")
+    .limit(5);
+
+  const test = {
+    testData: testRes.data,
+    testError: testRes.error,
+  };
+  // --------------------------
+
   try {
-    // Use maybeSingle so absence of a company doesn't produce an exception-like error
     const companyRes = await supabase
       .from("companies")
       .select("id, name, slug")
@@ -72,7 +82,6 @@ export default async function BreakdownPage({
 
   return (
     <div className="max-w-3xl mx-auto py-8 space-y-8">
-      {/* Header */}
       {!company && (
         <div>
           <h1 className="text-2xl font-bold mb-2">Company not found</h1>
@@ -91,14 +100,12 @@ export default async function BreakdownPage({
         </header>
       )}
 
-      {/* Breakdown error */}
       {breakdownError && (
         <div className="rounded-md bg-red-100 text-red-800 px-3 py-2 text-sm">
           Could not load breakdown. Try refreshing the page.
         </div>
       )}
 
-      {/* No data */}
       {company && rows.length === 0 && !breakdownError && (
         <div className="rounded-md border px-4 py-3 text-sm text-muted-foreground">
           This company does not have any category data yet. Once people start
@@ -106,7 +113,6 @@ export default async function BreakdownPage({
         </div>
       )}
 
-      {/* Breakdown list */}
       {rows.length > 0 && (
         <div className="space-y-4">
           {rows.map((cat) => (
@@ -176,7 +182,7 @@ export default async function BreakdownPage({
         </div>
       )}
 
-      {/* 🔥 DEBUG PANEL — always visible */}
+      {/* 🔥 DEBUG PANEL */}
       <Debug
         data={{
           slug,
@@ -184,6 +190,7 @@ export default async function BreakdownPage({
           companyError,
           breakdown,
           breakdownError,
+          test, // ← simple DB test results
         }}
       />
     </div>
