@@ -1,17 +1,18 @@
-// /lib/supabase-server.ts
-
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export function supabaseServer() {
-  const store = cookies(); // sync in RSC
+  // Next.js 16.1.0-canary.15 types say cookies() returns a Promise,
+  // but at runtime it's sync in RSC. So we unwrap it manually.
+  const cookieStorePromise = cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
+        async get(name: string) {
+          const store = await cookieStorePromise;
           return store.get(name)?.value;
         },
         set() {},
