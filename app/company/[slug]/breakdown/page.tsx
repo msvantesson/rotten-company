@@ -23,10 +23,20 @@ type BreakdownRow = {
 
 export default async function BreakdownPage({
   params,
+  searchParams,
 }: {
   params?: { slug?: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-  const slug = params?.slug?.toLowerCase?.() ?? null;
+  const rawSlug =
+    params?.slug ??
+    (typeof searchParams?.nxtPslug === "string"
+      ? searchParams.nxtPslug
+      : Array.isArray(searchParams?.nxtPslug)
+      ? searchParams?.nxtPslug[0]
+      : undefined);
+
+  const slug = rawSlug?.toLowerCase?.() ?? null;
 
   if (!slug) {
     return (
@@ -47,6 +57,9 @@ export default async function BreakdownPage({
   try {
     const supabase = await supabaseServer();
     debug.slug = slug;
+    debug.rawSlug = rawSlug;
+    debug.params = params;
+    debug.searchParams = searchParams;
 
     const testRes = await supabase
       .from("companies")
@@ -83,7 +96,7 @@ export default async function BreakdownPage({
         debug.breakdownError = breakdownRes.error;
       }
 
-      breakdown = breakdownRes.data as BreakdownRow[] ?? null;
+      breakdown = (breakdownRes.data as BreakdownRow[]) ?? null;
       debug.breakdown = breakdown;
       rows = breakdown ?? [];
     }
@@ -95,7 +108,7 @@ export default async function BreakdownPage({
         <p className="text-muted-foreground">
           Something went wrong while loading this page. Check the debug output below.
         </p>
-        <Debug data={debug} />
+        <Debug data={JSON.parse(JSON.stringify(debug))} />
       </div>
     );
   }
@@ -162,9 +175,15 @@ export default async function BreakdownPage({
 
               <details className="mt-3 group">
                 <summary className="cursor-pointer text-sm text-muted-foreground list-none flex items-center gap-1">
-                  <span className="underline underline-offset-2">Show details</span>
-                  <span className="text-xs text-muted-foreground group-open:hidden">▼</span>
-                  <span className="text-xs text-muted-foreground hidden group-open:inline">▲</span>
+                  <span className="underline underline-offset-2">
+                    Show details
+                  </span>
+                  <span className="text-xs text-muted-foreground group-open:hidden">
+                    ▼
+                  </span>
+                  <span className="text-xs text-muted-foreground hidden group-open:inline">
+                    ▲
+                  </span>
                 </summary>
 
                 <div className="mt-2 text-sm space-y-1">
@@ -202,7 +221,7 @@ export default async function BreakdownPage({
         </div>
       )}
 
-      <Debug data={debug} />
+      <Debug data={JSON.parse(JSON.stringify(debug))} />
     </div>
   );
 }
