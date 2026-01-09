@@ -1,5 +1,3 @@
-// app/company/[slug]/breakdown/page.tsx
-
 import { supabaseServer } from "@/lib/supabase-server";
 import ScoreMeter from "@/components/score-meter";
 
@@ -26,7 +24,7 @@ export default async function BreakdownPage({
 }: {
   params: { slug: string };
 }) {
-  const supabase = await supabaseServer();
+  const supabase = await supabaseServer(); // ✅ fixed: now properly awaited
   const slug = params.slug;
 
   let company: any = null;
@@ -34,7 +32,7 @@ export default async function BreakdownPage({
   let breakdown: any = null;
   let breakdownError: any = null;
 
-  // --- SIMPLE TEST QUERY ---
+  // ✅ Simple test query to confirm DB visibility
   const testRes = await supabase
     .from("companies")
     .select("id, name, slug")
@@ -44,7 +42,6 @@ export default async function BreakdownPage({
     testData: testRes.data,
     testError: testRes.error,
   };
-  // --------------------------
 
   try {
     const companyRes = await supabase
@@ -182,7 +179,6 @@ export default async function BreakdownPage({
         </div>
       )}
 
-      {/* 🔥 DEBUG PANEL */}
       <Debug
         data={{
           slug,
@@ -190,7 +186,7 @@ export default async function BreakdownPage({
           companyError,
           breakdown,
           breakdownError,
-          test, // ← simple DB test results
+          test,
         }}
       />
     </div>
