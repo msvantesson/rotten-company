@@ -9,7 +9,15 @@ export default function CountrySelect({
   options: { dbValue: string; label: string }[];
   initialValue: string | null;
 }) {
-  const [value, setValue] = useState(initialValue ?? "");
+  // Use a derived initial value pattern
+  const [value, setValue] = useState(() => initialValue ?? "");
+  const [prevInitialValue, setPrevInitialValue] = useState(initialValue);
+
+  // Handle prop changes (derived state pattern)
+  if (initialValue !== prevInitialValue) {
+    setPrevInitialValue(initialValue);
+    setValue(initialValue ?? "");
+  }
 
   return (
     <select
