@@ -14,7 +14,7 @@ type BreakdownRow = {
 };
 
 export default async function BreakdownPage({ params }: { params: { slug: string } }) {
-  const supabase = await supabaseServer();
+ const supabase = supabaseServer();
 
   // Fetch company
   const { data: company, error: companyError } = await supabase
