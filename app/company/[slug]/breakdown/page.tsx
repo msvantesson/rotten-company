@@ -24,9 +24,20 @@ type BreakdownRow = {
 export default async function BreakdownPage({
   params,
 }: {
-  params: { slug: string };
+  params?: { slug?: string };
 }) {
-  const slug = params.slug.toLowerCase();
+  const slug = params?.slug?.toLowerCase?.() ?? null;
+
+  if (!slug) {
+    return (
+      <div className="max-w-3xl mx-auto py-8 space-y-8">
+        <h1 className="text-2xl font-bold mb-2 text-red-600">Missing slug</h1>
+        <p className="text-muted-foreground">
+          This page requires a company slug in the URL. Check your route setup.
+        </p>
+      </div>
+    );
+  }
 
   let debug: any = {};
   let company: any = null;
