@@ -1,6 +1,7 @@
 // app/company/[slug]/breakdown/page.tsx
 
-import { createClient } from "@/utils/supabase/server-client";
+import { createClient } from "@/lib/supabase-server";
+
 
 import ScoreMeter from "@/components/score-meter";
 
