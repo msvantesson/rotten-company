@@ -47,13 +47,18 @@ export default async function BreakdownPage({
     const companyRes = await supabase
       .from("companies")
       .select("id, name, slug")
-      .eq("slug", slug) // ✅ exact match
+      .eq("slug", slug)
       .maybeSingle();
 
-    company = companyRes.data ?? null;
-    companyError = companyRes.error ?? null;
+    if (companyRes.error) {
+      companyError = companyRes.error;
+      company = null;
+    } else {
+      company = companyRes.data ?? null;
+    }
   } catch (err) {
     companyError = err;
+    company = null;
   }
 
   try {
