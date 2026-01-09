@@ -1,5 +1,31 @@
 import { supabaseServer } from "@/lib/supabase-server";
 
+type CountryRow = {
+  country?: string | null;
+};
+
+type ScoreRow = {
+  company_id: number;
+  rotten_score: number;
+};
+
+type CompanyRow = {
+  id: number;
+  name: string;
+  slug: string;
+  industry?: string | null;
+  country?: string | null;
+};
+
+type IndexedCompany = {
+  company_id: number;
+  rotten_score: number;
+  name: string;
+  slug: string;
+  industry?: string | null;
+  country?: string | null;
+};
+
 // Small helper copies from page.tsx used only for debug output
 const COUNTRY_NAME_MAP: Record<string, string> = {
   CH: "Switzerland",
@@ -23,7 +49,7 @@ function normalizeCountry(value: string | null | undefined): string {
     const mapped = COUNTRY_NAME_MAP[code];
     return (mapped ?? code).toUpperCase();
   }
-  const foundEntry = Object.entries(COUNTRY_NAME_MAP).find(([_k, name]) => name.toLowerCase() === v.toLowerCase());
+  const foundEntry = Object.entries(COUNTRY_NAME_MAP).find(([, name]) => name.toLowerCase() === v.toLowerCase());
   if (foundEntry) return foundEntry[1].toUpperCase();
   return v.toUpperCase();
 }
@@ -52,7 +78,7 @@ export async function GET(request: Request) {
   const countrySet = new Set<string>();
   if (countryRows) {
     for (const row of countryRows) {
-      const code = (row as any).country as string | null;
+      const code = (row as CountryRow).country;
       if (code && code.trim().length > 0) countrySet.add(code.trim());
     }
   }
@@ -84,18 +110,18 @@ export async function GET(request: Request) {
     .select("company_id, rotten_score")
     .order("rotten_score", { ascending: false });
 
-  const companyIds = (scoreRows || []).map((r: any) => r.company_id);
+  const companyIds = (scoreRows || []).map((r: ScoreRow) => r.company_id);
   const { data: companyRows } = await supabase
     .from("companies")
     .select("id, name, slug, industry, country")
     .in("id", companyIds);
 
-  const companyById = (companyRows || []).reduce((acc: any, row: any) => {
+  const companyById = (companyRows || []).reduce((acc: Record<number, CompanyRow>, row: CompanyRow) => {
     acc[row.id] = row; return acc;
   }, {});
 
   const companies = (scoreRows || [])
-    .map((row: any) => {
+    .map((row: ScoreRow) => {
       const c = companyById[row.company_id];
       if (!c) return null;
       return {
@@ -107,16 +133,16 @@ export async function GET(request: Request) {
         country: c.country,
       };
     })
-    .filter((c: any) => c !== null);
+    .filter((c: IndexedCompany | null): c is IndexedCompany => c !== null);
 
-  const filtered = queryCountry ? companies.filter((c: any) => normalizeCountry(c.country) === selectedNormalized) : companies;
+  const filtered = queryCountry ? companies.filter((c: IndexedCompany) => normalizeCountry(c.country) === selectedNormalized) : companies;
 
   const debug = {
     queryCountry,
     selectedDbValue,
     selectedNormalized,
     countryOptions,
-    companiesSample: companies.slice(0, 200).map((c: any) => ({ id: c.company_id, name: c.name, country: c.country })),
+    companiesSample: companies.slice(0, 200).map((c: IndexedCompany) => ({ id: c.company_id, name: c.name, country: c.country })),
     filteredCount: filtered.length,
   };
 

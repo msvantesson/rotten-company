@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 
 type Props = {
-  data: any; // JSON-LD payload
-  debug?: any; // optional server debug object (searchParamsCountry, selectedDbValue, ...)
+  data: unknown; // JSON-LD payload
+  debug?: unknown; // optional server debug object (searchParamsCountry, selectedDbValue, ...)
   initiallyOpen?: boolean;
 };
 
@@ -12,7 +12,7 @@ export function JsonLdDebugPanel({ data, debug, initiallyOpen = false }: Props) 
   const [open, setOpen] = useState(initiallyOpen);
   const [tab, setTab] = useState<"jsonld" | "debug">("jsonld");
 
-  const pretty = (obj: any) => {
+  const pretty = (obj: unknown) => {
     try {
       return JSON.stringify(obj, null, 2);
     } catch {

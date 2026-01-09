@@ -1,6 +1,28 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 
+type ScoreRow = {
+  company_id: number;
+  rotten_score: number;
+};
+
+type CompanyRow = {
+  id: number;
+  name: string;
+  slug: string;
+  industry?: string | null;
+  country?: string | null;
+};
+
+type IndexedCompany = {
+  id: number;
+  name: string;
+  slug: string;
+  industry: string | null;
+  country: string | null;
+  rotten_score: number;
+};
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -19,10 +41,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "scores query failed" }, { status: 500 });
     }
 
-    const companyIds = Array.isArray(scoreRows) ? scoreRows.map((r: any) => r.company_id) : [];
+    const companyIds = Array.isArray(scoreRows) ? scoreRows.map((r: ScoreRow) => r.company_id) : [];
 
     // Hent companies
-    let companyRows: any[] = [];
+    let companyRows: CompanyRow[] = [];
     if (companyIds.length > 0) {
       const { data: companiesData, error: companiesError } = await supabase
         .from("companies")
@@ -37,13 +59,13 @@ export async function GET(request: Request) {
     }
 
     // Saml og match i score‑rækkefølge
-    const companyById: Record<number, any> = {};
+    const companyById: Record<number, CompanyRow> = {};
     for (const c of companyRows) {
       companyById[c.id] = c;
     }
 
     let companies = (scoreRows || [])
-      .map((r: any) => {
+      .map((r: ScoreRow) => {
         const c = companyById[r.company_id];
         if (!c) return null;
         return {
@@ -55,12 +77,12 @@ export async function GET(request: Request) {
           rotten_score: typeof r.rotten_score === "number" ? r.rotten_score : Number(r.rotten_score) || 0,
         };
       })
-      .filter((x: any) => x !== null);
+      .filter((x: IndexedCompany | null): x is IndexedCompany => x !== null);
 
     // Filtrer case‑insensitive hvis country er angivet
     if (country && country.trim().length > 0) {
       const target = country.trim().toLowerCase();
-      companies = companies.filter((c: any) => c.country && c.country.trim().toLowerCase() === target);
+      companies = companies.filter((c: IndexedCompany) => c.country && c.country.trim().toLowerCase() === target);
     }
 
     return NextResponse.json({ companies });

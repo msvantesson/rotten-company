@@ -30,18 +30,18 @@ export default function RottenIndexClient({
   const [companies, setCompanies] = useState<Company[] | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchList(selected: string) {
-    setLoading(true);
-    const q = selected ? `?country=${encodeURIComponent(selected)}` : "";
-    const res = await fetch(`/api/rotten-index${q}`, { cache: "no-store" });
-    const body = await res.json();
-    setCompanies(body.companies || []);
-    setLoading(false);
-  }
-
   useEffect(() => {
+    async function fetchList(selected: string) {
+      setLoading(true);
+      const q = selected ? `?country=${encodeURIComponent(selected)}` : "";
+      const res = await fetch(`/api/rotten-index${q}`, { cache: "no-store" });
+      const body = await res.json();
+      setCompanies(body.companies || []);
+      setLoading(false);
+    }
+    
     fetchList(country);
-  }, []);
+  }, [country]);
 
   return (
     <section className="mb-6">

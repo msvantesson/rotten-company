@@ -12,6 +12,34 @@ import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 
+type EvidenceItem = {
+  id: number;
+  title: string;
+  summary?: string | null;
+  file_url?: string | null;
+  [key: string]: unknown;
+};
+
+type CategoryBreakdownItem = {
+  category_id: number;
+  category_name: string;
+  rating_count?: number | null;
+  avg_rating_score?: number | null;
+  evidence_count?: number | null;
+  evidence_score?: number | null;
+  final_score?: number | null;
+};
+
+type OwnershipSignal = {
+  company_id: number;
+  [key: string]: unknown;
+};
+
+type DestructionLever = {
+  company_id: number;
+  [key: string]: unknown;
+};
+
 // --- Category icons ---
 const CATEGORY_ICON_MAP: Record<number, string> = {
   1: "💼",
@@ -62,7 +90,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   // 2) Everything below is "best-effort" and must never crash the page
 
   // Evidence (wrapped in try/catch in case helper throws)
-  let evidence: any[] = [];
+  let evidence: EvidenceItem[] = [];
   try {
     evidence = (await getEvidenceWithManagers(company.id)) ?? [];
   } catch (e) {
@@ -71,7 +99,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   }
 
   // Category breakdown
-  let breakdownWithFlavor: any[] = [];
+  let breakdownWithFlavor: CategoryBreakdownItem[] = [];
   try {
     const { data: mergedBreakdown, error: breakdownError } = await supabase
       .from("company_category_full_breakdown")
@@ -175,7 +203,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   }
 
   // Ownership signals
-  let ownershipSignals: any[] = [];
+  let ownershipSignals: OwnershipSignal[] = [];
   try {
     const { data: ownershipSignalsData, error: ownershipError } = await supabase
       .from("ownership_signals_summary")
@@ -193,7 +221,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   }
 
   // Destruction lever
-  let destructionLever: any | null = null;
+  let destructionLever: DestructionLever | null = null;
   try {
     const { data: destructionLeverData, error: destructionError } = await supabase
       .from("company_destruction_lever")
@@ -212,7 +240,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   }
 
   // JSON-LD: also must never crash the page
-  let jsonLd: any = null;
+  let jsonLd: unknown = null;
   try {
     jsonLd = buildCompanyJsonLd({
       company,

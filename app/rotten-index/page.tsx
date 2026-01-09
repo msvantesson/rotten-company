@@ -84,8 +84,6 @@ function buildRottenIndexJsonLd(companies: IndexedCompany[], selectedCountryCode
 type SearchParams = { [key: string]: string | string[] | undefined };
 
 export default async function RottenIndexPage({ searchParams }: { searchParams?: SearchParams }) {
-  const startTs = Date.now();
-
   // Read query param safely
   let selectedCountryCode: string | null = null;
   const raw = searchParams?.country;
@@ -141,7 +139,13 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
     country: string | null;
   }[] = Array.isArray(rawCompanyRows) ? rawCompanyRows : [];
 
-  const companyById: Record<number, any> = {};
+  const companyById: Record<number, {
+    id: number;
+    name: string;
+    slug: string;
+    industry: string | null;
+    country: string | null;
+  }> = {};
   for (const c of companyRows) companyById[c.id] = c;
 
   const companiesForJsonLd: IndexedCompany[] = scoreRows

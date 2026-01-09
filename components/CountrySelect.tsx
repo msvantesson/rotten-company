@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function CountrySelect({
   options,
@@ -10,10 +10,6 @@ export default function CountrySelect({
   initialValue: string | null;
 }) {
   const [value, setValue] = useState(initialValue ?? "");
-
-  useEffect(() => {
-    setValue(initialValue ?? "");
-  }, [initialValue]);
 
   return (
     <select
