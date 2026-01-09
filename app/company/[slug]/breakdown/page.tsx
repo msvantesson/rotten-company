@@ -25,7 +25,7 @@ export default async function BreakdownPage({
   params: { slug: string };
 }) {
   const supabase = await supabaseServer();
-  const slug = params.slug;
+  const slug = params.slug.toLowerCase(); // ✅ normalize slug
 
   let company: any = null;
   let companyError: any = null;
@@ -47,7 +47,7 @@ export default async function BreakdownPage({
     const companyRes = await supabase
       .from("companies")
       .select("id, name, slug")
-      .ilike("slug", slug) // ✅ case-insensitive match
+      .eq("slug", slug) // ✅ exact match
       .maybeSingle();
 
     company = companyRes.data ?? null;
