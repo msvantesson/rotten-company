@@ -149,13 +149,13 @@ export default async function BreakdownPage({
 
                   <div className="mt-3 flex flex-wrap gap-4">
                     <a
-                      href={`/company/${company.slug}/evidence?category=${cat.category_id}`}
+                      href={`/company/${company?.slug}/evidence?category=${cat.category_id}`}
                       className="text-xs underline underline-offset-2"
                     >
                       View evidence for this category
                     </a>
                     <a
-                      href={`/company/${company.slug}/rate?category=${cat.category_id}`}
+                      href={`/company/${company?.slug}/rate?category=${cat.category_id}`}
                       className="text-xs underline underline-offset-2"
                     >
                       Rate this company in this category
