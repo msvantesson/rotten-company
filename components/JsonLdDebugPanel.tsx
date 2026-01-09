@@ -47,7 +47,7 @@ export function JsonLdDebugPanel({ data, debug, initiallyOpen = false }: Props) 
             >
               JSON-LD
             </button>
-            {debug && (
+            {debug != null && (
               <button
                 onClick={() => setTab("debug")}
                 style={{

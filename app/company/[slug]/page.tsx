@@ -15,28 +15,42 @@ import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 type EvidenceItem = {
   id: number;
   title: string;
-  summary?: string | null;
-  file_url?: string | null;
-  [key: string]: unknown;
+  summary?: string;
+  file_url?: string;
+  file_type?: string;
+  file_size?: number;
+  evidence_type?: string;
+  severity?: number;
+  recency_weight?: number;
+  file_weight?: number;
+  total_weight?: number;
+  category_id: number | null;
+  category: { name: string } | null;
+  manager?: { name: string; report_count: number | null } | null;
 };
 
 type CategoryBreakdownItem = {
   category_id: number;
   category_name: string;
-  rating_count?: number | null;
-  avg_rating_score?: number | null;
-  evidence_count?: number | null;
-  evidence_score?: number | null;
-  final_score?: number | null;
+  rating_count: number;
+  avg_rating_score: number | null;
+  evidence_count: number;
+  evidence_score: number | null;
+  final_score: number;
 };
 
 type OwnershipSignal = {
-  company_id: number;
+  owner_name: string;
+  owner_slug: string;
+  owner_profile?: string;
+  signal_type: string;
+  severity: number;
   [key: string]: unknown;
 };
 
 type DestructionLever = {
-  company_id: number;
+  destruction_lever_score?: number | null;
+  is_pe_destructive?: boolean | null;
   [key: string]: unknown;
 };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 
 type Company = {
@@ -31,16 +31,25 @@ export default function RottenIndexClient({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchList(selected: string) {
+    let isCancelled = false;
+    
+    async function loadCompanies() {
       setLoading(true);
-      const q = selected ? `?country=${encodeURIComponent(selected)}` : "";
+      const q = country ? `?country=${encodeURIComponent(country)}` : "";
       const res = await fetch(`/api/rotten-index${q}`, { cache: "no-store" });
       const body = await res.json();
-      setCompanies(body.companies || []);
-      setLoading(false);
+      
+      if (!isCancelled) {
+        setCompanies(body.companies || []);
+        setLoading(false);
+      }
     }
     
-    fetchList(country);
+    loadCompanies();
+    
+    return () => {
+      isCancelled = true;
+    };
   }, [country]);
 
   return (
@@ -59,8 +68,6 @@ export default function RottenIndexClient({
 
             const url = v ? `/rotten-index?country=${encodeURIComponent(v)}` : `/rotten-index`;
             window.history.replaceState({}, "", url);
-
-            fetchList(v);
           }}
           className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
         >
@@ -81,7 +88,7 @@ export default function RottenIndexClient({
 
       {!loading && companies && companies.length > 0 && (
         <ol className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
-          {companies.map((c, i) => (
+          {companies.map((c) => (
             <li key={c.id} className="flex items-center justify-between px-4 py-3">
               <div>
                 <Link href={`/company/${c.slug}`} className="text-lg font-semibold hover:underline">

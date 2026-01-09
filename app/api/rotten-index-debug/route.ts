@@ -131,18 +131,18 @@ export async function GET(request: Request) {
         slug: c.slug,
         industry: c.industry,
         country: c.country,
-      };
+      } as IndexedCompany;
     })
-    .filter((c: IndexedCompany | null): c is IndexedCompany => c !== null);
+    .filter((c): c is IndexedCompany => c !== null);
 
-  const filtered = queryCountry ? companies.filter((c: IndexedCompany) => normalizeCountry(c.country) === selectedNormalized) : companies;
+  const filtered = queryCountry ? companies.filter((c) => normalizeCountry(c.country) === selectedNormalized) : companies;
 
   const debug = {
     queryCountry,
     selectedDbValue,
     selectedNormalized,
     countryOptions,
-    companiesSample: companies.slice(0, 200).map((c: IndexedCompany) => ({ id: c.company_id, name: c.name, country: c.country })),
+    companiesSample: companies.slice(0, 200).map((c) => ({ id: c.company_id, name: c.name, country: c.country })),
     filteredCount: filtered.length,
   };
 

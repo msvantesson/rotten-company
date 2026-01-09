@@ -1,6 +1,6 @@
 // lib/flavor-bundle.ts
 
-import { ROTTEN_TIERS, getTier } from "./rotten-tiers";
+import { getTier } from "./rotten-tiers";
 import { FLAVOR_TEXT_BY_SCORE } from "./micro-flavors";
 
 export interface FlavorBundle {

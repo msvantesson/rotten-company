@@ -40,7 +40,7 @@ export default function RatingStars({
         setSelected(score);
         setMessage("Rating saved");
       }
-    } catch (err) {
+    } catch {
       setMessage("Network error");
     }
 

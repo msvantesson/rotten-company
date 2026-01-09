@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
-import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase-server";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import ClientWrapper from "./ClientWrapper";
