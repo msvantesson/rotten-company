@@ -5,19 +5,25 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-type GateStatus = {
-  pendingEvidence: number;
-  requiredModerations: number;
-  userModerations: number;
-  allowed: boolean;
-};
-
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } }
   );
+}
+
+async function getUserId(): Promise<string | null> {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: cookies(),
+    }
+  );
+
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
 }
 
 async function getUserId(): Promise<string | null> {
