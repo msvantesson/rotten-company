@@ -6,9 +6,10 @@ import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 export default async function BreakdownPage({
   params,
 }: {
-  params: { slug?: string };
+  params: Promise<{ slug?: string }> | { slug?: string };
 }) {
-  const slug = params?.slug;
+  const resolvedParams = await Promise.resolve(params);
+  const slug = resolvedParams?.slug;
 
   if (!slug) {
     console.warn("⚠️ Missing slug in breakdown page");
@@ -17,25 +18,52 @@ export default async function BreakdownPage({
 
   const supabase = await supabaseServer();
 
-  const { data: company } = await supabase
+  // 1) Load company
+  const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id, name, slug, industry, size_employees, rotten_score")
     .eq("slug", slug)
     .maybeSingle();
 
+  if (companyError) {
+    console.error("❌ Error loading company in breakdown page:", slug, companyError);
+  }
+
   if (!company) {
+    console.warn("⚠️ No company found for slug in breakdown page:", slug);
     return notFound();
   }
 
-  const { data: breakdown } = await supabase
-    .from("company_category_breakdown")
-    .select(
-      "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score"
-    )
-    .eq("company_id", company.id);
+  // 2) Load breakdown
+  let breakdown: any[] = [];
+  try {
+    const { data, error } = await supabase
+      .from("company_category_breakdown")
+      .select(
+        "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score"
+      )
+      .eq("company_id", company.id);
 
-  const evidence = await getEvidenceWithManagers(company.id);
+    if (error) {
+      console.error("❌ Error loading breakdown for company:", company.id, error);
+    }
 
+    breakdown = data ?? [];
+  } catch (e) {
+    console.error("❌ Unexpected error loading breakdown:", company.id, e);
+    breakdown = [];
+  }
+
+  // 3) Load evidence
+  let evidence: any[] = [];
+  try {
+    evidence = (await getEvidenceWithManagers(company.id)) ?? [];
+  } catch (e) {
+    console.error("❌ Error loading evidence for company:", company.id, e);
+    evidence = [];
+  }
+
+  // 4) Render
   return (
     <div style={{ padding: "2rem" }}>
       <h1 className="text-2xl font-bold" style={{ marginBottom: "1rem" }}>
@@ -44,8 +72,8 @@ export default async function BreakdownPage({
 
       <CategoryBreakdown
         company={company}
-        breakdown={breakdown ?? []}
-        evidence={evidence ?? []}
+        breakdown={breakdown}
+        evidence={evidence}
       />
     </div>
   );
