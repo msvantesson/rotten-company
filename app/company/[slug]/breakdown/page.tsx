@@ -2,13 +2,9 @@ import { notFound } from "next/navigation";
 import { getCompanyBySlug } from "@/lib/getCompanyBySlug";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { supabase } from "@/lib/supabaseClient";
-import CategoryBreakdown from "@/components/CategoryBreakdown";
+import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 
-export default async function BreakdownPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
+export default async function BreakdownPage({ params }: { params: { slug: string } }) {
   const slug = params?.slug;
 
   console.log("🔍 breakdown/page.tsx received slug:", slug);
@@ -18,9 +14,6 @@ export default async function BreakdownPage({
     return notFound();
   }
 
-  //
-  // STEP 1 — Load company
-  //
   const company = await getCompanyBySlug(slug);
 
   if (!company) {
@@ -30,9 +23,6 @@ export default async function BreakdownPage({
 
   console.log("✅ Loaded company:", company.name, "→ ID:", company.id);
 
-  //
-  // STEP 2 — Load category breakdown rows
-  //
   const { data: breakdown, error: breakdownError } = await supabase
     .from("company_category_breakdown")
     .select("*")
@@ -44,16 +34,10 @@ export default async function BreakdownPage({
 
   console.log("📊 Breakdown rows:", breakdown?.length ?? 0);
 
-  //
-  // STEP 3 — Load enriched evidence
-  //
   const evidence = await getEvidenceWithManagers(company.id);
 
   console.log("📄 Evidence count:", evidence.length);
 
-  //
-  // STEP 4 — Render
-  //
   return (
     <CategoryBreakdown
       company={company}
