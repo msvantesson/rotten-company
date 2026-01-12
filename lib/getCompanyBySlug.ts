@@ -110,20 +110,20 @@ export async function getCompanyBySlug(
     console.error("❌ Breakdown load error:", breakdownError);
   }
 
-  //
   // STEP 7 — Load aggregate rating info
-  //
-  const { data: ratingAgg } = await supabase
-    .from("ratings")
-    .select("score", { count: "exact" })
-    .eq("company_id", company.id);
+const { data: ratingAggRaw } = await supabase
+  .from("ratings")
+  .select("score")
+  .eq("company_id", company.id);
 
-  const rating_count = ratingAgg?.length ?? 0;
-  const avg_rating =
-    rating_count > 0
-      ? ratingAgg.reduce((sum, r) => sum + (r.score ?? 0), 0) / rating_count
-      : null;
+const ratingAgg = ratingAggRaw ?? [];
 
+const rating_count = ratingAgg.length;
+
+const avg_rating =
+  rating_count > 0
+    ? ratingAgg.reduce((sum, r) => sum + (r.score ?? 0), 0) / rating_count
+    : null;
   //
   // STEP 8 — Load evidence count
   //
