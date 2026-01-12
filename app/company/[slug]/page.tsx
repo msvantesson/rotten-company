@@ -47,8 +47,6 @@ export default async function CompanyPage({ params }: { params: Params }) {
   }
 
   if (!company) {
-    // If this happens for rotten-widgets-gmbh, something is wrong in the DB,
-    // but we should at least see the slug.
     return (
       <div style={{ padding: "2rem" }}>
         <h1>No company found</h1>
@@ -59,9 +57,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     );
   }
 
-  // 2) Everything below is "best-effort" and must never crash the page
-
-  // Evidence (wrapped in try/catch in case helper throws)
+  // Evidence
   let evidence: any[] = [];
   try {
     evidence = (await getEvidenceWithManagers(company.id)) ?? [];
@@ -211,7 +207,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     destructionLever = null;
   }
 
-  // JSON-LD: also must never crash the page
+  // JSON-LD
   let jsonLd: any = null;
   try {
     jsonLd = buildCompanyJsonLd({
@@ -284,8 +280,13 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
         <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
 
+        {/* ✅ FIXED: CategoryBreakdown now receives all required props */}
         <div style={{ marginBottom: "2rem" }}>
-          <CategoryBreakdown breakdown={breakdownWithFlavor} />
+          <CategoryBreakdown
+            company={company}
+            breakdown={breakdownWithFlavor}
+            evidence={evidence}
+          />
         </div>
 
         <h2>Approved Evidence</h2>
