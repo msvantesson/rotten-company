@@ -9,6 +9,8 @@ type CategoryRow = {
 };
 
 export async function getEvidenceWithManagers(companyId: number) {
+  console.log("🔍 Loading evidence for company:", companyId);
+
   //
   // STEP 1 — Fetch all approved evidence for this company
   //
@@ -28,10 +30,14 @@ export async function getEvidenceWithManagers(companyId: number) {
       total_weight,
       manager_id,
       category_id,
-      category:categories (
+
+      categories!evidence_category_id_fkey (
+        id,
         name
       ),
-      manager:managers (
+
+      managers!evidence_manager_id_fkey (
+        id,
         name
       )
     `)
@@ -39,11 +45,12 @@ export async function getEvidenceWithManagers(companyId: number) {
     .eq("status", "approved");
 
   if (error) {
-    console.error("Evidence query failed:", error);
+    console.error("❌ Evidence query failed:", error);
     throw error;
   }
 
   const evidence = data ?? [];
+  console.log(`✅ Loaded ${evidence.length} evidence items`);
 
   //
   // STEP 2 — Extract unique manager IDs
@@ -55,6 +62,8 @@ export async function getEvidenceWithManagers(companyId: number) {
         .filter((id): id is number => typeof id === "number")
     )
   );
+
+  console.log("🔍 Unique manager IDs:", managerIds);
 
   //
   // STEP 3 — Batch fetch report counts for all managers
@@ -69,7 +78,7 @@ export async function getEvidenceWithManagers(companyId: number) {
       .eq("status", "approved");
 
     if (countError) {
-      console.error("Manager count batch error:", countError);
+      console.error("❌ Manager count batch error:", countError);
     }
 
     const tempCount: Record<number, number> = {};
@@ -85,12 +94,14 @@ export async function getEvidenceWithManagers(companyId: number) {
     }
   }
 
+  console.log("📊 Manager report counts:", Object.fromEntries(countMap));
+
   //
-  // STEP 4 — Normalize manager objects and attach counts
+  // STEP 4 — Normalize manager + category objects and attach counts
   //
   const enriched = evidence.map((item) => {
-    const rawManager = item.manager as ManagerRow | ManagerRow[] | null;
-    const rawCategory = item.category as CategoryRow | CategoryRow[] | null;
+    const rawManager = item.managers as ManagerRow | ManagerRow[] | null;
+    const rawCategory = item.categories as CategoryRow | CategoryRow[] | null;
 
     const manager =
       rawManager && Array.isArray(rawManager)
@@ -104,7 +115,13 @@ export async function getEvidenceWithManagers(companyId: number) {
 
     return {
       ...item,
-      category: category ? { name: category.name } : null,
+
+      category: category
+        ? {
+            name: category.name,
+          }
+        : null,
+
       manager: manager
         ? {
             name: manager.name,
@@ -115,6 +132,8 @@ export async function getEvidenceWithManagers(companyId: number) {
         : null,
     };
   });
+
+  console.log("✅ Evidence enrichment complete");
 
   return enriched;
 }
