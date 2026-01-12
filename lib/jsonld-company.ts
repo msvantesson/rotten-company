@@ -1,6 +1,6 @@
 // /lib/jsonld-company.ts
 
-import { getRottenFlavor } from "@/lib/flavor-engine";
+import { getRottenFlavor, getCategoryFlavor } from "@/lib/flavor-engine";
 
 type CategoryBreakdownJsonLd = {
   category_id: number;
@@ -86,10 +86,11 @@ export function buildCompanyJsonLd({
       worstRating: 0,
     },
 
-    // Category breakdown (canonical)
+    // Category breakdown (canonical + flavored)
     additionalProperty: breakdown.map((c) => ({
       "@type": "PropertyValue",
       name: c.category_name,
+      categoryFlavor: getCategoryFlavor(c.category_id),
       value: {
         ratingCount: c.rating_count,
         avgRatingScore: c.avg_rating_score,
