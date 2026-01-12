@@ -1,10 +1,13 @@
-export default function CompanySlugLayout({
+export default async function CompanySlugLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  console.log("CompanySlugLayout params:", params);
+  const resolved = await params;
+
+  console.log("CompanySlugLayout params:", resolved);
+
   return <>{children}</>;
 }
