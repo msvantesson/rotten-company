@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getCompanyBySlug } from "@/lib/getCompanyBySlug";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { supabase } from "@/lib/supabaseClient";
-import { BreakdownView } from "@/components/BreakdownView";
+import CategoryBreakdown from "@/components/CategoryBreakdown";
 
 export default async function BreakdownPage({
   params,
@@ -10,15 +10,16 @@ export default async function BreakdownPage({
   params: { slug: string };
 }) {
   const slug = params?.slug;
-  console.log("✅ breakdown/page.tsx received slug:", slug);
+
+  console.log("🔍 breakdown/page.tsx received slug:", slug);
 
   if (!slug) {
-    console.warn("⚠️ No slug provided");
+    console.warn("⚠️ Missing slug");
     return notFound();
   }
 
   //
-  // STEP 1 — Load company by slug
+  // STEP 1 — Load company
   //
   const company = await getCompanyBySlug(slug);
 
@@ -30,7 +31,7 @@ export default async function BreakdownPage({
   console.log("✅ Loaded company:", company.name, "→ ID:", company.id);
 
   //
-  // STEP 2 — Load breakdown data
+  // STEP 2 — Load category breakdown rows
   //
   const { data: breakdown, error: breakdownError } = await supabase
     .from("company_category_breakdown")
@@ -41,23 +42,20 @@ export default async function BreakdownPage({
     console.error("❌ Breakdown query failed:", breakdownError);
   }
 
-  if (!breakdown || breakdown.length === 0) {
-    console.warn("⚠️ No breakdown data available for company:", company.id);
-  } else {
-    console.log("✅ Loaded breakdown rows:", breakdown.length);
-  }
+  console.log("📊 Breakdown rows:", breakdown?.length ?? 0);
 
   //
-  // STEP 3 — Load approved evidence with manager/category enrichment
+  // STEP 3 — Load enriched evidence
   //
   const evidence = await getEvidenceWithManagers(company.id);
-  console.log("✅ Final enriched evidence count:", evidence.length);
+
+  console.log("📄 Evidence count:", evidence.length);
 
   //
-  // STEP 4 — Render breakdown view
+  // STEP 4 — Render
   //
   return (
-    <BreakdownView
+    <CategoryBreakdown
       company={company}
       breakdown={breakdown ?? []}
       evidence={evidence}
