@@ -20,18 +20,29 @@ type EvidenceItem = {
   manager: { name: string; report_count: number | null } | null;
 };
 
-const CATEGORY_ICONS: Record<number, string> = {
-  1: "💼",
-  2: "📰",
-  3: "🎭",
-  4: "🧪",
-  5: "🚨",
-  6: "🌱",
-  13: "💸",
+const CATEGORY_PRESENTATION: Record<
+  number,
+  {
+    icon: string;
+    color: string;
+  }
+> = {
+  1: { icon: "💼", color: "#8B0000" },
+  2: { icon: "📰", color: "#B22222" },
+  3: { icon: "🎭", color: "#D2691E" },
+  4: { icon: "🧪", color: "#DAA520" },
+  5: { icon: "🚨", color: "#CD853F" },
+  6: { icon: "🌱", color: "#228B22" },
+  13: { icon: "💸", color: "#B22222" },
 };
 
-function getCategoryIcon(categoryId: number) {
-  return CATEGORY_ICONS[categoryId] ?? "⚠️";
+function getCategoryPresentation(categoryId: number) {
+  return (
+    CATEGORY_PRESENTATION[categoryId] ?? {
+      icon: "⚠️",
+      color: "#555555",
+    }
+  );
 }
 
 export function CategoryBreakdown({
@@ -64,8 +75,8 @@ export function CategoryBreakdown({
       {/* Category breakdown */}
       <div className="space-y-6">
         {breakdown.map((item) => {
-          const icon = getCategoryIcon(item.category_id);
-          const flavor = getCategoryFlavor(item.category_id);
+          const { icon, color } = getCategoryPresentation(item.category_id);
+          const categoryFlavor = getCategoryFlavor(item.category_id);
 
           return (
             <div key={item.category_id} className="space-y-2">
@@ -75,16 +86,9 @@ export function CategoryBreakdown({
                 <span>{item.category_name}</span>
               </div>
 
-              {/* Flavor label */}
-              <div
-                className="text-xs font-semibold"
-                style={{ color: flavor.color }}
-              >
-                {flavor.macroLabel}
-              </div>
-
+              {/* Category flavor (string-only, canonical) */}
               <p className="text-xs italic text-neutral-600">
-                {flavor.microFlavor}
+                {categoryFlavor}
               </p>
 
               {/* Mini score bar */}
@@ -93,7 +97,7 @@ export function CategoryBreakdown({
                   className="h-full transition-all duration-500"
                   style={{
                     width: `${item.final_score}%`,
-                    backgroundColor: flavor.color,
+                    backgroundColor: color,
                   }}
                 />
               </div>
