@@ -14,7 +14,6 @@ type ModerationGateStatus = {
 
 /**
  * Service‑role Supabase client (bypasses RLS).
- * Used ONLY for moderation / counting.
  */
 function adminClient() {
   return createClient(
@@ -31,14 +30,16 @@ function adminClient() {
 
 /**
  * Authenticated user ID via Supabase SSR.
- * Uses Next.js 16 cookies() API (no adapters).
+ * IMPORTANT: cookies() MUST be awaited in Next.js 16.
  */
 async function getUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: cookies(),
+      cookies: cookieStore,
     }
   );
 
@@ -48,11 +49,6 @@ async function getUserId(): Promise<string | null> {
 
 /**
  * Earned participation moderation gate.
- *
- * Rules:
- * - 0 pending evidence → requirement satisfied
- * - 1 pending evidence → moderating it counts as full requirement
- * - ≥2 pending evidence → user must moderate 2 items
  */
 export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
   const userId = await getUserId();
@@ -68,21 +64,10 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 
   const admin = adminClient();
 
-  // Count pending evidence
-  const { count: pendingCount, error: pendingError } = await admin
+  const { count: pendingCount } = await admin
     .from("evidence")
     .select("id", { count: "exact", head: true })
     .eq("status", "pending");
-
-  if (pendingError) {
-    // Fail closed
-    return {
-      pendingEvidence: 0,
-      requiredModerations: 2,
-      userModerations: 0,
-      allowed: false,
-    };
-  }
 
   const pendingEvidence = pendingCount ?? 0;
 
@@ -90,20 +75,10 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
   if (pendingEvidence === 1) requiredModerations = 1;
   if (pendingEvidence >= 2) requiredModerations = 2;
 
-  // Count user's moderation votes
-  const { count: userModerationCount, error: modError } = await admin
+  const { count: userModerationCount } = await admin
     .from("moderation_votes")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId);
-
-  if (modError) {
-    return {
-      pendingEvidence,
-      requiredModerations,
-      userModerations: 0,
-      allowed: false,
-    };
-  }
 
   const userModerations = userModerationCount ?? 0;
 
@@ -117,25 +92,19 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 
 /**
  * Enforce moderation gate inside server actions.
- * Redirects to /moderation when blocked.
  */
 export async function enforceModerationGate(nextPath: string) {
   const status = await getModerationGateStatus();
 
   if (!status.allowed) {
-    redirect(
-      `/moderation?next=${encodeURIComponent(nextPath)}`
-    );
+    redirect(`/moderation?next=${encodeURIComponent(nextPath)}`);
   }
 }
 
 /**
- * Annual scoring limit (distinct companies per calendar year).
- * Uses ratings.user_id + ratings.company_id.
+ * Annual scoring limit (distinct companies per year).
  */
-export async function enforceAnnualScoringLimit(
-  limitPerYear: number
-) {
+export async function enforceAnnualScoringLimit(limitPerYear: number) {
   const userId = await getUserId();
   if (!userId) throw new Error("Not authenticated");
 
@@ -145,15 +114,11 @@ export async function enforceAnnualScoringLimit(
     Date.UTC(new Date().getUTCFullYear(), 0, 1)
   ).toISOString();
 
-  const { data, error } = await admin
+  const { data } = await admin
     .from("ratings")
     .select("company_id")
     .eq("user_id", userId)
     .gte("created_at", startOfYear);
-
-  if (error) {
-    throw new Error("Failed to evaluate scoring limit");
-  }
 
   const distinctCompanies = new Set(
     (data ?? []).map((r) => r.company_id)
