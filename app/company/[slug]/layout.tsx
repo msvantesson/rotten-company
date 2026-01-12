@@ -7,7 +7,7 @@ export default async function CompanySlugLayout({
 }) {
   const resolved = await params;
 
-  console.log("CompanySlugLayout params:", resolved);
+  console.log("✅ [slug]/layout.tsx received params:", resolved);
 
   return <>{children}</>;
 }
