@@ -6,9 +6,9 @@ import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 export default async function BreakdownPage({
   params,
 }: {
-  params: { slug: string };
+  params: { slug?: string };
 }) {
-  const slug = params?.slug ? decodeURIComponent(params.slug) : "";
+  const slug = params?.slug;
 
   if (!slug) {
     console.warn("⚠️ Missing slug in breakdown page");
@@ -17,7 +17,7 @@ export default async function BreakdownPage({
 
   const supabase = await supabaseServer();
 
-  // 1) Load company in the same way as the main company page
+  // 1) Load company
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id, name, slug, industry, size_employees, rotten_score")
@@ -33,7 +33,7 @@ export default async function BreakdownPage({
     return notFound();
   }
 
-  // 2) Load breakdown rows (best-effort)
+  // 2) Load breakdown
   let breakdown: any[] = [];
   try {
     const { data, error } = await supabase
@@ -44,33 +44,21 @@ export default async function BreakdownPage({
       .eq("company_id", company.id);
 
     if (error) {
-      console.error(
-        "❌ Error loading company_category_breakdown for company:",
-        company.id,
-        error
-      );
+      console.error("❌ Error loading breakdown for company:", company.id, error);
     }
 
     breakdown = data ?? [];
   } catch (e) {
-    console.error(
-      "❌ Unexpected error loading breakdown for company:",
-      company.id,
-      e
-    );
+    console.error("❌ Unexpected error loading breakdown:", company.id, e);
     breakdown = [];
   }
 
-  // 3) Load evidence (best-effort)
+  // 3) Load evidence
   let evidence: any[] = [];
   try {
     evidence = (await getEvidenceWithManagers(company.id)) ?? [];
   } catch (e) {
-    console.error(
-      "❌ Error loading evidence with managers in breakdown page for company:",
-      company.id,
-      e
-    );
+    console.error("❌ Error loading evidence for company:", company.id, e);
     evidence = [];
   }
 
