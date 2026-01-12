@@ -11,6 +11,7 @@ import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
+import { getRottenFlavor } from "@/lib/flavor-engine";
 
 // --- Category icons ---
 const CATEGORY_ICON_MAP: Record<number, string> = {
@@ -35,7 +36,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   const supabase = await supabaseServer();
 
-  // 1) Core company fetch — this is the only hard requirement
+  // 1) Core company fetch
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id, name, slug, industry, size_employees, rotten_score")
@@ -108,6 +109,9 @@ export default async function CompanyPage({ params }: { params: Params }) {
     console.error("Unexpected error loading Rotten Score for company:", company.id, e);
     liveRottenScore = null;
   }
+
+  // Flavor (canonical)
+  const flavor = getRottenFlavor(liveRottenScore ?? company.rotten_score ?? 0);
 
   // Categories
   let categories: { id: number; slug: string; name: string }[] = [];
@@ -238,6 +242,18 @@ export default async function CompanyPage({ params }: { params: Params }) {
       <div style={{ padding: "2rem" }}>
         <h1>{company.name}</h1>
 
+        {/* 🔥 Flavor-driven company identity */}
+        <div
+          className="text-sm font-semibold"
+          style={{ color: flavor.color }}
+        >
+          {flavor.macroTier}
+        </div>
+
+        <p className="text-sm italic text-gray-600">
+          {flavor.microFlavor}
+        </p>
+
         <p>
           <strong>Industry:</strong> {company.industry ?? "Unknown"}
         </p>
@@ -280,7 +296,6 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
         <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
 
-        {/* ✅ FIXED: CategoryBreakdown now receives all required props */}
         <div style={{ marginBottom: "2rem" }}>
           <CategoryBreakdown
             company={company}
