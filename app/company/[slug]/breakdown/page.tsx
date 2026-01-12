@@ -1,48 +1,91 @@
 import { notFound } from "next/navigation";
-import { getCompanyBySlug } from "@/lib/getCompanyBySlug";
+import { supabaseServer } from "@/lib/supabase-server";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
-import { supabase } from "@/lib/supabaseClient";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 
-export default async function BreakdownPage({ params }: { params: { slug: string } }) {
-  const slug = params?.slug;
-
-  console.log("🔍 breakdown/page.tsx received slug:", slug);
+export default async function BreakdownPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const slug = params?.slug ? decodeURIComponent(params.slug) : "";
 
   if (!slug) {
-    console.warn("⚠️ Missing slug");
+    console.warn("⚠️ Missing slug in breakdown page");
     return notFound();
   }
 
-  const company = await getCompanyBySlug(slug);
+  const supabase = await supabaseServer();
+
+  // 1) Load company in the same way as the main company page
+  const { data: company, error: companyError } = await supabase
+    .from("companies")
+    .select("id, name, slug, industry, size_employees, rotten_score")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (companyError) {
+    console.error("❌ Error loading company in breakdown page:", slug, companyError);
+  }
 
   if (!company) {
-    console.warn("⚠️ No company found for slug:", slug);
+    console.warn("⚠️ No company found for slug in breakdown page:", slug);
     return notFound();
   }
 
-  console.log("✅ Loaded company:", company.name, "→ ID:", company.id);
+  // 2) Load breakdown rows (best-effort)
+  let breakdown: any[] = [];
+  try {
+    const { data, error } = await supabase
+      .from("company_category_breakdown")
+      .select(
+        "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score"
+      )
+      .eq("company_id", company.id);
 
-  const { data: breakdown, error: breakdownError } = await supabase
-    .from("company_category_breakdown")
-    .select("*")
-    .eq("company_id", company.id);
+    if (error) {
+      console.error(
+        "❌ Error loading company_category_breakdown for company:",
+        company.id,
+        error
+      );
+    }
 
-  if (breakdownError) {
-    console.error("❌ Breakdown query failed:", breakdownError);
+    breakdown = data ?? [];
+  } catch (e) {
+    console.error(
+      "❌ Unexpected error loading breakdown for company:",
+      company.id,
+      e
+    );
+    breakdown = [];
   }
 
-  console.log("📊 Breakdown rows:", breakdown?.length ?? 0);
+  // 3) Load evidence (best-effort)
+  let evidence: any[] = [];
+  try {
+    evidence = (await getEvidenceWithManagers(company.id)) ?? [];
+  } catch (e) {
+    console.error(
+      "❌ Error loading evidence with managers in breakdown page for company:",
+      company.id,
+      e
+    );
+    evidence = [];
+  }
 
-  const evidence = await getEvidenceWithManagers(company.id);
-
-  console.log("📄 Evidence count:", evidence.length);
-
+  // 4) Render
   return (
-    <CategoryBreakdown
-      company={company}
-      breakdown={breakdown ?? []}
-      evidence={evidence}
-    />
+    <div style={{ padding: "2rem" }}>
+      <h1 className="text-2xl font-bold" style={{ marginBottom: "1rem" }}>
+        {company.name} – Rotten Score Breakdown
+      </h1>
+
+      <CategoryBreakdown
+        company={company}
+        breakdown={breakdown}
+        evidence={evidence}
+      />
+    </div>
   );
 }
