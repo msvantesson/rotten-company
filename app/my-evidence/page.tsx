@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer } from "../../lib/supabase/server";
 
 export default async function MyEvidencePage() {
   const supabase = supabaseServer();
@@ -24,7 +24,7 @@ export default async function MyEvidencePage() {
       title,
       status,
       created_at,
-      companies ( name, slug ),
+      companies ( name ),
       company_requests ( name )
     `)
     .eq("user_id", user.id)
