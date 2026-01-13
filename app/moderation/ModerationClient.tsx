@@ -1,7 +1,5 @@
 "use client";
 
-import { approveEvidence, rejectEvidence } from "./actions";
-
 type EvidenceRow = {
   id: number;
   title: string;
@@ -10,11 +8,17 @@ type EvidenceRow = {
   created_at: string | null;
 };
 
+type ModerationClientProps = {
+  evidence: EvidenceRow[];
+  approveEvidence: (formData: FormData) => void;
+  rejectEvidence: (formData: FormData) => void;
+};
+
 export default function ModerationClient({
   evidence,
-}: {
-  evidence: EvidenceRow[];
-}) {
+  approveEvidence,
+  rejectEvidence,
+}: ModerationClientProps) {
   return (
     <>
       <a
