@@ -1,5 +1,7 @@
 "use client";
 
+import { approveEvidence, rejectEvidence } from "./actions";
+
 type EvidenceRow = {
   id: number;
   title: string;
@@ -8,28 +10,9 @@ type EvidenceRow = {
   created_at: string | null;
 };
 
-type ModerationClientProps = {
-  evidence: EvidenceRow[];
-  approveEvidence: (formData: FormData) => void;
-  rejectEvidence: (formData: FormData) => void;
-};
-
-export default function ModerationClient({
-  evidence,
-  approveEvidence,
-  rejectEvidence,
-}: ModerationClientProps) {
+export default function ModerationClient({ evidence }: { evidence: EvidenceRow[] }) {
   return (
     <>
-      <a
-        href="https://www.yahoo.com"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-block mb-4 text-blue-600 underline"
-      >
-        Test external link (Yahoo)
-      </a>
-
       <p className="text-sm text-gray-500 mb-6">
         Pending evidence count: {evidence.length}
       </p>
@@ -39,16 +22,11 @@ export default function ModerationClient({
       )}
 
       {evidence.map((e) => (
-        <section
-          key={e.id}
-          className="border border-gray-200 rounded-lg p-4 mb-6"
-        >
+        <section key={e.id} className="border border-gray-200 rounded-lg p-4 mb-6">
           <header className="mb-2">
             <strong>{e.title}</strong>
             <div className="text-xs text-gray-500">
-              {e.created_at
-                ? new Date(e.created_at).toLocaleString()
-                : "Unknown date"}
+              {e.created_at ? new Date(e.created_at).toLocaleString() : "Unknown date"}
             </div>
           </header>
 
