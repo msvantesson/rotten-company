@@ -1,6 +1,8 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { approveEvidence, rejectEvidence } from "./actions";
 
+export const fetchCache = "force-no-store";
+
 export default async function ModerationPage() {
   const supabase = await supabaseServer();
 
@@ -20,12 +22,18 @@ export default async function ModerationPage() {
     .order("created_at", { ascending: true });
 
   if (error) {
-    return <p>Error loading moderation queue</p>;
+    return (
+      <main style={{ padding: "2rem", maxWidth: 1000 }}>
+        <h1>Moderation Dashboard</h1>
+        <p style={{ color: "red" }}>Error loading moderation queue</p>
+      </main>
+    );
   }
 
   return (
     <main style={{ padding: "2rem", maxWidth: 1000 }}>
       <h1>Moderation Dashboard</h1>
+
       <p style={{ opacity: 0.6 }}>
         Pending evidence count: {evidence.length}
       </p>
@@ -48,83 +56,5 @@ export default async function ModerationPage() {
             <strong>{e.title}</strong>
 
             <div style={{ opacity: 0.7 }}>
-              Target: {e.companies?.[0]?.name || e.company_requests?.[0]?.name || "Unknown"}
-            </div>
-
-            <div style={{ fontSize: 12, opacity: 0.5 }}>
-              Submitted by {e.users?.[0]?.email || "Unknown"} ·{" "}
-              {e.created_at ? new Date(e.created_at).toLocaleString() : "Unknown date"}
-            </div>
-          </header>
-
-          {e.summary && (
-            <p>
-              <strong>Summary:</strong> {e.summary}
-            </p>
-          )}
-
-          {e.contributor_note && (
-            <p style={{ opacity: 0.8 }}>
-              <strong>Contributor note:</strong> {e.contributor_note}
-            </p>
-          )}
-
-          <div
-            style={{
-              display: "flex",
-              gap: "1.5rem",
-              marginTop: "1.5rem",
-            }}
-          >
-            {/* APPROVE */}
-            <form action={approveEvidence} style={{ flex: 1 }}>
-              <input type="hidden" name="evidence_id" value={e.id} />
-
-              <textarea
-                name="moderator_note"
-                rows={2}
-                placeholder="Optional approval note"
-                style={{ width: "100%", marginBottom: 8 }}
-              />
-
-              <button
-                type="submit"
-                style={{
-                  background: "#2f855a",
-                  color: "white",
-                  padding: "0.5rem 1rem",
-                }}
-              >
-                Approve
-              </button>
-            </form>
-
-            {/* REJECT */}
-            <form action={rejectEvidence} style={{ flex: 1 }}>
-              <input type="hidden" name="evidence_id" value={e.id} />
-
-              <textarea
-                name="moderator_note"
-                required
-                rows={3}
-                placeholder="Explain why this evidence is rejected"
-                style={{ width: "100%", marginBottom: 8 }}
-              />
-
-              <button
-                type="submit"
-                style={{
-                  background: "#c53030",
-                  color: "white",
-                  padding: "0.5rem 1rem",
-                }}
-              >
-                Reject
-              </button>
-            </form>
-          </div>
-        </section>
-      ))}
-    </main>
-  );
-}
+              Target:{" "}
+              {e.companies?.[0]?.
