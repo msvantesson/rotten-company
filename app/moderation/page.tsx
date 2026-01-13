@@ -48,13 +48,12 @@ export default async function ModerationPage() {
             <strong>{e.title}</strong>
 
             <div style={{ opacity: 0.7 }}>
-              Target: {e.companies?.[0]?.name ?? e.company_requests?.[0]?.name ?? "Unknown"}
+              Target: {e.companies?.[0]?.name || e.company_requests?.[0]?.name || "Unknown"}
             </div>
 
             <div style={{ fontSize: 12, opacity: 0.5 }}>
-            Submitted by {e.users?.[0]?.email ?? "Unknown"} ·{" "}
-
-              {new Date(e.created_at).toLocaleString()}
+              Submitted by {e.users?.[0]?.email || "Unknown"} ·{" "}
+              {e.created_at ? new Date(e.created_at).toLocaleString() : "Unknown date"}
             </div>
           </header>
 
