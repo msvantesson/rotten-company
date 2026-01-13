@@ -25,10 +25,13 @@ export default async function ModerationPage() {
 
   return (
     <main style={{ padding: "2rem", maxWidth: 1000 }}>
-      <h1>Moderation queue</h1>
+      <h1>Moderation Dashboard</h1>
+      <p style={{ opacity: 0.6 }}>
+        Pending evidence count: {evidence.length}
+      </p>
 
       {evidence.length === 0 && (
-        <p style={{ opacity: 0.6 }}>No pending evidence 🎉</p>
+        <p style={{ opacity: 0.6 }}>No pending evidence to moderate.</p>
       )}
 
       {evidence.map((e) => (
@@ -45,11 +48,11 @@ export default async function ModerationPage() {
             <strong>{e.title}</strong>
 
             <div style={{ opacity: 0.7 }}>
-              Target: {e.companies?.[0]?.name ?? e.company_requests?.[0]?.name}
+              Target: {e.companies?.name ?? e.company_requests?.name ?? "Unknown"}
             </div>
 
             <div style={{ fontSize: 12, opacity: 0.5 }}>
-              Submitted by {e.users?.email} ·{" "}
+              Submitted by {e.users?.email ?? "Unknown"} ·{" "}
               {new Date(e.created_at).toLocaleString()}
             </div>
           </header>
