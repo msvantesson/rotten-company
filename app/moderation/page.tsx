@@ -27,7 +27,7 @@ export default async function ModerationPage() {
     return (
       <main style={{ padding: "2rem", maxWidth: 1000 }}>
         <h1>Moderation Dashboard</h1>
-        <p style={{ color: "red" }}>Error loading moderation queue</p>
+        <p style={{ color: "red" }}>Error loading moderation queue.</p>
       </main>
     );
   }
@@ -41,7 +41,9 @@ export default async function ModerationPage() {
       </p>
 
       {evidence.length === 0 && (
-        <p style={{ opacity: 0.6 }}>No pending evidence to moderate.</p>
+        <p style={{ opacity: 0.6 }}>
+          No pending evidence to moderate.
+        </p>
       )}
 
       {evidence.map((e) => (
@@ -72,74 +74,24 @@ export default async function ModerationPage() {
             </div>
           </header>
 
+          {/* PUBLIC SUMMARY */}
           {e.summary && (
             <p>
-              <strong>Summary:</strong> {e.summary}
+              <strong>Submitter summary (public if approved):</strong>{" "}
+              {e.summary}
             </p>
           )}
 
+          {/* PRIVATE CONTRIBUTOR NOTE */}
           {e.contributor_note && (
-            <p style={{ opacity: 0.8 }}>
-              <strong>Contributor note:</strong> {e.contributor_note}
-            </p>
-          )}
-
-          <div
-            style={{
-              display: "flex",
-              gap: "1.5rem",
-              marginTop: "1.5rem",
-            }}
-          >
-            {/* APPROVE */}
-            <form action={approveEvidence} style={{ flex: 1 }}>
-              <input type="hidden" name="evidence_id" value={e.id} />
-
-              <textarea
-                name="moderator_note"
-                rows={2}
-                placeholder="Optional approval note"
-                style={{ width: "100%", marginBottom: 8 }}
-              />
-
-              <button
-                type="submit"
-                style={{
-                  background: "#2f855a",
-                  color: "white",
-                  padding: "0.5rem 1rem",
-                }}
-              >
-                Approve
-              </button>
-            </form>
-
-            {/* REJECT */}
-            <form action={rejectEvidence} style={{ flex: 1 }}>
-              <input type="hidden" name="evidence_id" value={e.id} />
-
-              <textarea
-                name="moderator_note"
-                required
-                rows={3}
-                placeholder="Explain why this evidence is rejected"
-                style={{ width: "100%", marginBottom: 8 }}
-              />
-
-              <button
-                type="submit"
-                style={{
-                  background: "#c53030",
-                  color: "white",
-                  padding: "0.5rem 1rem",
-                }}
-              >
-                Reject
-              </button>
-            </form>
-          </div>
-        </section>
-      ))}
-    </main>
-  );
-}
+            <div
+              style={{
+                marginTop: "0.75rem",
+                padding: "0.75rem",
+                background: "#f9fafb",
+                borderLeft: "4px solid #e5e7eb",
+                fontSize: "0.9rem",
+              }}
+            >
+              <strong>
+                Submitter note 
