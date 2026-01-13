@@ -3,164 +3,68 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { supabaseServer } from "@/lib/supabase-server";
-import { approveEvidence, rejectEvidence } from "./actions";
+import ModerationClient from "./ModerationClient";
 
-export default async function ModerationPage() {
+type EvidenceRow = {
+  id: number;
+  title: string;
+  summary: string | null;
+  contributor_note: string | null;
+  created_at: string | null;
+};
+
+type SearchParams = { [key: string]: string | string[] | undefined };
+
+export default async function ModerationPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+}) {
+  let errorParam: string | null = null;
+  const rawError = searchParams?.error;
+  if (typeof rawError === "string") errorParam = rawError;
+
   try {
     const supabase = await supabaseServer();
 
-    const { data: evidence, error } = await supabase
+    const { data, error } = await supabase
       .from("evidence")
-      .select(`
-        id,
-        title,
-        summary,
-        contributor_note,
-        created_at,
-        companies ( name ),
-        company_requests ( name ),
-        users ( email )
-      `)
+      .select("id, title, summary, contributor_note, created_at")
       .eq("status", "pending")
       .order("created_at", { ascending: true });
 
-    if (error || !evidence) {
-      throw new Error("Failed to load moderation queue");
+    if (error || !Array.isArray(data)) {
+      console.error("[moderation] fetch failed", error);
+      return (
+        <main className="max-w-5xl mx-auto px-4 py-10">
+          <h1 className="text-3xl font-bold mb-4">Moderation Dashboard</h1>
+          <p className="text-red-600">Failed to load moderation queue.</p>
+        </main>
+      );
     }
 
     return (
-      <main style={{ padding: "2rem", maxWidth: 1000 }}>
-        <h1>Moderation Dashboard</h1>
+      <main className="max-w-5xl mx-auto px-4 py-10">
+        <h1 className="text-3xl font-bold mb-4">Moderation Dashboard</h1>
 
-        <a
-          href="https://www.yahoo.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-block",
-            marginBottom: "1rem",
-            color: "blue",
-            textDecoration: "underline",
-          }}
-        >
-          Test external link (Yahoo)
-        </a>
-
-        <p style={{ opacity: 0.6 }}>
-          Pending evidence count: {evidence.length}
-        </p>
-
-        {evidence.length === 0 && (
-          <p style={{ opacity: 0.6 }}>
-            No pending evidence to moderate.
-          </p>
+        {errorParam && (
+          <div className="mb-4 text-red-600 text-sm">
+            {errorParam === "status_not_updated_rls"
+              ? "Update blocked by RLS. Moderation requires elevated privileges."
+              : "An error occurred while processing the action."}
+          </div>
         )}
 
-        {evidence.map((e) => (
-          <section
-            key={e.id}
-            style={{
-              border: "1px solid #ddd",
-              borderRadius: 8,
-              padding: "1.5rem",
-              marginBottom: "2rem",
-            }}
-          >
-            <header style={{ marginBottom: "1rem" }}>
-              <strong>{e.title}</strong>
-
-              <div style={{ opacity: 0.7 }}>
-                Target:{" "}
-                {e.companies?.[0]?.name ||
-                  e.company_requests?.[0]?.name ||
-                  "Unknown"}
-              </div>
-
-              <div style={{ fontSize: 12, opacity: 0.5 }}>
-                Submitted by {e.users?.[0]?.email || "Unknown"} ·{" "}
-                {e.created_at
-                  ? new Date(e.created_at).toLocaleString()
-                  : "Unknown date"}
-              </div>
-            </header>
-
-            {e.summary && (
-              <p>
-                <strong>Submitter summary (public if approved):</strong>{" "}
-                {e.summary}
-              </p>
-            )}
-
-            {e.contributor_note && (
-              <div
-                style={{
-                  marginTop: "0.75rem",
-                  padding: "0.75rem",
-                  background: "#f9fafb",
-                  borderLeft: "4px solid #e5e7eb",
-                  fontSize: "0.9rem",
-                }}
-              >
-                <strong>Submitter note (private):</strong>
-                <div style={{ marginTop: "0.25rem" }}>
-                  {e.contributor_note}
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: "1.5rem", marginTop: "1.5rem" }}>
-              <form action={approveEvidence} style={{ flex: 1 }}>
-                <input type="hidden" name="evidence_id" value={e.id} />
-                <textarea
-                  name="moderator_note"
-                  rows={2}
-                  placeholder="Optional approval note"
-                  style={{ width: "100%", marginBottom: 8 }}
-                />
-                <button
-                  type="submit"
-                  style={{
-                    background: "#2f855a",
-                    color: "white",
-                    padding: "0.5rem 1rem",
-                  }}
-                >
-                  Approve
-                </button>
-              </form>
-
-              <form action={rejectEvidence} style={{ flex: 1 }}>
-                <input type="hidden" name="evidence_id" value={e.id} />
-                <textarea
-                  name="moderator_note"
-                  required
-                  rows={3}
-                  placeholder="Explain why this evidence is rejected"
-                  style={{ width: "100%", marginBottom: 8 }}
-                />
-                <button
-                  type="submit"
-                  style={{
-                    background: "#c53030",
-                    color: "white",
-                    padding: "0.5rem 1rem",
-                  }}
-                >
-                  Reject
-                </button>
-              </form>
-            </div>
-          </section>
-        ))}
+        <ModerationClient evidence={data as EvidenceRow[]} />
       </main>
     );
   } catch (err) {
-    console.error("Moderation page error", err);
+    console.error("[moderation] render crash", err);
     return (
-      <main style={{ padding: "2rem", maxWidth: 1000 }}>
-        <h1>Moderation Dashboard</h1>
-        <p style={{ color: "red" }}>
-          Server error. Please try again later or check logs for details.
+      <main className="max-w-5xl mx-auto px-4 py-10">
+        <h1 className="text-3xl font-bold mb-4">Moderation Dashboard</h1>
+        <p className="text-red-600">
+          Server error while rendering moderation page.
         </p>
       </main>
     );
