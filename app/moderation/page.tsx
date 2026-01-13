@@ -1,122 +1,127 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 import { supabaseServer } from "@/lib/supabase-server";
-import { revalidatePath } from "next/cache";
+import { approveEvidence, rejectEvidence } from "./actions";
 
 export default async function ModerationPage() {
   const supabase = await supabaseServer();
 
-  // -----------------------------
-  // SERVER ACTION: APPROVE
-  // -----------------------------
-  async function approveEvidence(formData: FormData) {
-    "use server";
-
-    const supabase = await supabaseServer();
-
-    const evidenceId = formData.get("evidenceId");
-    const categoryId = formData.get("categoryId");
-    const severity = formData.get("severity");
-    const managerName = formData.get("managerName");
-    const managerReports = formData.get("managerReports");
-    const entityType = formData.get("entityType");
-    const entityId = formData.get("entityId");
-
-    if (typeof evidenceId !== "string") return;
-
-    await supabase.from("moderation_votes").insert({
-      evidence_id: evidenceId,
-      vote: true,
-      reason: null,
-    });
-
-    await supabase
-      .from("evidence")
-      .update({
-        status: "approved",
-        category_id: categoryId ? Number(categoryId) : null,
-        severity: severity ? Number(severity) : null,
-        manager_name: managerName || null,
-        manager_report_count: managerReports
-          ? Number(managerReports)
-          : null,
-        entity_type: entityType || null,
-        entity_id: entityId ? Number(entityId) : null,
-      })
-      .eq("id", evidenceId);
-
-    revalidatePath("/moderation");
-  }
-
-  // -----------------------------
-  // SERVER ACTION: REJECT
-  // -----------------------------
-  async function rejectEvidence(formData: FormData) {
-    "use server";
-
-    const supabase = await supabaseServer();
-
-    const evidenceId = formData.get("evidenceId");
-    const reason = formData.get("reason");
-
-    if (typeof evidenceId !== "string") return;
-
-    await supabase.from("moderation_votes").insert({
-      evidence_id: evidenceId,
-      vote: false,
-      reason: typeof reason === "string" ? reason : null,
-    });
-
-    await supabase
-      .from("evidence")
-      .update({ status: "rejected" })
-      .eq("id", evidenceId);
-
-    revalidatePath("/moderation");
-  }
-
-  // -----------------------------
-  // FETCH PENDING EVIDENCE
-  // -----------------------------
-  const { data: pendingEvidence } = await supabase
+  const { data: evidence, error } = await supabase
     .from("evidence")
-    .select("*")
-    .eq("status", "pending");
+    .select(`
+      id,
+      title,
+      summary,
+      contributor_note,
+      created_at,
+      companies ( name ),
+      company_requests ( name ),
+      users ( email )
+    `)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
 
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("id, name, base_weight")
-    .order("name");
-
-  const item =
-    pendingEvidence && pendingEvidence.length > 0
-      ? pendingEvidence[Math.floor(Math.random() * pendingEvidence.length)]
-      : null;
+  if (error) {
+    return <p>Error loading moderation queue</p>;
+  }
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>Moderation Dashboard</h1>
+    <main style={{ padding: "2rem", maxWidth: 1000 }}>
+      <h1>Moderation queue</h1>
 
-      <p>Pending evidence count: {pendingEvidence?.length ?? 0}</p>
-
-      {!item && (
-        <div style={{ marginTop: "2rem", fontStyle: "italic", color: "#666" }}>
-          No pending evidence to moderate.
-        </div>
+      {evidence.length === 0 && (
+        <p style={{ opacity: 0.6 }}>No pending evidence 🎉</p>
       )}
 
-      {item && (
-        <div
+      {evidence.map((e) => (
+        <section
+          key={e.id}
           style={{
-            marginTop: "2rem",
-            padding: "1rem",
-            border: "1px solid #ccc",
+            border: "1px solid #ddd",
+            borderRadius: 8,
+            padding: "1.5rem",
+            marginBottom: "2rem",
           }}
         >
-          {/* your UI unchanged */}
-        </div>
-      )}
-    </div>
+          <header style={{ marginBottom: "1rem" }}>
+            <strong>{e.title}</strong>
+
+            <div style={{ opacity: 0.7 }}>
+              Target: {e.companies?.[0]?.name ?? e.company_requests?.[0]?.name}
+            </div>
+
+            <div style={{ fontSize: 12, opacity: 0.5 }}>
+              Submitted by {e.users?.email} ·{" "}
+              {new Date(e.created_at).toLocaleString()}
+            </div>
+          </header>
+
+          {e.summary && (
+            <p>
+              <strong>Summary:</strong> {e.summary}
+            </p>
+          )}
+
+          {e.contributor_note && (
+            <p style={{ opacity: 0.8 }}>
+              <strong>Contributor note:</strong> {e.contributor_note}
+            </p>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              gap: "1.5rem",
+              marginTop: "1.5rem",
+            }}
+          >
+            {/* APPROVE */}
+            <form action={approveEvidence} style={{ flex: 1 }}>
+              <input type="hidden" name="evidence_id" value={e.id} />
+
+              <textarea
+                name="moderator_note"
+                rows={2}
+                placeholder="Optional approval note"
+                style={{ width: "100%", marginBottom: 8 }}
+              />
+
+              <button
+                type="submit"
+                style={{
+                  background: "#2f855a",
+                  color: "white",
+                  padding: "0.5rem 1rem",
+                }}
+              >
+                Approve
+              </button>
+            </form>
+
+            {/* REJECT */}
+            <form action={rejectEvidence} style={{ flex: 1 }}>
+              <input type="hidden" name="evidence_id" value={e.id} />
+
+              <textarea
+                name="moderator_note"
+                required
+                rows={3}
+                placeholder="Explain why this evidence is rejected"
+                style={{ width: "100%", marginBottom: 8 }}
+              />
+
+              <button
+                type="submit"
+                style={{
+                  background: "#c53030",
+                  color: "white",
+                  padding: "0.5rem 1rem",
+                }}
+              >
+                Reject
+              </button>
+            </form>
+          </div>
+        </section>
+      ))}
+    </main>
   );
 }
