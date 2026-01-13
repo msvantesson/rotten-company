@@ -54,7 +54,7 @@ export default async function MyEvidencePage() {
             <div>
               <strong>{e.title}</strong>
               <div style={{ opacity: 0.7 }}>
-                Target: {e.companies?.name ?? e.company_requests?.name}
+                Target: {e.companies?.[0]?.name ?? e.company_requests?.[0]?.name}
               </div>
               <div style={{ fontSize: 12, opacity: 0.5 }}>
                 {new Date(e.created_at).toLocaleString()}
