@@ -1,9 +1,9 @@
-export const dynamic = "force-dynamic";
-export const dynamicParams = true;
-export const fetchCache = "force-no-store";
-
 import { supabaseServer } from "@/lib/supabase-server";
 import ModerationClient from "./ModerationClient";
+import { approveEvidence, rejectEvidence } from "./actions";
+
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 type EvidenceRow = {
   id: number;
@@ -13,7 +13,9 @@ type EvidenceRow = {
   created_at: string | null;
 };
 
-type SearchParams = { [key: string]: string | string[] | undefined };
+type SearchParams = {
+  error?: string;
+};
 
 export default async function ModerationPage({
   searchParams,
@@ -36,35 +38,44 @@ export default async function ModerationPage({
     if (error || !Array.isArray(data)) {
       console.error("[moderation] fetch failed", error);
       return (
-        <main className="max-w-5xl mx-auto px-4 py-10">
-          <h1 className="text-3xl font-bold mb-4">Moderation Dashboard</h1>
-          <p className="text-red-600">Failed to load moderation queue.</p>
+        <main className="max-w-3xl mx-auto py-8">
+          <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
+          <p className="text-red-600 mb-4">
+            Failed to load pending evidence. Please try again.
+          </p>
+          {errorParam && (
+            <p className="text-xs text-gray-500">
+              Last action error code: <code>{errorParam}</code>
+            </p>
+          )}
         </main>
       );
     }
 
     return (
-      <main className="max-w-5xl mx-auto px-4 py-10">
-        <h1 className="text-3xl font-bold mb-4">Moderation Dashboard</h1>
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-2">Moderation queue</h1>
 
         {errorParam && (
-          <div className="mb-4 text-red-600 text-sm">
-            {errorParam === "status_not_updated_rls"
-              ? "Update blocked by RLS. Moderation requires elevated privileges."
-              : "An error occurred while processing the action."}
-          </div>
+          <p className="text-sm text-red-600 mb-4">
+            Last action failed with code: <code>{errorParam}</code>
+          </p>
         )}
 
-        <ModerationClient evidence={data as EvidenceRow[]} />
+        <ModerationClient
+          evidence={data as EvidenceRow[]}
+          approveEvidence={approveEvidence}
+          rejectEvidence={rejectEvidence}
+        />
       </main>
     );
   } catch (err) {
     console.error("[moderation] render crash", err);
     return (
-      <main className="max-w-5xl mx-auto px-4 py-10">
-        <h1 className="text-3xl font-bold mb-4">Moderation Dashboard</h1>
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
         <p className="text-red-600">
-          Server error while rendering moderation page.
+          Something went wrong while rendering the moderation page.
         </p>
       </main>
     );
