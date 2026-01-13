@@ -7,7 +7,8 @@ import { redirect } from "next/navigation";
 export async function approveEvidence(formData: FormData) {
   const supabase = await supabaseServer();
 
-  const evidenceId = Number(formData.get("evidence_id"));
+  // 🔴 IMPORTANT: ID IS A STRING
+  const evidenceId = String(formData.get("evidence_id"));
   const moderatorNote = String(formData.get("moderator_note") ?? "").trim();
 
   console.log("APPROVE START", evidenceId);
@@ -22,10 +23,17 @@ export async function approveEvidence(formData: FormData) {
 
   const user = session.user;
 
-  await supabase
+  const { data: updated, error: updateError } = await supabase
     .from("evidence")
     .update({ status: "approved" })
-    .eq("id", evidenceId);
+    .eq("id", evidenceId)
+    .select();
+
+  console.log("UPDATED ROWS", updated);
+
+  if (updateError || !updated || updated.length === 0) {
+    throw new Error("Evidence update failed");
+  }
 
   await supabase
     .from("moderation_actions")
@@ -51,10 +59,15 @@ export async function approveEvidence(formData: FormData) {
 export async function rejectEvidence(formData: FormData) {
   const supabase = await supabaseServer();
 
-  const evidenceId = Number(formData.get("evidence_id"));
+  // 🔴 IMPORTANT: ID IS A STRING
+  const evidenceId = String(formData.get("evidence_id"));
   const moderatorNote = String(formData.get("moderator_note") ?? "").trim();
 
   console.log("REJECT START", evidenceId);
+
+  if (!moderatorNote) {
+    throw new Error("Moderator note required");
+  }
 
   const {
     data: { session },
@@ -66,10 +79,17 @@ export async function rejectEvidence(formData: FormData) {
 
   const user = session.user;
 
-  await supabase
+  const { data: updated, error: updateError } = await supabase
     .from("evidence")
     .update({ status: "rejected" })
-    .eq("id", evidenceId);
+    .eq("id", evidenceId)
+    .select();
+
+  console.log("UPDATED ROWS", updated);
+
+  if (updateError || !updated || updated.length === 0) {
+    throw new Error("Evidence update failed");
+  }
 
   await supabase
     .from("moderation_actions")
