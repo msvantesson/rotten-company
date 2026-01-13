@@ -1,10 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { supabaseServer } from "../../../lib/supabase/server";
+import { supabaseServer } from "@/lib/supabase-server";
 
 export async function resubmitEvidence(formData: FormData) {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
 
   const previousId = Number(formData.get("previous_evidence_id"));
 
