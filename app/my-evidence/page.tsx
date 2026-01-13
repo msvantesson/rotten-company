@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { supabaseServer } from "../../lib/supabase/server";
+import { supabaseServer } from "@/lib/supabase-server";
 
 export default async function MyEvidencePage() {
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
 
   const {
     data: { user },
@@ -10,8 +10,8 @@ export default async function MyEvidencePage() {
 
   if (!user) {
     return (
-      <main className="p-6">
-        <h1 className="text-xl font-semibold">My evidence</h1>
+      <main style={{ padding: "2rem" }}>
+        <h1>My evidence</h1>
         <p>You must be signed in.</p>
       </main>
     );
@@ -35,35 +35,37 @@ export default async function MyEvidencePage() {
   }
 
   return (
-    <main className="p-6 max-w-3xl">
-      <h1 className="text-xl font-semibold mb-4">My evidence</h1>
+    <main style={{ padding: "2rem", maxWidth: 900 }}>
+      <h1>My evidence</h1>
 
-      <ul className="space-y-3">
+      <ul style={{ listStyle: "none", padding: 0 }}>
         {data.map((e) => (
           <li
             key={e.id}
-            className="border rounded-lg p-4 flex justify-between"
+            style={{
+              border: "1px solid #ddd",
+              borderRadius: 8,
+              padding: "1rem",
+              marginBottom: "1rem",
+              display: "flex",
+              justifyContent: "space-between",
+            }}
           >
             <div>
-              <div className="font-medium">{e.title}</div>
-              <div className="text-sm opacity-70">
+              <strong>{e.title}</strong>
+              <div style={{ opacity: 0.7 }}>
                 Target: {e.companies?.name ?? e.company_requests?.name}
               </div>
-              <div className="text-xs opacity-50">
+              <div style={{ fontSize: 12, opacity: 0.5 }}>
                 {new Date(e.created_at).toLocaleString()}
               </div>
             </div>
 
-            <div className="text-right">
-              <div className="text-xs uppercase tracking-wide">
+            <div style={{ textAlign: "right" }}>
+              <div style={{ textTransform: "uppercase", fontSize: 12 }}>
                 {e.status}
               </div>
-              <Link
-                href={`/my-evidence/${e.id}`}
-                className="text-sm underline mt-2 inline-block"
-              >
-                View
-              </Link>
+              <Link href={`/my-evidence/${e.id}`}>View</Link>
             </div>
           </li>
         ))}
