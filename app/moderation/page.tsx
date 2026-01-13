@@ -1,4 +1,3 @@
-// /app/moderation/page.tsx (excerpt)
 import { supabaseServer } from "@/lib/supabase-server";
 import ModerationClient from "./ModerationClient";
 import { approveEvidence, rejectEvidence } from "./actions";
@@ -7,31 +6,49 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export default async function ModerationPage({ searchParams }: { searchParams?: { error?: string } }) {
-  const supabase = await supabaseServer();
+  const errorParam = typeof searchParams?.error === "string" ? searchParams.error : null;
 
-  // get session (works because supabaseServer uses anon key + cookies)
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  try {
+    const supabase = await supabaseServer();
+    const { data, error } = await supabase
+      .from("evidence")
+      .select("id, title, summary, contributor_note, created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: true });
 
-  const moderatorId = session?.user?.id ?? null;
+    if (error || !Array.isArray(data)) {
+      console.error("[moderation] fetch failed", error);
+      return (
+        <main className="max-w-3xl mx-auto py-8">
+          <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
+          <p className="text-red-600 mb-4">Failed to load pending evidence.</p>
+          {errorParam && (
+            <p className="text-xs text-gray-500">
+              Last action error code: <code>{errorParam}</code>
+            </p>
+          )}
+        </main>
+      );
+    }
 
-  const { data, error } = await supabase
-    .from("evidence")
-    .select("id, title, summary, contributor_note, created_at")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
-
-  // ...error handling omitted for brevity...
-
-  return (
-    <main className="max-w-3xl mx-auto py-8">
-      <ModerationClient
-        evidence={data ?? []}
-        approveEvidence={approveEvidence}
-        rejectEvidence={rejectEvidence}
-        moderatorId={moderatorId}
-      />
-    </main>
-  );
+    return (
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-2">Moderation queue</h1>
+        {errorParam && (
+          <p className="text-sm text-red-600 mb-4">
+            Last action failed with code: <code>{errorParam}</code>
+          </p>
+        )}
+        <ModerationClient evidence={data} approveEvidence={approveEvidence} rejectEvidence={rejectEvidence} />
+      </main>
+    );
+  } catch (err) {
+    console.error("[moderation] render crash", err);
+    return (
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
+        <p className="text-red-600">Something went wrong while rendering the moderation page.</p>
+      </main>
+    );
+  }
 }
