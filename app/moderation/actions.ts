@@ -2,21 +2,16 @@
 
 import { supabaseServer } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
-/**
- * Approve evidence
- */
 export async function approveEvidence(formData: FormData) {
   const supabase = await supabaseServer();
 
   const evidenceId = Number(formData.get("evidence_id"));
   const moderatorNote = String(formData.get("moderator_note") ?? "").trim();
 
-  if (!Number.isFinite(evidenceId)) {
-    throw new Error("Invalid evidence id");
-  }
+  console.log("APPROVE START", evidenceId);
 
-  // ✅ Use session instead of auth.getUser() to avoid rate limits
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -27,18 +22,12 @@ export async function approveEvidence(formData: FormData) {
 
   const user = session.user;
 
-  // 1) Approve evidence
-  const { error: updateError } = await supabase
+  await supabase
     .from("evidence")
     .update({ status: "approved" })
     .eq("id", evidenceId);
 
-  if (updateError) {
-    throw new Error("Failed to approve evidence");
-  }
-
-  // 2) Record moderation action
-  const { error: moderationError } = await supabase
+  await supabase
     .from("moderation_actions")
     .insert({
       target_type: "evidence",
@@ -48,41 +37,25 @@ export async function approveEvidence(formData: FormData) {
       moderator_id: user.id,
     });
 
-  if (moderationError) {
-    throw new Error("Failed to record moderation action");
-  }
-
-  // 3) Recalculate company scores
-  const { error: recalcError } = await supabase.rpc(
+  await supabase.rpc(
     "recalculate_company_scores_for_evidence",
     { evidence_id: evidenceId }
   );
 
-  if (recalcError) {
-    throw new Error("Failed to recalculate scores");
-  }
+  console.log("APPROVE DONE", evidenceId);
 
   revalidatePath("/moderation");
+  redirect("/moderation");
 }
 
-/**
- * Reject evidence
- */
 export async function rejectEvidence(formData: FormData) {
   const supabase = await supabaseServer();
 
   const evidenceId = Number(formData.get("evidence_id"));
   const moderatorNote = String(formData.get("moderator_note") ?? "").trim();
 
-  if (!Number.isFinite(evidenceId)) {
-    throw new Error("Invalid evidence id");
-  }
+  console.log("REJECT START", evidenceId);
 
-  if (!moderatorNote) {
-    throw new Error("Moderator note required for rejection");
-  }
-
-  // ✅ Use session instead of auth.getUser()
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -93,18 +66,12 @@ export async function rejectEvidence(formData: FormData) {
 
   const user = session.user;
 
-  // 1) Reject evidence
-  const { error: updateError } = await supabase
+  await supabase
     .from("evidence")
     .update({ status: "rejected" })
     .eq("id", evidenceId);
 
-  if (updateError) {
-    throw new Error("Failed to reject evidence");
-  }
-
-  // 2) Record moderation action
-  const { error: moderationError } = await supabase
+  await supabase
     .from("moderation_actions")
     .insert({
       target_type: "evidence",
@@ -114,9 +81,8 @@ export async function rejectEvidence(formData: FormData) {
       moderator_id: user.id,
     });
 
-  if (moderationError) {
-    throw new Error("Failed to record moderation action");
-  }
+  console.log("REJECT DONE", evidenceId);
 
   revalidatePath("/moderation");
+  redirect("/moderation");
 }
