@@ -3,9 +3,6 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 
-/**
- * Approve evidence
- */
 export async function approveEvidence(formData: FormData) {
   const supabase = await supabaseServer();
 
@@ -16,7 +13,6 @@ export async function approveEvidence(formData: FormData) {
     throw new Error("Invalid evidence id");
   }
 
-  // Auth user (must be moderator — enforced by RLS)
   const {
     data: { user },
     error: authError,
@@ -26,7 +22,6 @@ export async function approveEvidence(formData: FormData) {
     throw new Error("Not authenticated");
   }
 
-  // 1) Approve evidence
   const { error: updateError } = await supabase
     .from("evidence")
     .update({ status: "approved" })
@@ -36,14 +31,13 @@ export async function approveEvidence(formData: FormData) {
     throw new Error("Failed to approve evidence");
   }
 
-  // 2) Record moderation action (immutable audit log)
   const { error: moderationError } = await supabase
     .from("moderation_actions")
     .insert({
       target_type: "evidence",
       target_id: evidenceId,
       action: "approve",
-      moderator_note: moderatorNote, // MUST NOT be null
+      moderator_note: moderatorNote,
       moderator_id: user.id,
     });
 
@@ -51,7 +45,6 @@ export async function approveEvidence(formData: FormData) {
     throw new Error("Failed to record moderation action");
   }
 
-  // 3) Trigger score recalculation
   const { error: recalcError } = await supabase.rpc(
     "recalculate_company_scores_for_evidence",
     { evidence_id: evidenceId }
@@ -64,9 +57,6 @@ export async function approveEvidence(formData: FormData) {
   revalidatePath("/moderation");
 }
 
-/**
- * Reject evidence
- */
 export async function rejectEvidence(formData: FormData) {
   const supabase = await supabaseServer();
 
@@ -81,7 +71,6 @@ export async function rejectEvidence(formData: FormData) {
     throw new Error("Moderator note required for rejection");
   }
 
-  // Auth user (must be moderator — enforced by RLS)
   const {
     data: { user },
     error: authError,
@@ -91,7 +80,6 @@ export async function rejectEvidence(formData: FormData) {
     throw new Error("Not authenticated");
   }
 
-  // 1) Reject evidence
   const { error: updateError } = await supabase
     .from("evidence")
     .update({ status: "rejected" })
@@ -101,7 +89,6 @@ export async function rejectEvidence(formData: FormData) {
     throw new Error("Failed to reject evidence");
   }
 
-  // 2) Record moderation action (immutable audit log)
   const { error: moderationError } = await supabase
     .from("moderation_actions")
     .insert({
