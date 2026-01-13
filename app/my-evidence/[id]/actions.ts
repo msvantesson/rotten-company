@@ -27,7 +27,7 @@ export async function resubmitEvidence(formData: FormData) {
     throw new Error("Only rejected evidence can be resubmitted");
   }
 
-  const { data: inserted } = await supabase
+  const { data: inserted, error: insertError } = await supabase
     .from("evidence")
     .insert({
       title: formData.get("title"),
@@ -46,6 +46,10 @@ export async function resubmitEvidence(formData: FormData) {
     })
     .select("id")
     .single();
+
+  if (insertError || !inserted) {
+    throw new Error("Failed to create resubmitted evidence");
+  }
 
   redirect(`/my-evidence/${inserted.id}`);
 }
