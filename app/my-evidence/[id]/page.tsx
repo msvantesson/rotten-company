@@ -47,7 +47,7 @@ export default async function EvidenceDetail({
 
       <h1>{evidence.title}</h1>
       <p>
-        Target: {evidence.companies?.name ?? evidence.company_requests?.name}
+        Target: {evidence.companies?.[0]?.name ?? evidence.company_requests?.[0]?.name}
       </p>
 
       <div style={{ border: "1px solid #ddd", padding: "1rem" }}>
