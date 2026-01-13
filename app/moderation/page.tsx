@@ -48,7 +48,7 @@ export default async function ModerationPage() {
             <strong>{e.title}</strong>
 
             <div style={{ opacity: 0.7 }}>
-              Target: {e.companies?.name ?? e.company_requests?.name ?? "Unknown"}
+              Target: {e.companies?.[0]?.name ?? e.company_requests?.[0]?.name ?? "Unknown"}
             </div>
 
             <div style={{ fontSize: 12, opacity: 0.5 }}>
