@@ -94,4 +94,78 @@ export default async function ModerationPage() {
               }}
             >
               <strong>
-                Submitter note 
+                Submitter note (private, moderators only):
+              </strong>
+              <div style={{ marginTop: "0.25rem" }}>
+                {e.contributor_note}
+              </div>
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              gap: "1.5rem",
+              marginTop: "1.5rem",
+            }}
+          >
+            {/* APPROVE */}
+            <form action={approveEvidence} style={{ flex: 1 }}>
+              <input
+                type="hidden"
+                name="evidence_id"
+                value={e.id}
+              />
+
+              <textarea
+                name="moderator_note"
+                rows={2}
+                placeholder="Optional approval note"
+                style={{ width: "100%", marginBottom: 8 }}
+              />
+
+              <button
+                type="submit"
+                style={{
+                  background: "#2f855a",
+                  color: "white",
+                  padding: "0.5rem 1rem",
+                }}
+              >
+                Approve
+              </button>
+            </form>
+
+            {/* REJECT */}
+            <form action={rejectEvidence} style={{ flex: 1 }}>
+              <input
+                type="hidden"
+                name="evidence_id"
+                value={e.id}
+              />
+
+              <textarea
+                name="moderator_note"
+                required
+                rows={3}
+                placeholder="Explain why this evidence is rejected"
+                style={{ width: "100%", marginBottom: 8 }}
+              />
+
+              <button
+                type="submit"
+                style={{
+                  background: "#c53030",
+                  color: "white",
+                  padding: "0.5rem 1rem",
+                }}
+              >
+                Reject
+              </button>
+            </form>
+          </div>
+        </section>
+      ))}
+    </main>
+  );
+}
