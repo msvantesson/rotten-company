@@ -1,241 +1,115 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { supabaseServer } from "@/lib/supabase/server";
 import { resubmitEvidence } from "./actions";
 
-type EvidenceDetail = {
-  id: number;
-  title: string;
-  summary: string | null;
-  contributor_note: string | null;
-  status: string;
-  created_at: string;
-  file_url: string | null;
-  file_path: string | null;
-  company_id: number | null;
-  company_request_id: string | null;
-  companies?: { name: string; slug: string } | null;
-  company_requests?: { name: string } | null;
-};
-
-type ModerationAction = {
-  action: "approve" | "reject";
-  moderator_note: string;
-  created_at: string;
-};
-
-export default async function MyEvidenceDetailPage({
+export default async function EvidenceDetail({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = await params;
+  const supabase = supabaseServer();
+  const evidenceId = Number(params.id);
 
-  const evidenceId = Number(id);
   if (!Number.isFinite(evidenceId)) notFound();
-
-  const supabase = await createClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return (
-      <main style={{ padding: 24 }}>
-        <h1>Evidence</h1>
-        <p>You must be signed in.</p>
-      </main>
-    );
-  }
+  if (!user) notFound();
 
-  const { data: evidence, error } = await supabase
+  const { data: evidence } = await supabase
     .from("evidence")
-    .select(
-      `
-      id,
-      title,
-      summary,
-      contributor_note,
-      status,
-      created_at,
-      file_url,
-      file_path,
-      company_id,
-      company_request_id,
-      companies:companies ( name, slug ),
-      company_requests:company_requests ( name )
-    `
-    )
+    .select(`
+      *,
+      companies ( name ),
+      company_requests ( name )
+    `)
     .eq("id", evidenceId)
     .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (error) {
-    return (
-      <main style={{ padding: 24 }}>
-        <h1>Evidence</h1>
-        <p>Failed to load evidence: {error.message}</p>
-      </main>
-    );
-  }
+    .single();
 
   if (!evidence) notFound();
 
-  const e = evidence as EvidenceDetail;
-
   const { data: moderation } = await supabase
     .from("moderation_actions")
-    .select("action, moderator_note, created_at")
+    .select("moderator_note, action")
     .eq("target_type", "evidence")
-    .eq("target_id", e.id)
+    .eq("target_id", evidence.id)
     .order("created_at", { ascending: false })
-    .limit(1);
-
-  const latestAction = (moderation?.[0] ?? null) as ModerationAction | null;
-
-  const targetLabel =
-    e.companies?.name ??
-    e.company_requests?.name ??
-    (e.company_id ? `Company #${e.company_id}` : "Proposed company");
-
-  const isRejected = e.status === "rejected";
+    .limit(1)
+    .maybeSingle();
 
   return (
-    <main style={{ padding: 24, maxWidth: 900 }}>
-      <p>
-        <Link href="/my-evidence">← Back</Link>
+    <main className="p-6 max-w-3xl">
+      <Link href="/my-evidence" className="underline text-sm">
+        ← Back
+      </Link>
+
+      <h1 className="text-xl font-semibold mt-4">{evidence.title}</h1>
+      <p className="opacity-70">
+        Target: {evidence.companies?.name ?? evidence.company_requests?.name}
       </p>
 
-      <h1>{e.title}</h1>
-      <p style={{ opacity: 0.8 }}>Target: {targetLabel}</p>
+      <div className="mt-4 border rounded-lg p-4">
+        <strong>Status:</strong> {evidence.status}
 
-      <section
-        style={{
-          marginTop: 16,
-          border: "1px solid #e5e5e5",
-          borderRadius: 12,
-          padding: 16,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-          <div>
-            <div style={{ fontWeight: 700 }}>
-              Status:{" "}
-              <span style={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
-                {e.status}
-              </span>
-            </div>
-            <div style={{ opacity: 0.6, marginTop: 6 }}>
-              Submitted: {new Date(e.created_at).toLocaleString()}
-            </div>
+        {evidence.status === "rejected" && moderation && (
+          <div className="mt-3 bg-red-50 border border-red-200 p-3 rounded">
+            <strong>Reviewer feedback</strong>
+            <p className="mt-1">{moderation.moderator_note}</p>
           </div>
-        </div>
+        )}
+      </div>
 
-        {isRejected && latestAction?.action === "reject" && (
-          <div
-            style={{
-              marginTop: 14,
-              padding: 12,
-              borderRadius: 10,
-              border: "1px solid #f1c7c7",
-              background: "#fff5f5",
-            }}
-          >
-            <div style={{ fontWeight: 700 }}>Reviewer feedback</div>
-            <p style={{ marginTop: 6, marginBottom: 0 }}>{latestAction.moderator_note}</p>
-          </div>
+      <section className="mt-6">
+        <h2 className="font-medium">Your original submission</h2>
+
+        {evidence.summary && <p className="mt-2">{evidence.summary}</p>}
+        {evidence.contributor_note && (
+          <p className="mt-2 opacity-80">{evidence.contributor_note}</p>
         )}
       </section>
 
-      <section style={{ marginTop: 16 }}>
-        <h2>Your original submission</h2>
-
-        {e.summary && (
-          <>
-            <h3>Summary</h3>
-            <p>{e.summary}</p>
-          </>
-        )}
-
-        {e.contributor_note && (
-          <>
-            <h3>Additional context</h3>
-            <p>{e.contributor_note}</p>
-          </>
-        )}
-
-        {(e.file_url || e.file_path) && (
-          <>
-            <h3>Attachment</h3>
-            {e.file_url ? (
-              <p>
-                <a href={e.file_url} target="_blank" rel="noreferrer">
-                  Open attachment
-                </a>
-              </p>
-            ) : (
-              <p style={{ opacity: 0.8 }}>Stored path: {e.file_path}</p>
-            )}
-          </>
-        )}
-      </section>
-
-      {isRejected && (
-        <section style={{ marginTop: 24 }}>
-          <h2>Resubmit corrected evidence</h2>
-          <p style={{ opacity: 0.8 }}>
-            This creates a new submission. The previous version will remain rejected.
+      {evidence.status === "rejected" && (
+        <section className="mt-8">
+          <h2 className="font-medium">Resubmit corrected evidence</h2>
+          <p className="text-sm opacity-70">
+            This creates a new submission. The previous version remains rejected.
           </p>
 
-          <form action={resubmitEvidence}>
-            <input type="hidden" name="previous_evidence_id" value={String(e.id)} />
+          <form action={resubmitEvidence} className="mt-4 space-y-3">
+            <input
+              type="hidden"
+              name="previous_evidence_id"
+              value={evidence.id}
+            />
 
-            <label style={{ display: "block", marginTop: 12 }}>
-              Title
-              <input
-                name="title"
-                defaultValue={e.title}
-                required
-                style={{ display: "block", width: "100%", padding: 10, marginTop: 6 }}
-              />
-            </label>
+            <input
+              name="title"
+              defaultValue={evidence.title}
+              required
+              className="w-full border p-2 rounded"
+            />
 
-            <label style={{ display: "block", marginTop: 12 }}>
-              Summary
-              <textarea
-                name="summary"
-                defaultValue={e.summary ?? ""}
-                rows={4}
-                style={{ display: "block", width: "100%", padding: 10, marginTop: 6 }}
-              />
-            </label>
+            <textarea
+              name="summary"
+              defaultValue={evidence.summary ?? ""}
+              className="w-full border p-2 rounded"
+              rows={4}
+            />
 
-            <label style={{ display: "block", marginTop: 12 }}>
-              Additional context (optional)
-              <textarea
-                name="contributor_note"
-                defaultValue={e.contributor_note ?? ""}
-                rows={5}
-                style={{ display: "block", width: "100%", padding: 10, marginTop: 6 }}
-              />
-            </label>
+            <textarea
+              name="contributor_note"
+              defaultValue={evidence.contributor_note ?? ""}
+              className="w-full border p-2 rounded"
+              rows={4}
+            />
 
-            <div style={{ marginTop: 16 }}>
-              <button
-                type="submit"
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  border: "1px solid #111",
-                  background: "#111",
-                  color: "white",
-                  cursor: "pointer",
-                }}
-              >
-                Resubmit corrected evidence
-              </button>
-            </div>
+            <button className="bg-black text-white px-4 py-2 rounded">
+              Resubmit corrected evidence
+            </button>
           </form>
         </section>
       )}
