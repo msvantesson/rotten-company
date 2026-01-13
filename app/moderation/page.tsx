@@ -52,7 +52,8 @@ export default async function ModerationPage() {
             </div>
 
             <div style={{ fontSize: 12, opacity: 0.5 }}>
-              Submitted by {e.users?.email ?? "Unknown"} ·{" "}
+            Submitted by {e.users?.[0]?.email ?? "Unknown"} ·{" "}
+
               {new Date(e.created_at).toLocaleString()}
             </div>
           </header>
