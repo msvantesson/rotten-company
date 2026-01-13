@@ -1,29 +1,17 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-
-type EvidenceRow = {
-  id: number;
-  title: string;
-  status: string;
-  created_at: string;
-  company_id: number | null;
-  company_request_id: string | null;
-  companies?: { name: string; slug: string } | null;
-  company_requests?: { name: string } | null;
-};
+import { supabaseServer } from "@/lib/supabase/server";
 
 export default async function MyEvidencePage() {
-  const supabase = await createClient();
+  const supabase = supabaseServer();
 
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
+  if (!user) {
     return (
-      <main style={{ padding: 24 }}>
-        <h1>My evidence</h1>
+      <main className="p-6">
+        <h1 className="text-xl font-semibold">My evidence</h1>
         <p>You must be signed in.</p>
       </main>
     );
@@ -31,91 +19,55 @@ export default async function MyEvidencePage() {
 
   const { data, error } = await supabase
     .from("evidence")
-    .select(
-      `
+    .select(`
       id,
       title,
       status,
       created_at,
-      company_id,
-      company_request_id,
-      companies:companies ( name, slug ),
-      company_requests:company_requests ( name )
-    `
-    )
+      companies ( name, slug ),
+      company_requests ( name )
+    `)
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
   if (error) {
-    return (
-      <main style={{ padding: 24 }}>
-        <h1>My evidence</h1>
-        <p>Failed to load evidence: {error.message}</p>
-      </main>
-    );
+    return <p>Error loading evidence: {error.message}</p>;
   }
 
-  const rows = (data ?? []) as EvidenceRow[];
-
   return (
-    <main style={{ padding: 24, maxWidth: 900 }}>
-      <h1>My evidence</h1>
+    <main className="p-6 max-w-3xl">
+      <h1 className="text-xl font-semibold mb-4">My evidence</h1>
 
-      {rows.length === 0 ? (
-        <p>No submissions yet.</p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {rows.map((e) => {
-            const targetLabel =
-              e.companies?.name ??
-              e.company_requests?.name ??
-              (e.company_id ? `Company #${e.company_id}` : "Proposed company");
+      <ul className="space-y-3">
+        {data.map((e) => (
+          <li
+            key={e.id}
+            className="border rounded-lg p-4 flex justify-between"
+          >
+            <div>
+              <div className="font-medium">{e.title}</div>
+              <div className="text-sm opacity-70">
+                Target: {e.companies?.name ?? e.company_requests?.name}
+              </div>
+              <div className="text-xs opacity-50">
+                {new Date(e.created_at).toLocaleString()}
+              </div>
+            </div>
 
-            return (
-              <li
-                key={e.id}
-                style={{
-                  border: "1px solid #e5e5e5",
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: 12,
-                }}
+            <div className="text-right">
+              <div className="text-xs uppercase tracking-wide">
+                {e.status}
+              </div>
+              <Link
+                href={`/my-evidence/${e.id}`}
+                className="text-sm underline mt-2 inline-block"
               >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{e.title}</div>
-                    <div style={{ opacity: 0.8, marginTop: 4 }}>
-                      Target: {targetLabel}
-                    </div>
-                    <div style={{ opacity: 0.6, marginTop: 4 }}>
-                      Submitted: {new Date(e.created_at).toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "right" }}>
-                    <div
-                      style={{
-                        display: "inline-block",
-                        padding: "4px 10px",
-                        borderRadius: 999,
-                        border: "1px solid #ddd",
-                        fontSize: 12,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      {e.status}
-                    </div>
-                    <div style={{ marginTop: 10 }}>
-                      <Link href={`/my-evidence/${e.id}`}>View</Link>
-                    </div>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                View
+              </Link>
+            </div>
+          </li>
+        ))}
+      </ul>
     </main>
   );
 }
