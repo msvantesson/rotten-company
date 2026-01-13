@@ -43,7 +43,7 @@ export async function approveEvidence(formData: FormData) {
       target_type: "evidence",
       target_id: evidenceId,
       action: "approve",
-      moderator_note: moderatorNote || null,
+      moderator_note: moderatorNote, // MUST NOT be null
       moderator_id: user.id,
     });
 
