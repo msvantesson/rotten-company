@@ -36,6 +36,21 @@ export default async function ModerationPage() {
     <main style={{ padding: "2rem", maxWidth: 1000 }}>
       <h1>Moderation Dashboard</h1>
 
+      {/* CLICK TEST */}
+      <a
+        href="https://www.yahoo.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "inline-block",
+          marginBottom: "1rem",
+          color: "blue",
+          textDecoration: "underline",
+        }}
+      >
+        Test external link (Yahoo)
+      </a>
+
       <p style={{ opacity: 0.6 }}>
         Pending evidence count: {evidence.length}
       </p>
@@ -74,7 +89,6 @@ export default async function ModerationPage() {
             </div>
           </header>
 
-          {/* PUBLIC SUMMARY */}
           {e.summary && (
             <p>
               <strong>Submitter summary (public if approved):</strong>{" "}
@@ -82,7 +96,6 @@ export default async function ModerationPage() {
             </p>
           )}
 
-          {/* PRIVATE CONTRIBUTOR NOTE */}
           {e.contributor_note && (
             <div
               style={{
@@ -93,37 +106,22 @@ export default async function ModerationPage() {
                 fontSize: "0.9rem",
               }}
             >
-              <strong>
-                Submitter note (private, moderators only):
-              </strong>
+              <strong>Submitter note (private):</strong>
               <div style={{ marginTop: "0.25rem" }}>
                 {e.contributor_note}
               </div>
             </div>
           )}
 
-          <div
-            style={{
-              display: "flex",
-              gap: "1.5rem",
-              marginTop: "1.5rem",
-            }}
-          >
-            {/* APPROVE */}
+          <div style={{ display: "flex", gap: "1.5rem", marginTop: "1.5rem" }}>
             <form action={approveEvidence} style={{ flex: 1 }}>
-              <input
-                type="hidden"
-                name="evidence_id"
-                value={e.id}
-              />
-
+              <input type="hidden" name="evidence_id" value={e.id} />
               <textarea
                 name="moderator_note"
                 rows={2}
                 placeholder="Optional approval note"
                 style={{ width: "100%", marginBottom: 8 }}
               />
-
               <button
                 type="submit"
                 style={{
@@ -136,14 +134,8 @@ export default async function ModerationPage() {
               </button>
             </form>
 
-            {/* REJECT */}
             <form action={rejectEvidence} style={{ flex: 1 }}>
-              <input
-                type="hidden"
-                name="evidence_id"
-                value={e.id}
-              />
-
+              <input type="hidden" name="evidence_id" value={e.id} />
               <textarea
                 name="moderator_note"
                 required
@@ -151,7 +143,6 @@ export default async function ModerationPage() {
                 placeholder="Explain why this evidence is rejected"
                 style={{ width: "100%", marginBottom: 8 }}
               />
-
               <button
                 type="submit"
                 style={{
