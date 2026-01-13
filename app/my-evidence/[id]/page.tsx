@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseServer } from "../../../lib/supabase/server";
 import { resubmitEvidence } from "./actions";
 
 export default async function EvidenceDetail({
