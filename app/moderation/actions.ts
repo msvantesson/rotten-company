@@ -1,24 +1,15 @@
+// Server actions: strict validation of moderator_id and notification enqueue.
+// Replace your existing /app/moderation/actions.ts with this file.
+
 "use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseService } from "@/lib/supabase-service";
 
-/**
- * Server actions for moderation (approve / reject).
- * - Validates moderator_id (requires a valid moderator for UI actions).
- * - Writes moderation_actions with source = 'ui'.
- * - Enqueues a notification job into notification_jobs for submitter email.
- * - Uses the service-role Supabase client for privileged writes.
- */
-
-/* ---------- Types ---------- */
-
 type ValidateResult =
   | { ok: true; id: string; reason: null }
   | { ok: false; id: null; reason: "missing" | "invalid" };
-
-/* ---------- Helpers ---------- */
 
 function errRedirect(code: string) {
   revalidatePath("/moderation");
@@ -87,8 +78,6 @@ async function enqueueNotification(
   }
   return true;
 }
-
-/* ---------- Server actions ---------- */
 
 export async function approveEvidence(formData: FormData) {
   const supabase = supabaseService();
