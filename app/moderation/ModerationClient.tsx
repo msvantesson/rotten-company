@@ -1,5 +1,9 @@
+// Client Component: shows the moderation UI and a client-side debug log.
+// Replace your existing ModerationClient with this file.
+
 "use client";
 
+import React, { useEffect } from "react";
 import { useFormStatus } from "react-dom";
 
 type EvidenceRow = {
@@ -14,7 +18,7 @@ type Props = {
   evidence: EvidenceRow[];
   approveEvidence: (formData: FormData) => void;
   rejectEvidence: (formData: FormData) => void;
-  moderatorId?: string | null;
+  moderatorId: string | null;
 };
 
 function SubmitButton({ label }: { label: string }) {
@@ -37,10 +41,12 @@ export default function ModerationClient({
   evidence,
   approveEvidence,
   rejectEvidence,
-  moderatorId = null,
+  moderatorId,
 }: Props) {
-  // quick client-side debug to confirm fresh props and re-renders
-  console.debug("ModerationClient evidence count:", evidence.length, "moderatorId:", moderatorId);
+  // Client-side console log to confirm the value passed from SSR
+  useEffect(() => {
+    console.log("[moderation] client received moderatorId:", moderatorId);
+  }, [moderatorId]);
 
   return (
     <>
@@ -52,6 +58,12 @@ export default function ModerationClient({
       >
         Test external link (Yahoo)
       </a>
+
+      {/* Visible client debug banner */}
+      <div className="mb-4 p-3 rounded border bg-blue-50 text-sm">
+        <div>Client moderatorId: <strong>{moderatorId ?? "null"}</strong></div>
+        <div className="text-xs text-gray-600">Check browser console for the client log: <code>[moderation] client received moderatorId</code></div>
+      </div>
 
       <p className="text-sm text-gray-500 mb-6">Pending evidence count: {evidence.length}</p>
 
@@ -89,10 +101,7 @@ export default function ModerationClient({
                 className="w-full border rounded p-1 mb-2 text-sm"
                 aria-label="Optional approval note"
               />
-              <div className="flex items-center gap-2">
-                <SubmitButton label="Approve" />
-                <span className="text-xs text-gray-400">Approve</span>
-              </div>
+              <SubmitButton label="Approve" />
             </form>
 
             <form action={rejectEvidence} className="flex-1" aria-label={`Reject evidence ${e.id}`}>
@@ -106,10 +115,7 @@ export default function ModerationClient({
                 className="w-full border rounded p-1 mb-2 text-sm"
                 aria-label="Reason for rejection"
               />
-              <div className="flex items-center gap-2">
-                <SubmitButton label="Reject" />
-                <span className="text-xs text-gray-400">Reject</span>
-              </div>
+              <SubmitButton label="Reject" />
             </form>
           </div>
         </section>
