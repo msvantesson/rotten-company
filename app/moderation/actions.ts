@@ -5,15 +5,18 @@ import { redirect } from "next/navigation";
 import { supabaseService } from "@/lib/supabase-service";
 
 /**
- * Full, copy-paste ready server actions for moderation.
- *
- * - Enforces moderator_id presence and validation (requires moderator_id for UI actions).
+ * Server actions for moderation (approve / reject).
+ * - Validates moderator_id (requires a valid moderator for UI actions).
  * - Writes moderation_actions with source = 'ui'.
  * - Enqueues a notification job into notification_jobs for submitter email.
  * - Uses the service-role Supabase client for privileged writes.
- *
- * Note: Adjust error codes and messages to match your app's UX if needed.
  */
+
+/* ---------- Types ---------- */
+
+type ValidateResult =
+  | { ok: true; id: string; reason: null }
+  | { ok: false; id: null; reason: "missing" | "invalid" };
 
 /* ---------- Helpers ---------- */
 
@@ -22,24 +25,20 @@ function errRedirect(code: string) {
   redirect(`/moderation?error=${encodeURIComponent(code)}`);
 }
 
-async function validateModeratorId(moderatorId: string | null) {
+async function validateModeratorId(moderatorId: string | null): Promise<ValidateResult> {
   if (!moderatorId) {
-    return { ok: false as const, id: null as const, reason: "missing" as const };
+    return { ok: false, id: null, reason: "missing" };
   }
 
   const supabase = supabaseService();
-  const { data: user, error } = await supabase
-    .from("users")
-    .select("id")
-    .eq("id", moderatorId)
-    .maybeSingle();
+  const { data: user, error } = await supabase.from("users").select("id").eq("id", moderatorId).maybeSingle();
 
   if (error || !user) {
     console.error("[moderation] invalid moderator_id", { moderatorId, error });
-    return { ok: false as const, id: null as const, reason: "invalid" as const };
+    return { ok: false, id: null, reason: "invalid" };
   }
 
-  return { ok: true as const, id: user.id as string, reason: null as const };
+  return { ok: true, id: user.id as string, reason: null };
 }
 
 async function fetchSubmitterEmail(supabase: ReturnType<typeof supabaseService>, evidenceId: number) {
@@ -57,11 +56,7 @@ async function fetchSubmitterEmail(supabase: ReturnType<typeof supabaseService>,
   const userId = ev.user_id;
   if (!userId) return { email: null, evidenceTitle: ev.title ?? null, userId: null };
 
-  const { data: user, error: userErr } = await supabase
-    .from("users")
-    .select("email")
-    .eq("id", userId)
-    .maybeSingle();
+  const { data: user, error: userErr } = await supabase.from("users").select("email").eq("id", userId).maybeSingle();
 
   if (userErr || !user) {
     console.error("fetchSubmitterEmail: user fetch failed", userErr);
@@ -71,17 +66,21 @@ async function fetchSubmitterEmail(supabase: ReturnType<typeof supabaseService>,
   return { email: user.email as string, evidenceTitle: ev.title ?? null, userId };
 }
 
-async function enqueueNotification(supabase: ReturnType<typeof supabaseService>, email: string | null, subject: string, body: string, metadata: object = {}) {
+async function enqueueNotification(
+  supabase: ReturnType<typeof supabaseService>,
+  email: string | null,
+  subject: string,
+  body: string,
+  metadata: object = {}
+) {
   if (!email) return null;
-  const { error } = await supabase
-    .from("notification_jobs")
-    .insert({
-      recipient_email: email,
-      subject,
-      body,
-      metadata,
-      status: "pending",
-    });
+  const { error } = await supabase.from("notification_jobs").insert({
+    recipient_email: email,
+    subject,
+    body,
+    metadata,
+    status: "pending",
+  });
   if (error) {
     console.error("enqueueNotification failed", error);
     return null;
@@ -122,10 +121,7 @@ export async function approveEvidence(formData: FormData) {
   }
 
   // update evidence status
-  const { error: updateError } = await supabase
-    .from("evidence")
-    .update({ status: "approved" })
-    .eq("id", evidenceId);
+  const { error: updateError } = await supabase.from("evidence").update({ status: "approved" }).eq("id", evidenceId);
 
   if (updateError) {
     console.error("APPROVE update failed", updateError);
@@ -133,16 +129,14 @@ export async function approveEvidence(formData: FormData) {
   }
 
   // insert moderation log
-  const { error: moderationError } = await supabase
-    .from("moderation_actions")
-    .insert({
-      target_type: "evidence",
-      target_id: evidenceId,
-      action: "approve",
-      moderator_note: moderatorNote || "approved",
-      moderator_id: moderatorId,
-      source: "ui",
-    });
+  const { error: moderationError } = await supabase.from("moderation_actions").insert({
+    target_type: "evidence",
+    target_id: evidenceId,
+    action: "approve",
+    moderator_note: moderatorNote || "approved",
+    moderator_id: moderatorId,
+    source: "ui",
+  });
 
   if (moderationError) {
     console.error("APPROVE moderation insert failed", moderationError);
@@ -165,11 +159,7 @@ export async function approveEvidence(formData: FormData) {
   }
 
   // postflight verification
-  const { data: after, error: afterError } = await supabase
-    .from("evidence")
-    .select("id,status")
-    .eq("id", evidenceId)
-    .maybeSingle();
+  const { data: after, error: afterError } = await supabase.from("evidence").select("id,status").eq("id", evidenceId).maybeSingle();
 
   if (afterError || !after || after.status !== "approved") {
     console.error("APPROVE postflight failed", afterError);
@@ -214,10 +204,7 @@ export async function rejectEvidence(formData: FormData) {
   }
 
   // update evidence status
-  const { error: updateError } = await supabase
-    .from("evidence")
-    .update({ status: "rejected" })
-    .eq("id", evidenceId);
+  const { error: updateError } = await supabase.from("evidence").update({ status: "rejected" }).eq("id", evidenceId);
 
   if (updateError) {
     console.error("REJECT update failed", updateError);
@@ -225,16 +212,14 @@ export async function rejectEvidence(formData: FormData) {
   }
 
   // insert moderation log
-  const { error: moderationError } = await supabase
-    .from("moderation_actions")
-    .insert({
-      target_type: "evidence",
-      target_id: evidenceId,
-      action: "reject",
-      moderator_note: moderatorNote,
-      moderator_id: moderatorId,
-      source: "ui",
-    });
+  const { error: moderationError } = await supabase.from("moderation_actions").insert({
+    target_type: "evidence",
+    target_id: evidenceId,
+    action: "reject",
+    moderator_note: moderatorNote,
+    moderator_id: moderatorId,
+    source: "ui",
+  });
 
   if (moderationError) {
     console.error("REJECT moderation insert failed", moderationError);
@@ -250,11 +235,7 @@ export async function rejectEvidence(formData: FormData) {
   }
 
   // postflight verification
-  const { data: after, error: afterError } = await supabase
-    .from("evidence")
-    .select("id,status")
-    .eq("id", evidenceId)
-    .maybeSingle();
+  const { data: after, error: afterError } = await supabase.from("evidence").select("id,status").eq("id", evidenceId).maybeSingle();
 
   if (afterError || !after || after.status !== "rejected") {
     console.error("REJECT postflight failed", afterError);
