@@ -40,6 +40,7 @@ export async function POST(req: Request) {
   try {
     const supabase = await supabaseRoute();
 
+    // parse multipart form data
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const entityType = String(formData.get("entityType") ?? "").trim();
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
     const userId = authUser?.id ?? null;
 
     // Resolve category id; fallback to default if unresolved
-    const DEFAULT_CATEGORY_ID = 1; // change this if you want a different default
+    const DEFAULT_CATEGORY_ID = 1;
     let resolvedCategoryId = await resolveCategoryId(supabase, rawCategory);
 
     if (resolvedCategoryId === null) {
@@ -145,18 +146,22 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create notification job (best-effort)
+    // create notification job using metadata jsonb column (Fix A)
     const { data: jobData, error: jobError } = await supabase
       .from("notification_jobs")
       .insert({
-        type: "evidence_submitted",
-        payload: { evidence_id: insertData.id },
+        recipient_email: null,
+        subject: `New evidence submitted: ${insertData.id}`,
+        body: `Evidence ${insertData.id} submitted by ${userId}`,
+        metadata: { evidence_id: insertData.id },
         status: "pending",
       })
       .select()
       .single();
 
-    if (jobError) console.warn("job insert warning:", jobError);
+    if (jobError) {
+      console.warn("job insert warning:", jobError);
+    }
 
     return NextResponse.json({ success: true, evidenceId: insertData.id, jobId: jobData?.id ?? null }, { status: 200 });
   } catch (err) {
