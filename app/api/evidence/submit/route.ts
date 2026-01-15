@@ -8,6 +8,41 @@ type JsonResponse =
   | { success: true; evidenceId: number | string; jobId: number | null }
   | { success?: false; error: string; dbError?: any; details?: string };
 
+async function resolveCategoryId(supabase: any, rawCategory: string | null) {
+  // If empty, return null (caller may decide default)
+  if (!rawCategory) return null;
+
+  const trimmed = rawCategory.trim();
+
+  // If numeric string, return parsed int
+  if (/^\d+$/.test(trimmed)) {
+    return parseInt(trimmed, 10);
+  }
+
+  // Try to find by slug (case-insensitive) or name
+  // Try slug first, then name
+  const slugRes = await supabase
+    .from("categories")
+    .select("id")
+    .ilike("slug", trimmed)
+    .limit(1)
+    .maybeSingle();
+
+  if (slugRes?.data?.id) return slugRes.data.id;
+
+  const nameRes = await supabase
+    .from("categories")
+    .select("id")
+    .ilike("name", trimmed)
+    .limit(1)
+    .maybeSingle();
+
+  if (nameRes?.data?.id) return nameRes.data.id;
+
+  // Not found
+  return null;
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = await supabaseRoute();
@@ -21,8 +56,7 @@ export async function POST(req: Request) {
     const rawCategory = String(formData.get("category") ?? "").trim();
 
     if (!file || !entityType || !entityId) {
-      const body: JsonResponse = { error: "missing required fields" };
-      return NextResponse.json(body, { status: 400 });
+      return NextResponse.json({ error: "missing required fields" }, { status: 400 });
     }
 
     // Build safe filename and path
@@ -45,8 +79,7 @@ export async function POST(req: Request) {
 
     if (uploadError) {
       console.error("storage upload error:", uploadError);
-      const body: JsonResponse = { error: "storage upload failed", details: String(uploadError) };
-      return NextResponse.json(body, { status: 500 });
+      return NextResponse.json({ error: "storage upload failed", details: String(uploadError) }, { status: 500 });
     }
 
     // Get authenticated user (server-side)
@@ -61,33 +94,55 @@ export async function POST(req: Request) {
 
     const userId = authUser?.id ?? null;
 
-    // Parse category: prefer integer id, otherwise store as text
-    let categoryId: number | null = null;
-    let categoryText: string | null = null;
+    // Resolve category id (schema expects integer in `category`)
+    const resolvedCategoryId = await resolveCategoryId(supabase, rawCategory);
 
-    if (rawCategory === "") {
-      categoryId = null;
-      categoryText = null;
-    } else if (/^\d+$/.test(rawCategory)) {
-      categoryId = parseInt(rawCategory, 10);
-      categoryText = null;
-    } else {
-      categoryId = null;
-      categoryText = rawCategory.slice(0, 120);
+    // If category is required by schema and not resolved, choose a safe fallback or return error.
+    // Your schema shows `category integer NOT NULL` with a CHECK list; choose policy:
+    // - Option A: return error so client must provide a valid category id/slug/name
+    // - Option B: fallback to a default category id (e.g., 1)
+    //
+    // Here we return an error to avoid inserting an invalid category silently.
+    if (resolvedCategoryId === null) {
+      // cleanup uploaded file
+      try {
+        await supabase.storage.from("evidence").remove([path]);
+      } catch (cleanupErr) {
+        console.warn("cleanup failed:", cleanupErr);
+      }
+      return NextResponse.json(
+        { error: "invalid or unknown category. Provide a category id, slug, or exact name." },
+        { status: 400 }
+      );
     }
 
-    // Build insert payload; include user_id for RLS checks
+    // Build insert payload
     const insertPayload: Record<string, any> = {
-      entity_type: entityType,
-      entity_id: entityId,
       title,
-      file_path: path,
+      summary: null,
+      company_id: null,
+      leader_id: null,
+      manager_id: null,
+      owner_id: null,
+      customer_flag: false,
+      file_url: null,
       status: "pending",
       user_id: userId,
+      category: resolvedCategoryId, // integer column in your schema
+      file_type: file.type ?? null,
+      file_size: Number(file.size ?? 0),
+      entity_id: Number(entityId) || null,
+      entity_type: entityType,
+      file_path: path,
+      evidence_type: "misconduct",
     };
 
-    if (categoryId !== null) insertPayload.category_id = categoryId;
-    if (categoryText !== null) insertPayload.category_text = categoryText;
+    // If your schema expects company_id when entity_type === 'company', set it
+    if (entityType === "company") {
+      // entityId may be string; try to parse to integer for company_id
+      const parsed = Number(entityId);
+      if (!Number.isNaN(parsed)) insertPayload.company_id = parsed;
+    }
 
     // Attempt DB insert
     const { data: insertData, error: insertError } = await supabase
@@ -106,16 +161,18 @@ export async function POST(req: Request) {
         console.warn("cleanup failed:", cleanupErr);
       }
 
-      const body: JsonResponse = {
-        error: "db insert failed",
-        dbError: {
-          message: insertError?.message ?? null,
-          details: insertError?.details ?? null,
-          hint: insertError?.hint ?? null,
-          code: insertError?.code ?? null,
+      return NextResponse.json(
+        {
+          error: "db insert failed",
+          dbError: {
+            message: insertError?.message ?? null,
+            details: insertError?.details ?? null,
+            hint: insertError?.hint ?? null,
+            code: insertError?.code ?? null,
+          },
         },
-      };
-      return NextResponse.json(body, { status: 500 });
+        { status: 500 }
+      );
     }
 
     // Create notification job (best-effort)
@@ -133,16 +190,9 @@ export async function POST(req: Request) {
       console.warn("job insert warning:", jobError);
     }
 
-    const successBody: JsonResponse = {
-      success: true,
-      evidenceId: insertData.id,
-      jobId: jobData?.id ?? null,
-    };
-
-    return NextResponse.json(successBody, { status: 200 });
+    return NextResponse.json({ success: true, evidenceId: insertData.id, jobId: jobData?.id ?? null }, { status: 200 });
   } catch (err) {
     console.error("Unexpected /api/evidence/submit error:", err);
-    const body: JsonResponse = { error: "unexpected error", details: String(err) };
-    return NextResponse.json(body, { status: 500 });
+    return NextResponse.json({ error: "unexpected error", details: String(err) }, { status: 500 });
   }
 }
