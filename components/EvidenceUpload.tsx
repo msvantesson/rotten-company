@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 interface EvidenceUploadProps {
   entityId: number;
@@ -16,6 +16,9 @@ function sanitizeFileName(name: string) {
     .replace(/[^a-zA-Z0-9.\-_]/g, "-")
     .toLowerCase();
 }
+
+const MAX_IMAGE_SIZE = 3 * 1024 * 1024; // 3MB
+const MAX_PDF_SIZE = 8 * 1024 * 1024; // 8MB
 
 export default function EvidenceUpload({
   entityId,
@@ -33,12 +36,11 @@ export default function EvidenceUpload({
   );
   const [categoryId, setCategoryId] = useState<number | null>(null);
 
-  const [severity, setSeverity] = useState<number>(3); // default medium
+  const [severity, setSeverity] = useState<number>(3);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Fetch categories on mount
   useEffect(() => {
     async function loadCategories() {
       const { data, error } = await supabase
@@ -57,11 +59,22 @@ export default function EvidenceUpload({
     loadCategories();
   }, []);
 
+  const compressionLinks = {
+    images: "https://tinypng.com",
+    pdfs: "https://www.ilovepdf.com/compress_pdf",
+    pdfsAlt: "https://smallpdf.com/compress-pdf",
+  };
+
   const handleSubmit = async () => {
     setError("");
 
-    if (!title || !file) {
-      setError("Title and file are required.");
+    if (!title) {
+      setError("Title is required.");
+      return;
+    }
+
+    if (!file) {
+      setError("Please attach a file.");
       return;
     }
 
@@ -70,69 +83,60 @@ export default function EvidenceUpload({
       return;
     }
 
+    // Client-side size checks
+    if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
+      setError(
+        `Image too large. Max size is 3MB. Try compressing at ${compressionLinks.images}.`
+      );
+      return;
+    }
+
+    if (file.type === "application/pdf" && file.size > MAX_PDF_SIZE) {
+      setError(
+        `PDF too large. Max size is 8MB. Try compressing at ${compressionLinks.pdfs} or ${compressionLinks.pdfsAlt}.`
+      );
+      return;
+    }
+
     setLoading(true);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    try {
+      const form = new FormData();
+      form.append("file", file, sanitizeFileName(file.name));
+      form.append("title", title);
+      form.append("summary", summary);
+      form.append("entityType", entityType);
+      form.append("entityId", String(entityId));
+      form.append("categoryId", String(categoryId));
+      form.append("severity", String(severity));
+      form.append("evidenceType", evidenceType);
 
-    if (authError || !user) {
+      const res = await fetch("/submit-evidence", {
+        method: "POST",
+        body: form,
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        setError(json?.error || "Upload failed.");
+        setLoading(false);
+        return;
+      }
+
+      // Redirect to evidence detail
+      router.push(`/my-evidence/${json.evidence_id}`);
+    } catch (err) {
+      console.error("Upload error:", err);
+      setError("Unexpected upload error.");
       setLoading(false);
-      setError("User not authenticated.");
-      return;
     }
-
-    const safeName = sanitizeFileName(file.name);
-    const filePath = `${entityType}/${entityId}/${Date.now()}-${safeName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("evidence")
-      .upload(filePath, file, { upsert: false });
-
-    if (uploadError) {
-      console.error("Upload error:", uploadError);
-      setLoading(false);
-      setError("Upload failed.");
-      return;
-    }
-
-    // Insert evidence with category + severity
-    const { data: inserted, error: insertError } = await supabase
-      .from("evidence")
-      .insert([
-        {
-          entity_type: entityType,
-          entity_id: entityId,
-          title,
-          summary,
-          file_path: filePath,
-          file_type: file.type,
-          file_size: file.size,
-          user_id: user.id,
-          evidence_type: evidenceType,
-          category_id: categoryId,
-          severity_suggested: severity,
-        },
-      ])
-      .select()
-      .single();
-
-    if (insertError || !inserted) {
-      console.error("Insert error:", insertError);
-      setLoading(false);
-      setError("Database insert failed.");
-      return;
-    }
-
-    router.push(`/evidence/${inserted.id}`);
   };
 
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Submit Evidence</h2>
 
-      {/* Evidence Type */}
       <div className="space-y-1">
         <label className="block text-sm font-medium">Evidence Type</label>
         <select
@@ -148,7 +152,6 @@ export default function EvidenceUpload({
         </select>
       </div>
 
-      {/* Category */}
       <div className="space-y-1">
         <label className="block text-sm font-medium">Category</label>
         <select
@@ -165,7 +168,6 @@ export default function EvidenceUpload({
         </select>
       </div>
 
-      {/* Severity */}
       <div className="space-y-1">
         <label className="block text-sm font-medium">
           Severity (your suggestion)
@@ -181,7 +183,6 @@ export default function EvidenceUpload({
         <div className="text-sm text-gray-600">Selected: {severity}</div>
       </div>
 
-      {/* Title */}
       <div className="space-y-1">
         <label className="block text-sm font-medium">Title</label>
         <input
@@ -192,7 +193,6 @@ export default function EvidenceUpload({
         />
       </div>
 
-      {/* Summary */}
       <div className="space-y-1">
         <label className="block text-sm font-medium">Summary (optional)</label>
         <input
@@ -203,7 +203,6 @@ export default function EvidenceUpload({
         />
       </div>
 
-      {/* File */}
       <div className="space-y-1">
         <label className="block text-sm font-medium">File</label>
         <input
@@ -212,6 +211,18 @@ export default function EvidenceUpload({
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           className="border p-2 rounded w-full"
         />
+        <div className="text-xs text-gray-500 mt-1">
+          Max image size 3MB. Max PDF size 8MB. If your file is larger, try:
+          <div>
+            <a href={compressionLinks.images} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+              TinyPNG for images
+            </a>
+            {" • "}
+            <a href={compressionLinks.pdfs} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+              iLovePDF for PDFs
+            </a>
+          </div>
+        </div>
       </div>
 
       <button
@@ -219,7 +230,7 @@ export default function EvidenceUpload({
         disabled={loading}
         className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 disabled:opacity-50"
       >
-        Submit Evidence
+        {loading ? "Uploading…" : "Submit Evidence"}
       </button>
 
       {error && <p className="text-red-600">{error}</p>}
