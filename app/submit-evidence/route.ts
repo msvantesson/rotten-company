@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase-service"; // service role client
-import { createRouteClient } from "@/lib/supabase-route"; // auth-aware client
+import { supabaseService } from "@/lib/supabase-service";
+import { supabaseRoute } from "@/lib/supabase-route";
 
 // File size limits
 const MAX_IMAGE_SIZE = 3 * 1024 * 1024; // 3MB
@@ -19,7 +19,6 @@ export async function POST(req: Request) {
     const severity = Number(form.get("severity"));
     const evidenceType = form.get("evidenceType") as string | null;
 
-    // Validate required fields
     if (!file || !title || !entityType || !entityId || !categoryId) {
       return NextResponse.json(
         { error: "Missing required fields." },
@@ -48,8 +47,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Auth check (route client)
-    const supabase = createRouteClient();
+    // Auth check
+    const supabase = supabaseRoute();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -62,9 +61,9 @@ export async function POST(req: Request) {
     }
 
     // Service client for storage + DB insert
-    const service = createServiceClient();
+    const service = supabaseService();
 
-    // Generate safe file path
+    // Sanitize filename
     const safeName = file.name
       .normalize("NFKD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -106,7 +105,6 @@ export async function POST(req: Request) {
           category_id: categoryId,
           severity_suggested: severity,
 
-          // Moderation lifecycle
           status: "pending",
           moderator_id: null,
           moderator_note: null,
