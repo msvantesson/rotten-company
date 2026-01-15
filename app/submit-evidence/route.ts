@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase-service";
 import { supabaseRoute } from "@/lib/supabase-route";
 
-// File size limits
 const MAX_IMAGE_SIZE = 3 * 1024 * 1024; // 3MB
 const MAX_PDF_SIZE = 8 * 1024 * 1024; // 8MB
 
@@ -23,23 +22,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
     }
 
-    // Validate file size
     if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
       return NextResponse.json(
-        { error: "Image too large. Max size is 3MB. Please compress using TinyPNG before uploading." },
+        { error: "Image too large. Max size is 3MB. Please compress before uploading." },
         { status: 400 }
       );
     }
 
     if (file.type === "application/pdf" && file.size > MAX_PDF_SIZE) {
       return NextResponse.json(
-        { error: "PDF too large. Max size is 8MB. Please compress using iLovePDF or SmallPDF before uploading." },
+        { error: "PDF too large. Max size is 8MB. Please compress before uploading." },
         { status: 400 }
       );
     }
 
-    // NOTE: supabaseRoute() and supabaseService() return Promises in this repo.
-    // Await them to get the actual Supabase clients.
+    // Get auth-aware client and check user
     const supabase = await supabaseRoute();
     const {
       data: { user },
@@ -49,6 +46,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
     }
 
+    // Service client for storage + DB insert
     const service = await supabaseService();
 
     // Sanitize filename
@@ -61,10 +59,9 @@ export async function POST(req: Request) {
     const filePath = `${entityType}/${entityId}/${Date.now()}-${safeName}`;
 
     // Upload to Supabase Storage (service role)
-    const { error: uploadError } = await service.storage.from("evidence").upload(filePath, file, {
-      upsert: false,
-      contentType: file.type,
-    });
+    const { error: uploadError } = await service.storage
+      .from("evidence")
+      .upload(filePath, file, { upsert: false, contentType: file.type });
 
     if (uploadError) {
       console.error("Upload error:", uploadError);
