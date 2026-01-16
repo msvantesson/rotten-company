@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import EvidenceView from "@/components/EvidenceView";
 
-interface PageProps {
+interface PageProps { 
   params: {
     id: string;
   };
