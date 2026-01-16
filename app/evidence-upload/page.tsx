@@ -1,4 +1,3 @@
-// app/evidence-upload/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -14,6 +13,19 @@ export default function EvidenceUploadPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch server-side auth info (reads HttpOnly cookie via API)
+  async function refreshServerUser() {
+    try {
+      const res = await fetch("/api/auth/me", { cache: "no-store", credentials: "same-origin" });
+      const json = await res.json().catch(() => null);
+      setServerUser(json?.user ?? null);
+      return json?.user ?? null;
+    } catch {
+      setServerUser(null);
+      return null;
+    }
+  }
+
   useEffect(() => {
     let mounted = true;
 
@@ -21,10 +33,9 @@ export default function EvidenceUploadPage() {
       try {
         // server-side user (reads HttpOnly cookies)
         try {
-          const res = await fetch("/api/auth/me", { cache: "no-store" });
-          const json = await res.json().catch(() => null);
+          const user = await refreshServerUser();
           if (!mounted) return;
-          setServerUser(json?.user ?? null);
+          setServerUser(user);
         } catch {
           if (!mounted) return;
           setServerUser(null);
@@ -63,6 +74,8 @@ export default function EvidenceUploadPage() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       setClientSession(session ?? null);
+      // When client auth changes re-check server-side user
+      refreshServerUser();
     });
 
     return () => {
@@ -74,28 +87,46 @@ export default function EvidenceUploadPage() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+
+    if (submitting) return;
     setSubmitting(true);
 
     try {
+      // Ensure server sees an authenticated user before uploading
+      const currentServerUser = await refreshServerUser();
+      if (!currentServerUser) {
+        setError("You must be signed in to submit evidence. Please sign in and try again.");
+        setSubmitting(false);
+        return;
+      }
+
       const form = e.currentTarget;
       const fd = new FormData(form);
 
       const res = await fetch("/api/evidence/submit", {
         method: "POST",
         body: fd,
+        // ensure cookies are sent so server-side auth reads HttpOnly cookies
         credentials: "same-origin",
       });
 
+      // handle explicit auth failure early
+      if (res.status === 401) {
+        setError("Not authenticated: please sign in and try again.");
+        setSubmitting(false);
+        return;
+      }
+
       const payload = await res.json().catch(() => null);
 
-      // Robust handling: log payload and tolerate multiple shapes for returned id
       if (res.ok && payload?.success) {
         console.info("[EVIDENCE UPLOAD] submit response payload:", payload);
 
-        // tolerate either top-level evidenceId or nested evidence.id or top-level id
-        const evidenceId = payload?.evidenceId ?? payload?.evidence?.id ?? payload?.id;
+        // tolerate several shapes for returned id
+        const evidenceId = payload?.evidenceId ?? payload?.evidence?.id ?? payload?.evidence_id ?? payload?.id;
 
         if (evidenceId) {
+          // navigate client-side; fall back to full redirect if router fails
           try {
             router.push(`/my-evidence/${evidenceId}`);
           } catch {
@@ -105,10 +136,18 @@ export default function EvidenceUploadPage() {
         }
 
         setError("Upload succeeded but server did not return an evidence id.");
+        setSubmitting(false);
         return;
       }
 
-      setError(payload?.error ?? "Upload failed");
+      // Show server-provided error or a generic message
+      if (payload?.error) {
+        setError(String(payload.error));
+      } else if (!res.ok) {
+        setError(`Upload failed: ${res.status} ${res.statusText}`);
+      } else {
+        setError("Upload failed");
+      }
     } catch (err: any) {
       setError(String(err?.message ?? err ?? "Unexpected error"));
     } finally {
@@ -145,7 +184,7 @@ export default function EvidenceUploadPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="border rounded p-4 space-y-4">
+      <form onSubmit={handleSubmit} className="border rounded p-4 space-y-4" encType="multipart/form-data">
         <h2 className="font-medium">Submit Evidence</h2>
 
         <div>
