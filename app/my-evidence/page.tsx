@@ -1,55 +1,48 @@
 // app/my-evidence/[id]/page.tsx
 import { supabaseRoute } from "@/lib/supabase-route";
+import { notFound } from "next/navigation";
 
-export default async function MyEvidenceDebugPage({ params }: { params: { id: string } }) {
+export default async function MyEvidencePage({ params }: { params: { id: string } }) {
   const supabase = await supabaseRoute();
-
-  const { data: userData, error: userErr } = await supabase.auth.getUser();
-  const authUser = userData?.user ?? null;
-
   const evidenceId = Number(params.id);
-  const { data: evidence, error: evidenceErr } = await supabase
+
+  const { data: evidence, error } = await supabase
     .from("evidence")
     .select("*")
     .eq("id", evidenceId)
     .maybeSingle();
 
+  if (error || !evidence) return notFound();
+
   let fileUrl: string | null = null;
   try {
-    if (evidence?.file_path) {
+    if (evidence.file_path) {
       const { data: fileUrlData } = supabase.storage.from("evidence").getPublicUrl(evidence.file_path);
       fileUrl = fileUrlData?.publicUrl ?? null;
     }
-  } catch (e) {}
+  } catch (e) {
+    // ignore storage errors for rendering
+  }
 
   return (
     <div style={{ padding: 24, fontFamily: "system-ui, sans-serif" }}>
-      <h1>Debug: /my-evidence/{params.id}</h1>
+      <h1>Evidence #{evidence.id}</h1>
+      <p><strong>Title</strong>: {evidence.title ?? "—"}</p>
+      <p><strong>Status</strong>: {evidence.status}</p>
+      <p><strong>Category</strong>: {String(evidence.category)}</p>
+      <p><strong>Submitted by</strong>: {evidence.user_id}</p>
+      <p><strong>Entity</strong>: {evidence.entity_type} #{evidence.entity_id}</p>
 
-      <section style={{ marginTop: 16 }}>
-        <h2>Server Auth User</h2>
-        <pre style={{ background: "#f5f5f5", padding: 12 }}>
-          {JSON.stringify({ id: authUser?.id ?? null, email: authUser?.email ?? null, userErr: userErr ?? null }, null, 2)}
-        </pre>
-      </section>
+      {fileUrl ? (
+        <p><a href={fileUrl} target="_blank" rel="noreferrer">Download file</a></p>
+      ) : (
+        <p>No file available</p>
+      )}
 
-      <section style={{ marginTop: 16 }}>
-        <h2>Evidence Fetch</h2>
-        <div><strong>Requested id:</strong> {evidenceId}</div>
-        <pre style={{ background: "#f5f5f5", padding: 12 }}>
-          {JSON.stringify({ evidence: evidence ?? null, evidenceErr: evidenceErr ?? null }, null, 2)}
-        </pre>
-      </section>
-
-      <section style={{ marginTop: 16 }}>
-        <h2>File URL</h2>
-        <pre style={{ background: "#f5f5f5", padding: 12 }}>{JSON.stringify({ fileUrl }, null, 2)}</pre>
-        {fileUrl && <p><a href={fileUrl} target="_blank" rel="noreferrer">Open file</a></p>}
-      </section>
-
-      <div style={{ marginTop: 20, color: "#666" }}>
-        Temporary debug page. Revert to production renderer after verification.
-      </div>
+      <details style={{ marginTop: 20, background: "#f5f5f5", padding: 12 }}>
+        <summary>Raw evidence JSON</summary>
+        <pre>{JSON.stringify(evidence, null, 2)}</pre>
+      </details>
     </div>
   );
 }
