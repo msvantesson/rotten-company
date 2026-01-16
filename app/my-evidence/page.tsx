@@ -44,7 +44,10 @@ export default async function MyEvidencePage({ params }: { params: { id: string 
       console.error("[MY-EVIDENCE] evidence fetch error:", error);
     }
     evidence = data ?? null;
-    console.info("[MY-EVIDENCE] evidence fetched:", evidence ? { id: evidence.id, user_id: evidence.user_id, status: evidence.status } : null);
+    console.info(
+      "[MY-EVIDENCE] evidence fetched:",
+      evidence ? { id: evidence.id, user_id: evidence.user_id, status: evidence.status } : null
+    );
   } catch (err) {
     console.error("[MY-EVIDENCE] evidence fetch threw:", err);
   }
@@ -59,10 +62,8 @@ export default async function MyEvidencePage({ params }: { params: { id: string 
   let fileUrl: string | null = null;
   try {
     if (evidence.file_path) {
-      const { data: fileUrlData, error: storageErr } = supabase.storage.from("evidence").getPublicUrl(evidence.file_path);
-      if (storageErr) {
-        console.warn("[MY-EVIDENCE] storage.getPublicUrl error:", storageErr);
-      }
+      // getPublicUrl returns { data: { publicUrl: string } } — no error property
+      const { data: fileUrlData } = supabase.storage.from("evidence").getPublicUrl(evidence.file_path);
       fileUrl = fileUrlData?.publicUrl ?? null;
       console.info("[MY-EVIDENCE] fileUrl resolved:", fileUrl);
     } else {
@@ -78,16 +79,30 @@ export default async function MyEvidencePage({ params }: { params: { id: string 
       <h1>Evidence #{evidence.id}</h1>
 
       <section style={{ marginTop: 12 }}>
-        <p><strong>Title</strong>: {evidence.title ?? "—"}</p>
-        <p><strong>Status</strong>: {evidence.status}</p>
-        <p><strong>Category</strong>: {String(evidence.category)}</p>
-        <p><strong>Submitted by</strong>: {evidence.user_id}</p>
-        <p><strong>Entity</strong>: {evidence.entity_type} #{evidence.entity_id}</p>
+        <p>
+          <strong>Title</strong>: {evidence.title ?? "—"}
+        </p>
+        <p>
+          <strong>Status</strong>: {evidence.status}
+        </p>
+        <p>
+          <strong>Category</strong>: {String(evidence.category)}
+        </p>
+        <p>
+          <strong>Submitted by</strong>: {evidence.user_id}
+        </p>
+        <p>
+          <strong>Entity</strong>: {evidence.entity_type} #{evidence.entity_id}
+        </p>
       </section>
 
       <section style={{ marginTop: 12 }}>
         {fileUrl ? (
-          <p><a href={fileUrl} target="_blank" rel="noreferrer">Download file</a></p>
+          <p>
+            <a href={fileUrl} target="_blank" rel="noreferrer">
+              Download file
+            </a>
+          </p>
         ) : (
           <p>No file available</p>
         )}
@@ -96,20 +111,24 @@ export default async function MyEvidencePage({ params }: { params: { id: string 
       <details style={{ marginTop: 20, background: "#f5f5f5", padding: 12 }}>
         <summary>Server debug info</summary>
         <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-{JSON.stringify({
-  invokedAt: new Date().toISOString(),
-  params,
-  evidenceId,
-  authUser: authUser ? { id: authUser.id, email: authUser.email } : null,
-  evidence: {
-    id: evidence.id,
-    user_id: evidence.user_id,
-    status: evidence.status,
-    file_path: evidence.file_path ?? null,
-    created_at: evidence.created_at ?? null
+{JSON.stringify(
+  {
+    invokedAt: new Date().toISOString(),
+    params,
+    evidenceId,
+    authUser: authUser ? { id: authUser.id, email: authUser.email } : null,
+    evidence: {
+      id: evidence.id,
+      user_id: evidence.user_id,
+      status: evidence.status,
+      file_path: evidence.file_path ?? null,
+      created_at: evidence.created_at ?? null,
+    },
+    fileUrl,
   },
-  fileUrl
-}, null, 2)}
+  null,
+  2
+)}
         </pre>
       </details>
 
