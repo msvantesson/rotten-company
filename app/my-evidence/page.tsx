@@ -1,6 +1,6 @@
 // app/my-evidence/[id]/page.tsx
 import { supabaseRoute } from "@/lib/supabase-route";
-import { notFound } from "next/navigation";
+import { notFound } from "next/navigation";  
 
 export default async function MyEvidencePage({ params }: { params: { id: string } }) {
   const supabase = await supabaseRoute();
