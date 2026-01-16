@@ -1,36 +1,81 @@
 // app/my-evidence/[id]/page.tsx
 import { supabaseRoute } from "@/lib/supabase-route";
-import { notFound } from "next/navigation";
 
-export default async function MyEvidencePage({ params }: { params: { id: string } }) {
+export default async function MyEvidenceDebugPage({ params }: { params: { id: string } }) {
   const supabase = await supabaseRoute();
 
+  // server-side auth
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   const authUser = userData?.user ?? null;
-  console.info("/my-evidence server - authUser:", { id: authUser?.id, email: authUser?.email, userErr: userErr ?? null });
 
+  // fetch evidence
   const evidenceId = Number(params.id);
-  const { data: evidence, error } = await supabase.from("evidence").select("*").eq("id", evidenceId).maybeSingle();
-  console.info("/my-evidence server - evidence fetch:", { evidence, error });
+  const { data: evidence, error: evidenceErr } = await supabase
+    .from("evidence")
+    .select("*")
+    .eq("id", evidenceId)
+    .maybeSingle();
 
-  if (error || !evidence) return notFound();
-
-  const { data: fileUrlData } = supabase.storage.from("evidence").getPublicUrl(evidence.file_path);
-  const fileUrl = fileUrlData?.publicUrl ?? null;
+  // public URL for file if present
+  let fileUrl: string | null = null;
+  try {
+    if (evidence?.file_path) {
+      const { data: fileUrlData } = supabase.storage.from("evidence").getPublicUrl(evidence.file_path);
+      fileUrl = fileUrlData?.publicUrl ?? null;
+    }
+  } catch (e) {
+    // ignore storage errors for debug page
+  }
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Evidence #{evidence.id}</h1>
-      <p><strong>Title:</strong> {evidence.title}</p>
-      <p><strong>Status:</strong> {evidence.status}</p>
-      <p><strong>Category:</strong> {evidence.category}</p>
-      <p><strong>Entity:</strong> {evidence.entity_type} #{evidence.entity_id}</p>
+    <div style={{ padding: 24, fontFamily: "system-ui, sans-serif" }}>
+      <h1>Debug: /my-evidence/{params.id}</h1>
 
-      {fileUrl && (
-        <p><a href={fileUrl} target="_blank" rel="noreferrer">Download file</a></p>
-      )}
+      <section style={{ marginTop: 16 }}>
+        <h2>Server Auth User</h2>
+        <pre style={{ background: "#f5f5f5", padding: 12 }}>
+          {JSON.stringify(
+            {
+              id: authUser?.id ?? null,
+              email: authUser?.email ?? null,
+              userErr: userErr ?? null,
+            },
+            null,
+            2
+          )}
+        </pre>
+      </section>
 
-      <pre style={{ marginTop: 20, background: "#f5f5f5", padding: 12 }}>{JSON.stringify(evidence, null, 2)}</pre>
+      <section style={{ marginTop: 16 }}>
+        <h2>Evidence Fetch</h2>
+        <div><strong>Requested id:</strong> {evidenceId}</div>
+        <pre style={{ background: "#f5f5f5", padding: 12 }}>
+          {JSON.stringify(
+            {
+              evidence: evidence ?? null,
+              evidenceErr: evidenceErr ?? null,
+            },
+            null,
+            2
+          )}
+        </pre>
+      </section>
+
+      <section style={{ marginTop: 16 }}>
+        <h2>File URL</h2>
+        <pre style={{ background: "#f5f5f5", padding: 12 }}>
+          {JSON.stringify({ fileUrl }, null, 2)}
+        </pre>
+        {fileUrl && (
+          <p>
+            <a href={fileUrl} target="_blank" rel="noreferrer">Open file</a>
+          </p>
+        )}
+      </section>
+
+      <div style={{ marginTop: 20, color: "#666" }}>
+        This is a temporary debug page. Remove or revert to the production page once you confirm the issue.
+      </div>
     </div>
   );
 }
