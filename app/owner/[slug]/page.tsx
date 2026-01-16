@@ -2,7 +2,10 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseClient"; 
+const supabase = supabaseBrowser();
+
+
 import { buildOwnerJsonLd } from "@/lib/jsonld-owner";
 import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 
