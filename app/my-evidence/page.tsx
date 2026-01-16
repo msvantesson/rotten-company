@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
-import EvidenceView from "@/components/EvidenceView";
 
-interface PageProps { 
+interface PageProps {
   params: {
     id: string;
   };
@@ -10,54 +9,39 @@ interface PageProps {
 
 export default async function MyEvidencePage({ params }: PageProps) {
   const supabase = await supabaseServer();
-
   const evidenceId = Number(params.id);
 
   console.log("[MY-EVIDENCE] Requested ID:", evidenceId);
 
   if (!Number.isInteger(evidenceId)) {
-    console.log("[MY-EVIDENCE] NOT FOUND: invalid evidence id");
+    console.log("[MY-EVIDENCE] NOT FOUND: invalid id");
     notFound();
   }
 
-  // ─────────────────────────────────────────────
-  // Fetch authenticated user
-  // ─────────────────────────────────────────────
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
 
-  console.log("[MY-EVIDENCE] Auth user:", user);
-  console.log("[MY-EVIDENCE] Auth error:", userError);
+  console.log("[MY-EVIDENCE] User:", user?.id);
 
   if (!user) {
-    console.log("[MY-EVIDENCE] NOT FOUND: no authenticated user");
+    console.log("[MY-EVIDENCE] NOT FOUND: no user");
     notFound();
   }
 
-  // ─────────────────────────────────────────────
-  // Fetch evidence row
-  // ─────────────────────────────────────────────
-  const { data: evidence, error: evidenceError } = await supabase
+  const { data: evidence, error } = await supabase
     .from("evidence")
     .select("*")
     .eq("id", evidenceId)
     .maybeSingle();
 
-  console.log("[MY-EVIDENCE] Evidence row:", evidence);
-  console.log("[MY-EVIDENCE] Evidence error:", evidenceError);
+  console.log("[MY-EVIDENCE] Evidence:", evidence);
+  console.log("[MY-EVIDENCE] Error:", error);
 
   if (!evidence) {
-    console.log("[MY-EVIDENCE] NOT FOUND: evidence row does not exist");
+    console.log("[MY-EVIDENCE] NOT FOUND: no evidence row");
     notFound();
   }
-
-  // ─────────────────────────────────────────────
-  // Ownership check
-  // ─────────────────────────────────────────────
-  console.log("[MY-EVIDENCE] Evidence user_id:", evidence.user_id);
-  console.log("[MY-EVIDENCE] Current user id:", user.id);
 
   if (evidence.user_id !== user.id) {
     console.log("[MY-EVIDENCE] NOT FOUND: ownership mismatch", {
@@ -67,10 +51,12 @@ export default async function MyEvidencePage({ params }: PageProps) {
     notFound();
   }
 
-  // ─────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────
   console.log("[MY-EVIDENCE] ACCESS GRANTED");
 
-  return <EvidenceView evidence={evidence} />;
+  return (
+    <main style={{ padding: 24 }}>
+      <h1>My Evidence #{evidence.id}</h1>
+      <pre>{JSON.stringify(evidence, null, 2)}</pre>
+    </main>
+  );
 }
