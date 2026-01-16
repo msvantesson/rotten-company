@@ -4,16 +4,14 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { supabaseRoute } from "@/lib/supabase-route";
 
-type JsonResponse =
-  | { success: true; evidenceId: number | string; jobId: number | null }
-  | { success?: false; error: string; dbError?: any; details?: string };
-
 async function resolveCategoryId(supabase: any, rawCategory: string | null) {
   if (!rawCategory) return null;
   const trimmed = rawCategory.trim();
+
+  // numeric id
   if (/^\d+$/.test(trimmed)) return parseInt(trimmed, 10);
 
-  // try slug (case-insensitive)
+  // slug
   const slugRes = await supabase
     .from("categories")
     .select("id")
@@ -23,7 +21,7 @@ async function resolveCategoryId(supabase: any, rawCategory: string | null) {
 
   if (slugRes?.data?.id) return slugRes.data.id;
 
-  // try name (case-insensitive)
+  // name
   const nameRes = await supabase
     .from("categories")
     .select("id")
@@ -40,7 +38,6 @@ export async function POST(req: Request) {
   try {
     const supabase = await supabaseRoute();
 
-    // parse multipart form data
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const entityType = String(formData.get("entityType") ?? "").trim();
@@ -52,7 +49,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "missing required fields" }, { status: 400 });
     }
 
-    // Build safe filename and path
+    // Build safe filename
     const timestamp = Date.now();
     const sanitizedTitle = (title || "evidence")
       .replace(/[^a-z0-9\-_.]/gi, "-")
@@ -61,7 +58,7 @@ export async function POST(req: Request) {
     const ext = (file.name?.split(".").pop() ?? "bin").replace(/[^a-z0-9]/gi, "");
     const path = `${entityType}/${entityId}/${timestamp}-${sanitizedTitle}.${ext}`;
 
-    // Convert File -> Buffer and upload
+    // Upload file
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -71,32 +68,30 @@ export async function POST(req: Request) {
 
     if (uploadError) {
       console.error("storage upload error:", uploadError);
-      return NextResponse.json({ error: "storage upload failed", details: String(uploadError) }, { status: 500 });
+      return NextResponse.json({ error: "storage upload failed" }, { status: 500 });
     }
 
-    // Authenticated user (server-side)
+    // Authenticated user
     const {
       data: { user: authUser },
-      error: userErr,
     } = await supabase.auth.getUser();
 
-    if (userErr) console.warn("supabase.auth.getUser warning:", userErr);
     const userId = authUser?.id ?? null;
+    const userEmail = authUser?.email ?? null;
 
-    // Resolve category id; fallback to default if unresolved
+    // Resolve category
     const DEFAULT_CATEGORY_ID = 1;
     let resolvedCategoryId = await resolveCategoryId(supabase, rawCategory);
-
     if (resolvedCategoryId === null) {
-      console.warn(`Category "${rawCategory}" not resolved — falling back to default id ${DEFAULT_CATEGORY_ID}`);
+      console.warn(`Category "${rawCategory}" not resolved — falling back to ${DEFAULT_CATEGORY_ID}`);
       resolvedCategoryId = DEFAULT_CATEGORY_ID;
     }
 
-    // Build insert payload (match your schema)
+    // Insert evidence row
     const insertPayload: Record<string, any> = {
       title,
       summary: null,
-      company_id: null,
+      company_id: entityType === "company" ? Number(entityId) : null,
       leader_id: null,
       manager_id: null,
       owner_id: null,
@@ -113,12 +108,6 @@ export async function POST(req: Request) {
       evidence_type: "misconduct",
     };
 
-    if (entityType === "company") {
-      const parsed = Number(entityId);
-      if (!Number.isNaN(parsed)) insertPayload.company_id = parsed;
-    }
-
-    // Insert evidence row
     const { data: insertData, error: insertError } = await supabase
       .from("evidence")
       .insert(insertPayload)
@@ -127,32 +116,28 @@ export async function POST(req: Request) {
 
     if (insertError || !insertData) {
       console.error("db insert error:", insertError);
-      try {
-        await supabase.storage.from("evidence").remove([path]);
-      } catch (cleanupErr) {
-        console.warn("cleanup failed:", cleanupErr);
-      }
+      await supabase.storage.from("evidence").remove([path]);
       return NextResponse.json(
         {
           error: "db insert failed",
           dbError: {
-            message: insertError?.message ?? null,
-            details: insertError?.details ?? null,
-            hint: insertError?.hint ?? null,
-            code: insertError?.code ?? null,
+            message: insertError?.message,
+            details: insertError?.details,
+            hint: insertError?.hint,
+            code: insertError?.code,
           },
         },
         { status: 500 }
       );
     }
 
-    // create notification job using metadata jsonb column (Fix A)
+    // Create notification job (Fix A)
     const { data: jobData, error: jobError } = await supabase
       .from("notification_jobs")
       .insert({
-        recipient_email: null,
+        recipient_email: userEmail, // REQUIRED
         subject: `New evidence submitted: ${insertData.id}`,
-        body: `Evidence ${insertData.id} submitted by ${userId}`,
+        body: `Evidence ${insertData.id} submitted by ${userEmail}`,
         metadata: { evidence_id: insertData.id },
         status: "pending",
       })
@@ -163,9 +148,12 @@ export async function POST(req: Request) {
       console.warn("job insert warning:", jobError);
     }
 
-    return NextResponse.json({ success: true, evidenceId: insertData.id, jobId: jobData?.id ?? null }, { status: 200 });
+    return NextResponse.json(
+      { success: true, evidenceId: insertData.id, jobId: jobData?.id ?? null },
+      { status: 200 }
+    );
   } catch (err) {
-    console.error("Unexpected /api/evidence/submit error:", err);
+    console.error("Unexpected error:", err);
     return NextResponse.json({ error: "unexpected error", details: String(err) }, { status: 500 });
   }
 }
