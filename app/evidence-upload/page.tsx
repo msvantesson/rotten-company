@@ -1,3 +1,4 @@
+// app/evidence-upload/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -123,7 +124,8 @@ export default function EvidenceUploadPage() {
         console.info("[EVIDENCE UPLOAD] submit response payload:", payload);
 
         // tolerate several shapes for returned id
-        const evidenceId = payload?.evidenceId ?? payload?.evidence?.id ?? payload?.evidence_id ?? payload?.id;
+        const evidenceId =
+          payload?.evidenceId ?? payload?.evidence?.id ?? payload?.evidence_id ?? payload?.id ?? null;
 
         if (evidenceId) {
           // navigate client-side; fall back to full redirect if router fails
