@@ -45,11 +45,11 @@ export default async function MyEvidencePage({ params }: { params: { id: string 
     console.error("[MY-EVIDENCE] auth.getUser threw:", err);
   }
 
-  // Fetch evidence row
+  // Fetch evidence row (no generic to avoid SDK typing mismatch)
   let evidence: EvidenceRow | null = null;
   try {
     const { data, error } = await supabase
-      .from<EvidenceRow>("evidence")
+      .from("evidence")
       .select("*")
       .eq("id", evidenceId)
       .maybeSingle();
