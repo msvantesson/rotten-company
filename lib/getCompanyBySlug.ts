@@ -1,4 +1,5 @@
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseServer } from "@/lib/supabase-server";
+
 
 export type CompanyWithRelations = {
   id: number;
