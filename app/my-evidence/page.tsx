@@ -9,14 +9,12 @@ export default async function EvidenceDetail({
   searchParams,
 }: {
   params: { id: string };
-  // Next passes query params as searchParams in app router
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
   const supabase = await supabaseServer();
 
-  // Debug: log incoming params
-  console.info("[MY-EVIDENCE PAGE] params:", params);
-  console.info("[MY-EVIDENCE PAGE] searchParams:", searchParams ?? null);
+  // Debug: log which DATABASE_URL the page process sees (first 60 chars)
+  console.info("[DB DEBUG][page] DATABASE_URL prefix:", process.env.DATABASE_URL?.slice?.(0, 60) ?? null);
 
   // sanitize id
   const raw = String(params.id ?? "");
@@ -66,12 +64,25 @@ export default async function EvidenceDetail({
     return notFound();
   }
 
-  console.info("[MY-EVIDENCE PAGE] evidence result:", evidence ? { id: evidence.id, user_id: evidence.user_id, status: evidence.status } : null);
+  console.info(
+    "[MY-EVIDENCE PAGE] evidence result:",
+    evidence ? { id: evidence.id, user_id: evidence.user_id, status: evidence.status } : null
+  );
 
   if (!evidence) {
     console.info("[MY-EVIDENCE PAGE] no evidence found -> notFound");
     return notFound();
   }
+
+  // moderation lookup (unchanged)
+  const { data: moderation } = await supabase
+    .from("moderation_actions")
+    .select("moderator_note")
+    .eq("target_type", "evidence")
+    .eq("target_id", evidence.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   return (
     <main style={{ padding: "2rem", maxWidth: 900 }}>
@@ -85,7 +96,19 @@ export default async function EvidenceDetail({
       <div style={{ border: "1px solid #ddd", padding: "1rem" }}>
         <strong>Status:</strong> {evidence.status}
 
-        {/* moderation block unchanged */}
+        {evidence.status === "rejected" && moderation && (
+          <div
+            style={{
+              marginTop: "1rem",
+              background: "#fff5f5",
+              border: "1px solid #f2c2c2",
+              padding: "1rem",
+            }}
+          >
+            <strong>Reviewer feedback</strong>
+            <p>{moderation.moderator_note}</p>
+          </div>
+        )}
       </div>
 
       <section style={{ marginTop: "2rem" }}>
@@ -104,11 +127,7 @@ export default async function EvidenceDetail({
           </p>
 
           <form action={resubmitEvidence}>
-            <input
-              type="hidden"
-              name="previous_evidence_id"
-              value={evidence.id}
-            />
+            <input type="hidden" name="previous_evidence_id" value={evidence.id} />
 
             <input
               name="title"
