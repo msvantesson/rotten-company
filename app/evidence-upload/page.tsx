@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseClient";
+const supabase = supabaseBrowser();
 
 export default function EvidenceUploadPage() {
   const router = useRouter();
