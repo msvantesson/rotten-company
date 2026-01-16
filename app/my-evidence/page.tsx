@@ -1,4 +1,4 @@
-// app/my-evidence/[id]/page.tsx 
+// app/my-evidence/[id]/page.tsx
 export const dynamic = "force-dynamic";
 
 import React from "react";
@@ -8,7 +8,7 @@ import { supabaseRoute } from "@/lib/supabase-route";
 type Props = { params: { id: string } };
 
 export default async function EvidencePage({ params }: Props) {
-  console.info("[MY-EVIDENCE PAGE] invoked - params:", params);
+  console.info("[MY-EVIDENCE PAGE] invoked - raw params:", params);
 
   const rawId = params?.id;
   if (!rawId) {
@@ -16,11 +16,20 @@ export default async function EvidencePage({ params }: Props) {
     return notFound();
   }
 
-  const id = Number(rawId);
-  if (Number.isNaN(id)) {
-    console.info("[MY-EVIDENCE PAGE] invalid id param:", rawId);
+  // Sanitize: remove any non-digit characters (commas, spaces, punctuation)
+  const cleaned = String(rawId).replace(/[^\d]/g, "");
+  if (!cleaned) {
+    console.info("[MY-EVIDENCE PAGE] cleaned id empty after sanitization:", rawId);
     return notFound();
   }
+
+  const id = Number(cleaned);
+  if (Number.isNaN(id)) {
+    console.info("[MY-EVIDENCE PAGE] invalid id after sanitization:", rawId, "->", cleaned);
+    return notFound();
+  }
+
+  console.info("[MY-EVIDENCE PAGE] using id:", id);
 
   const supabase = await supabaseRoute();
   console.info("[MY-EVIDENCE PAGE] supabaseRoute ready, fetching evidence id:", id);
@@ -34,7 +43,6 @@ export default async function EvidencePage({ params }: Props) {
 
     if (error) {
       console.error("[MY-EVIDENCE PAGE] supabase error:", error);
-      // If you prefer to show an error page instead of 404, change this behavior.
       return notFound();
     }
 
@@ -43,7 +51,6 @@ export default async function EvidencePage({ params }: Props) {
       return notFound();
     }
 
-    // Render a simple evidence page. Replace with your real UI as needed.
     return (
       <div style={{ padding: 24, fontFamily: "system-ui, sans-serif", maxWidth: 900 }}>
         <h1>Evidence #{data.id}</h1>
