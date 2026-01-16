@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseClient"; 
+const supabase = supabaseBrowser();
 
 interface EvidenceUploadProps {
   entityId: number;
