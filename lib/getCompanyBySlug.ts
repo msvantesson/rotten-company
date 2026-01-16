@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase-server";
+const supabase = await supabaseServer();
 
 
 export type CompanyWithRelations = {
