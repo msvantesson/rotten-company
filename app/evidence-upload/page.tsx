@@ -88,9 +88,23 @@ export default function EvidenceUploadPage() {
 
       const payload = await res.json().catch(() => null);
 
+      // Robust handling: log payload and tolerate multiple shapes for returned id
       if (res.ok && payload?.success) {
-        // redirect to the evidence page
-        window.location.href = `/my-evidence/${payload.evidenceId}`;
+        console.info("[EVIDENCE UPLOAD] submit response payload:", payload);
+
+        // tolerate either top-level evidenceId or nested evidence.id or top-level id
+        const evidenceId = payload?.evidenceId ?? payload?.evidence?.id ?? payload?.id;
+
+        if (evidenceId) {
+          try {
+            router.push(`/my-evidence/${evidenceId}`);
+          } catch {
+            window.location.href = `/my-evidence/${evidenceId}`;
+          }
+          return;
+        }
+
+        setError("Upload succeeded but server did not return an evidence id.");
         return;
       }
 
