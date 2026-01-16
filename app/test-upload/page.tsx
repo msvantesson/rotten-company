@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseClient"; 
+const supabase = supabaseBrowser();
+
+
 import EvidenceUpload from "@/components/EvidenceUpload";
 
 export default function TestUploadPage() {
