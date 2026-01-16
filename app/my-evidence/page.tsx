@@ -1,75 +1,49 @@
-import Link from "next/link";
-import { supabaseServer } from "@/lib/supabase-server";
+// app/my-evidence/[id]/page.tsx
+import { supabaseRoute } from "@/lib/supabase-route";
+import { notFound } from "next/navigation";
 
-export default async function MyEvidencePage() {
-  const supabase = await supabaseServer();
+export default async function MyEvidencePage({ params }: { params: { id: string } }) {
+  const supabase = await supabaseRoute();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const evidenceId = Number(params.id);
 
-  if (!user) {
-    return (
-      <main style={{ padding: "2rem" }}>
-        <h1>My evidence</h1>
-        <p>You must be signed in.</p>
-      </main>
-    );
-  }
-
-  const { data, error } = await supabase
+  const { data: evidence, error } = await supabase
     .from("evidence")
-    .select(`
-      id,
-      title,
-      status,
-      created_at,
-      companies ( name ),
-      company_requests ( name )
-    `)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+    .select("*")
+    .eq("id", evidenceId)
+    .maybeSingle();
 
-  if (error) {
-    return <p>Error loading evidence: {error.message}</p>;
+  if (error || !evidence) {
+    return notFound();
   }
+
+  // Build public URL for file
+  const { data: fileUrlData } = supabase.storage
+    .from("evidence")
+    .getPublicUrl(evidence.file_path);
+
+  const fileUrl = fileUrlData?.publicUrl ?? null;
 
   return (
-    <main style={{ padding: "2rem", maxWidth: 900 }}>
-      <h1>My evidence</h1>
+    <div style={{ padding: "2rem" }}>
+      <h1>Evidence #{evidence.id}</h1>
 
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {data.map((e) => (
-          <li
-            key={e.id}
-            style={{
-              border: "1px solid #ddd",
-              borderRadius: 8,
-              padding: "1rem",
-              marginBottom: "1rem",
-              display: "flex",
-              justifyContent: "space-between",
-            }}
-          >
-            <div>
-              <strong>{e.title}</strong>
-              <div style={{ opacity: 0.7 }}>
-                Target: {e.companies?.[0]?.name ?? e.company_requests?.[0]?.name}
-              </div>
-              <div style={{ fontSize: 12, opacity: 0.5 }}>
-                {new Date(e.created_at).toLocaleString()}
-              </div>
-            </div>
+      <p><strong>Title:</strong> {evidence.title}</p>
+      <p><strong>Status:</strong> {evidence.status}</p>
+      <p><strong>Category:</strong> {evidence.category}</p>
+      <p><strong>Entity:</strong> {evidence.entity_type} #{evidence.entity_id}</p>
 
-            <div style={{ textAlign: "right" }}>
-              <div style={{ textTransform: "uppercase", fontSize: 12 }}>
-                {e.status}
-              </div>
-              <Link href={`/my-evidence/${e.id}`}>View</Link>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </main>
+      {fileUrl && (
+        <p>
+          <a href={fileUrl} target="_blank" rel="noopener noreferrer">
+            Download file
+          </a>
+        </p>
+      )}
+
+      <pre style={{ marginTop: "2rem", background: "#f5f5f5", padding: "1rem" }}>
+        {JSON.stringify(evidence, null, 2)}
+      </pre>
+    </div>
   );
 }
