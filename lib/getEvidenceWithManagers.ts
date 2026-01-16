@@ -1,4 +1,5 @@
-import { supabase } from "@/lib/supabaseClient";
+import { supabaseBrowser } from "@/lib/supabaseClient"; 
+const supabase = supabaseBrowser();
 
 type ManagerRow = {
   name: string;
