@@ -1,10 +1,11 @@
 // app/my-evidence/[id]/page.tsx
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { resubmitEvidence } from "./actions";
 
-export default async function EvidenceDetail({
+export default async function MyEvidencePage({
   params,
   searchParams,
 }: {
@@ -13,68 +14,57 @@ export default async function EvidenceDetail({
 }) {
   const supabase = await supabaseServer();
 
-  // Debug: log which DATABASE_URL the page process sees (first 60 chars)
-  console.info("[DB DEBUG][page] DATABASE_URL prefix:", process.env.DATABASE_URL?.slice?.(0, 60) ?? null);
+  console.info(
+    "[DB DEBUG][page] DATABASE_URL prefix:",
+    process.env.DATABASE_URL?.slice?.(0, 60) ?? null
+  );
 
-  // sanitize id
-  const raw = String(params.id ?? "");
-  const cleaned = raw.replace(/[^\d]/g, "");
-  const evidenceId = Number(cleaned);
+  const rawId = String(params.id ?? "");
+  const cleanedId = rawId.replace(/[^\d]/g, "");
+  const evidenceId = Number(cleanedId);
 
   if (!Number.isFinite(evidenceId)) {
-    console.info("[MY-EVIDENCE PAGE] invalid id after sanitization:", { raw, cleaned });
+    console.info("[MY-EVIDENCE] invalid id", { rawId, cleanedId });
     return notFound();
   }
 
-  // Get server-side user (reads HttpOnly cookie via supabaseServer)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  console.info("[MY-EVIDENCE PAGE] supabase user id:", user?.id ?? null);
+  console.info("[MY-EVIDENCE] server user id:", user?.id ?? null);
 
-  // If debug=true in query, bypass user_id filter so we can confirm the row exists
-  const bypassUserFilter = String(searchParams?.debug ?? "") === "true";
+  if (!user) {
+    console.info("[MY-EVIDENCE] no authenticated user");
+    return notFound();
+  }
 
-  // Query evidence. If bypassUserFilter is true, do not filter by user_id.
-  const q = supabase
+  const { data: evidence, error } = await supabase
     .from("evidence")
-    .select(`
+    .select(
+      `
       *,
       companies ( name ),
       company_requests ( name )
-    `)
-    .eq("id", evidenceId);
-
-  if (!bypassUserFilter) {
-    // require the evidence to belong to the signed-in user
-    if (!user) {
-      console.info("[MY-EVIDENCE PAGE] no server user and not in debug mode -> notFound");
-      return notFound();
-    }
-    q.eq("user_id", user.id);
-  } else {
-    console.info("[MY-EVIDENCE PAGE] DEBUG BYPASS: skipping user_id filter");
-  }
-
-  const { data: evidence, error } = await q.maybeSingle();
+    `
+    )
+    .eq("id", evidenceId)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   if (error) {
-    console.error("[MY-EVIDENCE PAGE] supabase error:", error);
+    console.error("[MY-EVIDENCE] query error:", error);
     return notFound();
   }
-
-  console.info(
-    "[MY-EVIDENCE PAGE] evidence result:",
-    evidence ? { id: evidence.id, user_id: evidence.user_id, status: evidence.status } : null
-  );
 
   if (!evidence) {
-    console.info("[MY-EVIDENCE PAGE] no evidence found -> notFound");
+    console.info("[MY-EVIDENCE] no evidence found", {
+      evidenceId,
+      userId: user.id,
+    });
     return notFound();
   }
 
-  // moderation lookup (unchanged)
   const { data: moderation } = await supabase
     .from("moderation_actions")
     .select("moderator_note")
@@ -89,8 +79,11 @@ export default async function EvidenceDetail({
       <Link href="/my-evidence">← Back</Link>
 
       <h1>{evidence.title}</h1>
+
       <p>
-        Target: {evidence.companies?.[0]?.name ?? evidence.company_requests?.[0]?.name}
+        Target:{" "}
+        {evidence.companies?.[0]?.name ??
+          evidence.company_requests?.[0]?.name}
       </p>
 
       <div style={{ border: "1px solid #ddd", padding: "1rem" }}>
@@ -113,7 +106,9 @@ export default async function EvidenceDetail({
 
       <section style={{ marginTop: "2rem" }}>
         <h2>Your original submission</h2>
+
         {evidence.summary && <p>{evidence.summary}</p>}
+
         {evidence.contributor_note && (
           <p style={{ opacity: 0.8 }}>{evidence.contributor_note}</p>
         )}
@@ -122,12 +117,17 @@ export default async function EvidenceDetail({
       {evidence.status === "rejected" && (
         <section style={{ marginTop: "2rem" }}>
           <h2>Resubmit corrected evidence</h2>
+
           <p style={{ opacity: 0.7 }}>
             This creates a new submission. The previous version remains rejected.
           </p>
 
           <form action={resubmitEvidence}>
-            <input type="hidden" name="previous_evidence_id" value={evidence.id} />
+            <input
+              type="hidden"
+              name="previous_evidence_id"
+              value={evidence.id}
+            />
 
             <input
               name="title"
