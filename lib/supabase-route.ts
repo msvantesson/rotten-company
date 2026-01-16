@@ -11,7 +11,8 @@ export async function supabaseRoute(): Promise<SupabaseClient> {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.");
   }
 
-  const store = cookies();
+  // await cookies() because in this runtime it returns a Promise
+  const store = await cookies();
 
   const cookieAdapter = {
     async get(name: string) {
