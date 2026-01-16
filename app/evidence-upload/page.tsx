@@ -93,6 +93,29 @@ export default function EvidenceUploadPage() {
     setSubmitting(true);
 
     try {
+      // debug: inspect event targets to help diagnose issues where FormData fails
+      console.info("[EVIDENCE UPLOAD] submit event:", {
+        currentTarget: e.currentTarget,
+        target: e.target,
+        type: e.type,
+      });
+
+      // Prefer the event's currentTarget when it's a real form element
+      let formEl: HTMLFormElement | null = null;
+      if (e.currentTarget instanceof HTMLFormElement) {
+        formEl = e.currentTarget;
+      } else {
+        // fallback: find the closest form from the event target
+        const maybe = (e.target as HTMLElement | null)?.closest?.("form");
+        formEl = maybe instanceof HTMLFormElement ? maybe : null;
+      }
+
+      if (!formEl) {
+        setError("Unable to read the form element. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+
       // Ensure server sees an authenticated user before uploading
       const currentServerUser = await refreshServerUser();
       if (!currentServerUser) {
@@ -101,8 +124,7 @@ export default function EvidenceUploadPage() {
         return;
       }
 
-      const form = e.currentTarget;
-      const fd = new FormData(form);
+      const fd = new FormData(formEl);
 
       const res = await fetch("/api/evidence/submit", {
         method: "POST",
