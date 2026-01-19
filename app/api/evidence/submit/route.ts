@@ -49,6 +49,22 @@ export async function POST(req: Request) {
     console.error(`[EVIDENCE-SUBMIT][${requestId}] top-level log failed`, String(err));
   }
 
+  // --- DEBUG: safe cookie header presence check (does not print token values) ---
+  try {
+    const cookieHeader = req.headers.get("cookie") ?? null;
+    console.info(
+      `[EVIDENCE-SUBMIT][${requestId}] cookie header:`,
+      cookieHeader ? "present" : "missing",
+      "length:",
+      cookieHeader?.length ?? 0,
+      "contains sb-erkxyvwblgstoedlbxfa-auth-token:",
+      Boolean(cookieHeader && cookieHeader.includes("sb-erkxyvwblgstoedlbxfa-auth-token"))
+    );
+  } catch (err) {
+    console.warn(`[EVIDENCE-SUBMIT][${requestId}] cookie header check failed`, String(err));
+  }
+  // --- end debug ---
+
   const contentType = req.headers.get("content-type") ?? "";
   const isFormData = contentType.includes("multipart/form-data");
 
