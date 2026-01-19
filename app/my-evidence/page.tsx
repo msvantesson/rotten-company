@@ -1,6 +1,9 @@
 // app/my-evidence/[id]/page.tsx
 // Enhanced diagnostics: top-level start log, headers, timing, safe env flags, auth details, DB results, and error stacks.
 console.log("[MY-EVIDENCE] page file loaded - TOP");
+// very top of file — temporary
+console.log("[MY-EVIDENCE] page file executed - START");
+
 
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
