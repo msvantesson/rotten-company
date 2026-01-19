@@ -1,3 +1,4 @@
+console.log("[MY-EVIDENCE] page loaded - START");
 // app/my-evidence/[id]/page.tsx
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
