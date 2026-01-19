@@ -205,14 +205,42 @@ export default async function MyEvidencePage({ params, searchParams = {} }: Page
     notFound();
   }
 
-  // ownership check
-  if (isDev()) console.log("[MY-EVIDENCE] evidence.user_id:", evidence.user_id ?? null, "current user:", user.id);
+  // ownership check (debug-friendly: show evidence if mismatch so you can inspect)
   if (evidence.user_id !== user.id) {
-    if (isDev()) console.log("[MY-EVIDENCE] NOT FOUND reason: ownership mismatch", {
-      evidenceUser: evidence.user_id,
-      currentUser: user.id,
-    });
-    notFound();
+    if (isDev()) {
+      console.warn("[MY-EVIDENCE] Ownership mismatch detected");
+      console.warn("[MY-EVIDENCE] evidence.user_id:", evidence.user_id);
+      console.warn("[MY-EVIDENCE] server user.id:", user?.id ?? "(null)");
+      console.warn("[MY-EVIDENCE] evidence row (truncated):", JSON.stringify(evidence, null, 2).slice(0, 1000));
+    }
+
+    // Temporary debug UI: show the evidence and a clear warning so you can inspect values in the browser
+    return (
+      <main style={{ padding: 24 }}>
+        <EvidenceClientWrapper />
+
+        <div style={{ background: "#fff1f0", padding: 12, border: "1px solid #f2a0a0", marginBottom: 12 }}>
+          <strong>Debug: ownership mismatch</strong>
+          <div>
+            The evidence owner does not match the authenticated server user. This is a temporary debug view.
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <strong>evidence.user_id:</strong> {String(evidence.user_id ?? "(none)")}
+            <br />
+            <strong>server user.id:</strong> {String(user?.id ?? "(none)")}
+          </div>
+        </div>
+
+        <h1>My Evidence #{evidence.id}</h1>
+        <pre style={{ whiteSpace: "pre-wrap", background: "#f6f6f6", padding: 12 }}>
+          {JSON.stringify(evidence, null, 2)}
+        </pre>
+
+        <footer style={{ marginTop: 12, fontSize: 12, color: "#666" }}>
+          <div>Request processed in {Date.now() - start}ms</div>
+        </footer>
+      </main>
+    );
   }
 
   const totalMs = Date.now() - start;
