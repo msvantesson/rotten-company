@@ -11,25 +11,25 @@ export async function supabaseServer(): Promise<SupabaseClient> {
 
   const store = await cookies();
 
-  // Use `any` here to avoid TypeScript mismatch with Supabase types;
-  // at runtime we return the RequestCookie objects so Supabase can mutate them if needed.
+  // Adapter returns cookie string values (not RequestCookie objects).
+  // This ensures the Supabase server client reads tokens correctly.
   const cookieAdapter: any = {
-    // Return the cookie object (RequestCookie) or null
+    // Return the cookie value (string) or null
     async get(name: string) {
       try {
         const c = store.get(name);
-        return c ?? null;
+        return c ? c.value : null;
       } catch (err) {
         console.warn("[supabaseServer] cookies.get failed", err);
         return null;
       }
     },
 
-    // Return array of RequestCookie objects (or empty array)
+    // Return array of cookie string values (or empty array)
     async getAll() {
       try {
         const all = store.getAll();
-        return all ?? [];
+        return all ? all.map((c) => c.value) : [];
       } catch (err) {
         console.warn("[supabaseServer] cookies.getAll failed", err);
         return [];
