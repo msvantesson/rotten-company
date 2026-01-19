@@ -9,7 +9,7 @@ interface PageProps {
   };
 }
 
-function extractCookieNames(cookieHeader: string | null) {
+function extractCookieNames(cookieHeader: string | null | undefined) {
   if (!cookieHeader) return [];
   return cookieHeader
     .split(";")
@@ -29,9 +29,9 @@ export default async function MyEvidencePage({ params }: PageProps) {
     notFound();
   }
 
-  // Log request headers (safe): only cookie names, not values
-  const hdrs = headers();
-  const cookieHeader = hdrs.get("cookie");
+  // NOTE: headers() may be async in this build environment, so await it.
+  const hdrs = await headers();
+  const cookieHeader = hdrs.get ? hdrs.get("cookie") : null;
   const cookieNames = extractCookieNames(cookieHeader);
   console.log("[MY-EVIDENCE] Cookie header present:", !!cookieHeader);
   console.log("[MY-EVIDENCE] Cookie names:", cookieNames.join(", ") || "(none)");
@@ -60,7 +60,6 @@ export default async function MyEvidencePage({ params }: PageProps) {
     .eq("id", evidenceId)
     .maybeSingle();
 
-  // Log DB result (evidence object may contain many fields; this prints the row)
   console.log("[MY-EVIDENCE] evidence row:", evidence ?? null);
   if (evidenceError) console.log("[MY-EVIDENCE] evidence query error:", evidenceError.message);
 
