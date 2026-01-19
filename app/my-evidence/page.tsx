@@ -2,7 +2,7 @@
 console.log("[MY-EVIDENCE] FILE EXECUTED - START");
 
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import EvidenceClientWrapper from "@/components/EvidenceClientWrapper";
 import { supabaseServer } from "@/lib/supabase-server";
 import type { Metadata } from "next";
@@ -58,19 +58,31 @@ export default async function MyEvidencePage({ params }: PageProps) {
     return null;
   }
 
-  const authToken = getCookieFromHeader("sb-erkxyvwblgstoedlbxfa-auth-token", cookieHeader);
-  const refreshToken = getCookieFromHeader("sb-erkxyvwblgstoedlbxfa-refresh-token", cookieHeader);
+  const authTokenHeader = getCookieFromHeader("sb-erkxyvwblgstoedlbxfa-auth-token", cookieHeader);
+  const refreshTokenHeader = getCookieFromHeader("sb-erkxyvwblgstoedlbxfa-refresh-token", cookieHeader);
 
-  console.log("[MY-EVIDENCE] auth-token present:", !!authToken);
+  console.log("[MY-EVIDENCE] auth-token present (header):", !!authTokenHeader);
   console.log(
-    "[MY-EVIDENCE] auth-token (truncated):",
-    authToken ? (authToken.length > 200 ? authToken.slice(0, 200) + "..." : authToken) : "(missing)"
+    "[MY-EVIDENCE] auth-token (header truncated):",
+    authTokenHeader ? (authTokenHeader.length > 200 ? authTokenHeader.slice(0, 200) + "..." : authTokenHeader) : "(missing)"
   );
-  console.log("[MY-EVIDENCE] refresh-token present:", !!refreshToken);
+  console.log("[MY-EVIDENCE] refresh-token present (header):", !!refreshTokenHeader);
   console.log(
-    "[MY-EVIDENCE] refresh-token (truncated):",
-    refreshToken ? (refreshToken.length > 200 ? refreshToken.slice(0, 200) + "..." : refreshToken) : "(missing)"
+    "[MY-EVIDENCE] refresh-token (header truncated):",
+    refreshTokenHeader ? (refreshTokenHeader.length > 200 ? refreshTokenHeader.slice(0, 200) + "..." : refreshTokenHeader) : "(missing)"
   );
+
+  // --- NEW: use Next cookies() store for server-side cookie visibility ---
+  const cookieStore = cookies();
+  const authCookie = cookieStore.get("sb-erkxyvwblgstoedlbxfa-auth-token")?.value ?? null;
+  const refreshCookie = cookieStore.get("sb-erkxyvwblgstoedlbxfa-refresh-token")?.value ?? null;
+
+  console.log("[MY-EVIDENCE] cookieStore present:", !!cookieStore);
+  console.log("[MY-EVIDENCE] cookies().get auth present:", !!authCookie);
+  console.log("[MY-EVIDENCE] cookies().get auth (truncated):", authCookie ? (authCookie.length > 200 ? authCookie.slice(0,200) + "..." : authCookie) : "(missing)");
+  console.log("[MY-EVIDENCE] cookies().get refresh present:", !!refreshCookie);
+  console.log("[MY-EVIDENCE] cookies().get refresh (truncated):", refreshCookie ? (refreshCookie.length > 200 ? refreshCookie.slice(0,200) + "..." : refreshCookie) : "(missing)");
+  // --- end cookieStore debug ---
 
   // safe env flags
   console.log("[MY-EVIDENCE] ENV: VERCEL_ENV:", process.env.VERCEL_ENV ?? "(unset)");
@@ -136,6 +148,15 @@ export default async function MyEvidencePage({ params }: PageProps) {
     <main style={{ padding: 24 }}>
       {/* Client-side logger mounts here */}
       <EvidenceClientWrapper />
+
+      {/* Server cookie debug box */}
+      <div style={{ background: "#fff7e6", padding: 12, border: "1px solid #f0c36b", marginBottom: 12 }}>
+        <strong>Server cookie debug:</strong>
+        <div>auth present (cookies()): {String(!!authCookie)}</div>
+        <div>auth (truncated): {authCookie ? (authCookie.length > 200 ? authCookie.slice(0,200) + "..." : authCookie) : "(missing)"}</div>
+        <div>auth present (header): {String(!!authTokenHeader)}</div>
+        <div>refresh present (cookies()): {String(!!refreshCookie)}</div>
+      </div>
 
       <h1>My Evidence #{evidence.id}</h1>
       <p>
