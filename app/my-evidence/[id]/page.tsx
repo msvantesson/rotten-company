@@ -16,20 +16,42 @@ interface PageProps {
   params: { id: string };
 }
 
+function isDev() {
+  return process.env.NODE_ENV !== "production";
+}
+
 export default async function MyEvidencePage({ params }: PageProps) {
   const start = Date.now();
-  console.log("[MY-EVIDENCE] handler start:", new Date().toISOString());
+  if (isDev()) console.log("[MY-EVIDENCE] handler start:", new Date().toISOString());
 
   const rawId = params?.id;
   const evidenceId = Number(rawId);
-  console.log("[MY-EVIDENCE] path param id:", rawId, "parsed:", evidenceId);
+  if (isDev()) console.log("[MY-EVIDENCE] path param id:", rawId, "parsed:", evidenceId);
 
+  // If id is invalid on server render, render a safe fallback instead of returning 404.
+  // This avoids transient Next preflight/RSC requests from producing a hard 404.
   if (!Number.isInteger(evidenceId)) {
-    console.log("[MY-EVIDENCE] NOT FOUND reason: invalid id (not integer)");
-    notFound();
+    if (isDev()) console.log("[MY-EVIDENCE] Invalid or missing id on server render — rendering fallback instead of 404");
+
+    return (
+      <main style={{ padding: 24 }}>
+        <EvidenceClientWrapper />
+
+        <div style={{ background: "#fff7e6", padding: 12, border: "1px solid #f0c36b", marginBottom: 12 }}>
+          <strong>Missing evidence id on server render</strong>
+          <div>
+            This server render did not receive a valid id. If you navigated here from the app,
+            the client will re-check the route and load the evidence shortly.
+          </div>
+        </div>
+
+        <h1>Loading evidence</h1>
+        <p>Checking route parameters and authentication…</p>
+      </main>
+    );
   }
 
-  // headers (safe)
+  // --- Read headers safely (guarded logs) ---
   let cookieHeader: string | null = null;
   let ua: string | null = null;
   try {
@@ -37,12 +59,12 @@ export default async function MyEvidencePage({ params }: PageProps) {
     cookieHeader = typeof hdrs.get === "function" ? hdrs.get("cookie") : null;
     ua = typeof hdrs.get === "function" ? hdrs.get("user-agent") : null;
   } catch (e) {
-    console.log("[MY-EVIDENCE] headers() error:", e);
+    if (isDev()) console.log("[MY-EVIDENCE] headers() error:", e);
   }
-  console.log("[MY-EVIDENCE] cookie present:", !!cookieHeader, "user-agent:", ua ?? "(none)");
+  if (isDev()) console.log("[MY-EVIDENCE] cookie present:", !!cookieHeader, "user-agent:", ua ?? "(none)");
 
-  // debug: print raw cookie header and extract Supabase tokens
-  console.log("[MY-EVIDENCE] raw cookieHeader:", cookieHeader ?? "(none)");
+  // Avoid logging secrets in production. Only show raw cookie header in dev.
+  if (isDev()) console.log("[MY-EVIDENCE] raw cookieHeader:", cookieHeader ?? "(none)");
 
   function getCookieFromHeader(name: string, header: string | null) {
     if (!header) return null;
@@ -62,64 +84,79 @@ export default async function MyEvidencePage({ params }: PageProps) {
   const authTokenHeader = getCookieFromHeader("sb-erkxyvwblgstoedlbxfa-auth-token", cookieHeader);
   const refreshTokenHeader = getCookieFromHeader("sb-erkxyvwblgstoedlbxfa-refresh-token", cookieHeader);
 
-  console.log("[MY-EVIDENCE] auth-token present (header):", !!authTokenHeader);
-  console.log(
-    "[MY-EVIDENCE] auth-token (header truncated):",
-    authTokenHeader ? (authTokenHeader.length > 200 ? authTokenHeader.slice(0, 200) + "..." : authTokenHeader) : "(missing)"
-  );
-  console.log("[MY-EVIDENCE] refresh-token present (header):", !!refreshTokenHeader);
-  console.log(
-    "[MY-EVIDENCE] refresh-token (header truncated):",
-    refreshTokenHeader ? (refreshTokenHeader.length > 200 ? refreshTokenHeader.slice(0, 200) + "..." : refreshTokenHeader) : "(missing)"
-  );
+  if (isDev()) {
+    console.log("[MY-EVIDENCE] auth-token present (header):", !!authTokenHeader);
+    console.log(
+      "[MY-EVIDENCE] auth-token (header truncated):",
+      authTokenHeader ? (authTokenHeader.length > 200 ? authTokenHeader.slice(0, 200) + "..." : authTokenHeader) : "(missing)"
+    );
+    console.log("[MY-EVIDENCE] refresh-token present (header):", !!refreshTokenHeader);
+  }
 
-  // --- NEW: use Next cookies() store for server-side cookie visibility ---
+  // --- Use Next cookies() store for server-side cookie visibility ---
   const cookieStore = await cookies();
-  const authCookie = cookieStore.get("sb-erkxyvwblgstoedlbxfa-auth-token")?.value ?? null;
-  const refreshCookie = cookieStore.get("sb-erkxyvwblgstoedlbxfa-refresh-token")?.value ?? null;
+  const authCookieObj = cookieStore.get("sb-erkxyvwblgstoedlbxfa-auth-token") ?? null;
+  const refreshCookieObj = cookieStore.get("sb-erkxyvwblgstoedlbxfa-refresh-token") ?? null;
 
-  console.log("[MY-EVIDENCE] cookieStore present:", !!cookieStore);
-  console.log("[MY-EVIDENCE] cookies().get auth present:", !!authCookie);
-  console.log("[MY-EVIDENCE] cookies().get auth (truncated):", authCookie ? (authCookie.length > 200 ? authCookie.slice(0,200) + "..." : authCookie) : "(missing)");
-  console.log("[MY-EVIDENCE] cookies().get refresh present:", !!refreshCookie);
-  console.log("[MY-EVIDENCE] cookies().get refresh (truncated):", refreshCookie ? (refreshCookie.length > 200 ? refreshCookie.slice(0,200) + "..." : refreshCookie) : "(missing)");
-  // --- end cookieStore debug ---
+  if (isDev()) {
+    console.log("[MY-EVIDENCE] cookieStore present:", !!cookieStore);
+    console.info("[MY-EVIDENCE] cookies().get auth present:", !!authCookieObj);
+    console.info("[MY-EVIDENCE] cookies().get refresh present:", !!refreshCookieObj);
+  }
 
-  // safe env flags
-  console.log("[MY-EVIDENCE] ENV: VERCEL_ENV:", process.env.VERCEL_ENV ?? "(unset)");
-  console.log("[MY-EVIDENCE] DATABASE_URL set:", !!process.env.DATABASE_URL);
+  // --- Environment checks (guarded) ---
+  if (isDev()) {
+    console.log("[MY-EVIDENCE] ENV: VERCEL_ENV:", process.env.VERCEL_ENV ?? "(unset)");
+    console.log("[MY-EVIDENCE] DATABASE_URL set:", !!process.env.DATABASE_URL);
+  }
 
   // create supabase server client
   let supabase;
   try {
     supabase = await supabaseServer();
   } catch (e) {
-    console.log("[MY-EVIDENCE] ERROR creating supabaseServer:", e);
+    if (isDev()) console.log("[MY-EVIDENCE] ERROR creating supabaseServer:", e);
+    // If we can't create the DB client, treat as not found to avoid exposing internals.
     notFound();
+  }
+
+  // --- DEBUG: cookie adapter inspection (dev only) ---
+  if (isDev()) {
+    try {
+      const adapterGet = (supabase as any)?.cookies?.get;
+      if (typeof adapterGet === "function") {
+        const rawAuth = await adapterGet("sb-erkxyvwblgstoedlbxfa-auth-token").catch((err: any) => {
+          console.warn("[MY-EVIDENCE] adapter.get threw:", err?.message ?? err);
+          return null;
+        });
+        console.info("[MY-EVIDENCE] rawAuthCookie (adapter.get) type:", rawAuth ? typeof rawAuth : "(missing)");
+      } else {
+        console.info("[MY-EVIDENCE] supabase.cookies.get not available");
+      }
+    } catch (e) {
+      console.error("[MY-EVIDENCE] cookie adapter inspection failed", e);
+    }
   }
 
   // get server-side user
   let user = null;
   try {
     const { data, error } = await supabase.auth.getUser();
-    if (error) console.log("[MY-EVIDENCE] supabase.getUser error:", error.message);
+    if (error && isDev()) console.log("[MY-EVIDENCE] supabase.getUser error:", error.message);
     user = data?.user ?? null;
-    console.log("[MY-EVIDENCE] supabase user id:", user?.id ?? null);
+    if (isDev()) console.log("[MY-EVIDENCE] supabase user id:", user?.id ?? null);
   } catch (e) {
-    console.log("[MY-EVIDENCE] supabase.getUser threw:", e);
+    if (isDev()) console.log("[MY-EVIDENCE] supabase.getUser threw:", e);
   }
 
-  // If no server-side user, render a safe fallback instead of returning 404 immediately.
-  // This avoids transient server-render requests (RSC preflight) from producing a 404.
+  // If no server-side user, render a safe fallback (do not immediately notFound)
   if (!user) {
-    console.log("[MY-EVIDENCE] No authenticated user on server render — rendering fallback instead of 404");
+    if (isDev()) console.log("[MY-EVIDENCE] No authenticated user on server render — rendering fallback instead of 404");
 
     return (
       <main style={{ padding: 24 }}>
-        {/* Client-side logger mounts here */}
         <EvidenceClientWrapper />
 
-        {/* Server cookie debug box */}
         <div style={{ background: "#fff7e6", padding: 12, border: "1px solid #f0c36b", marginBottom: 12 }}>
           <strong>Server session not present</strong>
           <div>
@@ -139,23 +176,23 @@ export default async function MyEvidencePage({ params }: PageProps) {
   try {
     const qStart = Date.now();
     const { data, error } = await supabase.from("evidence").select("*").eq("id", evidenceId).maybeSingle();
-    console.log("[MY-EVIDENCE] evidence query durationMs:", Date.now() - qStart);
-    if (error) console.log("[MY-EVIDENCE] evidence query error:", error.message);
+    if (isDev()) console.log("[MY-EVIDENCE] evidence query durationMs:", Date.now() - qStart);
+    if (error && isDev()) console.log("[MY-EVIDENCE] evidence query error:", error.message);
     evidence = data ?? null;
-    console.log("[MY-EVIDENCE] evidence row:", evidence ? JSON.stringify(evidence) : null);
+    if (isDev()) console.log("[MY-EVIDENCE] evidence row present:", evidence ? true : false);
   } catch (e) {
-    console.log("[MY-EVIDENCE] evidence query threw:", e);
+    if (isDev()) console.log("[MY-EVIDENCE] evidence query threw:", e);
   }
 
   if (!evidence) {
-    console.log("[MY-EVIDENCE] NOT FOUND reason: evidence row missing for id:", evidenceId);
+    if (isDev()) console.log("[MY-EVIDENCE] NOT FOUND reason: evidence row missing for id:", evidenceId);
     notFound();
   }
 
   // ownership check
-  console.log("[MY-EVIDENCE] evidence.user_id:", evidence.user_id ?? null, "current user:", user.id);
+  if (isDev()) console.log("[MY-EVIDENCE] evidence.user_id:", evidence.user_id ?? null, "current user:", user.id);
   if (evidence.user_id !== user.id) {
-    console.log("[MY-EVIDENCE] NOT FOUND reason: ownership mismatch", {
+    if (isDev()) console.log("[MY-EVIDENCE] NOT FOUND reason: ownership mismatch", {
       evidenceUser: evidence.user_id,
       currentUser: user.id,
     });
@@ -163,20 +200,18 @@ export default async function MyEvidencePage({ params }: PageProps) {
   }
 
   const totalMs = Date.now() - start;
-  console.log("[MY-EVIDENCE] ACCESS GRANTED id:", evidenceId, "totalMs:", totalMs);
+  if (isDev()) console.log("[MY-EVIDENCE] ACCESS GRANTED id:", evidenceId, "totalMs:", totalMs);
 
   return (
     <main style={{ padding: 24 }}>
-      {/* Client-side logger mounts here */}
       <EvidenceClientWrapper />
 
-      {/* Server cookie debug box */}
       <div style={{ background: "#fff7e6", padding: 12, border: "1px solid #f0c36b", marginBottom: 12 }}>
         <strong>Server cookie debug:</strong>
-        <div>auth present (cookies()): {String(!!authCookie)}</div>
-        <div>auth (truncated): {authCookie ? (authCookie.length > 200 ? authCookie.slice(0,200) + "..." : authCookie) : "(missing)"}</div>
+        <div>auth present (cookies()): {String(!!authCookieObj)}</div>
+        <div>auth (type): {authCookieObj ? typeof authCookieObj.value : "(missing)"}</div>
         <div>auth present (header): {String(!!authTokenHeader)}</div>
-        <div>refresh present (cookies()): {String(!!refreshCookie)}</div>
+        <div>refresh present (cookies()): {String(!!refreshCookieObj)}</div>
       </div>
 
       <h1>My Evidence #{evidence.id}</h1>
