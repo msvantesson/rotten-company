@@ -9,34 +9,51 @@ export async function supabaseServer(): Promise<SupabaseClient> {
     process.env.DATABASE_URL?.slice?.(0, 60) ?? null
   );
 
-  // await cookies() here so we pass a proper adapter (not a Promise) to createServerClient
+  // Await the cookie store so we pass a concrete adapter to createServerClient
   const store = await cookies();
 
   const cookieAdapter = {
-    async get(name: string) {
+    // Supabase expects get to return the cookie value (string) or null
+    async get(name: string): Promise<string | null> {
       try {
-        // return the cookie object (not just the string value)
-        // Next's cookies().get(name) returns an object like { name, value, path, ... } or undefined
         const c = store.get(name);
-        return c ?? null;
+        return c?.value ?? null;
       } catch (err) {
         console.warn("[supabaseServer] cookies.get failed", err);
         return null;
       }
     },
-    async set(name: string, value: string, options?: any) {
-      // no-op in this server helper (server environment)
+
+    // Supabase may call getAll; return an array of cookie values
+    async getAll(): Promise<string[]> {
       try {
-        // defensive no-op to avoid runtime attempts to mutate primitives
-        return;
+        const all = store.getAll();
+        return all.map((c) => c.value);
+      } catch (err) {
+        console.warn("[supabaseServer] cookies.getAll failed", err);
+        return [];
+      }
+    },
+
+    // In this server helper we don't set cookies on the response; keep a safe implementation
+    async set(name: string, value: string, options?: any): Promise<void> {
+      try {
+        // If you ever need to set cookies from server code, implement via Response cookies.
+        // Here we attempt to call store.set if available, but swallow errors to avoid build/runtime failures.
+        if (typeof (store as any).set === "function") {
+          (store as any).set({ name, value, ...(options || {}) });
+        }
       } catch (err) {
         console.warn("[supabaseServer] cookies.set failed", err);
       }
     },
-    async remove(name: string) {
-      // no-op in this server helper
+
+    // Remove cookie (best-effort)
+    async remove(name: string): Promise<void> {
       try {
-        return;
+        if (typeof (store as any).delete === "function") {
+          (store as any).delete(name);
+        }
       } catch (err) {
         console.warn("[supabaseServer] cookies.delete failed", err);
       }
@@ -46,6 +63,6 @@ export async function supabaseServer(): Promise<SupabaseClient> {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: cookieAdapter }
+    { cookies: cookieAdapter as any }
   );
 }
