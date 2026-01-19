@@ -73,7 +73,7 @@ export default async function MyEvidencePage({ params }: PageProps) {
   );
 
   // --- NEW: use Next cookies() store for server-side cookie visibility ---
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const authCookie = cookieStore.get("sb-erkxyvwblgstoedlbxfa-auth-token")?.value ?? null;
   const refreshCookie = cookieStore.get("sb-erkxyvwblgstoedlbxfa-refresh-token")?.value ?? null;
 
