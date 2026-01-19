@@ -3,22 +3,16 @@ console.log("[MY-EVIDENCE] FILE EXECUTED - START");
 
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import dynamic from "next/dynamic";
+import EvidenceClientWrapper from "@/components/EvidenceClientWrapper";
 import { supabaseServer } from "@/lib/supabase-server";
 import type { Metadata } from "next";
-
-const ClientEvidenceLogger = dynamic(() => import("@/components/ClientEvidenceLogger"), {
-  ssr: false,
-});
 
 export const metadata: Metadata = {
   title: "My Evidence",
 };
 
 interface PageProps {
-  params: {
-    id: string;
-  };
+  params: { id: string };
 }
 
 export default async function MyEvidencePage({ params }: PageProps) {
@@ -108,8 +102,9 @@ export default async function MyEvidencePage({ params }: PageProps) {
 
   return (
     <main style={{ padding: 24 }}>
-      {/* Client-side logger mounted so browser console + forwarded logs are captured */}
-      <ClientEvidenceLogger />
+      {/* Client-side logger mounts here */}
+      <EvidenceClientWrapper />
+
       <h1>My Evidence #{evidence.id}</h1>
       <p>
         <strong>Title:</strong> {evidence.title ?? "(no title)"}
