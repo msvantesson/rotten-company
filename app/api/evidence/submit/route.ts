@@ -6,27 +6,54 @@ export async function POST(req: Request) {
   const start = Date.now();
   console.log("[EVIDENCE-SUBMIT] handler start:", new Date().toISOString());
 
-  let body;
-  try {
-    body = await req.json();
-  } catch (err) {
-    console.error("[EVIDENCE-SUBMIT] invalid JSON body:", err);
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const contentType = req.headers.get("content-type") ?? "";
+  const isFormData = contentType.includes("multipart/form-data");
+
+  let fields: Record<string, string> = {};
+  let file: File | null = null;
+
+  if (isFormData) {
+    try {
+      const formData = await req.formData();
+      for (const [key, value] of formData.entries()) {
+        if (typeof value === "string") {
+          fields[key] = value;
+        } else if (value instanceof File && key === "file") {
+          file = value;
+        }
+      }
+    } catch (err) {
+      console.error("[EVIDENCE-SUBMIT] formData parse error:", err);
+      return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
+    }
+  } else {
+    try {
+      fields = await req.json();
+    } catch (err) {
+      console.error("[EVIDENCE-SUBMIT] invalid JSON body:", err);
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
   }
 
-  const { entityType, entityId, title, category, fileUrl } = body ?? {};
-  console.log("[EVIDENCE-SUBMIT] received:", { entityType, entityId, title, category, fileUrl });
+  const { entityType, entityId, title, category } = fields;
+  console.log("[EVIDENCE-SUBMIT] received:", {
+    entityType,
+    entityId,
+    title,
+    category,
+    fileName: file?.name,
+  });
 
-  // Validate required fields
   if (!entityType || !entityId || !title) {
     console.warn("[EVIDENCE-SUBMIT] missing required fields");
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  const supabase = await supabaseServer();
+
   // Resolve category
-  let categoryId = 1; // fallback to "general"
+  let categoryId = 1;
   try {
-    const supabase = await supabaseServer();
     const { data: categoryRow, error: categoryError } = await supabase
       .from("categories")
       .select("id")
@@ -42,17 +69,29 @@ export async function POST(req: Request) {
     } else {
       console.warn(`[EVIDENCE-SUBMIT] Category "${category}" not resolved — falling back to 1`);
     }
+  } catch (err) {
+    console.error("[EVIDENCE-SUBMIT] category lookup threw:", err);
+  }
 
-    // Get authenticated user
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData?.user?.id) {
-      console.error("[EVIDENCE-SUBMIT] auth error or missing user:", authError?.message);
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Get authenticated user
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData?.user?.id) {
+    console.error("[EVIDENCE-SUBMIT] auth error or missing user:", authError?.message);
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    const userId = authData.user.id;
+  const userId = authData.user.id;
 
-    // Insert evidence
+  // Optional: upload file to Supabase Storage (stub only)
+  let fileUrl: string | null = null;
+  if (file) {
+    console.log("[EVIDENCE-SUBMIT] file received:", file.name);
+    // You can upload to Supabase Storage here if needed
+    // For now, we skip actual upload and store null
+  }
+
+  // Insert evidence
+  try {
     const { data: inserted, error: insertError } = await supabase
       .from("evidence")
       .insert([
@@ -62,7 +101,7 @@ export async function POST(req: Request) {
           title,
           category: categoryId,
           user_id: userId,
-          file_url: fileUrl ?? null,
+          file_url: fileUrl,
         },
       ])
       .select()
@@ -76,7 +115,7 @@ export async function POST(req: Request) {
     console.log("[EVIDENCE-SUBMIT] inserted:", inserted?.id, "user_id:", inserted?.user_id, "durationMs:", Date.now() - start);
     return NextResponse.json({ id: inserted.id, ok: true });
   } catch (err) {
-    console.error("[EVIDENCE-SUBMIT] unexpected error:", err);
+    console.error("[EVIDENCE-SUBMIT] unexpected insert error:", err);
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }
 }
