@@ -9,6 +9,7 @@ export async function supabaseServer(): Promise<SupabaseClient> {
     process.env.DATABASE_URL?.slice?.(0, 60) ?? null
   );
 
+  // await cookies() here so we pass a proper adapter (not a Promise) to createServerClient
   const store = await cookies();
 
   const cookieAdapter = {
@@ -24,8 +25,6 @@ export async function supabaseServer(): Promise<SupabaseClient> {
     async set(name: string, value: string, options?: any) {
       // no-op in this server helper (server environment)
       try {
-        // keep a defensive no-op to avoid runtime attempts to mutate primitives
-        // If you need to set cookies from server, implement this using Response cookies.
         return;
       } catch (err) {
         console.warn("[supabaseServer] cookies.set failed", err);
