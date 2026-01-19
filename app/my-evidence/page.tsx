@@ -1,6 +1,7 @@
 // app/my-evidence/[id]/page.tsx
 console.log("[MY-EVIDENCE] FILE EXECUTED - START");
 
+import React from "react";
 import { notFound } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import EvidenceClientWrapper from "@/components/EvidenceClientWrapper";
@@ -28,7 +29,7 @@ export default async function MyEvidencePage({ params }: PageProps) {
     notFound();
   }
 
-  // headers (safe)
+  // --- Read headers safely ---
   let cookieHeader: string | null = null;
   let ua: string | null = null;
   try {
@@ -39,8 +40,6 @@ export default async function MyEvidencePage({ params }: PageProps) {
     console.log("[MY-EVIDENCE] headers() error:", e);
   }
   console.log("[MY-EVIDENCE] cookie present:", !!cookieHeader, "user-agent:", ua ?? "(none)");
-
-  // debug: print raw cookie header and extract Supabase tokens
   console.log("[MY-EVIDENCE] raw cookieHeader:", cookieHeader ?? "(none)");
 
   function getCookieFromHeader(name: string, header: string | null) {
@@ -72,19 +71,21 @@ export default async function MyEvidencePage({ params }: PageProps) {
     refreshTokenHeader ? (refreshTokenHeader.length > 200 ? refreshTokenHeader.slice(0, 200) + "..." : refreshTokenHeader) : "(missing)"
   );
 
-  // --- NEW: use Next cookies() store for server-side cookie visibility ---
+  // --- Use Next cookies() store for server-side cookie visibility ---
   const cookieStore = await cookies();
-  const authCookie = cookieStore.get("sb-erkxyvwblgstoedlbxfa-auth-token")?.value ?? null;
-  const refreshCookie = cookieStore.get("sb-erkxyvwblgstoedlbxfa-refresh-token")?.value ?? null;
+  const authCookie = cookieStore.get("sb-erkxyvwblgstoedlbxfa-auth-token") ?? null;
+  const refreshCookie = cookieStore.get("sb-erkxyvwblgstoedlbxfa-refresh-token") ?? null;
 
+  // Log the cookie objects (do not stringify values)
   console.log("[MY-EVIDENCE] cookieStore present:", !!cookieStore);
-  console.log("[MY-EVIDENCE] cookies().get auth present:", !!authCookie);
-  console.log("[MY-EVIDENCE] cookies().get auth (truncated):", authCookie ? (authCookie.length > 200 ? authCookie.slice(0,200) + "..." : authCookie) : "(missing)");
-  console.log("[MY-EVIDENCE] cookies().get refresh present:", !!refreshCookie);
-  console.log("[MY-EVIDENCE] cookies().get refresh (truncated):", refreshCookie ? (refreshCookie.length > 200 ? refreshCookie.slice(0,200) + "..." : refreshCookie) : "(missing)");
-  // --- end cookieStore debug ---
+  console.info("[MY-EVIDENCE] cookies().get auth present:", !!authCookie);
+  console.info(
+    "[MY-EVIDENCE] cookies().get auth (type):",
+    authCookie ? typeof authCookie.value : "(missing)"
+  );
+  console.info("[MY-EVIDENCE] cookies().get refresh present:", !!refreshCookie);
 
-  // safe env flags
+  // --- Environment checks ---
   console.log("[MY-EVIDENCE] ENV: VERCEL_ENV:", process.env.VERCEL_ENV ?? "(unset)");
   console.log("[MY-EVIDENCE] DATABASE_URL set:", !!process.env.DATABASE_URL);
 
@@ -95,6 +96,24 @@ export default async function MyEvidencePage({ params }: PageProps) {
   } catch (e) {
     console.log("[MY-EVIDENCE] ERROR creating supabaseServer:", e);
     notFound();
+  }
+
+  // --- DEBUG: session and cookie adapter inspection ---
+  try {
+    // If the cookie adapter is exposed on the client, log a safe representation
+    const adapterGet = (supabase as any)?.cookies?.get;
+    if (typeof adapterGet === "function") {
+      // call get but avoid logging secrets; log whether it returns an object or primitive
+      const rawAuth = await adapterGet("sb-erkxyvwblgstoedlbxfa-auth-token").catch((err: any) => {
+        console.warn("[MY-EVIDENCE] adapter.get threw:", err?.message ?? err);
+        return null;
+      });
+      console.info("[MY-EVIDENCE] rawAuthCookie (adapter.get) type:", rawAuth ? typeof rawAuth : "(missing)");
+    } else {
+      console.info("[MY-EVIDENCE] supabase.cookies.get not available");
+    }
+  } catch (e) {
+    console.error("[MY-EVIDENCE] cookie adapter inspection failed", e);
   }
 
   // get server-side user
@@ -121,7 +140,7 @@ export default async function MyEvidencePage({ params }: PageProps) {
     console.log("[MY-EVIDENCE] evidence query durationMs:", Date.now() - qStart);
     if (error) console.log("[MY-EVIDENCE] evidence query error:", error.message);
     evidence = data ?? null;
-    console.log("[MY-EVIDENCE] evidence row:", evidence ? JSON.stringify(evidence) : null);
+    console.log("[MY-EVIDENCE] evidence row present:", evidence ? true : false);
   } catch (e) {
     console.log("[MY-EVIDENCE] evidence query threw:", e);
   }
@@ -153,7 +172,7 @@ export default async function MyEvidencePage({ params }: PageProps) {
       <div style={{ background: "#fff7e6", padding: 12, border: "1px solid #f0c36b", marginBottom: 12 }}>
         <strong>Server cookie debug:</strong>
         <div>auth present (cookies()): {String(!!authCookie)}</div>
-        <div>auth (truncated): {authCookie ? (authCookie.length > 200 ? authCookie.slice(0,200) + "..." : authCookie) : "(missing)"}</div>
+        <div>auth (type): {authCookie ? typeof authCookie.value : "(missing)"}</div>
         <div>auth present (header): {String(!!authTokenHeader)}</div>
         <div>refresh present (cookies()): {String(!!refreshCookie)}</div>
       </div>
