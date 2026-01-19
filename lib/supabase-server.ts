@@ -15,8 +15,10 @@ export async function supabaseServer(): Promise<SupabaseClient> {
   const cookieAdapter = {
     async get(name: string) {
       try {
+        // return the cookie object (not just the string value)
+        // Next's cookies().get(name) returns an object like { name, value, path, ... } or undefined
         const c = store.get(name);
-        return c?.value ?? null;
+        return c ?? null;
       } catch (err) {
         console.warn("[supabaseServer] cookies.get failed", err);
         return null;
@@ -25,6 +27,7 @@ export async function supabaseServer(): Promise<SupabaseClient> {
     async set(name: string, value: string, options?: any) {
       // no-op in this server helper (server environment)
       try {
+        // defensive no-op to avoid runtime attempts to mutate primitives
         return;
       } catch (err) {
         console.warn("[supabaseServer] cookies.set failed", err);
