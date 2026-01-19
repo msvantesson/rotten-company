@@ -40,6 +40,38 @@ export default async function MyEvidencePage({ params }: PageProps) {
   }
   console.log("[MY-EVIDENCE] cookie present:", !!cookieHeader, "user-agent:", ua ?? "(none)");
 
+  // debug: print raw cookie header and extract Supabase tokens
+  console.log("[MY-EVIDENCE] raw cookieHeader:", cookieHeader ?? "(none)");
+
+  function getCookieFromHeader(name: string, header: string | null) {
+    if (!header) return null;
+    const parts = header.split("; ");
+    for (const p of parts) {
+      if (p.startsWith(name + "=")) {
+        try {
+          return decodeURIComponent(p.slice(name.length + 1));
+        } catch {
+          return p.slice(name.length + 1);
+        }
+      }
+    }
+    return null;
+  }
+
+  const authToken = getCookieFromHeader("sb-erkxyvwblgstoedlbxfa-auth-token", cookieHeader);
+  const refreshToken = getCookieFromHeader("sb-erkxyvwblgstoedlbxfa-refresh-token", cookieHeader);
+
+  console.log("[MY-EVIDENCE] auth-token present:", !!authToken);
+  console.log(
+    "[MY-EVIDENCE] auth-token (truncated):",
+    authToken ? (authToken.length > 200 ? authToken.slice(0, 200) + "..." : authToken) : "(missing)"
+  );
+  console.log("[MY-EVIDENCE] refresh-token present:", !!refreshToken);
+  console.log(
+    "[MY-EVIDENCE] refresh-token (truncated):",
+    refreshToken ? (refreshToken.length > 200 ? refreshToken.slice(0, 200) + "..." : refreshToken) : "(missing)"
+  );
+
   // safe env flags
   console.log("[MY-EVIDENCE] ENV: VERCEL_ENV:", process.env.VERCEL_ENV ?? "(unset)");
   console.log("[MY-EVIDENCE] DATABASE_URL set:", !!process.env.DATABASE_URL);
