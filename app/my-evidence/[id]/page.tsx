@@ -13,18 +13,34 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  params: { id: string };
+  params: { id?: string };
+  searchParams?: Record<string, string | string[] | undefined>;
 }
 
 function isDev() {
   return process.env.NODE_ENV !== "production";
 }
 
-export default async function MyEvidencePage({ params }: PageProps) {
+export default async function MyEvidencePage({ params, searchParams = {} }: PageProps) {
   const start = Date.now();
   if (isDev()) console.log("[MY-EVIDENCE] handler start:", new Date().toISOString());
 
-  const rawId = params?.id;
+  // --- Extract id: primary from route params, fallback to Next internal navigation params ---
+  let rawId = params?.id ?? null;
+
+  if (!rawId) {
+    // Next sometimes passes internal navigation ids in search params like nxtPid or _rsc
+    const nxt = searchParams?.nxtPid ?? searchParams?._rsc ?? null;
+    let nxtStr: string | undefined;
+    if (Array.isArray(nxt)) nxtStr = nxt[0];
+    else nxtStr = nxt as string | undefined;
+
+    if (typeof nxtStr === "string" && nxtStr.trim().length > 0) {
+      const match = nxtStr.match(/\d+/);
+      if (match) rawId = match[0];
+    }
+  }
+
   const evidenceId = Number(rawId);
   if (isDev()) console.log("[MY-EVIDENCE] path param id:", rawId, "parsed:", evidenceId);
 
