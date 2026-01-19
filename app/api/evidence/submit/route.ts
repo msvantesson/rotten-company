@@ -82,12 +82,33 @@ export async function POST(req: Request) {
 
   const userId = authData.user.id;
 
-  // Optional: upload file to Supabase Storage (stub only)
+  // Upload file to Supabase Storage
   let fileUrl: string | null = null;
   if (file) {
     console.log("[EVIDENCE-SUBMIT] file received:", file.name);
-    // You can upload to Supabase Storage here if needed
-    // For now, we skip actual upload and store null
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const filePath = `evidence/${Date.now()}-${file.name}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("evidence-files")
+        .upload(filePath, arrayBuffer, {
+          contentType: file.type,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error("[EVIDENCE-SUBMIT] file upload error:", uploadError.message);
+        return NextResponse.json({ error: "File upload failed" }, { status: 500 });
+      }
+
+      fileUrl = `https://erkxyvwblgstoedlbxfa.supabase.co/storage/v1/object/public/evidence-files/${filePath}`;
+      console.log("[EVIDENCE-SUBMIT] file uploaded:", fileUrl);
+    } catch (err) {
+      console.error("[EVIDENCE-SUBMIT] file upload threw:", err);
+      return NextResponse.json({ error: "File upload failed" }, { status: 500 });
+    }
   }
 
   // Insert evidence
@@ -112,7 +133,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Insert failed" }, { status: 500 });
     }
 
-    console.log("[EVIDENCE-SUBMIT] inserted:", inserted?.id, "user_id:", inserted?.user_id, "durationMs:", Date.now() - start);
+    console.log(
+      "[EVIDENCE-SUBMIT] inserted:",
+      inserted?.id,
+      "user_id:",
+      inserted?.user_id,
+      "durationMs:",
+      Date.now() - start
+    );
+
     return NextResponse.json({ id: inserted.id, ok: true });
   } catch (err) {
     console.error("[EVIDENCE-SUBMIT] unexpected insert error:", err);
