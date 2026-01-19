@@ -2,6 +2,20 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 
+function getStorageHost() {
+  // Use SUPABASE_URL from env to build storage host dynamically
+  const supabaseUrl = process.env.SUPABASE_URL ?? "";
+  try {
+    const u = new URL(supabaseUrl);
+    return u.host; // e.g., erkxyvwblgstoedlbxfa.supabase.co
+  } catch {
+    // fallback to known project ref if SUPABASE_URL is not set
+    return process.env.SUPABASE_PROJECT_REF
+      ? `${process.env.SUPABASE_PROJECT_REF}.supabase.co`
+      : "erkxyvwblgstoedlbxfa.supabase.co";
+  }
+}
+
 export async function POST(req: Request) {
   const start = Date.now();
   console.log("[EVIDENCE-SUBMIT] handler start:", new Date().toISOString());
@@ -51,7 +65,7 @@ export async function POST(req: Request) {
 
   const supabase = await supabaseServer();
 
-  // Resolve category
+  // Resolve category (fallback to 1)
   let categoryId = 1;
   try {
     const { data: categoryRow, error: categoryError } = await supabase
@@ -73,37 +87,48 @@ export async function POST(req: Request) {
     console.error("[EVIDENCE-SUBMIT] category lookup threw:", err);
   }
 
-  // Get authenticated user
+  // Get authenticated user server-side
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData?.user?.id) {
     console.error("[EVIDENCE-SUBMIT] auth error or missing user:", authError?.message);
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
   const userId = authData.user.id;
 
-  // Upload file to Supabase Storage
+  // Upload file to Supabase Storage if present
   let fileUrl: string | null = null;
   if (file) {
     console.log("[EVIDENCE-SUBMIT] file received:", file.name);
-
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const filePath = `evidence/${Date.now()}-${file.name}`;
+      const filePath = `evidence/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+
+      // bucket name used by this code
+      const bucketName = process.env.EVIDENCE_BUCKET_NAME ?? "evidence-files";
 
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("evidence-files")
+        .from(bucketName)
         .upload(filePath, arrayBuffer, {
-          contentType: file.type,
+          contentType: file.type || "application/octet-stream",
           upsert: false,
         });
 
       if (uploadError) {
+        // If bucket doesn't exist, Supabase returns a clear error; log and return 500 with message
         console.error("[EVIDENCE-SUBMIT] file upload error:", uploadError.message);
+        // Provide actionable error to the client so you can fix the bucket quickly
+        if (uploadError.message?.toLowerCase().includes("bucket")) {
+          return NextResponse.json(
+            { error: `File upload failed: bucket "${bucketName}" not found. Create the bucket in Supabase Storage or set EVIDENCE_BUCKET_NAME.` },
+            { status: 500 }
+          );
+        }
         return NextResponse.json({ error: "File upload failed" }, { status: 500 });
       }
 
-      fileUrl = `https://erkxyvwblgstoedlbxfa.supabase.co/storage/v1/object/public/evidence-files/${filePath}`;
+      // Build public URL using SUPABASE_URL host
+      const storageHost = getStorageHost();
+      fileUrl = `https://${storageHost}/storage/v1/object/public/${bucketName}/${filePath}`;
       console.log("[EVIDENCE-SUBMIT] file uploaded:", fileUrl);
     } catch (err) {
       console.error("[EVIDENCE-SUBMIT] file upload threw:", err);
@@ -111,7 +136,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // Insert evidence
+  // Insert evidence row
   try {
     const { data: inserted, error: insertError } = await supabase
       .from("evidence")
@@ -142,7 +167,8 @@ export async function POST(req: Request) {
       Date.now() - start
     );
 
-    return NextResponse.json({ id: inserted.id, ok: true });
+    // Return a consistent success shape
+    return NextResponse.json({ ok: true, id: inserted.id, evidence: inserted });
   } catch (err) {
     console.error("[EVIDENCE-SUBMIT] unexpected insert error:", err);
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
