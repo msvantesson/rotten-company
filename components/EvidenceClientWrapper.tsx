@@ -1,92 +1,99 @@
+// components/EvidenceClientWrapper.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useParams } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
-interface Evidence {
+type Evidence = {
   id: number;
   title: string | null;
   summary: string | null;
   status: string;
   file_url: string | null;
   created_at: string;
-}
+  category: number | null;
+};
 
 export default function EvidenceClientWrapper() {
-  const pathname = usePathname();
-  const id = Number(pathname.split("/").pop());
+  const params = useParams();
+  const evidenceId = Number(params?.id);
 
-  const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState<Evidence | null>(null);
 
   useEffect(() => {
-    if (!Number.isInteger(id)) {
+    if (!Number.isInteger(evidenceId)) {
       setError("Invalid evidence id");
       setLoading(false);
       return;
     }
 
-    let cancelled = false;
+    const loadEvidence = async () => {
+      const supabase = supabaseBrowser();
 
-    async function loadEvidence() {
-      try {
-        const res = await fetch(`/api/evidence/${id}`, {
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to load evidence (${res.status})`);
-        }
-
-        const data = await res.json();
-
-        if (!cancelled) {
-          setEvidence(data.evidence ?? data);
-          setLoading(false);
-        }
-      } catch (err: any) {
-        if (!cancelled) {
-          setError(err.message ?? "Failed to load evidence");
-          setLoading(false);
-        }
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        setError("Not authenticated");
+        setLoading(false);
+        return;
       }
-    }
+
+      const { data, error } = await supabase
+        .from("evidence")
+        .select("*")
+        .eq("id", evidenceId)
+        .maybeSingle();
+
+      if (error || !data) {
+        setError("Failed to load evidence (404)");
+        setLoading(false);
+        return;
+      }
+
+      setEvidence(data);
+      setLoading(false);
+    };
 
     loadEvidence();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+  }, [evidenceId]);
 
   if (loading) {
-    return <p>Loading your evidence details…</p>;
-  }
-
-  if (error) {
     return (
-      <div style={{ background: "#fff1f0", padding: 12, border: "1px solid #f2a0a0" }}>
-        <strong>Error</strong>
-        <div>{error}</div>
+      <div style={{ padding: 24 }}>
+        <h1>My Evidence</h1>
+        <p>Loading your evidence details…</p>
       </div>
     );
   }
 
-  if (!evidence) {
-    return <p>No evidence found.</p>;
+  if (error) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>My Evidence</h1>
+        <p style={{ color: "red" }}>{error}</p>
+      </div>
+    );
   }
 
+  if (!evidence) return null;
+
   return (
-    <section style={{ marginTop: 24 }}>
-      <h2>Evidence #{evidence.id}</h2>
+    <div style={{ padding: 24 }}>
+      <h1>My Evidence #{evidence.id}</h1>
+
+      <p>
+        <strong>Title:</strong> {evidence.title ?? "(no title)"}
+      </p>
 
       <p>
         <strong>Status:</strong> {evidence.status}
       </p>
 
       <p>
-        <strong>Title:</strong> {evidence.title ?? "(no title)"}
+        <strong>Created:</strong>{" "}
+        {new Date(evidence.created_at).toLocaleString()}
       </p>
 
       {evidence.summary && (
@@ -103,9 +110,16 @@ export default function EvidenceClientWrapper() {
         </p>
       )}
 
-      <p style={{ fontSize: 12, color: "#666" }}>
-        Created {new Date(evidence.created_at).toLocaleString()}
-      </p>
-    </section>
+      <pre
+        style={{
+          marginTop: 16,
+          background: "#f6f6f6",
+          padding: 12,
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {JSON.stringify(evidence, null, 2)}
+      </pre>
+    </div>
   );
 }
