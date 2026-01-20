@@ -42,7 +42,9 @@ export default function EvidenceClientWrapper() {
 
       const { data, error } = await supabase
         .from("evidence")
-        .select("*")
+        .select(
+          "id, title, summary, status, file_url, created_at, category"
+        )
         .eq("id", evidenceId)
         .maybeSingle();
 
@@ -61,18 +63,18 @@ export default function EvidenceClientWrapper() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24 }}>
-        <h1>My Evidence</h1>
-        <p>Loading your evidence details…</p>
+      <div className="p-6">
+        <h1 className="text-xl font-semibold">My Evidence</h1>
+        <p className="mt-2 text-gray-600">Loading your evidence details…</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: 24 }}>
-        <h1>My Evidence</h1>
-        <p style={{ color: "red" }}>{error}</p>
+      <div className="p-6">
+        <h1 className="text-xl font-semibold">My Evidence</h1>
+        <p className="mt-2 text-red-600">{error}</p>
       </div>
     );
   }
@@ -80,46 +82,54 @@ export default function EvidenceClientWrapper() {
   if (!evidence) return null;
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>My Evidence #{evidence.id}</h1>
+    <div className="p-6 space-y-4">
+      <h1 className="text-2xl font-semibold">
+        Evidence #{evidence.id}
+      </h1>
 
-      <p>
-        <strong>Title:</strong> {evidence.title ?? "(no title)"}
-      </p>
+      <div>
+        <strong>Title:</strong>{" "}
+        {evidence.title ?? "(no title)"}
+      </div>
 
-      <p>
-        <strong>Status:</strong> {evidence.status}
-      </p>
+      <div>
+        <strong>Status:</strong>{" "}
+        <span className="capitalize">{evidence.status}</span>
+      </div>
 
-      <p>
+      <div>
         <strong>Created:</strong>{" "}
         {new Date(evidence.created_at).toLocaleString()}
-      </p>
+      </div>
 
       {evidence.summary && (
-        <p>
-          <strong>Summary:</strong> {evidence.summary}
-        </p>
+        <div>
+          <strong>Summary:</strong>
+          <p className="mt-1 text-gray-700">{evidence.summary}</p>
+        </div>
       )}
 
       {evidence.file_url && (
-        <p>
-          <a href={evidence.file_url} target="_blank" rel="noreferrer">
+        <div>
+          <a
+            href={evidence.file_url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-600 underline"
+          >
             View uploaded file
           </a>
-        </p>
+        </div>
       )}
 
-      <pre
-        style={{
-          marginTop: 16,
-          background: "#f6f6f6",
-          padding: 12,
-          whiteSpace: "pre-wrap",
-        }}
-      >
-        {JSON.stringify(evidence, null, 2)}
-      </pre>
+      <details className="mt-6">
+        <summary className="cursor-pointer text-sm text-gray-500">
+          Debug payload
+        </summary>
+        <pre className="mt-2 rounded bg-gray-100 p-3 text-xs overflow-x-auto">
+          {JSON.stringify(evidence, null, 2)}
+        </pre>
+      </details>
     </div>
   );
 }
