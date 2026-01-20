@@ -1,6 +1,3 @@
-// Server actions: strict validation of moderator_id and notification enqueue.
-// Replace your existing /app/moderation/actions.ts with this file.
-
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -22,7 +19,11 @@ async function validateModeratorId(moderatorId: string | null): Promise<Validate
   }
 
   const supabase = supabaseService();
-  const { data: user, error } = await supabase.from("users").select("id").eq("id", moderatorId).maybeSingle();
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", moderatorId)
+    .maybeSingle();
 
   if (error || !user) {
     console.error("[moderation] invalid moderator_id", { moderatorId, error });
@@ -32,7 +33,10 @@ async function validateModeratorId(moderatorId: string | null): Promise<Validate
   return { ok: true, id: user.id as string, reason: null };
 }
 
-async function fetchSubmitterEmail(supabase: ReturnType<typeof supabaseService>, evidenceId: number) {
+async function fetchSubmitterEmail(
+  supabase: ReturnType<typeof supabaseService>,
+  evidenceId: number
+) {
   const { data: ev, error: evErr } = await supabase
     .from("evidence")
     .select("id, user_id, title")
@@ -41,20 +45,25 @@ async function fetchSubmitterEmail(supabase: ReturnType<typeof supabaseService>,
 
   if (evErr || !ev) {
     console.error("fetchSubmitterEmail: evidence fetch failed", evErr);
-    return { email: null as string | null, evidenceTitle: null as string | null, userId: null as string | null };
+    return { email: null, evidenceTitle: null };
   }
 
-  const userId = ev.user_id;
-  if (!userId) return { email: null, evidenceTitle: ev.title ?? null, userId: null };
+  if (!ev.user_id) {
+    return { email: null, evidenceTitle: ev.title ?? null };
+  }
 
-  const { data: user, error: userErr } = await supabase.from("users").select("email").eq("id", userId).maybeSingle();
+  const { data: user, error: userErr } = await supabase
+    .from("users")
+    .select("email")
+    .eq("id", ev.user_id)
+    .maybeSingle();
 
   if (userErr || !user) {
     console.error("fetchSubmitterEmail: user fetch failed", userErr);
-    return { email: null, evidenceTitle: ev.title ?? null, userId };
+    return { email: null, evidenceTitle: ev.title ?? null };
   }
 
-  return { email: user.email as string, evidenceTitle: ev.title ?? null, userId };
+  return { email: user.email as string, evidenceTitle: ev.title ?? null };
 }
 
 async function enqueueNotification(
@@ -65,6 +74,7 @@ async function enqueueNotification(
   metadata: object = {}
 ) {
   if (!email) return null;
+
   const { error } = await supabase.from("notification_jobs").insert({
     recipient_email: email,
     subject,
@@ -72,10 +82,12 @@ async function enqueueNotification(
     metadata,
     status: "pending",
   });
+
   if (error) {
     console.error("enqueueNotification failed", error);
     return null;
   }
+
   return true;
 }
 
@@ -88,39 +100,28 @@ export async function approveEvidence(formData: FormData) {
 
   if (!evidenceIdRaw || Number.isNaN(evidenceId)) return errRedirect("invalid_evidence_id");
 
-  // validate moderator id
   const modCheck = await validateModeratorId(moderatorIdRaw);
   if (!modCheck.ok) {
     return errRedirect(modCheck.reason === "missing" ? "moderator_missing" : "moderator_invalid");
   }
   const moderatorId = modCheck.id;
 
-  console.info("APPROVE START", { evidenceId, moderatorId });
-
-  // preflight: fetch evidence
-  const { data: before, error: beforeError } = await supabase
+  const { error: updateError } = await supabase
     .from("evidence")
-    .select("id,status,company_id,user_id")
-    .eq("id", evidenceId)
-    .maybeSingle();
-
-  if (beforeError || !before) {
-    console.error("APPROVE preflight failed", beforeError);
-    return errRedirect("preflight_failed");
-  }
-
-  // update evidence status
-  const { error: updateError } = await supabase.from("evidence").update({ status: "approved" }).eq("id", evidenceId);
+    .update({
+      status: "approved",
+      assigned_moderator_id: null,
+    })
+    .eq("id", evidenceId);
 
   if (updateError) {
     console.error("APPROVE update failed", updateError);
     return errRedirect("update_failed");
   }
 
-  // insert moderation log
   const { error: moderationError } = await supabase.from("moderation_actions").insert({
     target_type: "evidence",
-    target_id: evidenceId,
+    target_id: String(evidenceId),
     action: "approve",
     moderator_note: moderatorNote || "approved",
     moderator_id: moderatorId,
@@ -132,30 +133,16 @@ export async function approveEvidence(formData: FormData) {
     return errRedirect("moderation_log_failed");
   }
 
-  // enqueue notification for submitter
   const { email, evidenceTitle } = await fetchSubmitterEmail(supabase, evidenceId);
   if (email) {
-    const subject = `Your submission was approved`;
-    const body = `Hi,\n\nYour submission${evidenceTitle ? ` "${evidenceTitle}"` : ""} has been approved by our moderation team.\n\nThanks for contributing.\n\n— Rotten Company`;
-    await enqueueNotification(supabase, email, subject, body, { evidenceId, action: "approve" });
+    await enqueueNotification(
+      supabase,
+      email,
+      "Your submission was approved",
+      `Hi,\n\nYour submission${evidenceTitle ? ` "${evidenceTitle}"` : ""} has been approved.\n\n— Rotten Company`,
+      { evidenceId, action: "approve" }
+    );
   }
-
-  // recalc (if applicable)
-  const { error: recalcError } = await supabase.rpc("recalculate_company_scores_for_evidence", { evidence_id: evidenceId });
-  if (recalcError) {
-    console.error("APPROVE recalc failed", recalcError);
-    return errRedirect("recalc_failed");
-  }
-
-  // postflight verification
-  const { data: after, error: afterError } = await supabase.from("evidence").select("id,status").eq("id", evidenceId).maybeSingle();
-
-  if (afterError || !after || after.status !== "approved") {
-    console.error("APPROVE postflight failed", afterError);
-    return errRedirect("status_not_updated");
-  }
-
-  console.info("APPROVE DONE", { evidenceId, moderatorId });
 
   revalidatePath("/moderation");
   redirect("/moderation");
@@ -171,39 +158,28 @@ export async function rejectEvidence(formData: FormData) {
   if (!evidenceIdRaw || Number.isNaN(evidenceId)) return errRedirect("invalid_evidence_id");
   if (!moderatorNote) return errRedirect("moderator_note_required");
 
-  // validate moderator id
   const modCheck = await validateModeratorId(moderatorIdRaw);
   if (!modCheck.ok) {
     return errRedirect(modCheck.reason === "missing" ? "moderator_missing" : "moderator_invalid");
   }
   const moderatorId = modCheck.id;
 
-  console.info("REJECT START", { evidenceId, moderatorId });
-
-  // preflight: fetch evidence
-  const { data: before, error: beforeError } = await supabase
+  const { error: updateError } = await supabase
     .from("evidence")
-    .select("id,status,company_id,user_id")
-    .eq("id", evidenceId)
-    .maybeSingle();
-
-  if (beforeError || !before) {
-    console.error("REJECT preflight failed", beforeError);
-    return errRedirect("preflight_failed");
-  }
-
-  // update evidence status
-  const { error: updateError } = await supabase.from("evidence").update({ status: "rejected" }).eq("id", evidenceId);
+    .update({
+      status: "rejected",
+      assigned_moderator_id: null,
+    })
+    .eq("id", evidenceId);
 
   if (updateError) {
     console.error("REJECT update failed", updateError);
     return errRedirect("update_failed");
   }
 
-  // insert moderation log
   const { error: moderationError } = await supabase.from("moderation_actions").insert({
     target_type: "evidence",
-    target_id: evidenceId,
+    target_id: String(evidenceId),
     action: "reject",
     moderator_note: moderatorNote,
     moderator_id: moderatorId,
@@ -215,23 +191,16 @@ export async function rejectEvidence(formData: FormData) {
     return errRedirect("moderation_log_failed");
   }
 
-  // enqueue notification for submitter
   const { email, evidenceTitle } = await fetchSubmitterEmail(supabase, evidenceId);
   if (email) {
-    const subject = `Your submission was rejected`;
-    const body = `Hi,\n\nYour submission${evidenceTitle ? ` "${evidenceTitle}"` : ""} has been rejected by our moderation team.\n\nReason: ${moderatorNote}\n\nIf you believe this is a mistake, please reply.\n\n— Rotten Company`;
-    await enqueueNotification(supabase, email, subject, body, { evidenceId, action: "reject" });
+    await enqueueNotification(
+      supabase,
+      email,
+      "Your submission was rejected",
+      `Hi,\n\nYour submission${evidenceTitle ? ` "${evidenceTitle}"` : ""} was rejected.\n\nReason: ${moderatorNote}\n\n— Rotten Company`,
+      { evidenceId, action: "reject" }
+    );
   }
-
-  // postflight verification
-  const { data: after, error: afterError } = await supabase.from("evidence").select("id,status").eq("id", evidenceId).maybeSingle();
-
-  if (afterError || !after || after.status !== "rejected") {
-    console.error("REJECT postflight failed", afterError);
-    return errRedirect("status_not_updated");
-  }
-
-  console.info("REJECT DONE", { evidenceId, moderatorId });
 
   revalidatePath("/moderation");
   redirect("/moderation");
