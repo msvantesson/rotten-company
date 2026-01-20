@@ -1,9 +1,7 @@
-// Server Component: reads session server-side, logs it, and renders a visible debug banner.
-// Replace your existing /app/moderation/page.tsx with this file.
-
 import { supabaseServer } from "@/lib/supabase-server";
 import ModerationClient from "./ModerationClient";
 import { approveEvidence, rejectEvidence } from "./actions";
+import { requireModerator } from "@/lib/moderation-guards";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -13,7 +11,8 @@ export default async function ModerationPage({
 }: {
   searchParams?: { error?: string };
 }) {
-  const errorParam = typeof searchParams?.error === "string" ? searchParams.error : null;
+  const errorParam =
+    typeof searchParams?.error === "string" ? searchParams.error : null;
 
   // Create SSR supabase client and read session
   const supabase = await supabaseServer();
@@ -23,9 +22,19 @@ export default async function ModerationPage({
   } = await supabase.auth.getSession();
 
   // Server log (appears in host logs)
-  console.info("[moderation] SSR session present:", !!session, "userId:", session?.user?.id, "error:", sessionError);
+  console.info(
+    "[moderation] SSR session present:",
+    !!session,
+    "userId:",
+    session?.user?.id,
+    "error:",
+    sessionError
+  );
 
   const moderatorId = session?.user?.id ?? null;
+
+  // HARD AUTHORITY CHECK: enforce moderator access server-side
+  await requireModerator(supabase, moderatorId);
 
   // Fetch pending evidence (session-aware read)
   const { data, error } = await supabase
@@ -56,9 +65,17 @@ export default async function ModerationPage({
       {/* Visible debug banner so you don't need to tail server logs */}
       <div className="mb-4 p-3 rounded border bg-yellow-50 text-sm">
         <strong>Debug</strong>
-        <div>SSR session present: <strong>{String(!!session)}</strong></div>
-        <div>SSR user id: <strong>{moderatorId ?? "null"}</strong></div>
-        {sessionError && <div className="text-red-600">Session error: {String(sessionError)}</div>}
+        <div>
+          SSR session present: <strong>{String(!!session)}</strong>
+        </div>
+        <div>
+          SSR user id: <strong>{moderatorId ?? "null"}</strong>
+        </div>
+        {sessionError && (
+          <div className="text-red-600">
+            Session error: {String(sessionError)}
+          </div>
+        )}
         {errorParam && (
           <div className="text-xs text-gray-500 mt-1">
             Last action error code: <code>{errorParam}</code>
