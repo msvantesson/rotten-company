@@ -22,13 +22,18 @@ export default function MyEvidencePage({
       : null);
 
   const evidenceId = Number(rawId);
+  const isResolved = rawId !== null;
   const isValidId = Number.isInteger(evidenceId) && evidenceId > 0;
 
   return (
     <main style={{ padding: 24 }}>
       <EvidenceClientWrapper />
 
-      {!isValidId && (
+      {!isResolved && (
+        <p>Loading your evidence details…</p>
+      )}
+
+      {isResolved && !isValidId && (
         <div
           style={{
             background: "#fff7e6",
@@ -38,7 +43,6 @@ export default function MyEvidencePage({
           }}
         >
           <strong>Invalid evidence id</strong>
-          <div>The client will re-check and load the correct evidence.</div>
         </div>
       )}
 
@@ -57,7 +61,6 @@ export default function MyEvidencePage({
       )}
 
       <h1>My Evidence {isValidId ? `#${evidenceId}` : ""}</h1>
-      <p>Loading your evidence details…</p>
     </main>
   );
 }
