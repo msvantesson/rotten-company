@@ -6,8 +6,21 @@ export const revalidate = 0;
 
 import EvidenceClientWrapper from "@/components/EvidenceClientWrapper";
 
-export default function MyEvidencePage({ params }: { params: { id: string } }) {
-  const rawId = params?.id ?? null;
+export default function MyEvidencePage({
+  params,
+  searchParams,
+}: {
+  params: { id?: string };
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const rawId =
+    params?.id ??
+    (typeof searchParams?.nxtPid === "string"
+      ? searchParams.nxtPid
+      : Array.isArray(searchParams?.nxtPid)
+      ? searchParams.nxtPid[0]
+      : null);
+
   const evidenceId = Number(rawId);
   const isValidId = Number.isInteger(evidenceId) && evidenceId > 0;
 
