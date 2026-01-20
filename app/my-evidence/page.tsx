@@ -80,4 +80,8 @@ export default async function MyEvidencePage({ params, searchParams = {} }: Page
         </div>
       )}
 
-      <h1>My Evidence {isValidId ? `#${evidenceId}` : ""
+      <h1>My Evidence {isValidId ? `#${evidenceId}` : ""}</h1>
+      <p>Loading your evidence details…</p>
+    </main>
+  );
+}
