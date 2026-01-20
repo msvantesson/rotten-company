@@ -1,7 +1,7 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import ModerationClient from "./ModerationClient";
 import { approveEvidence, rejectEvidence } from "./actions";
-import { requireModerator } from "@/lib/moderation-guards";
+import { enforceModerationGate } from "@/lib/moderation-guards";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -33,8 +33,8 @@ export default async function ModerationPage({
 
   const moderatorId = session?.user?.id ?? null;
 
-  // HARD AUTHORITY CHECK: enforce moderator access server-side
-  await requireModerator(supabase, moderatorId);
+  // HARD AUTHORITY CHECK — canonical moderation gate
+  await enforceModerationGate(supabase, moderatorId);
 
   // Fetch pending evidence (session-aware read)
   const { data, error } = await supabase
