@@ -1,6 +1,6 @@
 # Comprehensive Code Review Report
 **Repository:** msvantesson/rotten-company  
-**Date:** 2026-01-20  
+**Date:** 2024-01-20  
 **Reviewer:** GitHub Copilot AI Code Review  
 
 ---
@@ -49,21 +49,30 @@ export async function GET() {
 #### 1.2 Unauthenticated Score Recalculation
 **File:** `/app/api/score/recalculate/route.ts`
 ```typescript
+import { supabaseBrowser } from "@/lib/supabaseClient"; 
+const supabase = supabaseBrowser();
+
 export async function POST() {
-  const supabase = createBrowserClient(...); // No auth check
-  await supabase.rpc("compute_entity_scores");
-  return NextResponse.json({ ok: true });
+  const { error } = await supabase.rpc("compute_entity_scores");
+  
+  if (error) {
+    console.error("Score recalculation error:", error);
+    return Response.json({ success: false, error });
+  }
+  
+  return Response.json({ success: true });
 }
 ```
-**Issue:** No authentication check before triggering RPC  
+**Issue:** No authentication check before triggering RPC. Uses browser client instead of server client.
 **Risk:** HIGH - DoS attacks or unauthorized score manipulation  
-**Recommendation:** Add authentication middleware and rate limiting
+**Recommendation:** Add authentication middleware, use server client, and add rate limiting
 
 #### 1.3 Database URL Logging
-**File:** `/lib/supabase-server.ts`, lines 8-10
+**File:** `/lib/supabase-server.ts`, lines 7-10
 ```typescript
-console.log("🔍 DATABASE_URL (first 60 chars):", 
-  process.env.DATABASE_URL?.substring(0, 60)
+console.info(
+  "[DB DEBUG][supabaseServer] DATABASE_URL prefix:",
+  process.env.DATABASE_URL?.slice?.(0, 60) ?? null
 );
 ```
 **Issue:** Logs sensitive database connection info to console  
@@ -577,7 +586,7 @@ With focused effort on the priority recommendations, this codebase can reach pro
 
 ---
 
-**Report Generated:** 2026-01-20  
+**Report Generated:** 2024-01-20  
 **Tool:** GitHub Copilot AI Code Review  
 **Files Analyzed:** 82 TypeScript/JavaScript files  
 **Lines of Code:** ~8,000+ LOC
