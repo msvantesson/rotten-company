@@ -1,7 +1,9 @@
-// app/my-evidence/page.tsx
+// app/my-evidence/[id]/page.tsx
+console.log("[MY-EVIDENCE] FILE EXECUTED - START");
+
 import React from "react";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
+import { headers, cookies } from "next/headers";
 import EvidenceClientWrapper from "@/components/EvidenceClientWrapper";
 import { supabaseServer } from "@/lib/supabase-server";
 import type { Metadata } from "next";
@@ -10,48 +12,130 @@ export const metadata: Metadata = {
   title: "My Evidence",
 };
 
+// 🔥 CRITICAL FIX: FORCE THIS ROUTE TO BE DYNAMIC
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  params: { id?: string };
+  searchParams?: Record<string, string | string[] | undefined>;
+}
+
 function isDev() {
   return process.env.NODE_ENV !== "production";
 }
 
-export default async function MyEvidenceIndexPage() {
+export default async function MyEvidencePage({ params, searchParams = {} }: PageProps) {
   const start = Date.now();
-  if (isDev()) console.log("[MY-EVIDENCE-INDEX] handler start:", new Date().toISOString());
+  if (isDev()) console.log("[MY-EVIDENCE] handler start:", new Date().toISOString());
 
-  // Quick visibility into whether cookies are available on the server render (no secrets).
-  let cookieStorePresent = false;
-  try {
-    const cs = await cookies();
-    cookieStorePresent = !!cs;
-    if (isDev()) console.log("[MY-EVIDENCE-INDEX] cookies() available:", cookieStorePresent);
-  } catch (e) {
-    if (isDev()) console.warn("[MY-EVIDENCE-INDEX] cookies() threw:", e);
+  // --- Extract id: primary from route params, fallback to Next internal navigation params ---
+  let rawId = params?.id ?? null;
+
+  if (!rawId) {
+    const nxt = searchParams?.nxtPid ?? searchParams?._rsc ?? null;
+    let nxtStr: string | undefined;
+    if (Array.isArray(nxt)) nxtStr = nxt[0];
+    else nxtStr = nxt as string | undefined;
+
+    if (typeof nxtStr === "string" && nxtStr.trim().length > 0) {
+      const match = nxtStr.match(/\d+/);
+      if (match) rawId = match[0];
+    }
   }
 
-  // Create Supabase server client
+  const evidenceId = Number(rawId);
+  if (isDev()) console.log("[MY-EVIDENCE] path param id:", rawId, "parsed:", evidenceId);
+
+  if (!Number.isInteger(evidenceId)) {
+    if (isDev()) console.log("[MY-EVIDENCE] Invalid or missing id on server render — rendering fallback instead of 404");
+
+    return (
+      <main style={{ padding: 24 }}>
+        <EvidenceClientWrapper />
+
+        <div style={{ background: "#fff7e6", padding: 12, border: "1px solid #f0c36b", marginBottom: 12 }}>
+          <strong>Missing evidence id on server render</strong>
+          <div>
+            This server render did not receive a valid id. If you navigated here from the app,
+            the client will re-check the route and load the evidence shortly.
+          </div>
+        </div>
+
+        <h1>Loading evidence</h1>
+        <p>Checking route parameters and authentication…</p>
+      </main>
+    );
+  }
+
+  // --- Read headers safely ---
+  let cookieHeader: string | null = null;
+  let ua: string | null = null;
+  try {
+    const hdrs = await headers();
+    cookieHeader = hdrs.get("cookie");
+    ua = hdrs.get("user-agent");
+  } catch (e) {
+    if (isDev()) console.log("[MY-EVIDENCE] headers() error:", e);
+  }
+  if (isDev()) console.log("[MY-EVIDENCE] cookie present:", !!cookieHeader, "user-agent:", ua ?? "(none)");
+
+  if (isDev()) console.log("[MY-EVIDENCE] raw cookieHeader:", cookieHeader ?? "(none)");
+
+  function getCookieFromHeader(name: string, header: string | null) {
+    if (!header) return null;
+    const parts = header.split("; ");
+    for (const p of parts) {
+      if (p.startsWith(name + "=")) {
+        try {
+          return decodeURIComponent(p.slice(name.length + 1));
+        } catch {
+          return p.slice(name.length + 1);
+        }
+      }
+    }
+    return null;
+  }
+
+  const authTokenHeader = getCookieFromHeader("sb-erkxyvwblgstoedlbxfa-auth-token", cookieHeader);
+  const refreshTokenHeader = getCookieFromHeader("sb-erkxyvwblgstoedlbxfa-refresh-token", cookieHeader);
+
+  if (isDev()) {
+    console.log("[MY-EVIDENCE] auth-token present (header):", !!authTokenHeader);
+    console.log("[MY-EVIDENCE] refresh-token present (header):", !!refreshTokenHeader);
+  }
+
+  const cookieStore = await cookies();
+  const authCookieObj = cookieStore.get("sb-erkxyvwblgstoedlbxfa-auth-token") ?? null;
+  const refreshCookieObj = cookieStore.get("sb-erkxyvwblgstoedlbxfa-refresh-token") ?? null;
+
+  if (isDev()) {
+    console.log("[MY-EVIDENCE] cookies().get auth present:", !!authCookieObj);
+    console.log("[MY-EVIDENCE] cookies().get refresh present:", !!refreshCookieObj);
+  }
+
+  // create supabase server client
   let supabase;
   try {
     supabase = await supabaseServer();
   } catch (e) {
-    if (isDev()) console.error("[MY-EVIDENCE-INDEX] supabaseServer creation failed:", e);
-    // Avoid exposing internals; show notFound so page doesn't leak details.
+    if (isDev()) console.log("[MY-EVIDENCE] ERROR creating supabaseServer:", e);
     notFound();
   }
 
-  // Get server-side user
-  let user: { id: string } | null = null;
+  // get server-side user
+  let user = null;
   try {
     const { data, error } = await supabase.auth.getUser();
-    if (error && isDev()) console.warn("[MY-EVIDENCE-INDEX] supabase.auth.getUser error:", error.message);
+    if (error && isDev()) console.log("[MY-EVIDENCE] supabase.getUser error:", error.message);
     user = data?.user ?? null;
-    if (isDev()) console.log("[MY-EVIDENCE-INDEX] supabase user id:", user?.id ?? null);
+    if (isDev()) console.log("[MY-EVIDENCE] supabase user id:", user?.id ?? null);
   } catch (e) {
-    if (isDev()) console.warn("[MY-EVIDENCE-INDEX] supabase.auth.getUser threw:", e);
+    if (isDev()) console.log("[MY-EVIDENCE] supabase.getUser threw:", e);
   }
 
-  // If no server-side user, render a safe fallback so Next preflight/RSC requests don't return 404.
   if (!user) {
-    if (isDev()) console.log("[MY-EVIDENCE-INDEX] No server session — rendering fallback instead of 404");
+    if (isDev()) console.log("[MY-EVIDENCE] No authenticated user on server render — rendering fallback instead of 404");
+
     return (
       <main style={{ padding: 24 }}>
         <EvidenceClientWrapper />
@@ -59,101 +143,78 @@ export default async function MyEvidenceIndexPage() {
         <div style={{ background: "#fff7e6", padding: 12, border: "1px solid #f0c36b", marginBottom: 12 }}>
           <strong>Server session not present</strong>
           <div>
-            You appear to be signed out on this server render. If you are signed in, the client will re-check your session
-            and load your evidence shortly.
+            It looks like your session is not available on this server render. If you are signed in,
+            the page will re-check your session on the client and load the evidence.
           </div>
         </div>
 
-        <h1>My Evidence</h1>
-        <p>Loading your evidence list…</p>
+        <h1>Loading evidence #{evidenceId}</h1>
+        <p>Checking authentication and loading content…</p>
       </main>
     );
   }
 
-  // Fetch evidence rows for the authenticated user
-  let evidenceList: any[] = [];
+  // fetch evidence row
+  let evidence: any = null;
   try {
-    const qStart = Date.now();
     const { data, error } = await supabase
       .from("evidence")
-      .select("id,title,status,created_at,category,file_url,entity_type,entity_id")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    if (isDev()) console.log("[MY-EVIDENCE-INDEX] evidence query durationMs:", Date.now() - qStart);
-    if (error) {
-      if (isDev()) console.warn("[MY-EVIDENCE-INDEX] evidence query error:", error.message);
-    } else {
-      evidenceList = data ?? [];
-    }
-    if (isDev()) console.log("[MY-EVIDENCE-INDEX] evidence count:", evidenceList.length);
+      .select("*")
+      .eq("id", evidenceId)
+      .maybeSingle();
+
+    evidence = data ?? null;
+    if (isDev()) console.log("[MY-EVIDENCE] evidence row present:", !!evidence);
   } catch (e) {
-    if (isDev()) console.error("[MY-EVIDENCE-INDEX] evidence query threw:", e);
+    if (isDev()) console.log("[MY-EVIDENCE] evidence query threw:", e);
   }
 
-  // If no evidence found, show an empty state (not a 404)
+  if (!evidence) {
+    if (isDev()) console.log("[MY-EVIDENCE] NOT FOUND reason: evidence row missing for id:", evidenceId);
+    notFound();
+  }
+
+  // ownership check (debug-friendly)
+  if (evidence.user_id !== user.id) {
+    if (isDev()) {
+      console.warn("[MY-EVIDENCE] Ownership mismatch detected");
+      console.warn("[MY-EVIDENCE] evidence.user_id:", evidence.user_id);
+      console.warn("[MY-EVIDENCE] server user.id:", user?.id ?? "(null)");
+    }
+
+    return (
+      <main style={{ padding: 24 }}>
+        <EvidenceClientWrapper />
+
+        <div style={{ background: "#fff1f0", padding: 12, border: "1px solid #f2a0a0", marginBottom: 12 }}>
+          <strong>Debug: ownership mismatch</strong>
+          <div>The evidence owner does not match the authenticated server user.</div>
+          <div style={{ marginTop: 8 }}>
+            <strong>evidence.user_id:</strong> {String(evidence.user_id)}
+            <br />
+            <strong>server user.id:</strong> {String(user.id)}
+          </div>
+        </div>
+
+        <h1>My Evidence #{evidence.id}</h1>
+        <pre style={{ whiteSpace: "pre-wrap", background: "#f6f6f6", padding: 12 }}>
+          {JSON.stringify(evidence, null, 2)}
+        </pre>
+      </main>
+    );
+  }
+
   const totalMs = Date.now() - start;
+  if (isDev()) console.log("[MY-EVIDENCE] ACCESS GRANTED id:", evidenceId, "totalMs:", totalMs);
+
   return (
     <main style={{ padding: 24 }}>
       <EvidenceClientWrapper />
 
-      <header style={{ marginBottom: 16 }}>
-        <h1>My Evidence</h1>
-        <div style={{ color: "#666", fontSize: 13 }}>
-          Showing evidence submitted by you. Request processed in {totalMs}ms.
-        </div>
-      </header>
-
-      <section style={{ marginBottom: 20 }}>
-        {evidenceList.length === 0 ? (
-          <div style={{ padding: 16, background: "#f6f6f6", borderRadius: 6 }}>
-            <strong>No evidence found</strong>
-            <div style={{ marginTop: 8 }}>
-              You haven't submitted any evidence yet. Use the upload form to add a new item.
-            </div>
-          </div>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {evidenceList.map((ev) => (
-              <li
-                key={ev.id}
-                style={{
-                  padding: 12,
-                  border: "1px solid #e6e6e6",
-                  borderRadius: 6,
-                  marginBottom: 10,
-                  background: "#fff",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <a href={`/my-evidence/${ev.id}`} style={{ fontSize: 16, fontWeight: 600, color: "#111" }}>
-                      {ev.title ?? `Evidence #${ev.id}`}
-                    </a>
-                    <div style={{ color: "#666", fontSize: 13 }}>
-                      {ev.entity_type ? `${ev.entity_type} #${ev.entity_id}` : null} • {ev.category ?? "—"}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 13, color: "#333" }}>{ev.status}</div>
-                    <div style={{ fontSize: 12, color: "#999" }}>{new Date(ev.created_at).toLocaleString()}</div>
-                  </div>
-                </div>
-                {ev.file_url ? (
-                  <div style={{ marginTop: 8 }}>
-                    <a href={ev.file_url} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>
-                      View attached file
-                    </a>
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <footer style={{ marginTop: 12, fontSize: 12, color: "#666" }}>
-        <div>Server cookies available: {String(cookieStorePresent)}</div>
-      </footer>
+      <h1>My Evidence #{evidence.id}</h1>
+      <pre style={{ whiteSpace: "pre-wrap", background: "#f6f6f6", padding: 12 }}>
+        {JSON.stringify(evidence, null, 2)}
+      </pre>
     </main>
   );
 }
