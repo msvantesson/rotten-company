@@ -47,12 +47,15 @@ export default async function ModerationPage({
   await enforceModerationGate(moderatorId);
 
   // ─────────────────────────────────────────────
-  // FETCH PENDING EVIDENCE
+  // FETCH + CLAIM PENDING EVIDENCE
+  // Claims only currently-unassigned pending items by setting assigned_moderator_id
   // ─────────────────────────────────────────────
   const { data, error } = await supabase
     .from("evidence")
-    .select("id, title, summary, contributor_note, created_at")
+    .update({ assigned_moderator_id: moderatorId })
+    .is("assigned_moderator_id", null)
     .eq("status", "pending")
+    .select("id, title, summary, contributor_note, created_at")
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -70,9 +73,6 @@ export default async function ModerationPage({
     );
   }
 
-  // ─────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────
   return (
     <main className="max-w-3xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-2">Moderation queue</h1>
