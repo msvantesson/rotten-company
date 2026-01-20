@@ -34,7 +34,8 @@ export default async function ModerationPage({
   const moderatorId = session?.user?.id ?? null;
 
   // HARD AUTHORITY CHECK — canonical moderation gate
-  await enforceModerationGate(supabase, moderatorId);
+ await enforceModerationGate(moderatorId);
+
 
   // Fetch pending evidence (session-aware read)
   const { data, error } = await supabase
