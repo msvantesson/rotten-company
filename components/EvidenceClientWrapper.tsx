@@ -1,7 +1,7 @@
 // components/EvidenceClientWrapper.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
@@ -13,6 +13,11 @@ type Evidence = {
   file_url: string | null;
   created_at: string;
   category: number | null;
+  user_id: string;
+
+  // optional but useful if your table has them; safe to keep even if null
+  entity_type?: string | null;
+  entity_id?: number | null;
 };
 
 export default function EvidenceClientWrapper() {
@@ -22,44 +27,96 @@ export default function EvidenceClientWrapper() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [evidence, setEvidence] = useState<Evidence | null>(null);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!Number.isInteger(evidenceId)) {
+    if (!Number.isInteger(evidenceId) || evidenceId <= 0) {
       setError("Invalid evidence id");
       setLoading(false);
       return;
     }
 
+    let cancelled = false;
+
     const loadEvidence = async () => {
-      const supabase = supabaseBrowser();
+      try {
+        const supabase = supabaseBrowser();
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        setError("Not authenticated");
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession();
+
+        if (cancelled) return;
+
+        if (sessionError) {
+          setError("Failed to read session");
+          setLoading(false);
+          return;
+        }
+
+        const session = sessionData.session;
+        if (!session) {
+          setError("Not authenticated");
+          setLoading(false);
+          return;
+        }
+
+        setViewerUserId(session.user.id);
+
+        const { data, error } = await supabase
+          .from("evidence")
+          .select(
+            "id, title, summary, status, file_url, created_at, category, user_id, entity_type, entity_id"
+          )
+          .eq("id", evidenceId)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        if (error || !data) {
+          setError("Failed to load evidence (404)");
+          setLoading(false);
+          return;
+        }
+
+        setEvidence(data as Evidence);
         setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("evidence")
-        .select(
-          "id, title, summary, status, file_url, created_at, category"
-        )
-        .eq("id", evidenceId)
-        .maybeSingle();
-
-      if (error || !data) {
-        setError("Failed to load evidence (404)");
+      } catch {
+        if (cancelled) return;
+        setError("Failed to load evidence");
         setLoading(false);
-        return;
       }
-
-      setEvidence(data);
-      setLoading(false);
     };
 
     loadEvidence();
+
+    return () => {
+      cancelled = true;
+    };
   }, [evidenceId]);
+
+  const isOwner = useMemo(() => {
+    if (!evidence?.user_id || !viewerUserId) return false;
+    return evidence.user_id === viewerUserId;
+  }, [evidence?.user_id, viewerUserId]);
+
+  const startOverHref = useMemo(() => {
+    // Phase 1: Reject → start over (new submission)
+    // Prefill is optional. If entity info exists, we include it; if not, we just go to the page.
+    const base = "/evidence-upload";
+
+    const entityType = evidence?.entity_type ?? null;
+    const entityId = evidence?.entity_id ?? null;
+
+    if (entityType && entityId && Number.isInteger(Number(entityId))) {
+      const qs = new URLSearchParams({
+        entityType: String(entityType),
+        entityId: String(entityId),
+      });
+      return `${base}?${qs.toString()}`;
+    }
+
+    return base;
+  }, [evidence?.entity_type, evidence?.entity_id]);
 
   if (loading) {
     return (
@@ -83,13 +140,10 @@ export default function EvidenceClientWrapper() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-semibold">
-        Evidence #{evidence.id}
-      </h1>
+      <h1 className="text-2xl font-semibold">Evidence #{evidence.id}</h1>
 
       <div>
-        <strong>Title:</strong>{" "}
-        {evidence.title ?? "(no title)"}
+        <strong>Title:</strong> {evidence.title ?? "(no title)"}
       </div>
 
       <div>
@@ -119,6 +173,29 @@ export default function EvidenceClientWrapper() {
           >
             View uploaded file
           </a>
+        </div>
+      )}
+
+      {evidence.status === "rejected" && isOwner && (
+        <div className="mt-8 border-t pt-6">
+          <div className="rounded border border-red-300 bg-red-50 p-4">
+            <h2 className="font-semibold text-red-700">
+              This evidence was rejected
+            </h2>
+
+            <p className="mt-2 text-sm text-red-700">
+              This submission didn’t meet the moderation criteria and won’t be
+              published. You can submit a new piece of evidence if you want to
+              try again.
+            </p>
+
+            <a
+              href={startOverHref}
+              className="mt-4 inline-block rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+            >
+              Start over
+            </a>
+          </div>
         </div>
       )}
 
