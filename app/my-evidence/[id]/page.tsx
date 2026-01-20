@@ -27,12 +27,13 @@ export default function MyEvidencePage({
 
   return (
     <main style={{ padding: 24 }}>
+      {/* Client wrapper owns auth + fetch + render */}
       <EvidenceClientWrapper />
 
-      {!isResolved && (
-        <p>Loading your evidence details…</p>
-      )}
+      {/* RSC preflight can arrive without params; treat as loading */}
+      {!isResolved && <p>Loading your evidence details…</p>}
 
+      {/* Only show invalid once we actually have something resolved */}
       {isResolved && !isValidId && (
         <div
           style={{
@@ -45,22 +46,6 @@ export default function MyEvidencePage({
           <strong>Invalid evidence id</strong>
         </div>
       )}
-
-      {isValidId && (
-        <div
-          style={{
-            background: "#f0f5ff",
-            padding: 12,
-            border: "1px solid #adc6ff",
-            marginBottom: 12,
-          }}
-        >
-          <strong>Evidence page shell</strong>
-          <div>Client will fetch evidence #{evidenceId}.</div>
-        </div>
-      )}
-
-      <h1>My Evidence {isValidId ? `#${evidenceId}` : ""}</h1>
     </main>
   );
 }
