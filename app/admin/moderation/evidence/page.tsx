@@ -24,6 +24,9 @@ export default async function AdminEvidenceReviewPage({
   const user = await requireAdmin();
   if (!user) return null;
 
+  // 🔒 Extract once so TS knows it's non-null
+  const moderatorId = user.id;
+
   const supabase = await supabaseServer();
 
   const { data: evidence, error } = await supabase
@@ -52,7 +55,7 @@ export default async function AdminEvidenceReviewPage({
       .eq("id", evidence.id);
 
     await supabase.from("moderation_actions").insert({
-      moderator_id: user.id,
+      moderator_id: moderatorId,
       target_type: "evidence",
       target_id: evidence.id,
       action: "approve",
@@ -76,7 +79,7 @@ export default async function AdminEvidenceReviewPage({
       .eq("id", evidence.id);
 
     await supabase.from("moderation_actions").insert({
-      moderator_id: user.id,
+      moderator_id: moderatorId,
       target_type: "evidence",
       target_id: evidence.id,
       action: "reject",
