@@ -8,7 +8,7 @@ export default async function EvidenceReviewPage({
 }) {
   const supabase = await supabaseServer();
 
-  // 🔐 Ensure authenticated moderator
+  // 🔐 Auth check
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) return null;
 
@@ -23,8 +23,8 @@ export default async function EvidenceReviewPage({
   if (!isModerator) return null;
 
   // 🧠 Parse ID safely
-  const evidenceId = Number(params.id);
-  if (!Number.isInteger(evidenceId)) {
+  const evidenceId = parseInt(params.id, 10);
+  if (isNaN(evidenceId)) {
     return <div>Invalid evidence ID</div>;
   }
 
