@@ -21,7 +21,6 @@ export default async function ModerationPage({
     error: sessionError,
   } = await supabase.auth.getSession();
 
-  // Server log (appears in host logs)
   console.info(
     "[moderation] SSR session present:",
     !!session,
@@ -31,13 +30,25 @@ export default async function ModerationPage({
     sessionError
   );
 
-  const moderatorId = session?.user?.id ?? null;
+  // ─────────────────────────────────────────────
+  // HARD AUTHORITY GATE
+  // ─────────────────────────────────────────────
+  const moderatorId = session?.user?.id;
 
-  // HARD AUTHORITY CHECK — canonical moderation gate
- await enforceModerationGate(moderatorId);
+  if (!moderatorId) {
+    return (
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
+        <p>You must be logged in to access moderation.</p>
+      </main>
+    );
+  }
 
+  await enforceModerationGate(moderatorId);
 
-  // Fetch pending evidence (session-aware read)
+  // ─────────────────────────────────────────────
+  // FETCH PENDING EVIDENCE
+  // ─────────────────────────────────────────────
   const { data, error } = await supabase
     .from("evidence")
     .select("id, title, summary, contributor_note, created_at")
@@ -59,18 +70,20 @@ export default async function ModerationPage({
     );
   }
 
+  // ─────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────
   return (
     <main className="max-w-3xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-2">Moderation queue</h1>
 
-      {/* Visible debug banner so you don't need to tail server logs */}
       <div className="mb-4 p-3 rounded border bg-yellow-50 text-sm">
         <strong>Debug</strong>
         <div>
           SSR session present: <strong>{String(!!session)}</strong>
         </div>
         <div>
-          SSR user id: <strong>{moderatorId ?? "null"}</strong>
+          SSR user id: <strong>{moderatorId}</strong>
         </div>
         {sessionError && (
           <div className="text-red-600">
