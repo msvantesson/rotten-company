@@ -1,36 +1,28 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { supabaseService } from "@/lib/supabase-service";
 
-type ValidateResult =
-  | { ok: true; id: string; reason: null }
-  | { ok: false; id: null; reason: "missing" | "invalid" };
+export type ActionResult =
+  | { ok: true }
+  | { ok: false; error: string };
 
-function errRedirect(code: string) {
-  revalidatePath("/moderation");
-  redirect(`/moderation?error=${encodeURIComponent(code)}`);
-}
-
-async function validateModeratorId(moderatorId: string | null): Promise<ValidateResult> {
-  if (!moderatorId) {
-    return { ok: false, id: null, reason: "missing" };
-  }
+async function validateModeratorId(moderatorId: string | null) {
+  if (!moderatorId) return null;
 
   const supabase = supabaseService();
-  const { data: user, error } = await supabase
+  const { data, error } = await supabase
     .from("users")
     .select("id")
     .eq("id", moderatorId)
     .maybeSingle();
 
-  if (error || !user) {
+  if (error || !data?.id) {
     console.error("[moderation] invalid moderator_id", { moderatorId, error });
-    return { ok: false, id: null, reason: "invalid" };
+    return null;
   }
 
-  return { ok: true, id: user.id as string, reason: null };
+  return data.id as string;
 }
 
 async function fetchSubmitterEmail(
@@ -39,12 +31,12 @@ async function fetchSubmitterEmail(
 ) {
   const { data: ev, error: evErr } = await supabase
     .from("evidence")
-    .select("id, user_id, title")
+    .select("user_id, title")
     .eq("id", evidenceId)
     .maybeSingle();
 
   if (evErr || !ev) {
-    console.error("fetchSubmitterEmail: evidence fetch failed", evErr);
+    console.error("[moderation] fetchSubmitterEmail evidence fetch failed", evErr);
     return { email: null, evidenceTitle: null };
   }
 
@@ -59,7 +51,7 @@ async function fetchSubmitterEmail(
     .maybeSingle();
 
   if (userErr || !user) {
-    console.error("fetchSubmitterEmail: user fetch failed", userErr);
+    console.error("[moderation] fetchSubmitterEmail user fetch failed", userErr);
     return { email: null, evidenceTitle: ev.title ?? null };
   }
 
@@ -73,7 +65,7 @@ async function enqueueNotification(
   body: string,
   metadata: object = {}
 ) {
-  if (!email) return null;
+  if (!email) return;
 
   const { error } = await supabase.from("notification_jobs").insert({
     recipient_email: email,
@@ -84,27 +76,27 @@ async function enqueueNotification(
   });
 
   if (error) {
-    console.error("enqueueNotification failed", error);
-    return null;
+    console.error("[moderation] enqueueNotification failed", error);
   }
-
-  return true;
 }
 
-export async function approveEvidence(formData: FormData) {
+export async function approveEvidence(formData: FormData): Promise<ActionResult> {
   const supabase = supabaseService();
+
   const evidenceIdRaw = String(formData.get("evidence_id") ?? "").trim();
   const evidenceId = Number(evidenceIdRaw);
   const moderatorNote = String(formData.get("moderator_note") ?? "").trim();
-  const moderatorIdRaw = String(formData.get("moderator_id") ?? "").trim() || null;
+  const moderatorIdRaw =
+    String(formData.get("moderator_id") ?? "").trim() || null;
 
-  if (!evidenceIdRaw || Number.isNaN(evidenceId)) return errRedirect("invalid_evidence_id");
-
-  const modCheck = await validateModeratorId(moderatorIdRaw);
-  if (!modCheck.ok) {
-    return errRedirect(modCheck.reason === "missing" ? "moderator_missing" : "moderator_invalid");
+  if (!evidenceIdRaw || Number.isNaN(evidenceId)) {
+    return { ok: false, error: "invalid_evidence_id" };
   }
-  const moderatorId = modCheck.id;
+
+  const moderatorId = await validateModeratorId(moderatorIdRaw);
+  if (!moderatorId) {
+    return { ok: false, error: "invalid_moderator" };
+  }
 
   const { error: updateError } = await supabase
     .from("evidence")
@@ -115,54 +107,65 @@ export async function approveEvidence(formData: FormData) {
     .eq("id", evidenceId);
 
   if (updateError) {
-    console.error("APPROVE update failed", updateError);
-    return errRedirect("update_failed");
+    console.error("[moderation] APPROVE update failed", updateError);
+    return { ok: false, error: "update_failed" };
   }
 
-  const { error: moderationError } = await supabase.from("moderation_actions").insert({
-    target_type: "evidence",
-    target_id: String(evidenceId),
-    action: "approve",
-    moderator_note: moderatorNote || "approved",
-    moderator_id: moderatorId,
-    source: "ui",
-  });
+  const { error: moderationError } = await supabase
+    .from("moderation_actions")
+    .insert({
+      target_type: "evidence",
+      target_id: String(evidenceId),
+      action: "approve",
+      moderator_note: moderatorNote || "approved",
+      moderator_id: moderatorId,
+      source: "ui",
+    });
 
   if (moderationError) {
-    console.error("APPROVE moderation insert failed", moderationError);
-    return errRedirect("moderation_log_failed");
+    console.error("[moderation] APPROVE moderation insert failed", moderationError);
+    return { ok: false, error: "moderation_log_failed" };
   }
 
-  const { email, evidenceTitle } = await fetchSubmitterEmail(supabase, evidenceId);
-  if (email) {
-    await enqueueNotification(
-      supabase,
-      email,
-      "Your submission was approved",
-      `Hi,\n\nYour submission${evidenceTitle ? ` "${evidenceTitle}"` : ""} has been approved.\n\n— Rotten Company`,
-      { evidenceId, action: "approve" }
-    );
-  }
+  const { email, evidenceTitle } = await fetchSubmitterEmail(
+    supabase,
+    evidenceId
+  );
+
+  await enqueueNotification(
+    supabase,
+    email,
+    "Your submission was approved",
+    `Hi,\n\nYour submission${
+      evidenceTitle ? ` "${evidenceTitle}"` : ""
+    } has been approved.\n\n— Rotten Company`,
+    { evidenceId, action: "approve" }
+  );
 
   revalidatePath("/moderation");
-  redirect("/moderation");
+  return { ok: true };
 }
 
-export async function rejectEvidence(formData: FormData) {
+export async function rejectEvidence(formData: FormData): Promise<ActionResult> {
   const supabase = supabaseService();
+
   const evidenceIdRaw = String(formData.get("evidence_id") ?? "").trim();
   const evidenceId = Number(evidenceIdRaw);
   const moderatorNote = String(formData.get("moderator_note") ?? "").trim();
-  const moderatorIdRaw = String(formData.get("moderator_id") ?? "").trim() || null;
+  const moderatorIdRaw =
+    String(formData.get("moderator_id") ?? "").trim() || null;
 
-  if (!evidenceIdRaw || Number.isNaN(evidenceId)) return errRedirect("invalid_evidence_id");
-  if (!moderatorNote) return errRedirect("moderator_note_required");
-
-  const modCheck = await validateModeratorId(moderatorIdRaw);
-  if (!modCheck.ok) {
-    return errRedirect(modCheck.reason === "missing" ? "moderator_missing" : "moderator_invalid");
+  if (!evidenceIdRaw || Number.isNaN(evidenceId)) {
+    return { ok: false, error: "invalid_evidence_id" };
   }
-  const moderatorId = modCheck.id;
+  if (!moderatorNote) {
+    return { ok: false, error: "moderator_note_required" };
+  }
+
+  const moderatorId = await validateModeratorId(moderatorIdRaw);
+  if (!moderatorId) {
+    return { ok: false, error: "invalid_moderator" };
+  }
 
   const { error: updateError } = await supabase
     .from("evidence")
@@ -173,35 +176,83 @@ export async function rejectEvidence(formData: FormData) {
     .eq("id", evidenceId);
 
   if (updateError) {
-    console.error("REJECT update failed", updateError);
-    return errRedirect("update_failed");
+    console.error("[moderation] REJECT update failed", updateError);
+    return { ok: false, error: "update_failed" };
   }
 
-  const { error: moderationError } = await supabase.from("moderation_actions").insert({
-    target_type: "evidence",
-    target_id: String(evidenceId),
-    action: "reject",
-    moderator_note: moderatorNote,
-    moderator_id: moderatorId,
-    source: "ui",
-  });
+  const { error: moderationError } = await supabase
+    .from("moderation_actions")
+    .insert({
+      target_type: "evidence",
+      target_id: String(evidenceId),
+      action: "reject",
+      moderator_note: moderatorNote,
+      moderator_id: moderatorId,
+      source: "ui",
+    });
 
   if (moderationError) {
-    console.error("REJECT moderation insert failed", moderationError);
-    return errRedirect("moderation_log_failed");
+    console.error("[moderation] REJECT moderation insert failed", moderationError);
+    return { ok: false, error: "moderation_log_failed" };
   }
 
-  const { email, evidenceTitle } = await fetchSubmitterEmail(supabase, evidenceId);
-  if (email) {
-    await enqueueNotification(
-      supabase,
-      email,
-      "Your submission was rejected",
-      `Hi,\n\nYour submission${evidenceTitle ? ` "${evidenceTitle}"` : ""} was rejected.\n\nReason: ${moderatorNote}\n\n— Rotten Company`,
-      { evidenceId, action: "reject" }
-    );
+  const { email, evidenceTitle } = await fetchSubmitterEmail(
+    supabase,
+    evidenceId
+  );
+
+  await enqueueNotification(
+    supabase,
+    email,
+    "Your submission was rejected",
+    `Hi,\n\nYour submission${
+      evidenceTitle ? ` "${evidenceTitle}"` : ""
+    } was rejected.\n\nReason: ${moderatorNote}\n\n— Rotten Company`,
+    { evidenceId, action: "reject" }
+  );
+
+  revalidatePath("/moderation");
+  return { ok: true };
+}
+
+// Phase 1: not yet wired into the client, but ready when we want real skip semantics.
+export async function skipEvidence(
+  evidenceId: number,
+  moderatorId: string
+): Promise<ActionResult> {
+  const supabase = supabaseService();
+
+  const validModerator = await validateModeratorId(moderatorId);
+  if (!validModerator) {
+    return { ok: false, error: "invalid_moderator" };
+  }
+
+  const { error: updateError } = await supabase
+    .from("evidence")
+    .update({ assigned_moderator_id: null })
+    .eq("id", evidenceId);
+
+  if (updateError) {
+    console.error("[moderation] SKIP update failed", updateError);
+    return { ok: false, error: "update_failed" };
+  }
+
+  const { error: moderationError } = await supabase
+    .from("moderation_actions")
+    .insert({
+      target_type: "evidence",
+      target_id: String(evidenceId),
+      action: "skip",
+      moderator_note: "skipped",
+      moderator_id: moderatorId,
+      source: "ui",
+    });
+
+  if (moderationError) {
+    console.error("[moderation] SKIP moderation insert failed", moderationError);
+    return { ok: false, error: "moderation_log_failed" };
   }
 
   revalidatePath("/moderation");
-  redirect("/moderation");
+  return { ok: true };
 }
