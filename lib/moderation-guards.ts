@@ -29,7 +29,7 @@ function adminClient() {
 
 /**
  * Authenticated user ID via Supabase SSR.
- * IMPORTANT: cookies() MUST be awaited in Next.js 16.
+ * Used ONLY for participation gates.
  */
 async function getUserId(): Promise<string | null> {
   const cookieStore = await cookies();
@@ -64,7 +64,6 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 
   const admin = adminClient();
 
-  // Count pending evidence
   const { count: pendingCount } = await admin
     .from("evidence")
     .select("id", { count: "exact", head: true })
@@ -72,12 +71,10 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 
   const pendingEvidence = pendingCount ?? 0;
 
-  // Participation requirement
   let requiredModerations = 0;
   if (pendingEvidence === 1) requiredModerations = 1;
   if (pendingEvidence >= 2) requiredModerations = 2;
 
-  // Count user's moderation votes
   const { count: userModerationCount } = await admin
     .from("moderation_votes")
     .select("id", { count: "exact", head: true })
@@ -95,10 +92,11 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 
 /**
  * Role‑based moderator access.
- * Used ONLY for the moderation UI.
+ * IMPORTANT: userId is passed explicitly.
  */
-export async function canModerate(): Promise<boolean> {
-  const userId = await getUserId();
+export async function canModerate(
+  userId: string | null
+): Promise<boolean> {
   if (!userId) return false;
 
   const admin = adminClient();
@@ -134,32 +132,4 @@ export async function canEvaluateCompany(): Promise<boolean> {
 export async function canEvaluateLeader(): Promise<boolean> {
   const status = await getModerationGateStatus();
   return status.allowed;
-}
-
-/**
- * Annual scoring limit (distinct companies per year).
- */
-export async function enforceAnnualScoringLimit(limitPerYear: number) {
-  const userId = await getUserId();
-  if (!userId) throw new Error("Not authenticated");
-
-  const admin = adminClient();
-
-  const startOfYear = new Date(
-    Date.UTC(new Date().getUTCFullYear(), 0, 1)
-  ).toISOString();
-
-  const { data } = await admin
-    .from("ratings")
-    .select("company_id")
-    .eq("user_id", userId)
-    .gte("created_at", startOfYear);
-
-  const distinctCompanies = new Set(
-    (data ?? []).map((r) => r.company_id)
-  ).size;
-
-  if (distinctCompanies >= limitPerYear) {
-    throw new Error("Annual scoring limit reached");
-  }
 }
