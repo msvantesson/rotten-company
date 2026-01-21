@@ -14,7 +14,6 @@ export default async function ModerationPage({
   const errorParam =
     typeof searchParams?.error === "string" ? searchParams.error : null;
 
-  // Create SSR supabase client and read VERIFIED user
   const supabase = await supabaseServer();
   const {
     data: { user },
@@ -45,9 +44,9 @@ export default async function ModerationPage({
   }
 
   // ─────────────────────────────────────────────
-  // AUTH: NOT ALLOWED TO MODERATE
+  // AUTH: NOT A MODERATOR
   // ─────────────────────────────────────────────
-  const allowed = await canModerate();
+  const allowed = await canModerate(moderatorId);
 
   if (!allowed) {
     return (
