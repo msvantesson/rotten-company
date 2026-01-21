@@ -47,8 +47,8 @@ async function getUserId(): Promise<string | null> {
 }
 
 /**
- * Earned participation moderation gate.
- * PURE FUNCTION — NO REDIRECTS.
+ * Participation gate for submitters.
+ * Users must moderate before they can submit companies or evaluations.
  */
 export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
   const userId = await getUserId();
@@ -64,6 +64,7 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 
   const admin = adminClient();
 
+  // Count pending evidence
   const { count: pendingCount } = await admin
     .from("evidence")
     .select("id", { count: "exact", head: true })
@@ -71,10 +72,12 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 
   const pendingEvidence = pendingCount ?? 0;
 
+  // Participation requirement
   let requiredModerations = 0;
   if (pendingEvidence === 1) requiredModerations = 1;
   if (pendingEvidence >= 2) requiredModerations = 2;
 
+  // Count user's moderation votes
   const { count: userModerationCount } = await admin
     .from("moderation_votes")
     .select("id", { count: "exact", head: true })
@@ -91,10 +94,44 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 }
 
 /**
- * Boolean helper for pages.
- * NEVER redirects.
+ * Role‑based moderator access.
+ * Used ONLY for the moderation UI.
  */
 export async function canModerate(): Promise<boolean> {
+  const userId = await getUserId();
+  if (!userId) return false;
+
+  const admin = adminClient();
+
+  const { data: mod } = await admin
+    .from("moderators")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return !!mod;
+}
+
+/**
+ * Participation gate for company submissions.
+ */
+export async function canSubmitCompany(): Promise<boolean> {
+  const status = await getModerationGateStatus();
+  return status.allowed;
+}
+
+/**
+ * Participation gate for company evaluations.
+ */
+export async function canEvaluateCompany(): Promise<boolean> {
+  const status = await getModerationGateStatus();
+  return status.allowed;
+}
+
+/**
+ * Participation gate for leader evaluations.
+ */
+export async function canEvaluateLeader(): Promise<boolean> {
   const status = await getModerationGateStatus();
   return status.allowed;
 }
