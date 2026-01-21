@@ -14,23 +14,23 @@ export default async function ModerationPage({
   const errorParam =
     typeof searchParams?.error === "string" ? searchParams.error : null;
 
-  // Create SSR supabase client and read session
+  // Create SSR supabase client and read VERIFIED user
   const supabase = await supabaseServer();
   const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
   console.info(
-    "[moderation] SSR session present:",
-    !!session,
+    "[moderation] SSR user present:",
+    !!user,
     "userId:",
-    session?.user?.id,
+    user?.id,
     "error:",
-    sessionError
+    userError
   );
 
-  const moderatorId = session?.user?.id ?? null;
+  const moderatorId = user?.id ?? null;
 
   // ─────────────────────────────────────────────
   // AUTH: NOT LOGGED IN
@@ -91,20 +91,20 @@ export default async function ModerationPage({
       <div className="mb-4 p-3 rounded border bg-yellow-50 text-sm">
         <strong>Debug</strong>
         <div>
-          SSR session present: <strong>{String(!!session)}</strong>
+          SSR user present: <strong>{String(!!user)}</strong>
         </div>
         <div>
           SSR user id: <strong>{moderatorId}</strong>
         </div>
-        {sessionError && (
+        {userError && (
           <div className="text-red-600">
-            Session error: {String(sessionError)}
+            User error: {String(userError)}
           </div>
         )}
         {errorParam && (
           <div className="text-xs text-gray-500 mt-1">
             Last action error code: <code>{errorParam}</code>
-          </div>
+          </p>
         )}
       </div>
 
