@@ -104,7 +104,7 @@ export default async function ModerationPage({
         {errorParam && (
           <div className="text-xs text-gray-500 mt-1">
             Last action error code: <code>{errorParam}</code>
-          </p>
+          </div>
         )}
       </div>
 
