@@ -3,7 +3,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 type ModerationGateStatus = {
   pendingEvidence: number;
@@ -49,6 +48,7 @@ async function getUserId(): Promise<string | null> {
 
 /**
  * Earned participation moderation gate.
+ * PURE FUNCTION — NO REDIRECTS.
  */
 export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
   const userId = await getUserId();
@@ -91,14 +91,12 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 }
 
 /**
- * Enforce moderation gate inside server actions.
+ * Boolean helper for pages.
+ * NEVER redirects.
  */
-export async function enforceModerationGate(nextPath: string) {
+export async function canModerate(): Promise<boolean> {
   const status = await getModerationGateStatus();
-
-  if (!status.allowed) {
-    redirect(`/moderation?next=${encodeURIComponent(nextPath)}`);
-  }
+  return status.allowed;
 }
 
 /**
