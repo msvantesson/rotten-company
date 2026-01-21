@@ -1,7 +1,7 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import ModerationClient from "./ModerationClient";
 import { approveEvidence, rejectEvidence } from "./actions";
-import { enforceModerationGate } from "@/lib/moderation-guards";
+import { canModerate } from "@/lib/moderation-guards";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -30,11 +30,11 @@ export default async function ModerationPage({
     sessionError
   );
 
-  // ─────────────────────────────────────────────
-  // HARD AUTHORITY GATE
-  // ─────────────────────────────────────────────
-  const moderatorId = session?.user?.id;
+  const moderatorId = session?.user?.id ?? null;
 
+  // ─────────────────────────────────────────────
+  // AUTH: NOT LOGGED IN
+  // ─────────────────────────────────────────────
   if (!moderatorId) {
     return (
       <main className="max-w-3xl mx-auto py-8">
@@ -44,11 +44,22 @@ export default async function ModerationPage({
     );
   }
 
-  await enforceModerationGate(moderatorId);
+  // ─────────────────────────────────────────────
+  // AUTH: NOT ALLOWED TO MODERATE
+  // ─────────────────────────────────────────────
+  const allowed = await canModerate();
+
+  if (!allowed) {
+    return (
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
+        <p>You do not have moderator access.</p>
+      </main>
+    );
+  }
 
   // ─────────────────────────────────────────────
   // FETCH + CLAIM PENDING EVIDENCE
-  // Claims only currently-unassigned pending items by setting assigned_moderator_id
   // ─────────────────────────────────────────────
   const { data, error } = await supabase
     .from("evidence")
