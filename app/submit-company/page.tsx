@@ -2,6 +2,14 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { submitCompany } from "./actions";
 
+const COUNTRIES = [
+  "Denmark",
+  "Sweden",
+  "Norway",
+  "Germany",
+  "United States",
+];
+
 export default async function SubmitCompanyPage() {
   const supabase = await supabaseServer();
 
@@ -36,11 +44,9 @@ export default async function SubmitCompanyPage() {
       </p>
 
       <form action={submitCompany} className="flex flex-col gap-4">
-        <div style={{ marginBottom: "1rem" }}>
-          <label
-            htmlFor="name"
-            style={{ display: "block", marginBottom: "0.5rem" }}
-          >
+        {/* Company Name */}
+        <div>
+          <label htmlFor="name" style={{ display: "block", marginBottom: "0.5rem" }}>
             Company Name
           </label>
           <input
@@ -58,19 +64,45 @@ export default async function SubmitCompanyPage() {
           />
         </div>
 
-        <div style={{ marginBottom: "1rem" }}>
-          <label
-            htmlFor="slug"
-            style={{ display: "block", marginBottom: "0.5rem" }}
+        {/* Country */}
+        <div>
+          <label htmlFor="country" style={{ display: "block", marginBottom: "0.5rem" }}>
+            Country (Headquarters)
+          </label>
+          <select
+            id="country"
+            name="country"
+            required
+            defaultValue=""
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              backgroundColor: "white",
+            }}
           >
-            Slug (URL identifier)
+            <option value="" disabled>
+              Select country
+            </option>
+            {COUNTRIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Website */}
+        <div>
+          <label htmlFor="website" style={{ display: "block", marginBottom: "0.5rem" }}>
+            Website (optional)
           </label>
           <input
-            id="slug"
-            name="slug"
+            id="website"
+            name="website"
             type="text"
-            required
-            placeholder="e.g. carlsberg"
+            placeholder="https://example.com"
             style={{
               width: "100%",
               padding: "0.5rem",
@@ -80,18 +112,37 @@ export default async function SubmitCompanyPage() {
           />
         </div>
 
-        <div style={{ marginBottom: "1rem" }}>
-          <label
-            htmlFor="description"
-            style={{ display: "block", marginBottom: "0.5rem" }}
-          >
+        {/* Description */}
+        <div>
+          <label htmlFor="description" style={{ display: "block", marginBottom: "0.5rem" }}>
             Description
           </label>
           <textarea
             id="description"
             name="description"
             rows={4}
-            placeholder="Short description of the company"
+            required
+            placeholder="Brief description of the company"
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+            }}
+          />
+        </div>
+
+        {/* Why */}
+        <div>
+          <label htmlFor="why" style={{ display: "block", marginBottom: "0.5rem" }}>
+            Why should this company be added?
+          </label>
+          <textarea
+            id="why"
+            name="why"
+            rows={3}
+            required
+            placeholder="Explain why this company belongs in the database"
             style={{
               width: "100%",
               padding: "0.5rem",
@@ -114,7 +165,7 @@ export default async function SubmitCompanyPage() {
             fontSize: "1rem",
           }}
         >
-          Submit Company
+          Submit Company for Review
         </button>
       </form>
     </div>
