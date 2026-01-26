@@ -1,21 +1,25 @@
-'use server';
+"use server";
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export async function submitCompany(formData: FormData) {
-  const name = (formData.get("name") as string).trim();
-  const slugInput = (formData.get("slug") as string).trim();
-  const description = (formData.get("description") as string)?.trim() || "";
-
-  // Normalize slug: lowercase, replace spaces, remove unsafe chars
-  const slug = slugInput
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9\-]/g, "");
-
   const cookieStore = await cookies();
+
+  const name = (formData.get("name") as string)?.trim();
+  const country = (formData.get("country") as string)?.trim();
+  const website = (formData.get("website") as string)?.trim() || null;
+  const description = (formData.get("description") as string)?.trim();
+  const why = (formData.get("why") as string)?.trim();
+
+  if (!name || !country || !description || !why) {
+    cookieStore.set("submit_company_error", "All required fields must be filled.", {
+      path: "/submit-company",
+      maxAge: 5,
+    });
+    redirect("/submit-company");
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,44 +39,28 @@ export async function submitCompany(formData: FormData) {
     }
   );
 
-  // 1. Check if slug already exists
-  const { data: existing, error: existingError } = await supabase
-    .from("companies")
-    .select("id")
-    .eq("slug", slug)
-    .maybeSingle();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (existingError) {
-    cookieStore.set("submit_company_error", "Database error while checking slug.", {
-      path: "/submit-company",
-      maxAge: 5,
-    });
-    redirect("/submit-company");
-  }
+  if (!user) redirect("/login");
 
-  if (existing) {
-    cookieStore.set("submit_company_error", "A company with this slug already exists.", {
-      path: "/submit-company",
-      maxAge: 5,
-    });
-    redirect("/submit-company");
-  }
-
-  // 2. Insert the new company
-  const { error: insertError } = await supabase.from("companies").insert({
+  const { error } = await supabase.from("company_requests").insert({
     name,
-    slug,
+    country,
+    website,
     description,
+    why,
+    user_id: user.id,
   });
 
-  if (insertError) {
-    cookieStore.set("submit_company_error", "Failed to create company.", {
+  if (error) {
+    cookieStore.set("submit_company_error", "Failed to submit company for review.", {
       path: "/submit-company",
       maxAge: 5,
     });
     redirect("/submit-company");
   }
 
-  // 3. Redirect to the new company page
-  redirect(`/company/${slug}`);
+  redirect("/submit-company/thank-you");
 }
