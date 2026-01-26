@@ -22,8 +22,9 @@ export default async function ModerationPage({
   // There is no request, no cookies, no auth.
   // We must exit early.
   // ─────────────────────────────────────────────
-  const hdrs = headers();
-  const isBuildTime = hdrs.get("x-vercel-id") === null;
+const hdrs = await headers();
+const isBuildTime = hdrs.get("x-vercel-id") === null;
+
 
   if (isBuildTime) {
     return null;
