@@ -15,7 +15,6 @@ export default async function SubmitCompanyPage() {
   const cookieStore = await cookies();
   const supabase = await supabaseServer();
 
-  // Secure user lookup
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -59,7 +58,6 @@ export default async function SubmitCompanyPage() {
       )}
 
       <form action={submitCompany} className="flex flex-col gap-4">
-        {/* Company Name */}
         <div>
           <label htmlFor="name" style={{ display: "block", marginBottom: "0.5rem" }}>
             Company Name
@@ -79,7 +77,6 @@ export default async function SubmitCompanyPage() {
           />
         </div>
 
-        {/* Country */}
         <div>
           <label htmlFor="country" style={{ display: "block", marginBottom: "0.5rem" }}>
             Country (Headquarters)
@@ -108,7 +105,6 @@ export default async function SubmitCompanyPage() {
           </select>
         </div>
 
-        {/* Website */}
         <div>
           <label htmlFor="website" style={{ display: "block", marginBottom: "0.5rem" }}>
             Website (optional)
@@ -127,7 +123,6 @@ export default async function SubmitCompanyPage() {
           />
         </div>
 
-        {/* Description */}
         <div>
           <label htmlFor="description" style={{ display: "block", marginBottom: "0.5rem" }}>
             Description
@@ -147,7 +142,6 @@ export default async function SubmitCompanyPage() {
           />
         </div>
 
-        {/* Why */}
         <div>
           <label htmlFor="why" style={{ display: "block", marginBottom: "0.5rem" }}>
             Why should this company be added?
