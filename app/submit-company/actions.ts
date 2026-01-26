@@ -39,7 +39,6 @@ export async function submitCompany(formData: FormData) {
     }
   );
 
-  // Secure user lookup
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -56,6 +55,8 @@ export async function submitCompany(formData: FormData) {
   });
 
   if (error) {
+    console.error("[submitCompany] Supabase insert error:", error.message);
+
     cookieStore.set("submit_company_error", "Failed to submit company for review.", {
       path: "/submit-company",
       maxAge: 5,
