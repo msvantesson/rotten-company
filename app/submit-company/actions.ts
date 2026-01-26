@@ -39,6 +39,7 @@ export async function submitCompany(formData: FormData) {
     }
   );
 
+  // Secure user lookup
   const {
     data: { user },
   } = await supabase.auth.getUser();
