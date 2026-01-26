@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { canModerate } from "@/lib/moderation-guards";
@@ -15,7 +16,22 @@ export default async function ModerationPage({
   const errorParam =
     typeof searchParams?.error === "string" ? searchParams.error : null;
 
-  // User-scoped client (must carry cookies/session)
+  // ─────────────────────────────────────────────
+  // BUILD‑TIME GUARD
+  // Next.js executes this page during build.
+  // There is no request, no cookies, no auth.
+  // We must exit early.
+  // ─────────────────────────────────────────────
+  const hdrs = headers();
+  const isBuildTime = hdrs.get("x-vercel-id") === null;
+
+  if (isBuildTime) {
+    return null;
+  }
+
+  // ─────────────────────────────────────────────
+  // USER‑SCOPED CLIENT (AUTH)
+  // ─────────────────────────────────────────────
   const userClient = await supabaseServer();
 
   const {
@@ -60,44 +76,34 @@ export default async function ModerationPage({
     );
   }
 
-  // Service-role client for assignment + queue reads (no RLS surprises)
+  // ─────────────────────────────────────────────
+  // SERVICE‑ROLE CLIENT (QUEUE + ASSIGNMENT)
+  // ─────────────────────────────────────────────
   const service = supabaseService();
 
   // ─────────────────────────────────────────────
-  // OPTION A: MODERATOR SEES ONE ITEM AT A TIME
-  // Behavior:
-  // 1) If the moderator already has a pending item assigned → show it.
-  // 2) Otherwise, claim exactly one oldest unassigned pending item.
-  // 3) Fetch again and show only what’s assigned to this moderator.
+  // OPTION A LOGIC
+  // Reviewer sees EXACTLY ONE item
+  //
+  // 1. If already assigned → show it
+  // 2. Else claim ONE oldest unassigned
+  // 3. Fetch again
   // ─────────────────────────────────────────────
 
-  // Step 1: fetch up to 1 item already assigned to this moderator
-  const { data: alreadyAssigned, error: assignedFetchError } = await service
+  // Step 1 — already assigned?
+  const { data: assigned } = await service
     .from("evidence")
-    .select("id, title, summary, contributor_note, created_at, assigned_moderator_id")
+    .select(
+      "id, title, summary, contributor_note, created_at, assigned_moderator_id"
+    )
     .eq("assigned_moderator_id", moderatorId)
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(1);
 
-  if (assignedFetchError) {
-    console.error("[moderation] fetch assigned failed", assignedFetchError);
-    return (
-      <main className="max-w-3xl mx-auto py-8">
-        <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
-        <p className="text-red-600 mb-4">Failed to load pending evidence.</p>
-        {errorParam && (
-          <p className="text-xs text-gray-500">
-            Last action error code: <code>{errorParam}</code>
-          </p>
-        )}
-      </main>
-    );
-  }
-
-  // Step 2: if none assigned, claim exactly one oldest unassigned pending item
-  if (!alreadyAssigned || alreadyAssigned.length === 0) {
-    const { data: unassigned, error: unassignedError } = await service
+  // Step 2 — claim one if none assigned
+  if (!assigned || assigned.length === 0) {
+    const { data: unassigned } = await service
       .from("evidence")
       .select("id")
       .is("assigned_moderator_id", null)
@@ -105,47 +111,39 @@ export default async function ModerationPage({
       .order("created_at", { ascending: true })
       .limit(1);
 
-    if (unassignedError) {
-      console.error("[moderation] fetch unassigned failed", unassignedError);
-    } else if (unassigned && unassigned.length > 0) {
-      const targetId = unassigned[0].id;
-
-      const { error: assignError } = await service
+    if (unassigned && unassigned.length > 0) {
+      await service
         .from("evidence")
         .update({ assigned_moderator_id: moderatorId })
-        .eq("id", targetId)
+        .eq("id", unassigned[0].id)
         .is("assigned_moderator_id", null);
-
-      if (assignError) {
-        console.error("[moderation] assign failed", assignError);
-      }
     }
   }
 
-  // Step 3: fetch again (up to 1), now that we may have claimed something
-  const { data: queue, error: queueError } = await service
+  // Step 3 — fetch final queue (max 1)
+  const { data: queue, error } = await service
     .from("evidence")
-    .select("id, title, summary, contributor_note, created_at, assigned_moderator_id")
+    .select(
+      "id, title, summary, contributor_note, created_at, assigned_moderator_id"
+    )
     .eq("assigned_moderator_id", moderatorId)
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(1);
 
-  if (queueError) {
-    console.error("[moderation] fetch queue failed", queueError);
+  if (error) {
+    console.error("[moderation] fetch failed", error);
     return (
       <main className="max-w-3xl mx-auto py-8">
         <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
-        <p className="text-red-600 mb-4">Failed to load pending evidence.</p>
-        {errorParam && (
-          <p className="text-xs text-gray-500">
-            Last action error code: <code>{errorParam}</code>
-          </p>
-        )}
+        <p className="text-red-600">Failed to load moderation queue.</p>
       </main>
     );
   }
 
+  // ─────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────
   return (
     <main className="max-w-3xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-2">Moderation queue</h1>
@@ -158,7 +156,9 @@ export default async function ModerationPage({
         <div>
           SSR user id: <strong>{moderatorId}</strong>
         </div>
-        {userError && <div className="text-red-600">User error: {String(userError)}</div>}
+        {userError && (
+          <div className="text-red-600">User error: {String(userError)}</div>
+        )}
         {errorParam && (
           <div className="text-xs text-gray-500 mt-1">
             Last action error code: <code>{errorParam}</code>
