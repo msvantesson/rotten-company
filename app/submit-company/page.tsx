@@ -1,6 +1,7 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { submitCompany } from "./actions";
+import { cookies } from "next/headers";
 
 const COUNTRIES = [
   "Denmark",
@@ -11,18 +12,17 @@ const COUNTRIES = [
 ];
 
 export default async function SubmitCompanyPage() {
+  const cookieStore = await cookies();
   const supabase = await supabaseServer();
 
+  // Secure user lookup
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Protect the page — only authenticated users may submit companies
-  if (!session?.user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
-  const user = session.user;
+  const error = cookieStore.get("submit_company_error")?.value;
 
   return (
     <div
@@ -42,6 +42,21 @@ export default async function SubmitCompanyPage() {
       <p style={{ marginBottom: "1.5rem" }}>
         Logged in as <strong>{user.email}</strong>
       </p>
+
+      {error && (
+        <div
+          style={{
+            background: "#ffe6e6",
+            border: "1px solid #ffb3b3",
+            padding: "0.75rem",
+            borderRadius: "4px",
+            marginBottom: "1rem",
+            color: "#b30000",
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       <form action={submitCompany} className="flex flex-col gap-4">
         {/* Company Name */}
