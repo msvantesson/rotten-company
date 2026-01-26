@@ -1,27 +1,27 @@
+import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
+import { canModerate } from "@/lib/moderation-guards";
 import ModerationClient from "./ModerationClient";
 import { approveEvidence, rejectEvidence } from "./actions";
-import { canModerate } from "@/lib/moderation-guards";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-export default async function ModerationPage({ searchParams }: { searchParams?: { error?: string } }) {
+export default async function ModerationPage({
+  searchParams,
+}: {
+  searchParams?: { error?: string };
+}) {
   const errorParam =
     typeof searchParams?.error === "string" ? searchParams.error : null;
 
-  // Use service-role client for assignment logic
-  const supabase = supabaseService();
+  // User-scoped client (must carry cookies/session)
+  const userClient = await supabaseServer();
 
-  // ─────────────────────────────────────────────
-  // AUTH: GET USER
-  // ─────────────────────────────────────────────
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser();
-
-  const moderatorId = user?.id ?? null;
+  } = await userClient.auth.getUser();
 
   console.info(
     "[moderation] SSR user present:",
@@ -31,6 +31,8 @@ export default async function ModerationPage({ searchParams }: { searchParams?: 
     "error:",
     userError
   );
+
+  const moderatorId = user?.id ?? null;
 
   // ─────────────────────────────────────────────
   // AUTH: NOT LOGGED IN
@@ -58,49 +60,28 @@ export default async function ModerationPage({ searchParams }: { searchParams?: 
     );
   }
 
-  // ─────────────────────────────────────────────
-  // STEP 1 — SELECT ONE UNASSIGNED PENDING ITEM
-  // ─────────────────────────────────────────────
-  const { data: unassigned, error: unassignedError } = await supabase
-    .from("evidence")
-    .select("id")
-    .is("assigned_moderator_id", null)
-    .eq("status", "pending")
-    .order("created_at", { ascending: true })
-    .limit(1);
-
-  if (unassignedError) {
-    console.error("[moderation] unassigned fetch failed", unassignedError);
-  }
+  // Service-role client for assignment + queue reads (no RLS surprises)
+  const service = supabaseService();
 
   // ─────────────────────────────────────────────
-  // STEP 2 — ASSIGN IT TO THIS MODERATOR
+  // OPTION A: MODERATOR SEES ONE ITEM AT A TIME
+  // Behavior:
+  // 1) If the moderator already has a pending item assigned → show it.
+  // 2) Otherwise, claim exactly one oldest unassigned pending item.
+  // 3) Fetch again and show only what’s assigned to this moderator.
   // ─────────────────────────────────────────────
-  if (unassigned && unassigned.length > 0) {
-    const targetId = unassigned[0].id;
 
-    const { error: assignError } = await supabase
-      .from("evidence")
-      .update({ assigned_moderator_id: moderatorId })
-      .eq("id", targetId);
-
-    if (assignError) {
-      console.error("[moderation] assignment failed", assignError);
-    }
-  }
-
-  // ─────────────────────────────────────────────
-  // STEP 3 — FETCH ALL ITEMS ASSIGNED TO THIS MODERATOR
-  // ─────────────────────────────────────────────
-  const { data, error } = await supabase
+  // Step 1: fetch up to 1 item already assigned to this moderator
+  const { data: alreadyAssigned, error: assignedFetchError } = await service
     .from("evidence")
     .select("id, title, summary, contributor_note, created_at, assigned_moderator_id")
     .eq("assigned_moderator_id", moderatorId)
     .eq("status", "pending")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(1);
 
-  if (error) {
-    console.error("[moderation] fetch assigned failed", error);
+  if (assignedFetchError) {
+    console.error("[moderation] fetch assigned failed", assignedFetchError);
     return (
       <main className="max-w-3xl mx-auto py-8">
         <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
@@ -114,9 +95,57 @@ export default async function ModerationPage({ searchParams }: { searchParams?: 
     );
   }
 
-  // ─────────────────────────────────────────────
-  // RENDER PAGE
-  // ─────────────────────────────────────────────
+  // Step 2: if none assigned, claim exactly one oldest unassigned pending item
+  if (!alreadyAssigned || alreadyAssigned.length === 0) {
+    const { data: unassigned, error: unassignedError } = await service
+      .from("evidence")
+      .select("id")
+      .is("assigned_moderator_id", null)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (unassignedError) {
+      console.error("[moderation] fetch unassigned failed", unassignedError);
+    } else if (unassigned && unassigned.length > 0) {
+      const targetId = unassigned[0].id;
+
+      const { error: assignError } = await service
+        .from("evidence")
+        .update({ assigned_moderator_id: moderatorId })
+        .eq("id", targetId)
+        .is("assigned_moderator_id", null);
+
+      if (assignError) {
+        console.error("[moderation] assign failed", assignError);
+      }
+    }
+  }
+
+  // Step 3: fetch again (up to 1), now that we may have claimed something
+  const { data: queue, error: queueError } = await service
+    .from("evidence")
+    .select("id, title, summary, contributor_note, created_at, assigned_moderator_id")
+    .eq("assigned_moderator_id", moderatorId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (queueError) {
+    console.error("[moderation] fetch queue failed", queueError);
+    return (
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
+        <p className="text-red-600 mb-4">Failed to load pending evidence.</p>
+        {errorParam && (
+          <p className="text-xs text-gray-500">
+            Last action error code: <code>{errorParam}</code>
+          </p>
+        )}
+      </main>
+    );
+  }
+
   return (
     <main className="max-w-3xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-2">Moderation queue</h1>
@@ -129,11 +158,7 @@ export default async function ModerationPage({ searchParams }: { searchParams?: 
         <div>
           SSR user id: <strong>{moderatorId}</strong>
         </div>
-        {userError && (
-          <div className="text-red-600">
-            User error: {String(userError)}
-          </div>
-        )}
+        {userError && <div className="text-red-600">User error: {String(userError)}</div>}
         {errorParam && (
           <div className="text-xs text-gray-500 mt-1">
             Last action error code: <code>{errorParam}</code>
@@ -142,7 +167,7 @@ export default async function ModerationPage({ searchParams }: { searchParams?: 
       </div>
 
       <ModerationClient
-        evidence={data ?? []}
+        evidence={queue ?? []}
         approveEvidence={approveEvidence}
         rejectEvidence={rejectEvidence}
         moderatorId={moderatorId}
