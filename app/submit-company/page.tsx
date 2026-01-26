@@ -4,11 +4,33 @@ import { submitCompany } from "./actions";
 import { cookies } from "next/headers";
 
 const COUNTRIES = [
+  "Austria",
+  "Belgium",
+  "Bulgaria",
+  "Croatia",
+  "Cyprus",
+  "Czech Republic",
   "Denmark",
-  "Sweden",
-  "Norway",
+  "Estonia",
+  "Finland",
+  "France",
   "Germany",
-  "United States",
+  "Greece",
+  "Hungary",
+  "Ireland",
+  "Italy",
+  "Latvia",
+  "Lithuania",
+  "Luxembourg",
+  "Malta",
+  "Netherlands",
+  "Poland",
+  "Portugal",
+  "Romania",
+  "Slovakia",
+  "Slovenia",
+  "Spain",
+  "Sweden",
 ];
 
 export default async function SubmitCompanyPage() {
