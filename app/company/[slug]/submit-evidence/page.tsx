@@ -5,10 +5,14 @@ import { submitEvidence } from "./actions";
 export default async function SubmitEvidencePage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
   console.log("[submit-evidence] route hit");
-  console.log("[submit-evidence] params:", params);
+
+  const resolvedParams = await params;
+  console.log("[submit-evidence] resolved params:", resolvedParams);
+
+  const { slug } = resolvedParams;
 
   const supabase = await supabaseServer();
   console.log("[submit-evidence] supabaseServer initialized");
@@ -23,7 +27,7 @@ export default async function SubmitEvidencePage({
   }
 
   if (!user) {
-    console.warn("[submit-evidence] no user found → redirecting to /login");
+    console.warn("[submit-evidence] no user → redirect /login");
     redirect("/login");
   }
 
@@ -32,7 +36,7 @@ export default async function SubmitEvidencePage({
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id, name, slug")
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .single();
 
   if (companyError) {
@@ -43,10 +47,7 @@ export default async function SubmitEvidencePage({
   }
 
   if (!company) {
-    console.warn(
-      "[submit-evidence] no company found for slug:",
-      params.slug
-    );
+    console.warn("[submit-evidence] no company found for slug:", slug);
     notFound();
   }
 
