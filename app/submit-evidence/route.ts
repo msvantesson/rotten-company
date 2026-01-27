@@ -23,13 +23,13 @@ export async function POST(req: Request) {
     console.log("[submit-evidence] Authenticated user:", user.id);
 
     const file = formData.get("file") as File | null;
-    const title = String(formData.get("title") ?? "");
-    const summary = String(formData.get("summary") ?? "");
-    const entityType = String(formData.get("entityType") ?? "");
+    const title = String(formData.get("title") ?? "").trim();
+    const summary = String(formData.get("summary") ?? "").trim();
+    const entityType = String(formData.get("entityType") ?? "").trim();
     const entityId = Number(formData.get("entityId") ?? "");
     const category = Number(formData.get("categoryId") ?? "");
     const severityRaw = Number(formData.get("severity") ?? "");
-    const evidenceType = String(formData.get("evidenceType") ?? "");
+    const evidenceTypeRaw = String(formData.get("evidenceType") ?? "");
 
     const severityMap: Record<number, "low" | "medium" | "high"> = {
       1: "low",
@@ -38,6 +38,27 @@ export async function POST(req: Request) {
     };
 
     const severity = severityMap[severityRaw];
+
+    const evidenceType = evidenceTypeRaw.trim().toLowerCase();
+
+    const allowedEvidenceTypes = [
+      "misconduct",
+      "remediation",
+      "correction",
+      "audit",
+      "statement",
+    ];
+
+    console.log("[submit-evidence] RAW evidenceType:", evidenceTypeRaw);
+    console.log("[submit-evidence] Normalized evidenceType:", evidenceType);
+
+    if (!allowedEvidenceTypes.includes(evidenceType)) {
+      console.error("[submit-evidence] Invalid evidenceType:", evidenceType);
+      return NextResponse.json(
+        { error: "Invalid evidence type" },
+        { status: 400 }
+      );
+    }
 
     console.log("[submit-evidence] Extracted fields:", {
       title,
@@ -55,7 +76,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing file" }, { status: 400 });
     }
 
-    if (!title || !entityType || !entityId || !category || !evidenceType || !severity) {
+    if (!title || !entityType || !entityId || !category || !severity) {
       console.warn("[submit-evidence] Missing required fields");
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -72,7 +93,10 @@ export async function POST(req: Request) {
 
     if (uploadError) {
       console.error("[submit-evidence] UPLOAD ERROR", uploadError);
-      return NextResponse.json({ error: "File upload failed" }, { status: 500 });
+      return NextResponse.json(
+        { error: "File upload failed" },
+        { status: 500 }
+      );
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -82,35 +106,45 @@ export async function POST(req: Request) {
     const fileUrl = publicUrlData?.publicUrl ?? null;
     console.log("[submit-evidence] File uploaded. Public URL:", fileUrl);
 
+    const insertPayload = {
+      title,
+      summary,
+      severity,
+      category,
+      entity_type: entityType,
+      entity_id: entityId,
+      company_id: entityType === "company" ? entityId : null,
+      evidence_type: evidenceType,
+      user_id: user.id,
+      file_url: fileUrl,
+      status: "pending",
+      file_type: file.type,
+      file_size: file.size,
+    };
+
+    console.log("[submit-evidence] Insert payload:", insertPayload);
+
     const { data: inserted, error: insertError } = await supabase
       .from("evidence")
-      .insert({
-        title,
-        summary,
-        severity,
-        category,
-        entity_type: entityType,
-        entity_id: entityId,
-        company_id: entityType === "company" ? entityId : null,
-        evidence_type: evidenceType,
-        user_id: user.id,
-        file_url: fileUrl,
-        status: "pending",
-        file_type: file.type,
-        file_size: file.size,
-      })
+      .insert(insertPayload)
       .select("id")
       .single();
 
     if (insertError || !inserted) {
       console.error("[submit-evidence] INSERT ERROR", insertError);
-      return NextResponse.json({ error: "Failed to insert evidence" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to insert evidence" },
+        { status: 500 }
+      );
     }
 
     console.log("[submit-evidence] Evidence inserted:", inserted.id);
     return NextResponse.json({ evidence_id: inserted.id });
   } catch (err) {
     console.error("[submit-evidence] UNEXPECTED ERROR", err);
-    return NextResponse.json({ error: "Unexpected server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Unexpected server error" },
+      { status: 500 }
+    );
   }
 }
