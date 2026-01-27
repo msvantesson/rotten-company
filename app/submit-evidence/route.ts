@@ -3,23 +3,25 @@ import { supabaseServer } from "@/lib/supabase-server";
 
 export async function POST(req: Request) {
   try {
+    console.log("[submit-evidence] Incoming request");
+
     const formData = await req.formData();
+    console.log("[submit-evidence] Parsed formData");
 
     const supabase = await supabaseServer();
+    console.log("[submit-evidence] Supabase client initialized");
 
-    // Auth
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json(
-        { error: "Not authenticated" },
-        { status: 401 }
-      );
+      console.warn("[submit-evidence] No authenticated user");
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Extract fields
+    console.log("[submit-evidence] Authenticated user:", user.id);
+
     const file = formData.get("file") as File | null;
     const title = String(formData.get("title") ?? "");
     const summary = String(formData.get("summary") ?? "");
@@ -29,23 +31,29 @@ export async function POST(req: Request) {
     const severity = Number(formData.get("severity") ?? "");
     const evidenceType = String(formData.get("evidenceType") ?? "");
 
-    // Validate required fields
+    console.log("[submit-evidence] Extracted fields:", {
+      title,
+      summary,
+      entityType,
+      entityId,
+      categoryId,
+      severity,
+      evidenceType,
+      fileName: file?.name,
+    });
+
     if (!file) {
-      return NextResponse.json(
-        { error: "Missing file" },
-        { status: 400 }
-      );
+      console.warn("[submit-evidence] Missing file");
+      return NextResponse.json({ error: "Missing file" }, { status: 400 });
     }
 
     if (!title || !entityType || !entityId || !categoryId || !evidenceType) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      console.warn("[submit-evidence] Missing required fields");
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Upload file to Supabase Storage (correct bucket: "evidence")
     const filePath = `${entityType}/${entityId}/${Date.now()}-${file.name}`;
+    console.log("[submit-evidence] Uploading file to path:", filePath);
 
     const { error: uploadError } = await supabase.storage
       .from("evidence")
@@ -55,21 +63,17 @@ export async function POST(req: Request) {
       });
 
     if (uploadError) {
-      console.error("UPLOAD ERROR", uploadError);
-      return NextResponse.json(
-        { error: "File upload failed" },
-        { status: 500 }
-      );
+      console.error("[submit-evidence] UPLOAD ERROR", uploadError);
+      return NextResponse.json({ error: "File upload failed" }, { status: 500 });
     }
 
-    // Get public URL
     const { data: publicUrlData } = supabase.storage
       .from("evidence")
       .getPublicUrl(filePath);
 
     const fileUrl = publicUrlData?.publicUrl ?? null;
+    console.log("[submit-evidence] File uploaded. Public URL:", fileUrl);
 
-    // Insert evidence row
     const { data: inserted, error: insertError } = await supabase
       .from("evidence")
       .insert({
@@ -88,19 +92,14 @@ export async function POST(req: Request) {
       .single();
 
     if (insertError || !inserted) {
-      console.error("INSERT ERROR", insertError);
-      return NextResponse.json(
-        { error: "Failed to insert evidence" },
-        { status: 500 }
-      );
+      console.error("[submit-evidence] INSERT ERROR", insertError);
+      return NextResponse.json({ error: "Failed to insert evidence" }, { status: 500 });
     }
 
+    console.log("[submit-evidence] Evidence inserted:", inserted.id);
     return NextResponse.json({ evidence_id: inserted.id });
   } catch (err) {
-    console.error("UNEXPECTED ERROR", err);
-    return NextResponse.json(
-      { error: "Unexpected server error" },
-      { status: 500 }
-    );
+    console.error("[submit-evidence] UNEXPECTED ERROR", err);
+    return NextResponse.json({ error: "Unexpected server error" }, { status: 500 });
   }
 }
