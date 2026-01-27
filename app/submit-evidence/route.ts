@@ -27,16 +27,24 @@ export async function POST(req: Request) {
     const summary = String(formData.get("summary") ?? "");
     const entityType = String(formData.get("entityType") ?? "");
     const entityId = Number(formData.get("entityId") ?? "");
-    const categoryId = Number(formData.get("categoryId") ?? "");
-    const severity = Number(formData.get("severity") ?? "");
+    const category = Number(formData.get("categoryId") ?? "");
+    const severityRaw = Number(formData.get("severity") ?? "");
     const evidenceType = String(formData.get("evidenceType") ?? "");
+
+    const severityMap = {
+      1: "low",
+      2: "medium",
+      3: "high",
+    };
+
+    const severity = severityMap[severityRaw];
 
     console.log("[submit-evidence] Extracted fields:", {
       title,
       summary,
       entityType,
       entityId,
-      categoryId,
+      category,
       severity,
       evidenceType,
       fileName: file?.name,
@@ -47,7 +55,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing file" }, { status: 400 });
     }
 
-    if (!title || !entityType || !entityId || !categoryId || !evidenceType) {
+    if (!title || !entityType || !entityId || !category || !evidenceType || !severity) {
       console.warn("[submit-evidence] Missing required fields");
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -79,14 +87,17 @@ export async function POST(req: Request) {
       .insert({
         title,
         summary,
+        severity,
+        category,
         entity_type: entityType,
         entity_id: entityId,
-        category_id: categoryId,
-        severity,
+        company_id: entityType === "company" ? entityId : null,
         evidence_type: evidenceType,
         user_id: user.id,
         file_url: fileUrl,
         status: "pending",
+        file_type: file.type,
+        file_size: file.size,
       })
       .select("id")
       .single();
