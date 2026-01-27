@@ -305,6 +305,41 @@ export default async function CompanyPage({ params }: { params: Params }) {
         </div>
 
         <h2>Approved Evidence</h2>
+
+        {user ? (
+          <div style={{ margin: "1rem 0" }}>
+            <a
+              href={`/company/${company.slug}/submit-evidence`}
+              style={{
+                display: "inline-block",
+                padding: "0.5rem 1rem",
+                backgroundColor: "black",
+                color: "white",
+                borderRadius: "4px",
+                textDecoration: "none",
+              }}
+            >
+              Submit Evidence
+            </a>
+          </div>
+        ) : (
+          <div style={{ margin: "1rem 0" }}>
+            <a
+              href="/login"
+              style={{
+                display: "inline-block",
+                padding: "0.5rem 1rem",
+                backgroundColor: "#444",
+                color: "white",
+                borderRadius: "4px",
+                textDecoration: "none",
+              }}
+            >
+              Sign in to submit evidence
+            </a>
+          </div>
+        )}
+
         <EvidenceList evidence={evidence} />
 
         {user && (
