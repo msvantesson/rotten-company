@@ -44,11 +44,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // Upload file to Supabase Storage
+    // Upload file to Supabase Storage (correct bucket: "evidence")
     const filePath = `${entityType}/${entityId}/${Date.now()}-${file.name}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("evidence-files")
+      .from("evidence")
       .upload(filePath, file, {
         cacheControl: "3600",
         upsert: false,
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
     // Get public URL
     const { data: publicUrlData } = supabase.storage
-      .from("evidence-files")
+      .from("evidence")
       .getPublicUrl(filePath);
 
     const fileUrl = publicUrlData?.publicUrl ?? null;
