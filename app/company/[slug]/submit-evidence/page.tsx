@@ -60,26 +60,41 @@ export default async function SubmitEvidencePage({
   console.log("[submit-evidence] rendering form JSX");
 
   return (
-    <div style={{ maxWidth: "600px", margin: "2rem auto" }}>
-      <h1>Submit Evidence for {company.name}</h1>
+    <div className="max-w-xl mx-auto py-10 px-4">
+      <h1 className="text-2xl font-semibold mb-6">
+        Submit Evidence for {company.name}
+      </h1>
 
-      <form action={submitEvidence}>
+      <form action={submitEvidence} className="space-y-6">
         <input type="hidden" name="company_id" value={company.id} />
         <input type="hidden" name="company_slug" value={company.slug} />
 
         <div>
-          <label>Title</label>
-          <input name="title" required />
+          <label className="block text-sm font-medium mb-1">Title</label>
+          <input
+            name="title"
+            required
+            className="w-full border rounded px-3 py-2"
+          />
         </div>
 
         <div>
-          <label>Summary</label>
-          <textarea name="summary" rows={4} required />
+          <label className="block text-sm font-medium mb-1">Summary</label>
+          <textarea
+            name="summary"
+            rows={4}
+            required
+            className="w-full border rounded px-3 py-2"
+          />
         </div>
 
         <div>
-          <label>Category</label>
-          <select name="category_id" required>
+          <label className="block text-sm font-medium mb-1">Category</label>
+          <select
+            name="category_id"
+            required
+            className="w-full border rounded px-3 py-2"
+          >
             <option value="1">General</option>
             <option value="2">Labor</option>
             <option value="3">Environment</option>
@@ -88,7 +103,12 @@ export default async function SubmitEvidencePage({
           </select>
         </div>
 
-        <button type="submit">Submit Evidence</button>
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+        >
+          Submit Evidence
+        </button>
       </form>
     </div>
   );
