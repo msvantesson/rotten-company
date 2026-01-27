@@ -2,11 +2,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { redirect, notFound } from "next/navigation";
 import { submitEvidence } from "./actions";
 
-export default async function SubmitEvidencePage({
-  params,
-}: {
-  params: { slug: string };
-}) {
+export default async function SubmitEvidencePage({ params }) {
   const supabase = await supabaseServer();
 
   const {
