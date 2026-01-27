@@ -8,7 +8,7 @@ export default async function SubmitEvidencePage({
   params: { slug: string };
 }) {
   console.log("[submit-evidence] route hit");
-  console.log("[submit-evidence] raw params:", params);
+  console.log("[submit-evidence] params:", params);
 
   const supabase = await supabaseServer();
   console.log("[submit-evidence] supabaseServer initialized");
@@ -23,11 +23,11 @@ export default async function SubmitEvidencePage({
   }
 
   if (!user) {
-    console.warn("[submit-evidence] no user found, redirecting to /login");
+    console.warn("[submit-evidence] no user found → redirecting to /login");
     redirect("/login");
   }
 
-  console.log("[submit-evidence] user:", user.id);
+  console.log("[submit-evidence] authenticated user:", user.id);
 
   const { data: company, error: companyError } = await supabase
     .from("companies")
@@ -36,15 +36,27 @@ export default async function SubmitEvidencePage({
     .single();
 
   if (companyError) {
-    console.error("[submit-evidence] company fetch error:", companyError.message);
+    console.error(
+      "[submit-evidence] company lookup error:",
+      companyError.message
+    );
   }
 
   if (!company) {
-    console.warn("[submit-evidence] no company found for slug:", params.slug);
+    console.warn(
+      "[submit-evidence] no company found for slug:",
+      params.slug
+    );
     notFound();
   }
 
-  console.log("[submit-evidence] company resolved:", company.id, company.name);
+  console.log(
+    "[submit-evidence] company resolved:",
+    company.id,
+    company.name
+  );
+
+  console.log("[submit-evidence] rendering form JSX");
 
   return (
     <div style={{ maxWidth: "600px", margin: "2rem auto" }}>
@@ -77,8 +89,6 @@ export default async function SubmitEvidencePage({
 
         <button type="submit">Submit Evidence</button>
       </form>
-
-      {console.log("[submit-evidence] form rendered")}
     </div>
   );
 }
