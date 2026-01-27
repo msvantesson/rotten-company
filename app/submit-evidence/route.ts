@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     const severityRaw = Number(formData.get("severity") ?? "");
     const evidenceType = String(formData.get("evidenceType") ?? "");
 
-    const severityMap = {
+    const severityMap: Record<number, "low" | "medium" | "high"> = {
       1: "low",
       2: "medium",
       3: "high",
