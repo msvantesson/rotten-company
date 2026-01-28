@@ -2,21 +2,17 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-type NormalizationMode = "none" | "employees" | "revenue";
-
 type ClientWrapperProps = {
   initialCountry: string | null;
   initialOptions: {
     dbValue: string;
     label: string;
   }[];
-  normalization: NormalizationMode;
 };
 
 export default function ClientWrapper({
   initialCountry,
   initialOptions,
-  normalization,
 }: ClientWrapperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -35,15 +31,12 @@ export default function ClientWrapper({
 
   return (
     <section className="flex flex-wrap items-center gap-4">
-      {/* Country selector */}
       <label className="text-sm font-medium">
         Country:
         <select
           className="ml-2 border rounded px-2 py-1"
           defaultValue={initialCountry ?? ""}
-          onChange={(e) =>
-            updateCountry(e.target.value || null)
-          }
+          onChange={(e) => updateCountry(e.target.value || null)}
         >
           <option value="">All countries</option>
           {initialOptions.map((opt) => (
@@ -53,9 +46,6 @@ export default function ClientWrapper({
           ))}
         </select>
       </label>
-
-      {/* Normalization is accepted but not rendered yet */}
-      {/* This keeps behavior unchanged while allowing future UI */}
     </section>
   );
 }
