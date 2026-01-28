@@ -6,8 +6,6 @@ import { supabaseServer } from "@/lib/supabase-server";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import ClientWrapper from "./ClientWrapper";
 
-type NormalizationMode = "none" | "employees" | "revenue";
-
 type IndexedCompany = {
   company_id: number;
   name: string;
@@ -15,7 +13,6 @@ type IndexedCompany = {
   industry: string | null;
   country: string | null;
   rotten_score: number;
-  normalized_score: number;
 };
 
 function getCountryDisplayName(value: string | null | undefined): string {
@@ -28,26 +25,9 @@ function getCountryDisplayName(value: string | null | undefined): string {
     .join(" ");
 }
 
-function normalizeScore(
-  score: number,
-  company: { employees?: number | null; annual_revenue?: number | null },
-  mode: NormalizationMode
-) {
-  if (mode === "employees" && company.employees && company.employees > 0) {
-    return score / Math.log(company.employees + 10);
-  }
-
-  if (mode === "revenue" && company.annual_revenue && company.annual_revenue > 0) {
-    return score / Math.log(Number(company.annual_revenue) + 10);
-  }
-
-  return score;
-}
-
 function buildRottenIndexJsonLd(
   companies: IndexedCompany[],
-  selectedCountryCode: string | null,
-  normalization: NormalizationMode
+  selectedCountryCode: string | null
 ) {
   const baseUrl = "https://rotten-company.com";
   const isCountryScoped = !!selectedCountryCode && selectedCountryCode.trim().length > 0;
@@ -88,14 +68,8 @@ function buildRottenIndexJsonLd(
           additionalProperty: [
             {
               "@type": "PropertyValue",
-              name:
-                normalization === "none"
-                  ? "Rotten Score"
-                  : "Rotten Score (normalized)",
-              value:
-                normalization === "none"
-                  ? c.rotten_score
-                  : `${c.rotten_score} → ${c.normalized_score.toFixed(2)}`,
+              name: "Rotten Score",
+              value: c.rotten_score,
             },
           ],
           industry: c.industry || undefined,
@@ -119,24 +93,13 @@ export default async function RottenIndexPage({
 }: {
   searchParams?: SearchParams;
 }) {
-  // --- Country param ---
   let selectedCountryCode: string | null = null;
-  const rawCountry = searchParams?.country;
-  if (typeof rawCountry === "string" && rawCountry.trim())
-    selectedCountryCode = rawCountry.trim();
-  if (Array.isArray(rawCountry) && rawCountry[0]?.trim())
-    selectedCountryCode = rawCountry[0].trim();
-
-  // --- Normalization param (SAFE DEFAULT) ---
-  let normalization: NormalizationMode = "none";
-  const rawNorm = searchParams?.normalization;
-  if (rawNorm === "employees" || rawNorm === "revenue") {
-    normalization = rawNorm;
-  }
+  const raw = searchParams?.country;
+  if (typeof raw === "string" && raw.trim()) selectedCountryCode = raw.trim();
+  if (Array.isArray(raw) && raw[0]?.trim()) selectedCountryCode = raw[0].trim();
 
   const supabase = await supabaseServer();
 
-  // --- Country options ---
   const { data: rawCountryRows } = await supabase
     .from("companies")
     .select("country");
@@ -155,7 +118,6 @@ export default async function RottenIndexPage({
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  // --- Scores ---
   const { data: rawScoreRows } = await supabase
     .from("company_rotten_score")
     .select("company_id, rotten_score")
@@ -164,45 +126,32 @@ export default async function RottenIndexPage({
   const scoreRows = rawScoreRows ?? [];
   const companyIds = scoreRows.map((r) => r.company_id);
 
-  // --- Companies ---
   const { data: rawCompanyRows } = await supabase
     .from("companies")
-    .select("id, name, slug, industry, country, employees, annual_revenue")
+    .select("id, name, slug, industry, country")
     .in("id", companyIds);
 
   const companyById: Record<number, any> = {};
   for (const c of rawCompanyRows ?? []) companyById[c.id] = c;
 
-  // --- Build index (TYPE‑SAFE) ---
-  const companiesForIndex: IndexedCompany[] = scoreRows
+  const companiesForJsonLd: IndexedCompany[] = scoreRows
     .map((row) => {
       const c = companyById[row.company_id];
       if (!c) return null;
-
-      const absolute = Number(row.rotten_score) || 0;
-      const normalized = normalizeScore(absolute, c, normalization);
-
       return {
         company_id: row.company_id,
-        rotten_score: absolute,
-        normalized_score: normalized,
+        rotten_score: Number(row.rotten_score) || 0,
         name: c.name,
         slug: c.slug,
         industry: c.industry,
         country: c.country,
       };
     })
-    .filter((c): c is IndexedCompany => c !== null)
-    .sort((a, b) =>
-      normalization === "none"
-        ? b.rotten_score - a.rotten_score
-        : b.normalized_score - a.normalized_score
-    );
+    .filter((c): c is IndexedCompany => c !== null);
 
   const jsonLd = buildRottenIndexJsonLd(
-    companiesForIndex,
-    selectedCountryCode,
-    normalization
+    companiesForJsonLd,
+    selectedCountryCode
   );
 
   return (
@@ -226,15 +175,14 @@ export default async function RottenIndexPage({
         <ClientWrapper
           initialCountry={selectedCountryCode}
           initialOptions={countryOptions}
-          normalization={normalization}
         />
 
         <section className="mt-8 text-sm text-gray-500">
           <h2 className="font-semibold mb-1">Methodology</h2>
           <p>
-            Rotten Scores are absolute measures of verified corporate harm.
-            Normalization, when enabled, provides an analytical lens and does not
-            replace the underlying score.
+            The Rotten Score is derived from category-level ratings, public
+            evidence, and weighted signals of corporate harm. Higher scores
+            indicate more severe and systemic issues.
           </p>
         </section>
       </main>
