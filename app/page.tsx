@@ -7,7 +7,7 @@ import Link from "next/link";
 export default async function HomePage() {
   const supabase = await supabaseServer();
 
-  // 1️⃣ Fetch top 10 scores
+  // Fetch top 10 Rotten Scores
   const { data: scoreRows } = await supabase
     .from("company_rotten_score")
     .select("company_id, rotten_score")
@@ -16,7 +16,6 @@ export default async function HomePage() {
 
   const companyIds = scoreRows?.map((r) => r.company_id) ?? [];
 
-  // 2️⃣ Fetch company metadata
   const { data: companyRows } = await supabase
     .from("companies")
     .select("id, name, slug, industry, country")
@@ -25,7 +24,6 @@ export default async function HomePage() {
   const companyById: Record<number, any> = {};
   for (const c of companyRows ?? []) companyById[c.id] = c;
 
-  // 3️⃣ Merge and sort
   const topCompanies = (scoreRows ?? [])
     .map((row) => {
       const c = companyById[row.company_id];
@@ -39,16 +37,30 @@ export default async function HomePage() {
     .sort((a, b) => b.rotten_score - a.rotten_score);
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-10">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Welcome to Rotten Company</h1>
-        <p className="text-gray-600">
-          Transparency platform exposing corporate toxicity.
-        </p>
-      </header>
+    <main className="max-w-6xl mx-auto px-4 py-12">
+      {/* 🔥 HERO SECTION */}
+      <section className="mb-16">
+        <h1 className="text-4xl font-bold mb-4">
+          Rotten Company
+        </h1>
 
-      <section className="mt-12">
-        <h2 className="text-xl font-semibold mb-4">Top 10 Rotten Companies</h2>
+        <p className="text-xl text-gray-700 max-w-3xl mb-6">
+          A public accountability platform exposing corporate toxicity,
+          misconduct, and systemic harm — backed by evidence, not PR.
+        </p>
+
+        <p className="text-gray-600 max-w-3xl">
+          Rotten Company aggregates verified evidence of corporate behavior
+          across industries and countries, producing transparent Rotten Scores
+          that reflect real-world impact — not marketing narratives.
+        </p>
+      </section>
+
+      {/* 🧨 TOP 10 */}
+      <section>
+        <h2 className="text-2xl font-semibold mb-4">
+          Top 10 Rotten Companies (Global)
+        </h2>
 
         <table className="w-full border-collapse">
           <thead>
