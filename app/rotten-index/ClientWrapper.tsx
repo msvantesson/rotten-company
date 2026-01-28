@@ -2,48 +2,57 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
+type NormalizationMode = "none" | "employees" | "revenue";
+
 type ClientWrapperProps = {
   initialCountry: string | null;
-  initialOptions: {
-    dbValue: string;
-    label: string;
-  }[];
+  initialOptions: { dbValue: string; label: string }[];
+  normalization: NormalizationMode;
 };
 
 export default function ClientWrapper({
   initialCountry,
   initialOptions,
+  normalization,
 }: ClientWrapperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  function updateCountry(value: string | null) {
+  function updateParam(key: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString());
-
-    if (!value || value.trim().length === 0) {
-      params.delete("country");
-    } else {
-      params.set("country", value);
-    }
-
+    if (!value) params.delete(key);
+    else params.set(key, value);
     router.push(`/rotten-index?${params.toString()}`);
   }
 
   return (
-    <section className="flex flex-wrap items-center gap-4">
-      <label className="text-sm font-medium">
+    <section className="flex gap-4 items-center">
+      <label>
         Country:
         <select
-          className="ml-2 border rounded px-2 py-1"
+          className="ml-2 border px-2 py-1"
           defaultValue={initialCountry ?? ""}
-          onChange={(e) => updateCountry(e.target.value || null)}
+          onChange={(e) => updateParam("country", e.target.value || null)}
         >
           <option value="">All countries</option>
-          {initialOptions.map((opt) => (
-            <option key={opt.dbValue} value={opt.dbValue}>
-              {opt.label}
+          {initialOptions.map((o) => (
+            <option key={o.dbValue} value={o.dbValue}>
+              {o.label}
             </option>
           ))}
+        </select>
+      </label>
+
+      <label>
+        Normalize:
+        <select
+          className="ml-2 border px-2 py-1"
+          defaultValue={normalization}
+          onChange={(e) => updateParam("normalization", e.target.value)}
+        >
+          <option value="none">None</option>
+          <option value="employees">Per employee</option>
+          <option value="revenue">Per revenue</option>
         </select>
       </label>
     </section>
