@@ -27,10 +27,10 @@ function getFirstString(value: string | string[] | undefined): string | null {
 }
 
 function getCountryDisplayName(value: string | null | undefined): string {
-  if (!value || value.trim().length === 0) return "All countries";
+  if (!value) return "All countries";
   return value
     .split(/[^a-zA-Z]+/)
-    .map((w) => (w.length ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
     .join(" ");
 }
 
@@ -42,33 +42,35 @@ function normalizeScore(
   if (mode === "employees" && company.employees && company.employees > 0) {
     return score / Math.log(company.employees + 10);
   }
-
   if (mode === "revenue" && company.annual_revenue && Number(company.annual_revenue) > 0) {
     return score / Math.log(Number(company.annual_revenue) + 10);
   }
-
   return score;
 }
 
-function buildRottenIndexJsonLd(companies: IndexedCompany[], selectedCountry: string | null) {
+function buildRottenIndexJsonLd(
+  companies: IndexedCompany[],
+  selectedCountry: string | null
+) {
   const baseUrl = "https://rotten-company.com";
-  const isCountryScoped = !!selectedCountry && selectedCountry.trim().length > 0;
-  const countryName = isCountryScoped ? getCountryDisplayName(selectedCountry) : null;
+  const isCountryScoped = !!selectedCountry;
 
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: isCountryScoped
-      ? `Global Rotten Index — Companies in ${countryName}`
+      ? `Global Rotten Index — Companies in ${getCountryDisplayName(selectedCountry)}`
       : "Global Rotten Index — Companies",
-    description: isCountryScoped
-      ? `Ranking companies in ${countryName} by Rotten Score based on public evidence of harm, misconduct, and corporate behavior.`
-      : "Ranking companies by Rotten Score based on public evidence of harm, misconduct, and corporate behavior.",
+    description:
+      "Ranking companies by Rotten Score based on public evidence of harm, misconduct, and corporate behavior.",
     itemListOrder: "Descending",
     numberOfItems: companies.length,
     ...(isCountryScoped
       ? {
-          spatialCoverage: { "@type": "Country", name: countryName },
+          spatialCoverage: {
+            "@type": "Country",
+            name: getCountryDisplayName(selectedCountry),
+          },
         }
       : {}),
     itemListElement: companies.map((c, index) => {
@@ -84,13 +86,19 @@ function buildRottenIndexJsonLd(companies: IndexedCompany[], selectedCountry: st
           name: c.name,
           identifier: c.slug,
           additionalProperty: [
-            { "@type": "PropertyValue", name: "Rotten Score", value: c.rotten_score },
+            {
+              "@type": "PropertyValue",
+              name: "Rotten Score",
+              value: c.rotten_score,
+            },
           ],
           industry: c.industry || undefined,
-          address:
-            c.country && c.country.trim().length > 0
-              ? { "@type": "PostalAddress", addressCountry: getCountryDisplayName(c.country) }
-              : undefined,
+          address: c.country
+            ? {
+                "@type": "PostalAddress",
+                addressCountry: getCountryDisplayName(c.country),
+              }
+            : undefined,
         },
       };
     }),
@@ -102,95 +110,52 @@ export default async function RottenIndexPage({
 }: {
   searchParams?: SearchParams | Promise<SearchParams>;
 }) {
-  // ✅ Works whether Next gives you an object or a Promise
   const sp: SearchParams = await Promise.resolve(searchParams ?? {});
+  const selectedCountry = getFirstString(sp.country);
+  const normalizationRaw = getFirstString(sp.normalization);
 
-  const selectedCountryRaw = getFirstString(sp.country); // e.g. "IRELAND"
-  const selectedCountry = selectedCountryRaw && selectedCountryRaw.length > 0 ? selectedCountryRaw : null;
-
-  const normRaw = getFirstString(sp.normalization);
   const normalization: NormalizationMode =
-    normRaw === "employees" || normRaw === "revenue" ? normRaw : "none";
+    normalizationRaw === "employees" || normalizationRaw === "revenue"
+      ? normalizationRaw
+      : "none";
 
   const supabase = await supabaseServer();
 
-  // Country dropdown options
-  const { data: rawCountryRows } = await supabase.from("companies").select("country");
-
-  const countrySet = new Set<string>();
-  for (const row of rawCountryRows ?? []) {
-    if (row.country && row.country.trim().length > 0) countrySet.add(row.country.trim());
-  }
-
-  const countryOptions = [...countrySet]
-    .map((dbValue) => ({ dbValue, label: getCountryDisplayName(dbValue) }))
+  // Country options
+  const { data: countryRows } = await supabase.from("companies").select("country");
+  const countryOptions = [...new Set((countryRows ?? []).map((r) => r.country).filter(Boolean))]
+    .map((c) => ({ dbValue: c!, label: getCountryDisplayName(c) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  // 1) Fetch companies FIRST (apply country filter here, case-insensitive)
+  // Fetch companies FIRST (country filter here)
   let companyQuery = supabase
     .from("companies")
     .select("id, name, slug, industry, country, employees, annual_revenue");
 
   if (selectedCountry) {
-    // ✅ Case-insensitive equality
     companyQuery = companyQuery.ilike("country", selectedCountry);
   }
 
-  const { data: companyRows } = await companyQuery;
-  const companies = companyRows ?? [];
-
-  // If nothing matches, render the shell still
-  if (companies.length === 0) {
-    const jsonLdEmpty = buildRottenIndexJsonLd([], selectedCountry);
-
-    return (
-      <>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdEmpty) }}
-        />
-        <JsonLdDebugPanel data={jsonLdEmpty} debug={null} initiallyOpen={false} />
-
-        <main className="max-w-5xl mx-auto px-4 py-10">
-          <header className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Global Rotten Index</h1>
-            <p className="text-gray-600">
-              Ranking companies by Rotten Score based on public evidence of harm, misconduct, and corporate behavior.
-            </p>
-          </header>
-
-          <ClientWrapper
-            initialCountry={selectedCountry}
-            initialOptions={countryOptions}
-            normalization={normalization}
-          />
-
-          <p className="mt-8 text-sm text-gray-500">No companies found for that country filter.</p>
-        </main>
-      </>
-    );
-  }
+  const { data: companiesRaw } = await companyQuery;
+  const companies = companiesRaw ?? [];
 
   const companyIds = companies.map((c) => c.id);
 
-  // 2) Fetch scores ONLY for these companies
-  const { data: scoreRowsRaw } = await supabase
+  // Fetch scores ONLY for these companies
+  const { data: scoreRows } = await supabase
     .from("company_rotten_score")
     .select("company_id, rotten_score")
     .in("company_id", companyIds);
 
   const scoreById: Record<number, number> = {};
-  for (const row of scoreRowsRaw ?? []) {
+  for (const row of scoreRows ?? []) {
     scoreById[row.company_id] = Number(row.rotten_score) || 0;
   }
 
-  // 3) Build, normalize, sort (type-safe)
   const items: IndexedCompany[] = companies
     .map((c) => {
       const score = scoreById[c.id];
       if (score == null) return null;
-
-      const normalized = normalizeScore(score, c, normalization);
 
       return {
         company_id: c.id,
@@ -199,26 +164,33 @@ export default async function RottenIndexPage({
         industry: c.industry,
         country: c.country,
         rotten_score: score,
-        normalized_score: normalized,
+        normalized_score: normalizeScore(score, c, normalization),
       };
     })
     .filter((c): c is IndexedCompany => c !== null)
     .sort((a, b) =>
-      normalization === "none" ? b.rotten_score - a.rotten_score : b.normalized_score - a.normalized_score
+      normalization === "none"
+        ? b.rotten_score - a.rotten_score
+        : b.normalized_score - a.normalized_score
     );
 
   const jsonLd = buildRottenIndexJsonLd(items, selectedCountry);
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <JsonLdDebugPanel data={jsonLd} debug={null} initiallyOpen={false} />
 
-      <main className="max-w-5xl mx-auto px-4 py-10">
+      <main className="max-w-6xl mx-auto px-4 py-10">
         <header className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Global Rotten Index</h1>
           <p className="text-gray-600">
-            Ranking companies by Rotten Score based on public evidence of harm, misconduct, and corporate behavior.
+            Ranking companies by Rotten Score based on public evidence of harm,
+            misconduct, and corporate behavior.
           </p>
         </header>
 
@@ -228,18 +200,47 @@ export default async function RottenIndexPage({
           normalization={normalization}
         />
 
-        <section className="mt-8 text-sm text-gray-500">
-          <h2 className="font-semibold mb-1">Methodology</h2>
-          <p>
-            Rotten Scores are absolute measures of verified corporate harm. Normalization, when enabled, provides an
-            analytical lens and does not replace the underlying score.
-          </p>
-        </section>
-
-        {/* Keep your real UI here; if you don’t have it yet, this at least proves correctness */}
-        <pre className="mt-6 text-xs bg-gray-100 p-4 rounded overflow-auto">
-          {JSON.stringify(items.slice(0, 15), null, 2)}
-        </pre>
+        {/* 🔥 RESTORED TABLE */}
+        <table className="mt-8 w-full border-collapse">
+          <thead>
+            <tr className="border-b text-left text-sm text-gray-600">
+              <th className="py-2 pr-4">#</th>
+              <th className="py-2 pr-4">Company</th>
+              <th className="py-2 pr-4">Industry</th>
+              <th className="py-2 pr-4">Country</th>
+              <th className="py-2 text-right">Rotten Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((company, index) => (
+              <tr
+                key={company.company_id}
+                className="border-b hover:bg-gray-50 cursor-pointer"
+                onClick={() => {
+                  window.location.href = `/company/${company.slug}`;
+                }}
+              >
+                <td className="py-2 pr-4 text-sm text-gray-500">
+                  {index + 1}
+                </td>
+                <td className="py-2 pr-4 font-medium text-blue-700">
+                  {company.name}
+                </td>
+                <td className="py-2 pr-4 text-sm text-gray-600">
+                  {company.industry ?? "—"}
+                </td>
+                <td className="py-2 pr-4 text-sm text-gray-600">
+                  {company.country ?? "—"}
+                </td>
+                <td className="py-2 text-right font-mono">
+                  {normalization === "none"
+                    ? company.rotten_score.toFixed(2)
+                    : company.normalized_score.toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </main>
     </>
   );
