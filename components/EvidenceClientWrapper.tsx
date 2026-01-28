@@ -22,7 +22,6 @@ export default function EvidenceClientWrapper() {
 
   const [loading, setLoading] = useState(true);
   const [evidence, setEvidence] = useState<Evidence | null>(null);
-  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!Number.isInteger(evidenceId) || evidenceId <= 0) {
@@ -36,17 +35,11 @@ export default function EvidenceClientWrapper() {
       try {
         const supabase = supabaseBrowser();
 
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.getSession();
-
-        if (cancelled) return;
-
-        if (sessionError || !sessionData.session) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
           setLoading(false);
           return;
         }
-
-        setViewerUserId(sessionData.session.user.id);
 
         const { data, error } = await supabase
           .from("evidence")
@@ -84,30 +77,26 @@ export default function EvidenceClientWrapper() {
   const startOverHref = useMemo(() => {
     const base = "/evidence-upload";
 
-    const entityType = evidence?.entity_type ?? null;
-    const entityId = evidence?.entity_id ?? null;
-
-    if (entityType && entityId && Number.isInteger(Number(entityId))) {
+    if (evidence?.entity_type && evidence?.entity_id) {
       const qs = new URLSearchParams({
-        entityType: String(entityType),
-        entityId: String(entityId),
+        entityType: String(evidence.entity_type),
+        entityId: String(evidence.entity_id),
       });
       return `${base}?${qs.toString()}`;
     }
 
     return base;
-  }, [evidence?.entity_type, evidence?.entity_id]);
+  }, [evidence]);
 
   if (loading) {
     return (
       <div className="p-6">
         <h1 className="text-xl font-semibold">My Evidence</h1>
-        <p className="mt-2 text-gray-600">Loading your evidence details…</p>
+        <p className="mt-2 text-gray-600">Loading your evidence…</p>
       </div>
     );
   }
 
-  // Evidence missing → rejected
   if (!evidence) {
     return (
       <div className="p-6 space-y-4">
