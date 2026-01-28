@@ -5,6 +5,7 @@ export const fetchCache = "force-no-store";
 import { supabaseServer } from "@/lib/supabase-server";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import ClientWrapper from "./ClientWrapper";
+import Link from "next/link";
 
 type NormalizationMode = "none" | "employees" | "revenue";
 
@@ -121,13 +122,11 @@ export default async function RottenIndexPage({
 
   const supabase = await supabaseServer();
 
-  // Country options
   const { data: countryRows } = await supabase.from("companies").select("country");
   const countryOptions = [...new Set((countryRows ?? []).map((r) => r.country).filter(Boolean))]
     .map((c) => ({ dbValue: c!, label: getCountryDisplayName(c) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  // Fetch companies FIRST (country filter here)
   let companyQuery = supabase
     .from("companies")
     .select("id, name, slug, industry, country, employees, annual_revenue");
@@ -138,10 +137,8 @@ export default async function RottenIndexPage({
 
   const { data: companiesRaw } = await companyQuery;
   const companies = companiesRaw ?? [];
-
   const companyIds = companies.map((c) => c.id);
 
-  // Fetch scores ONLY for these companies
   const { data: scoreRows } = await supabase
     .from("company_rotten_score")
     .select("company_id, rotten_score")
@@ -200,7 +197,6 @@ export default async function RottenIndexPage({
           normalization={normalization}
         />
 
-        {/* 🔥 RESTORED TABLE */}
         <table className="mt-8 w-full border-collapse">
           <thead>
             <tr className="border-b text-left text-sm text-gray-600">
@@ -213,31 +209,32 @@ export default async function RottenIndexPage({
           </thead>
           <tbody>
             {items.map((company, index) => (
-              <tr
+              <Link
                 key={company.company_id}
-                className="border-b hover:bg-gray-50 cursor-pointer"
-                onClick={() => {
-                  window.location.href = `/company/${company.slug}`;
-                }}
+                href={`/company/${company.slug}`}
+                passHref
+                legacyBehavior
               >
-                <td className="py-2 pr-4 text-sm text-gray-500">
-                  {index + 1}
-                </td>
-                <td className="py-2 pr-4 font-medium text-blue-700">
-                  {company.name}
-                </td>
-                <td className="py-2 pr-4 text-sm text-gray-600">
-                  {company.industry ?? "—"}
-                </td>
-                <td className="py-2 pr-4 text-sm text-gray-600">
-                  {company.country ?? "—"}
-                </td>
-                <td className="py-2 text-right font-mono">
-                  {normalization === "none"
-                    ? company.rotten_score.toFixed(2)
-                    : company.normalized_score.toFixed(2)}
-                </td>
-              </tr>
+                <tr className="border-b hover:bg-gray-50 cursor-pointer">
+                  <td className="py-2 pr-4 text-sm text-gray-500">
+                    {index + 1}
+                  </td>
+                  <td className="py-2 pr-4 font-medium text-blue-700">
+                    {company.name}
+                  </td>
+                  <td className="py-2 pr-4 text-sm text-gray-600">
+                    {company.industry ?? "—"}
+                  </td>
+                  <td className="py-2 pr-4 text-sm text-gray-600">
+                    {company.country ?? "—"}
+                  </td>
+                  <td className="py-2 text-right font-mono">
+                    {normalization === "none"
+                      ? company.rotten_score.toFixed(2)
+                      : company.normalized_score.toFixed(2)}
+                  </td>
+                </tr>
+              </Link>
             ))}
           </tbody>
         </table>
