@@ -20,7 +20,7 @@ export default function ClientWrapper({
 
   function updateParam(key: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString());
-    if (!value || value.trim().length === 0) params.delete(key);
+    if (!value) params.delete(key);
     else params.set(key, value);
     router.push(`/rotten-index?${params.toString()}`);
   }
