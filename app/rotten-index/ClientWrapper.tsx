@@ -6,11 +6,13 @@ type NormalizationMode = "none" | "employees" | "revenue";
 
 type ClientWrapperProps = {
   initialCountry: string | null;
+  initialOptions: { dbValue: string; label: string }[];
   normalization: NormalizationMode;
 };
 
 export default function ClientWrapper({
   initialCountry,
+  initialOptions,
   normalization,
 }: ClientWrapperProps) {
   const router = useRouter();
@@ -18,32 +20,35 @@ export default function ClientWrapper({
 
   function updateParam(key: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString());
-    if (!value) params.delete(key);
+    if (!value || value.trim().length === 0) params.delete(key);
     else params.set(key, value);
     router.push(`/rotten-index?${params.toString()}`);
   }
 
   return (
-    <section className="flex gap-4 items-center">
-      <label>
+    <section className="flex flex-wrap items-center gap-4">
+      <label className="text-sm font-medium">
         Country:
-        <input
-          className="ml-2 border px-2 py-1"
-          defaultValue={initialCountry ?? ""}
-          onBlur={(e) =>
-            updateParam("country", e.target.value || null)
-          }
-        />
+        <select
+          className="ml-2 border rounded px-2 py-1"
+          value={initialCountry ?? ""}
+          onChange={(e) => updateParam("country", e.target.value || null)}
+        >
+          <option value="">All countries</option>
+          {initialOptions.map((opt) => (
+            <option key={opt.dbValue} value={opt.dbValue}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </label>
 
-      <label>
+      <label className="text-sm font-medium">
         Normalize:
         <select
-          className="ml-2 border px-2 py-1"
-          defaultValue={normalization}
-          onChange={(e) =>
-            updateParam("normalization", e.target.value)
-          }
+          className="ml-2 border rounded px-2 py-1"
+          value={normalization}
+          onChange={(e) => updateParam("normalization", e.target.value)}
         >
           <option value="none">None</option>
           <option value="employees">Per employee</option>
