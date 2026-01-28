@@ -38,25 +38,36 @@ export default async function HomePage() {
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-12">
-      {/* 🔥 HERO SECTION */}
+      {/* HERO */}
       <section className="mb-16">
         <h1 className="text-4xl font-bold mb-4">
           Rotten Company
         </h1>
 
         <p className="text-xl text-gray-700 max-w-3xl mb-6">
-          A public accountability platform exposing corporate toxicity,
-          misconduct, and systemic harm — backed by evidence, not PR.
+          An evidence‑based accountability platform documenting corporate
+          toxicity, misconduct, and systemic harm — grounded in facts, not
+          public relations.
+        </p>
+
+        <p className="text-gray-600 max-w-3xl mb-4">
+          Our sympathy lies with workers and communities who bear the
+          consequences of poor leadership. When companies fail, it is rarely
+          accidental — responsibility flows from the top. As the saying goes,
+          a fish rots from the head.
         </p>
 
         <p className="text-gray-600 max-w-3xl">
           Rotten Company aggregates verified evidence of corporate behavior
           across industries and countries, producing transparent Rotten Scores
-          that reflect real-world impact — not marketing narratives.
+          that reflect real‑world impact. We pay particular attention to
+          recurring patterns of extractive ownership and financial engineering
+          — including private equity practices — that repeatedly erode
+          companies, cultures, and livelihoods.
         </p>
       </section>
 
-      {/* 🧨 TOP 10 */}
+      {/* TOP 10 */}
       <section>
         <h2 className="text-2xl font-semibold mb-4">
           Top 10 Rotten Companies (Global)
@@ -102,12 +113,19 @@ export default async function HomePage() {
           </tbody>
         </table>
 
-        <div className="mt-6">
+        <div className="mt-6 flex items-center justify-between">
           <Link
             href="/rotten-index"
             className="text-sm text-blue-600 hover:underline"
           >
             View full Global Rotten Index →
+          </Link>
+
+          <Link
+            href="/disclaimer"
+            className="text-xs text-gray-500 hover:underline"
+          >
+            Disclaimer
           </Link>
         </div>
       </section>
