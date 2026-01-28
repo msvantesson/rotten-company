@@ -1,4 +1,3 @@
-// components/EvidenceClientWrapper.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -9,13 +8,10 @@ type Evidence = {
   id: number;
   title: string | null;
   summary: string | null;
-  status: string;
   file_url: string | null;
   created_at: string;
   category: number | null;
   user_id: string;
-
-  // optional but useful if your table has them; safe to keep even if null
   entity_type?: string | null;
   entity_id?: number | null;
 };
@@ -25,13 +21,11 @@ export default function EvidenceClientWrapper() {
   const evidenceId = Number(params?.id);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!Number.isInteger(evidenceId) || evidenceId <= 0) {
-      setError("Invalid evidence id");
       setLoading(false);
       return;
     }
@@ -47,25 +41,17 @@ export default function EvidenceClientWrapper() {
 
         if (cancelled) return;
 
-        if (sessionError) {
-          setError("Failed to read session");
+        if (sessionError || !sessionData.session) {
           setLoading(false);
           return;
         }
 
-        const session = sessionData.session;
-        if (!session) {
-          setError("Not authenticated");
-          setLoading(false);
-          return;
-        }
-
-        setViewerUserId(session.user.id);
+        setViewerUserId(sessionData.session.user.id);
 
         const { data, error } = await supabase
           .from("evidence")
           .select(
-            "id, title, summary, status, file_url, created_at, category, user_id, entity_type, entity_id"
+            "id, title, summary, file_url, created_at, category, user_id, entity_type, entity_id"
           )
           .eq("id", evidenceId)
           .maybeSingle();
@@ -73,7 +59,8 @@ export default function EvidenceClientWrapper() {
         if (cancelled) return;
 
         if (error || !data) {
-          setError("Failed to load evidence (404)");
+          // Evidence does not exist → rejected or never existed
+          setEvidence(null);
           setLoading(false);
           return;
         }
@@ -82,7 +69,7 @@ export default function EvidenceClientWrapper() {
         setLoading(false);
       } catch {
         if (cancelled) return;
-        setError("Failed to load evidence");
+        setEvidence(null);
         setLoading(false);
       }
     };
@@ -94,14 +81,7 @@ export default function EvidenceClientWrapper() {
     };
   }, [evidenceId]);
 
-  const isOwner = useMemo(() => {
-    if (!evidence?.user_id || !viewerUserId) return false;
-    return evidence.user_id === viewerUserId;
-  }, [evidence?.user_id, viewerUserId]);
-
   const startOverHref = useMemo(() => {
-    // Phase 1: Reject → start over (new submission)
-    // Prefill is optional. If entity info exists, we include it; if not, we just go to the page.
     const base = "/evidence-upload";
 
     const entityType = evidence?.entity_type ?? null;
@@ -127,16 +107,33 @@ export default function EvidenceClientWrapper() {
     );
   }
 
-  if (error) {
+  // Evidence missing → rejected
+  if (!evidence) {
     return (
-      <div className="p-6">
+      <div className="p-6 space-y-4">
         <h1 className="text-xl font-semibold">My Evidence</h1>
-        <p className="mt-2 text-red-600">{error}</p>
+
+        <div className="rounded border border-red-300 bg-red-50 p-4">
+          <h2 className="font-semibold text-red-700">
+            This submission was rejected
+          </h2>
+
+          <p className="mt-2 text-sm text-red-700">
+            This evidence didn’t meet the moderation criteria and is no longer
+            available. You can submit a new piece of evidence if you want to try
+            again.
+          </p>
+
+          <a
+            href={startOverHref}
+            className="mt-4 inline-block rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+          >
+            Start over
+          </a>
+        </div>
       </div>
     );
   }
-
-  if (!evidence) return null;
 
   return (
     <div className="p-6 space-y-4">
@@ -144,11 +141,6 @@ export default function EvidenceClientWrapper() {
 
       <div>
         <strong>Title:</strong> {evidence.title ?? "(no title)"}
-      </div>
-
-      <div>
-        <strong>Status:</strong>{" "}
-        <span className="capitalize">{evidence.status}</span>
       </div>
 
       <div>
@@ -173,29 +165,6 @@ export default function EvidenceClientWrapper() {
           >
             View uploaded file
           </a>
-        </div>
-      )}
-
-      {evidence.status === "rejected" && isOwner && (
-        <div className="mt-8 border-t pt-6">
-          <div className="rounded border border-red-300 bg-red-50 p-4">
-            <h2 className="font-semibold text-red-700">
-              This evidence was rejected
-            </h2>
-
-            <p className="mt-2 text-sm text-red-700">
-              This submission didn’t meet the moderation criteria and won’t be
-              published. You can submit a new piece of evidence if you want to
-              try again.
-            </p>
-
-            <a
-              href={startOverHref}
-              className="mt-4 inline-block rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-            >
-              Start over
-            </a>
-          </div>
         </div>
       )}
 
