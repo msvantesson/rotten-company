@@ -6,13 +6,11 @@ type NormalizationMode = "none" | "employees" | "revenue";
 
 type ClientWrapperProps = {
   initialCountry: string | null;
-  initialOptions: { dbValue: string; label: string }[];
   normalization: NormalizationMode;
 };
 
 export default function ClientWrapper({
   initialCountry,
-  initialOptions,
   normalization,
 }: ClientWrapperProps) {
   const router = useRouter();
@@ -29,18 +27,13 @@ export default function ClientWrapper({
     <section className="flex gap-4 items-center">
       <label>
         Country:
-        <select
+        <input
           className="ml-2 border px-2 py-1"
           defaultValue={initialCountry ?? ""}
-          onChange={(e) => updateParam("country", e.target.value || null)}
-        >
-          <option value="">All countries</option>
-          {initialOptions.map((o) => (
-            <option key={o.dbValue} value={o.dbValue}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          onBlur={(e) =>
+            updateParam("country", e.target.value || null)
+          }
+        />
       </label>
 
       <label>
@@ -48,7 +41,9 @@ export default function ClientWrapper({
         <select
           className="ml-2 border px-2 py-1"
           defaultValue={normalization}
-          onChange={(e) => updateParam("normalization", e.target.value)}
+          onChange={(e) =>
+            updateParam("normalization", e.target.value)
+          }
         >
           <option value="none">None</option>
           <option value="employees">Per employee</option>
