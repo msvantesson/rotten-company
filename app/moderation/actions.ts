@@ -136,9 +136,13 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
     supabase,
     email,
     "Your submission was approved",
-    `Hi,\n\nYour submission${
+    `Hi,
+
+Your submission${
       evidenceTitle ? ` "${evidenceTitle}"` : ""
-    } has been approved.\n\n— Rotten Company`,
+    } has been approved.
+
+— Rotten Company`,
     { evidenceId, action: "approve" }
   );
 
@@ -158,6 +162,7 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
   if (!evidenceIdRaw || Number.isNaN(evidenceId)) {
     return { ok: false, error: "invalid_evidence_id" };
   }
+
   if (!moderatorNote) {
     return { ok: false, error: "moderator_note_required" };
   }
@@ -167,49 +172,41 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
     return { ok: false, error: "invalid_moderator" };
   }
 
-  const { error: updateError } = await supabase
-    .from("evidence")
-    .update({
-      status: "rejected",
-      assigned_moderator_id: null,
-    })
-    .eq("id", evidenceId);
-
-  if (updateError) {
-    console.error("[moderation] REJECT update failed", updateError);
-    return { ok: false, error: "update_failed" };
-  }
-
-  const { error: moderationError } = await supabase
-    .from("moderation_actions")
-    .insert({
-      target_type: "evidence",
-      target_id: String(evidenceId),
-      action: "reject",
-      moderator_note: moderatorNote,
-      moderator_id: moderatorId,
-      source: "ui",
-    });
-
-  if (moderationError) {
-    console.error("[moderation] REJECT moderation insert failed", moderationError);
-    return { ok: false, error: "moderation_log_failed" };
-  }
-
+  // 1. Fetch submitter email BEFORE deletion
   const { email, evidenceTitle } = await fetchSubmitterEmail(
     supabase,
     evidenceId
   );
 
+  // 2. Enqueue rejection notification
   await enqueueNotification(
     supabase,
     email,
     "Your submission was rejected",
-    `Hi,\n\nYour submission${
+    `Hi,
+
+Your submission${
       evidenceTitle ? ` "${evidenceTitle}"` : ""
-    } was rejected.\n\nReason: ${moderatorNote}\n\n— Rotten Company`,
+    } was rejected.
+
+Reason:
+${moderatorNote}
+
+— Rotten Company`,
     { evidenceId, action: "reject" }
   );
+
+  // 3. Authoritative rejection (logs + deletes)
+  const { error } = await supabase.rpc("reject_evidence", {
+    p_evidence_id: evidenceId,
+    p_moderator_id: moderatorId,
+    p_moderator_note: moderatorNote,
+  });
+
+  if (error) {
+    console.error("[moderation] REJECT RPC failed", error);
+    return { ok: false, error: "reject_failed" };
+  }
 
   revalidatePath("/moderation");
   return { ok: true };
