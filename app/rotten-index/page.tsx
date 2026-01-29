@@ -103,15 +103,10 @@ export default async function RottenIndexPage({
       ? normalizationRaw
       : "none";
 
-  console.log("[INDEX] type:", type);
-  console.log("[INDEX] country:", selectedCountry);
-  console.log("[INDEX] normalization:", normalization);
-
   const supabase = await supabaseServer();
 
   let rows: IndexedRow[] = [];
 
-  /* -------------------- LEADERS (FULL DEBUG) -------------------- */
   if (type === "leader") {
     console.log("[LEADER] Fetching leaders…");
 
@@ -143,12 +138,11 @@ export default async function RottenIndexPage({
         console.log(`[LEADER] Processing ${l.slug}`);
         console.log(`[LEADER] Company country:`, country);
 
-        if (selectedCountry && country !== selectedCountry) {
-          console.log(
-            `[LEADER] SKIP ${l.slug} — country mismatch (${country} !== ${selectedCountry})`
-          );
-          return null;
-        }
+        // TEMPORARILY DISABLED COUNTRY FILTER
+        // if (selectedCountry && country !== selectedCountry) {
+        //   console.log(`[LEADER] SKIP ${l.slug} — country mismatch`);
+        //   return null;
+        // }
 
         try {
           const data = await getLeaderData(l.slug);
@@ -180,9 +174,7 @@ export default async function RottenIndexPage({
           const absolute = data.score.final_score ?? 0;
           const normalized = normalizeScore(absolute, company, normalization);
 
-          console.log(
-            `[LEADER] OK ${l.slug} → score=${absolute}, normalized=${normalized}`
-          );
+          console.log(`[LEADER] OK ${l.slug} → score=${absolute}, normalized=${normalized}`);
 
           return {
             id: data.leader.id,
@@ -206,7 +198,6 @@ export default async function RottenIndexPage({
       })
     );
 
-    console.log("[LEADER] Detailed length:", detailed.length);
     rows = detailed.filter(Boolean) as IndexedRow[];
     console.log("[LEADER] Final rows length:", rows.length);
   }
