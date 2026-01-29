@@ -1,5 +1,3 @@
-// lib/rotten-index.ts
-
 import { createClient } from "@supabase/supabase-js"
 import { getLeaderData } from "@/lib/getLeaderData"
 
@@ -71,9 +69,7 @@ export async function getGlobalRottenIndex({
   return []
 }
 
-/* -------------------------------------------------- */
-/*                COMPANY ROTTEN INDEX                */
-/* -------------------------------------------------- */
+/* ---------------- COMPANY ---------------- */
 
 async function getCompanyRottenIndex({
   normalization,
@@ -143,9 +139,7 @@ async function getCompanyRottenIndex({
   })
 }
 
-/* -------------------------------------------------- */
-/*                LEADER ROTTEN INDEX                 */
-/* -------------------------------------------------- */
+/* ---------------- LEADER ---------------- */
 
 async function getLeaderRottenIndex({
   normalization,
@@ -250,9 +244,7 @@ async function getLeaderRottenIndex({
   return sliced
 }
 
-/* -------------------------------------------------- */
-/*                OWNER ROTTEN INDEX                  */
-/* -------------------------------------------------- */
+/* ---------------- OWNER ---------------- */
 
 async function getOwnerRottenIndex({
   normalization,
