@@ -243,9 +243,7 @@ export default async function RottenIndexPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <JsonLdDebugPanel>
-        {jsonLd}
-      </JsonLdDebugPanel>
+      <JsonLdDebugPanel data={jsonLd} />
 
       <ClientWrapper
         initialCountry={selectedCountry}
