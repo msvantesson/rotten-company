@@ -54,6 +54,8 @@ export async function getGlobalRottenIndex({
   country,
   limit,
 }: GetGlobalRottenIndexArgs): Promise<RottenIndexItem[]> {
+  console.log(`[GlobalIndex] Loading entityType=${entityType}, country=${country}, limit=${limit}`)
+
   if (entityType === "company") {
     return getCompanyRottenIndex({ normalization, country, limit })
   }
@@ -84,6 +86,8 @@ async function getCompanyRottenIndex({
 }): Promise<RottenIndexItem[]> {
   const supabase = getSupabaseServerClient()
 
+  console.log("[CompanyIndex] Fetching companies...")
+
   const query = supabase
     .from("company_rotten_score")
     .select(
@@ -103,6 +107,7 @@ async function getCompanyRottenIndex({
     .order("rotten_score", { ascending: false })
 
   if (country) {
+    console.log(`[CompanyIndex] Filtering by country=${country}`)
     query.eq("companies.country", country)
   }
 
@@ -113,9 +118,11 @@ async function getCompanyRottenIndex({
   const { data, error } = await query
 
   if (error || !data) {
-    console.error("getCompanyRottenIndex error", error)
+    console.error("[CompanyIndex] Error:", error)
     return []
   }
+
+  console.log(`[CompanyIndex] Returning ${data.length} companies.`)
 
   return data.map((row: any): RottenIndexItem => {
     const absolute = row.rotten_score as number
@@ -151,6 +158,8 @@ async function getLeaderRottenIndex({
 }): Promise<RottenIndexItem[]> {
   const supabase = getSupabaseServerClient()
 
+  console.log("[LeaderIndex] Fetching leaders...")
+
   const { data: leadersRaw, error } = await supabase
     .from("leaders")
     .select(
@@ -172,30 +181,47 @@ async function getLeaderRottenIndex({
     .limit(1000)
 
   if (error || !leadersRaw) {
-    console.error("getLeaderRottenIndex error", error)
+    console.error("[LeaderIndex] Supabase error:", error)
     return []
   }
 
-  // FIXED: companies is an object, not an array
+  console.log(`[LeaderIndex] Fetched ${leadersRaw.length} leaders.`)
+
   const filtered = leadersRaw.filter((l: any) => {
     const company = l.companies ?? null
     const c = company?.country ?? null
-    if (!country) return true
-    return c === country
+    const passes = !country || c === country
+    if (!passes) {
+      console.log(`[LeaderIndex] Skipping ${l.slug} — country mismatch (${c})`)
+    }
+    return passes
   })
+
+  console.log(`[LeaderIndex] ${filtered.length} leaders after country filter.`)
 
   const detailed = await Promise.all(
     filtered.map(async (l: any) => {
-      if (!l.slug) return null
+      if (!l.slug) {
+        console.log("[LeaderIndex] Skipping leader with missing slug.")
+        return null
+      }
+
+      console.log(`[LeaderIndex] Loading leader data for: ${l.slug}`)
 
       const data = await getLeaderData(l.slug)
-      if (!data) return null
+
+      if (!data) {
+        console.log(`[LeaderIndex] getLeaderData returned null for ${l.slug}`)
+        return null
+      }
 
       const company = l.companies ?? null
       const c = company?.country ?? null
 
       const absolute = data.score?.final_score ?? 0
       const normalized = normalizeScore(absolute, company ?? {}, normalization)
+
+      console.log(`[LeaderIndex] Leader ${l.slug} → score=${absolute}, normalized=${normalized}`)
 
       return {
         type: "leader" as const,
@@ -211,12 +237,17 @@ async function getLeaderRottenIndex({
     })
   )
 
-  // FIXED: TS-safe null filter
   const valid = detailed.filter((x) => x !== null) as RottenIndexItem[]
+
+  console.log(`[LeaderIndex] ${valid.length} leaders after scoring.`)
 
   valid.sort((a, b) => b.normalizedScore - a.normalizedScore)
 
-  return limit ? valid.slice(0, limit) : valid
+  const sliced = limit ? valid.slice(0, limit) : valid
+
+  console.log(`[LeaderIndex] Returning ${sliced.length} leaders.`)
+
+  return sliced
 }
 
 /* -------------------------------------------------- */
@@ -233,6 +264,8 @@ async function getOwnerRottenIndex({
   limit?: number
 }): Promise<RottenIndexItem[]> {
   const supabase = getSupabaseServerClient()
+
+  console.log("[OwnerIndex] Fetching owners...")
 
   const query = supabase
     .from("owner_portfolio_breakdown")
@@ -261,9 +294,11 @@ async function getOwnerRottenIndex({
   const { data, error } = await query
 
   if (error || !data) {
-    console.error("getOwnerRottenIndex error", error)
+    console.error("[OwnerIndex] Error:", error)
     return []
   }
+
+  console.log(`[OwnerIndex] Returning ${data.length} owners.`)
 
   return data.map((row: any): RottenIndexItem => {
     const absolute = row.portfolio_rotten_score as number
