@@ -63,9 +63,9 @@ export default async function LeaderPage({ params }: { params: Params }) {
 
       <div className="max-w-4xl mx-auto p-6 space-y-8">
 
-        {/* ----------------------------- */}
-        {/*      TENURE TIMELINE UI       */}
-        {/* ----------------------------- */}
+        {/* -------------------------------------------------- */}
+        {/*                TENURE TIMELINE UI                  */}
+        {/* -------------------------------------------------- */}
         {tenures && tenures.length > 0 && (
           <section>
             <h2 className="text-xl font-semibold mb-3">Tenure Timeline</h2>
@@ -90,7 +90,7 @@ export default async function LeaderPage({ params }: { params: Params }) {
                 return (
                   <li key={i} className="text-sm text-gray-700">
                     <span className="font-medium">
-                      {leader.company_name ?? `Company ${t.company_id}`}
+                      {t.company_name ?? `Company ${t.company_id}`}
                     </span>{" "}
                     — {startLabel} → {endLabel}
                   </li>
@@ -100,9 +100,9 @@ export default async function LeaderPage({ params }: { params: Params }) {
           </section>
         )}
 
-        {/* ----------------------------- */}
-        {/*     EXISTING SCORE PANEL      */}
-        {/* ----------------------------- */}
+        {/* -------------------------------------------------- */}
+        {/*                EXISTING SCORE PANEL                */}
+        {/* -------------------------------------------------- */}
         <LeaderScorePanel
           name={leader.name}
           role={leader.role ?? ""}
