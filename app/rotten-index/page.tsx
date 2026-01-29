@@ -4,6 +4,7 @@ export const fetchCache = "force-no-store";
 
 import { supabaseServer } from "@/lib/supabase-server";
 import ClientWrapper from "./ClientWrapper";
+import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import Link from "next/link";
 
 type NormalizationMode = "none" | "employees" | "revenue";
@@ -26,6 +27,13 @@ function getFirstString(value: string | string[] | undefined): string | null {
   return null;
 }
 
+function formatCountry(value: string) {
+  return value
+    .split(/[^a-zA-Z]+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(" ");
+}
+
 function normalizeScore(
   score: number,
   entity: { employees?: number | null; annual_revenue?: number | null },
@@ -40,11 +48,46 @@ function normalizeScore(
   return score;
 }
 
-function formatCountry(value: string) {
-  return value
-    .split(/[^a-zA-Z]+/)
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
-    .join(" ");
+function buildIndexJsonLd(
+  rows: IndexedRow[],
+  type: IndexType,
+  selectedCountry: string | null
+) {
+  const baseUrl = "https://rotten-company.com";
+
+  const entityType = type === "leader" ? "Person" : "Organization";
+  const path =
+    type === "leader" ? "leader" :
+    type === "pe" ? "owner" :
+    "company";
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name:
+      type === "leader"
+        ? "Leaders under whose watch the most corporate damage occurred"
+        : type === "pe"
+        ? "Private equity firms behind the most destructive portfolio patterns"
+        : "Global Rotten Index",
+    itemListOrder: "Descending",
+    numberOfItems: rows.length,
+    ...(selectedCountry && {
+      spatialCoverage: {
+        "@type": "Country",
+        name: formatCountry(selectedCountry),
+      },
+    }),
+    itemListElement: rows.map((r, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: `${baseUrl}/${path}/${r.slug}`,
+      item: {
+        "@type": entityType,
+        name: r.name,
+      },
+    })),
+  };
 }
 
 export default async function RottenIndexPage({
@@ -65,43 +108,31 @@ export default async function RottenIndexPage({
 
   const supabase = await supabaseServer();
 
-  /* =========================
-     COUNTRY OPTIONS (required)
-     ========================= */
-  const { data: countryRows } = await supabase
-    .from("companies")
-    .select("country");
-
+  /* Country options */
+  const { data: countryRows } = await supabase.from("companies").select("country");
   const countryOptions = [
     ...new Set((countryRows ?? []).map((r) => r.country).filter(Boolean)),
   ]
-    .map((c) => ({
-      dbValue: c!,
-      label: formatCountry(c!),
-    }))
+    .map((c) => ({ dbValue: c!, label: formatCountry(c!) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   let rows: IndexedRow[] = [];
 
-  /* =========================
-     COMPANY MODE
-     ========================= */
+  /* COMPANY */
   if (type === "company") {
-    let companyQuery = supabase
+    let q = supabase
       .from("companies")
       .select("id, name, slug, country, employees, annual_revenue");
 
-    if (selectedCountry) {
-      companyQuery = companyQuery.ilike("country", selectedCountry);
-    }
+    if (selectedCountry) q = q.ilike("country", selectedCountry);
 
-    const { data: companies } = await companyQuery;
-    const companyIds = (companies ?? []).map((c) => c.id);
+    const { data: companies } = await q;
+    const ids = (companies ?? []).map((c) => c.id);
 
     const { data: scores } = await supabase
       .from("company_rotten_score")
       .select("company_id, rotten_score")
-      .in("company_id", companyIds);
+      .in("company_id", ids);
 
     const scoreById: Record<number, number> = {};
     for (const s of scores ?? []) scoreById[s.company_id] = Number(s.rotten_score);
@@ -109,7 +140,7 @@ export default async function RottenIndexPage({
     rows = (companies ?? [])
       .map((c) => {
         const score = scoreById[c.id];
-        if (score == null) return null;
+        if (!score) return null;
         return {
           id: c.id,
           name: c.name,
@@ -122,11 +153,9 @@ export default async function RottenIndexPage({
       .filter(Boolean) as IndexedRow[];
   }
 
-  /* =========================
-     LEADER MODE
-     ========================= */
+  /* LEADERS */
   if (type === "leader") {
-    const { data } = await supabase
+    let q = supabase
       .from("leaders")
       .select(`
         id,
@@ -141,6 +170,10 @@ export default async function RottenIndexPage({
           rotten_score
         )
       `);
+
+    if (selectedCountry) q = q.ilike("companies.country", selectedCountry);
+
+    const { data } = await q;
 
     rows = (data ?? [])
       .map((l: any) => {
@@ -158,9 +191,7 @@ export default async function RottenIndexPage({
       .filter(Boolean) as IndexedRow[];
   }
 
-  /* =========================
-     PRIVATE EQUITY MODE
-     ========================= */
+  /* PRIVATE EQUITY */
   if (type === "pe") {
     const { data } = await supabase
       .from("owners_investors")
@@ -189,6 +220,8 @@ export default async function RottenIndexPage({
 
         for (const rel of o.company_ownerships ?? []) {
           if (!rel.is_control) continue;
+          if (selectedCountry && rel.companies?.country !== selectedCountry) continue;
+
           const score = Number(rel.companies?.company_rotten_score?.rotten_score);
           if (score) {
             total += score;
@@ -218,6 +251,8 @@ export default async function RottenIndexPage({
 
   rows = rows.slice(0, limit);
 
+  const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
+
   const title =
     type === "leader"
       ? "Leaders under whose watch the most corporate damage occurred"
@@ -226,70 +261,83 @@ export default async function RottenIndexPage({
       : "Global Rotten Index";
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-10">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">{title}</h1>
-      </header>
-
-      <ClientWrapper
-        initialCountry={selectedCountry}
-        initialOptions={countryOptions}
-        normalization={normalization}
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="flex flex-wrap gap-3 mt-4">
-        {["company", "leader", "pe"].map((t) => (
-          <Link
-            key={t}
-            href={`/rotten-index?type=${t}&limit=${limit}`}
-            className={`px-3 py-1 rounded ${
-              type === t ? "bg-black text-white" : "bg-gray-200"
-            }`}
-          >
-            {t === "company" ? "Companies" : t === "leader" ? "Leaders" : "Private Equity"}
-          </Link>
-        ))}
+      <JsonLdDebugPanel
+        data={jsonLd}
+        debug={{ type, selectedCountry, limit, normalization }}
+        initiallyOpen={false}
+      />
 
-        {[10, 50, 100].map((n) => (
-          <Link
-            key={n}
-            href={`/rotten-index?type=${type}&limit=${n}`}
-            className={`px-3 py-1 rounded ${
-              limit === n ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-          >
-            Top {n}
-          </Link>
-        ))}
-      </div>
+      <main className="max-w-6xl mx-auto px-4 py-10">
+        <header className="mb-6">
+          <h1 className="text-3xl font-bold mb-2">{title}</h1>
+        </header>
 
-      <table className="mt-8 w-full border-collapse">
-        <thead>
-          <tr className="border-b text-left text-sm text-gray-600">
-            <th className="py-2 pr-4">#</th>
-            <th className="py-2 pr-4">Name</th>
-            <th className="py-2 pr-4">Country</th>
-            <th className="py-2 text-right">Rotten Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={r.id} className="border-b hover:bg-gray-50">
-              <td className="py-2 pr-4">{i + 1}</td>
-              <td className="py-2 pr-4 font-medium">{r.name}</td>
-              <td className="py-2 pr-4 text-sm text-gray-600">
-                {r.country ? formatCountry(r.country) : "—"}
-              </td>
-              <td className="py-2 text-right font-mono">
-                {(normalization === "none"
-                  ? r.rotten_score
-                  : r.normalized_score
-                ).toFixed(2)}
-              </td>
-            </tr>
+        <ClientWrapper
+          initialCountry={selectedCountry}
+          initialOptions={countryOptions}
+          normalization={normalization}
+        />
+
+        <div className="flex flex-wrap gap-3 mt-4">
+          {["company", "leader", "pe"].map((t) => (
+            <Link
+              key={t}
+              href={`/rotten-index?type=${t}&limit=${limit}`}
+              className={`px-3 py-1 rounded ${
+                type === t ? "bg-black text-white" : "bg-gray-200"
+              }`}
+            >
+              {t === "company" ? "Companies" : t === "leader" ? "Leaders" : "Private Equity"}
+            </Link>
           ))}
-        </tbody>
-      </table>
-    </main>
+
+          {[10, 50, 100].map((n) => (
+            <Link
+              key={n}
+              href={`/rotten-index?type=${type}&limit=${n}`}
+              className={`px-3 py-1 rounded ${
+                limit === n ? "bg-blue-600 text-white" : "bg-gray-200"
+              }`}
+            >
+              Top {n}
+            </Link>
+          ))}
+        </div>
+
+        <table className="mt-8 w-full border-collapse">
+          <thead>
+            <tr className="border-b text-left text-sm text-gray-600">
+              <th className="py-2 pr-4">#</th>
+              <th className="py-2 pr-4">Name</th>
+              <th className="py-2 pr-4">Country</th>
+              <th className="py-2 text-right">Rotten Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.id} className="border-b hover:bg-gray-50">
+                <td className="py-2 pr-4">{i + 1}</td>
+                <td className="py-2 pr-4 font-medium">{r.name}</td>
+                <td className="py-2 pr-4 text-sm text-gray-600">
+                  {r.country ? formatCountry(r.country) : "—"}
+                </td>
+                <td className="py-2 text-right font-mono">
+                  {(normalization === "none"
+                    ? r.rotten_score
+                    : r.normalized_score
+                  ).toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </main>
+    </>
   );
 }
