@@ -1,9 +1,27 @@
 import { supabaseServer } from "@/lib/supabase-server";
 
+type TenureRow = {
+  company_id: number;
+  started_at: string;
+  ended_at: string | null;
+};
+
+function isWithinAnyTenure(createdAt: string, tenures: TenureRow[]) {
+  const t = new Date(createdAt).getTime();
+
+  for (const ten of tenures) {
+    const start = new Date(ten.started_at).getTime();
+    const end = ten.ended_at ? new Date(ten.ended_at).getTime() : Date.now();
+    if (t >= start && t <= end) return true;
+  }
+
+  return false;
+}
+
 export async function getLeaderData(slug: string) {
   const supabase = await supabaseServer();
 
-  // 1. Fetch leader + company name
+  // 1) Leader + company name
   const { data: leader, error: leaderError } = await supabase
     .from("leaders")
     .select(`
@@ -13,6 +31,7 @@ export async function getLeaderData(slug: string) {
       slug,
       company_id,
       companies (
+        id,
         name
       )
     `)
@@ -24,10 +43,23 @@ export async function getLeaderData(slug: string) {
     return null;
   }
 
-  // companies is ALWAYS an array from Supabase
-  const company_name = leader.companies?.[0]?.name ?? null;
+  const company = leader.companies?.[0] ?? null;
+  const company_name = company?.name ?? null;
 
-  // 2. Fetch leader score
+  // 2) Tenures
+  const { data: tenuresRaw, error: tenuresError } = await supabase
+    .from("leader_tenures")
+    .select("company_id, started_at, ended_at")
+    .eq("leader_id", leader.id)
+    .order("started_at", { ascending: true });
+
+  if (tenuresError) {
+    console.error("Leader tenures error:", tenuresError);
+  }
+
+  const tenures = (tenuresRaw ?? []) as TenureRow[];
+
+  // 3) Leader score
   const { data: score, error: scoreError } = await supabase
     .from("leader_scores")
     .select("*")
@@ -38,7 +70,7 @@ export async function getLeaderData(slug: string) {
     console.error("Leader score error:", scoreError);
   }
 
-  // 3. Fetch category breakdown
+  // 4) Category breakdown
   const { data: categories, error: categoriesError } = await supabase
     .from("leader_category_breakdown")
     .select("*")
@@ -48,7 +80,7 @@ export async function getLeaderData(slug: string) {
     console.error("Leader category breakdown error:", categoriesError);
   }
 
-  // 4. Inequality metrics
+  // 5) Inequality metrics
   const { data: inequality, error: inequalityError } = await supabase
     .from("leader_inequality")
     .select("*")
@@ -59,8 +91,8 @@ export async function getLeaderData(slug: string) {
     console.error("Leader inequality error:", inequalityError);
   }
 
-  // 5. Evidence
-  const { data: evidence, error: evidenceError } = await supabase
+  // 6) Evidence
+  const { data: evidenceRaw, error: evidenceError } = await supabase
     .from("evidence")
     .select("*")
     .eq("leader_id", leader.id)
@@ -71,6 +103,14 @@ export async function getLeaderData(slug: string) {
     console.error("Leader evidence error:", evidenceError);
   }
 
+  // 7) Tenure filter
+  const evidence =
+    tenures.length === 0
+      ? (evidenceRaw ?? [])
+      : (evidenceRaw ?? []).filter((ev) =>
+          isWithinAnyTenure(ev.created_at, tenures)
+        );
+
   return {
     leader: {
       id: leader.id,
@@ -78,8 +118,9 @@ export async function getLeaderData(slug: string) {
       role: leader.role,
       slug: leader.slug,
       company_id: leader.company_id,
-      company_name, // <-- FIXED
+      company_name,
     },
+    tenures,
     score,
     categories,
     inequality,
