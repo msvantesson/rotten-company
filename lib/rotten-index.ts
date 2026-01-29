@@ -1,6 +1,7 @@
 // lib/rotten-index.ts
 
 import { createClient } from "@supabase/supabase-js"
+import { getLeaderData } from "@/lib/getLeaderData"
 
 export type EntityType = "company" | "leader" | "owner"
 export type NormalizationMode = "none" | "employees" | "revenue"
@@ -57,17 +58,20 @@ export async function getGlobalRottenIndex({
     return getCompanyRottenIndex({ normalization, country, limit })
   }
 
-  // TODO: wire these once you’re ready to expose them in the UI
   if (entityType === "leader") {
-    return getLeaderRottenIndex({ normalization, limit })
+    return getLeaderRottenIndex({ normalization, country, limit })
   }
 
   if (entityType === "owner") {
-    return getOwnerRottenIndex({ normalization, limit })
+    return getOwnerRottenIndex({ normalization, country, limit })
   }
 
   return []
 }
+
+/* -------------------------------------------------- */
+/*                COMPANY ROTTEN INDEX                */
+/* -------------------------------------------------- */
 
 async function getCompanyRottenIndex({
   normalization,
@@ -80,7 +84,6 @@ async function getCompanyRottenIndex({
 }): Promise<RottenIndexItem[]> {
   const supabase = getSupabaseServerClient()
 
-  // Adjust the select string if your view shape differs
   const query = supabase
     .from("company_rotten_score")
     .select(
@@ -133,72 +136,105 @@ async function getCompanyRottenIndex({
   })
 }
 
+/* -------------------------------------------------- */
+/*                LEADER ROTTEN INDEX                 */
+/* -------------------------------------------------- */
+
 async function getLeaderRottenIndex({
   normalization,
+  country,
   limit,
 }: {
   normalization: NormalizationMode
+  country?: string
   limit?: number
 }): Promise<RottenIndexItem[]> {
   const supabase = getSupabaseServerClient()
 
-  // Adjust to your actual leader_scores + leaders schema
-  const query = supabase
-    .from("leader_scores")
+  // 1) Fetch leaders + their primary company
+  const { data: leadersRaw, error } = await supabase
+    .from("leaders")
     .select(
       `
-      leader_id,
-      rotten_score,
-      leaders (
+      id,
+      name,
+      slug,
+      company_id,
+      companies (
+        id,
         name,
         slug,
-        country
-      ),
-      leader_category_full_breakdown
+        country,
+        employees,
+        annual_revenue
+      )
     `
     )
-    .order("rotten_score", { ascending: false })
+    .limit(1000)
 
-  if (limit) {
-    query.limit(limit)
-  }
-
-  const { data, error } = await query
-
-  if (error || !data) {
+  if (error || !leadersRaw) {
     console.error("getLeaderRottenIndex error", error)
     return []
   }
 
-  return data.map((row: any): RottenIndexItem => {
-    const absolute = row.rotten_score as number
-    const leader = row.leaders ?? {}
-    const normalized = normalizeScore(absolute, {}, normalization)
-
-    return {
-      type: "leader",
-      id: row.leader_id,
-      name: leader.name,
-      slug: leader.slug,
-      country: leader.country,
-      absoluteScore: absolute,
-      normalizedScore: normalized,
-      breakdown: row.leader_category_full_breakdown,
-      url: `/leader/${leader.slug}`,
-    }
+  // 2) Filter by country (if selected)
+  const filtered = leadersRaw.filter((l: any) => {
+    const company = l.companies?.[0] ?? null
+    const c = company?.country ?? null
+    if (!country) return true
+    return c === country
   })
+
+  // 3) Compute dynamic scores using getLeaderData()
+  const detailed = await Promise.all(
+    filtered.map(async (l: any) => {
+      if (!l.slug) return null
+
+      const data = await getLeaderData(l.slug)
+      if (!data) return null
+
+      const company = l.companies?.[0] ?? null
+      const c = company?.country ?? null
+
+      const absolute = data.score?.final_score ?? 0
+      const normalized = normalizeScore(absolute, company ?? {}, normalization)
+
+      return {
+        type: "leader" as const,
+        id: data.leader.id,
+        name: data.leader.name,
+        slug: data.leader.slug,
+        country: c,
+        absoluteScore: absolute,
+        normalizedScore: normalized,
+        breakdown: data.categories ?? {},
+        url: `/leader/${data.leader.slug}`,
+      } satisfies RottenIndexItem
+    })
+  )
+
+  const valid = detailed.filter((x): x is RottenIndexItem => x !== null)
+
+  valid.sort((a, b) => b.normalizedScore - a.normalizedScore)
+
+  return limit ? valid.slice(0, limit) : valid
 }
+
+/* -------------------------------------------------- */
+/*                OWNER ROTTEN INDEX                  */
+/* -------------------------------------------------- */
 
 async function getOwnerRottenIndex({
   normalization,
+  country,
   limit,
 }: {
   normalization: NormalizationMode
+  country?: string
   limit?: number
 }): Promise<RottenIndexItem[]> {
   const supabase = getSupabaseServerClient()
 
-  // Adjust to your actual owner_portfolio_breakdown + owners_investors schema
   const query = supabase
     .from("owner_portfolio_breakdown")
     .select(
@@ -214,6 +250,10 @@ async function getOwnerRottenIndex({
     `
     )
     .order("portfolio_rotten_score", { ascending: false })
+
+  if (country) {
+    query.eq("owners_investors.country", country)
+  }
 
   if (limit) {
     query.limit(limit)
