@@ -5,7 +5,6 @@ export const fetchCache = "force-no-store";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getLeaderData } from "@/lib/getLeaderData";
 import ClientWrapper from "./ClientWrapper";
-import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import Link from "next/link";
 
 type NormalizationMode = "none" | "employees" | "revenue";
@@ -161,16 +160,12 @@ export default async function RottenIndexPage({
           employees,
           annual_revenue
         )
-      `)
-      .limit(1000);
-
-    const filtered = (leaders ?? []).filter((l: any) => {
-      const company = l.companies ?? null;
-      return !selectedCountry || company?.country === selectedCountry;
-    });
+      `);
 
     const detailed = await Promise.all(
-      filtered.map(async (l: any) => {
+      (leaders ?? []).map(async (l: any) => {
+        if (selectedCountry && l.companies?.country !== selectedCountry) return null;
+
         const data = await getLeaderData(l.slug);
 
         if (!data) {
@@ -184,71 +179,21 @@ export default async function RottenIndexPage({
           };
         }
 
-        const company = l.companies ?? null;
         const absolute = data.score.final_score ?? 0;
-        const normalized = normalizeScore(absolute, company, normalization);
+        const normalized = normalizeScore(absolute, l.companies, normalization);
 
         return {
           id: data.leader.id,
           name: data.leader.name,
           slug: data.leader.slug,
-          country: company?.country ?? null,
+          country: l.companies?.country ?? null,
           rotten_score: absolute,
           normalized_score: normalized,
-        } satisfies IndexedRow;
+        };
       })
     );
 
     rows = detailed.filter(Boolean) as IndexedRow[];
-  }
-
-  if (type === "pe") {
-    const { data } = await supabase
-      .from("owners_investors")
-      .select(`
-        id,
-        name,
-        slug,
-        company_ownerships (
-          is_control,
-          companies (
-            country,
-            company_rotten_score (
-              rotten_score
-            )
-          )
-        )
-      `)
-      .eq("owner_profile", "private_equity");
-
-    rows = (data ?? [])
-      .map((o: any) => {
-        let total = 0;
-        let country: string | null = null;
-
-        for (const rel of o.company_ownerships ?? []) {
-          if (!rel.is_control) continue;
-          if (selectedCountry && rel.companies?.country !== selectedCountry) continue;
-
-          const score = Number(rel.companies?.company_rotten_score?.rotten_score);
-          if (score) {
-            total += score;
-            country ??= rel.companies?.country ?? null;
-          }
-        }
-
-        if (!total) return null;
-
-        return {
-          id: o.id,
-          name: o.name,
-          slug: o.slug,
-          country,
-          rotten_score: total,
-          normalized_score: total,
-        };
-      })
-      .filter(Boolean) as IndexedRow[];
   }
 
   rows.sort((a, b) =>
@@ -261,19 +206,43 @@ export default async function RottenIndexPage({
 
   const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
 
-  function hrefWith(next: Record<string, string | null>) {
-    const p = new URLSearchParams();
-    p.set("type", type);
-    p.set("limit", String(limit));
-    if (selectedCountry) p.set("country", selectedCountry);
-    if (normalization && normalization !== "none") p.set("normalization", normalization);
-    for (const [k, v] of Object.entries(next)) {
-      if (!v) p.delete(k);
-      else p.set(k, v);
-    }
-    return `/rotten-index?${p.toString()}`;
-  }
-
   return (
     <>
       <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      <ClientWrapper
+        initialCountry={selectedCountry}
+        initialOptions={countryOptions}
+        normalization={normalization}
+      />
+
+      <table className="mt-6 w-full border-collapse">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Country</th>
+            <th>Rotten Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.id}>
+              <td>{i + 1}</td>
+              <td>
+                <Link href={`/${type === "leader" ? "leader" : "company"}/${r.slug}`}>
+                  {r.name}
+                </Link>
+              </td>
+              <td>{r.country ?? "—"}</td>
+              <td>{r.normalized_score.toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
