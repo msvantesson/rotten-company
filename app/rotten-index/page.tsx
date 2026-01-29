@@ -3,6 +3,7 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { supabaseServer } from "@/lib/supabase-server";
+import { getLeaderData } from "@/lib/getLeaderData";
 import ClientWrapper from "./ClientWrapper";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import Link from "next/link";
@@ -36,13 +37,13 @@ function formatCountry(value: string) {
 
 function normalizeScore(
   score: number,
-  entity: { employees?: number | null; annual_revenue?: number | null },
+  entity: { employees?: number | null; annual_revenue?: number | null } | null,
   mode: NormalizationMode
 ) {
-  if (mode === "employees" && entity.employees && entity.employees > 0) {
+  if (mode === "employees" && entity?.employees && entity.employees > 0) {
     return score / Math.log(entity.employees + 10);
   }
-  if (mode === "revenue" && entity.annual_revenue && Number(entity.annual_revenue) > 0) {
+  if (mode === "revenue" && entity?.annual_revenue && Number(entity.annual_revenue) > 0) {
     return score / Math.log(Number(entity.annual_revenue) + 10);
   }
   return score;
@@ -118,7 +119,7 @@ export default async function RottenIndexPage({
 
   let rows: IndexedRow[] = [];
 
-  /* COMPANY */
+  /* ---------------- COMPANY ---------------- */
   if (type === "company") {
     let q = supabase
       .from("companies")
@@ -153,9 +154,9 @@ export default async function RottenIndexPage({
       .filter(Boolean) as IndexedRow[];
   }
 
-  /* LEADERS */
+  /* ---------------- LEADERS (FIXED) ---------------- */
   if (type === "leader") {
-    let q = supabase
+    const { data: leaders } = await supabase
       .from("leaders")
       .select(`
         id,
@@ -165,33 +166,39 @@ export default async function RottenIndexPage({
           country,
           employees,
           annual_revenue
-        ),
-        company_rotten_score (
-          rotten_score
         )
-      `);
+      `)
+      .limit(1000);
 
-    if (selectedCountry) q = q.ilike("companies.country", selectedCountry);
+    const filtered = (leaders ?? []).filter((l: any) => {
+      const company = l.companies?.[0] ?? null;
+      return !selectedCountry || company?.country === selectedCountry;
+    });
 
-    const { data } = await q;
+    const detailed = await Promise.all(
+      filtered.map(async (l: any) => {
+        const data = await getLeaderData(l.slug);
+        if (!data) return null;
 
-    rows = (data ?? [])
-      .map((l: any) => {
-        const score = Number(l.company_rotten_score?.rotten_score);
-        if (!score) return null;
+        const company = l.companies?.[0] ?? null;
+        const absolute = data.score.final_score ?? 0;
+        const normalized = normalizeScore(absolute, company, normalization);
+
         return {
-          id: l.id,
-          name: l.name,
-          slug: l.slug,
-          country: l.companies?.country,
-          rotten_score: score,
-          normalized_score: normalizeScore(score, l.companies ?? {}, normalization),
-        };
+          id: data.leader.id,
+          name: data.leader.name,
+          slug: data.leader.slug,
+          country: company?.country ?? null,
+          rotten_score: absolute,
+          normalized_score: normalized,
+        } satisfies IndexedRow;
       })
-      .filter(Boolean) as IndexedRow[];
+    );
+
+    rows = detailed.filter(Boolean) as IndexedRow[];
   }
 
-  /* PRIVATE EQUITY */
+  /* ---------------- PRIVATE EQUITY ---------------- */
   if (type === "pe") {
     const { data } = await supabase
       .from("owners_investors")
@@ -243,6 +250,7 @@ export default async function RottenIndexPage({
       .filter(Boolean) as IndexedRow[];
   }
 
+  /* ---------------- SORT + LIMIT ---------------- */
   rows.sort((a, b) =>
     normalization === "none"
       ? b.rotten_score - a.rotten_score
