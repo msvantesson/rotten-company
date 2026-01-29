@@ -275,4 +275,9 @@ export default async function RottenIndexPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-   <ClientWrapper initialCountry={selectedCountry} initialOptions={countryOptions} normalization={normalization} />{
+   <ClientWrapper
+  initialCountry={selectedCountry}
+  initialOptions={countryOptions}
+  normalization={normalization}
+/>
+
