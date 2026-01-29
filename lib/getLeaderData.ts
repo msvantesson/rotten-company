@@ -53,7 +53,7 @@ export async function getLeaderData(slug: string) {
   const company_name = company?.name ?? null;
 
   /* -------------------------------------------------
-     2) Leader tenures (with company names)
+     2) Leader tenures
      ------------------------------------------------- */
   const { data: tenuresRaw, error: tenuresError } = await supabase
     .from("leader_tenures")
@@ -110,16 +110,18 @@ export async function getLeaderData(slug: string) {
 
   /* -------------------------------------------------
      5) Tenure‑bounded evidence filter
+        (seed evidence bypasses tenure)
      ------------------------------------------------- */
   const evidence =
     tenures.length === 0
       ? (evidenceRaw ?? [])
-      : (evidenceRaw ?? []).filter((ev) =>
-          isWithinAnyTenure(ev.created_at, tenures)
-        );
+      : (evidenceRaw ?? []).filter((ev) => {
+          if (ev.evidence_type === "seed") return true;
+          return isWithinAnyTenure(ev.created_at, tenures);
+        });
 
   /* -------------------------------------------------
-     6) Compute leader score from tenure‑bounded evidence
+     6) Compute leader score
      ------------------------------------------------- */
   const computedScore = computeLeaderScoreFromEvidence({
     evidence: evidence.map((ev) => ({
@@ -134,7 +136,7 @@ export async function getLeaderData(slug: string) {
   });
 
   /* -------------------------------------------------
-     7) Category breakdown (unchanged)
+     7) Category breakdown
      ------------------------------------------------- */
   const { data: categories, error: categoriesError } = await supabase
     .from("leader_category_breakdown")
@@ -146,7 +148,7 @@ export async function getLeaderData(slug: string) {
   }
 
   /* -------------------------------------------------
-     8) Return shape (UI + JSON-LD compatible)
+     8) Return shape (UI + JSON‑LD compatible)
      ------------------------------------------------- */
   return {
     leader: {
@@ -163,7 +165,7 @@ export async function getLeaderData(slug: string) {
       raw_score: computedScore.baseCategoryScore ?? 0,
       direct_evidence_score: computedScore.baseCategoryScore ?? 0,
       inequality_score: inequality?.pay_ratio ?? 0,
-      company_rotten_score: 0, // legacy placeholder
+      company_rotten_score: 0,
     },
     categories,
     inequality,
