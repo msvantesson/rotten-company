@@ -4,6 +4,8 @@ import type { CategoryId } from "@/lib/rotten-score";
 
 type TenureRow = {
   company_id: number;
+  company_name: string | null;
+  company_slug: string | null;
   started_at: string;
   ended_at: string | null;
 };
@@ -51,11 +53,19 @@ export async function getLeaderData(slug: string) {
   const company_name = company?.name ?? null;
 
   /* -------------------------------------------------
-     2) Leader tenures (authoritative time windows)
+     2) Leader tenures (with company names)
      ------------------------------------------------- */
   const { data: tenuresRaw, error: tenuresError } = await supabase
     .from("leader_tenures")
-    .select("company_id, started_at, ended_at")
+    .select(`
+      company_id,
+      started_at,
+      ended_at,
+      companies (
+        name,
+        slug
+      )
+    `)
     .eq("leader_id", leader.id)
     .order("started_at", { ascending: true });
 
@@ -63,10 +73,16 @@ export async function getLeaderData(slug: string) {
     console.error("Leader tenures error:", tenuresError);
   }
 
-  const tenures = (tenuresRaw ?? []) as TenureRow[];
+  const tenures: TenureRow[] = (tenuresRaw ?? []).map((t: any) => ({
+    company_id: t.company_id,
+    company_name: t.companies?.name ?? null,
+    company_slug: t.companies?.slug ?? null,
+    started_at: t.started_at,
+    ended_at: t.ended_at,
+  }));
 
   /* -------------------------------------------------
-     3) Inequality metrics (unchanged)
+     3) Inequality metrics
      ------------------------------------------------- */
   const { data: inequality, error: inequalityError } = await supabase
     .from("leader_inequality")
@@ -94,7 +110,6 @@ export async function getLeaderData(slug: string) {
 
   /* -------------------------------------------------
      5) Tenure‑bounded evidence filter
-        Fallback: if no tenures exist, keep all evidence
      ------------------------------------------------- */
   const evidence =
     tenures.length === 0
@@ -112,14 +127,14 @@ export async function getLeaderData(slug: string) {
       severity: ev.severity_suggested ?? ev.severity ?? 0,
     })),
     companyContext: {
-      ownershipType: "public_company", // derive later if needed
+      ownershipType: "public_company",
       sizeEmployees: null,
       countryRegion: "western",
     },
   });
 
   /* -------------------------------------------------
-     7) Category breakdown (still DB‑backed for now)
+     7) Category breakdown (unchanged)
      ------------------------------------------------- */
   const { data: categories, error: categoriesError } = await supabase
     .from("leader_category_breakdown")
@@ -131,7 +146,7 @@ export async function getLeaderData(slug: string) {
   }
 
   /* -------------------------------------------------
-     8) Return shape (UNCHANGED for UI + JSON‑LD)
+     8) Return shape (UI + JSON-LD compatible)
      ------------------------------------------------- */
   return {
     leader: {
@@ -148,7 +163,7 @@ export async function getLeaderData(slug: string) {
       raw_score: computedScore.baseCategoryScore ?? 0,
       direct_evidence_score: computedScore.baseCategoryScore ?? 0,
       inequality_score: inequality?.pay_ratio ?? 0,
-      company_rotten_score: 0, // legacy field, safe placeholder
+      company_rotten_score: 0, // legacy placeholder
     },
     categories,
     inequality,
