@@ -3,7 +3,6 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { supabaseServer } from "@/lib/supabase-server";
-import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import ClientWrapper from "./ClientWrapper";
 import Link from "next/link";
 
@@ -14,7 +13,6 @@ type IndexedRow = {
   id: number;
   name: string;
   slug: string;
-  industry?: string | null;
   country?: string | null;
   rotten_score: number;
   normalized_score: number;
@@ -42,6 +40,13 @@ function normalizeScore(
   return score;
 }
 
+function formatCountry(value: string) {
+  return value
+    .split(/[^a-zA-Z]+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(" ");
+}
+
 export default async function RottenIndexPage({
   searchParams,
 }: {
@@ -60,15 +65,31 @@ export default async function RottenIndexPage({
 
   const supabase = await supabaseServer();
 
+  /* =========================
+     COUNTRY OPTIONS (required)
+     ========================= */
+  const { data: countryRows } = await supabase
+    .from("companies")
+    .select("country");
+
+  const countryOptions = [
+    ...new Set((countryRows ?? []).map((r) => r.country).filter(Boolean)),
+  ]
+    .map((c) => ({
+      dbValue: c!,
+      label: formatCountry(c!),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
   let rows: IndexedRow[] = [];
 
   /* =========================
-     COMPANY MODE (unchanged)
+     COMPANY MODE
      ========================= */
   if (type === "company") {
     let companyQuery = supabase
       .from("companies")
-      .select("id, name, slug, industry, country, employees, annual_revenue");
+      .select("id, name, slug, country, employees, annual_revenue");
 
     if (selectedCountry) {
       companyQuery = companyQuery.ilike("country", selectedCountry);
@@ -93,7 +114,6 @@ export default async function RottenIndexPage({
           id: c.id,
           name: c.name,
           slug: c.slug,
-          industry: c.industry,
           country: c.country,
           rotten_score: score,
           normalized_score: normalizeScore(score, c, normalization),
@@ -113,7 +133,6 @@ export default async function RottenIndexPage({
         name,
         slug,
         companies (
-          id,
           country,
           employees,
           annual_revenue
@@ -152,7 +171,6 @@ export default async function RottenIndexPage({
         company_ownerships (
           is_control,
           companies (
-            id,
             country,
             employees,
             annual_revenue,
@@ -167,16 +185,24 @@ export default async function RottenIndexPage({
     rows = (data ?? [])
       .map((o: any) => {
         let total = 0;
+        let country: string | null = null;
+
         for (const rel of o.company_ownerships ?? []) {
           if (!rel.is_control) continue;
           const score = Number(rel.companies?.company_rotten_score?.rotten_score);
-          if (score) total += score;
+          if (score) {
+            total += score;
+            country ??= rel.companies?.country ?? null;
+          }
         }
+
         if (!total) return null;
+
         return {
           id: o.id,
           name: o.name,
           slug: o.slug,
+          country,
           rotten_score: total,
           normalized_score: total,
         };
@@ -207,10 +233,11 @@ export default async function RottenIndexPage({
 
       <ClientWrapper
         initialCountry={selectedCountry}
+        initialOptions={countryOptions}
         normalization={normalization}
       />
 
-      <div className="flex gap-3 mt-4">
+      <div className="flex flex-wrap gap-3 mt-4">
         {["company", "leader", "pe"].map((t) => (
           <Link
             key={t}
@@ -241,16 +268,23 @@ export default async function RottenIndexPage({
           <tr className="border-b text-left text-sm text-gray-600">
             <th className="py-2 pr-4">#</th>
             <th className="py-2 pr-4">Name</th>
+            <th className="py-2 pr-4">Country</th>
             <th className="py-2 text-right">Rotten Score</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={r.id} className="border-b">
+            <tr key={r.id} className="border-b hover:bg-gray-50">
               <td className="py-2 pr-4">{i + 1}</td>
               <td className="py-2 pr-4 font-medium">{r.name}</td>
+              <td className="py-2 pr-4 text-sm text-gray-600">
+                {r.country ? formatCountry(r.country) : "—"}
+              </td>
               <td className="py-2 text-right font-mono">
-                {(normalization === "none" ? r.rotten_score : r.normalized_score).toFixed(2)}
+                {(normalization === "none"
+                  ? r.rotten_score
+                  : r.normalized_score
+                ).toFixed(2)}
               </td>
             </tr>
           ))}
