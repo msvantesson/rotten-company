@@ -147,7 +147,7 @@ export default async function RottenIndexPage({
       .filter(Boolean) as IndexedRow[];
   }
 
-  /* ---------------- LEADERS (EVIDENCE‑BASED) ---------------- */
+  /* ---------------- LEADERS (FIXED) ---------------- */
   if (type === "leader") {
     const { data: leaders } = await supabase
       .from("leaders")
@@ -164,7 +164,7 @@ export default async function RottenIndexPage({
       .limit(1000);
 
     const filtered = (leaders ?? []).filter((l: any) => {
-      const company = l.companies?.[0] ?? null;
+      const company = l.companies ?? null;
       return !selectedCountry || company?.country === selectedCountry;
     });
 
@@ -173,7 +173,7 @@ export default async function RottenIndexPage({
         const data = await getLeaderData(l.slug);
         if (!data) return null;
 
-        const company = l.companies?.[0] ?? null;
+        const company = l.companies ?? null;
         const absolute = data.score.final_score ?? 0;
         const normalized = normalizeScore(absolute, company, normalization);
 
@@ -270,6 +270,32 @@ export default async function RottenIndexPage({
           initialOptions={countryOptions}
           normalization={normalization}
         />
+
+        <div className="flex flex-wrap gap-3 mt-4">
+          {["company", "leader", "pe"].map((t) => (
+            <Link
+              key={t}
+              href={`/rotten-index?type=${t}&limit=${limit}`}
+              className={`px-3 py-1 rounded ${
+                type === t ? "bg-black text-white" : "bg-gray-200"
+              }`}
+            >
+              {t === "company" ? "Companies" : t === "leader" ? "Leaders" : "Private Equity"}
+            </Link>
+          ))}
+
+          {[10, 50, 100].map((n) => (
+            <Link
+              key={n}
+              href={`/rotten-index?type=${type}&limit=${n}`}
+              className={`px-3 py-1 rounded ${
+                limit === n ? "bg-blue-600 text-white" : "bg-gray-200"
+              }`}
+            >
+              Top {n}
+            </Link>
+          ))}
+        </div>
 
         <table className="mt-8 w-full border-collapse">
           <thead>
