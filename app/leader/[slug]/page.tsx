@@ -132,7 +132,7 @@ export default async function LeaderPage({ params }: { params: Params }) {
                               }}
                             />
 
-                            {/* Evidence markers */}
+                            {/* Evidence markers (clickable) */}
                             {evidenceInTenure.map((ev) => {
                               const evTs = new Date(ev.createdAt).getTime();
                               const evPct =
@@ -146,9 +146,20 @@ export default async function LeaderPage({ params }: { params: Params }) {
                                   : "bg-green-600";
 
                               return (
-                                <div
+                                <button
                                   key={ev.id}
-                                  className={`absolute -top-1 w-3 h-3 rounded-full border border-white shadow ${color}`}
+                                  onClick={() => {
+                                    const el = document.getElementById(
+                                      `evidence-${ev.id}`
+                                    );
+                                    if (el) {
+                                      el.scrollIntoView({
+                                        behavior: "smooth",
+                                        block: "start",
+                                      });
+                                    }
+                                  }}
+                                  className={`absolute -top-1 w-3 h-3 rounded-full border border-white shadow ${color} cursor-pointer`}
                                   style={{ left: `${evPct}%` }}
                                   title={`${ev.title} (${ev.category})`}
                                 />
