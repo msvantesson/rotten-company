@@ -70,33 +70,98 @@ export default async function LeaderPage({ params }: { params: Params }) {
           <section>
             <h2 className="text-xl font-semibold mb-3">Tenure Timeline</h2>
 
-            <ul className="space-y-2">
-              {tenures.map((t, i) => {
-                const start = new Date(t.started_at);
-                const end = t.ended_at ? new Date(t.ended_at) : null;
+            <div className="relative w-full border-l border-gray-300 pl-4">
+              {(() => {
+                const parsedTenures = tenures.map((t) => ({
+                  ...t,
+                  start: new Date(t.started_at).getTime(),
+                  end: t.ended_at ? new Date(t.ended_at).getTime() : Date.now(),
+                }));
 
-                const startLabel = start.toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                });
-
-                const endLabel = end
-                  ? end.toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                    })
-                  : "Present";
+                const globalStart = Math.min(...parsedTenures.map((t) => t.start));
+                const globalEnd = Math.max(...parsedTenures.map((t) => t.end));
+                const totalRange = globalEnd - globalStart || 1;
 
                 return (
-                  <li key={i} className="text-sm text-gray-700">
-                    <span className="font-medium">
-                      {t.company_name ?? `Company ${t.company_id}`}
-                    </span>{" "}
-                    — {startLabel} → {endLabel}
-                  </li>
+                  <div className="space-y-6">
+                    {parsedTenures.map((t, i) => {
+                      const startPct =
+                        ((t.start - globalStart) / totalRange) * 100;
+                      const endPct =
+                        ((t.end - globalStart) / totalRange) * 100;
+                      const widthPct = Math.max(endPct - startPct, 1);
+
+                      const startLabel = new Date(t.start).toLocaleDateString(
+                        "en-US",
+                        {
+                          year: "numeric",
+                          month: "short",
+                        }
+                      );
+
+                      const endLabel = t.ended_at
+                        ? new Date(t.end).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                          })
+                        : "Present";
+
+                      // Evidence inside this tenure
+                      const evidenceInTenure = mappedEvidence.filter((ev) => {
+                        const ts = new Date(ev.createdAt).getTime();
+                        return ts >= t.start && ts <= t.end;
+                      });
+
+                      return (
+                        <div key={i} className="relative">
+                          {/* Company + dates */}
+                          <div className="mb-1 text-sm text-gray-700">
+                            <span className="font-medium">
+                              {t.company_name ?? `Company ${t.company_id}`}
+                            </span>{" "}
+                            — {startLabel} → {endLabel}
+                          </div>
+
+                          {/* Timeline bar */}
+                          <div className="relative h-3 w-full bg-gray-200 rounded">
+                            <div
+                              className="absolute top-0 h-3 bg-blue-500 rounded"
+                              style={{
+                                left: `${startPct}%`,
+                                width: `${widthPct}%`,
+                              }}
+                            />
+
+                            {/* Evidence markers */}
+                            {evidenceInTenure.map((ev) => {
+                              const evTs = new Date(ev.createdAt).getTime();
+                              const evPct =
+                                ((evTs - globalStart) / totalRange) * 100;
+
+                              const color =
+                                ev.severity === "high"
+                                  ? "bg-red-600"
+                                  : ev.severity === "medium"
+                                  ? "bg-yellow-500"
+                                  : "bg-green-600";
+
+                              return (
+                                <div
+                                  key={ev.id}
+                                  className={`absolute -top-1 w-3 h-3 rounded-full border border-white shadow ${color}`}
+                                  style={{ left: `${evPct}%` }}
+                                  title={`${ev.title} (${ev.category})`}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 );
-              })}
-            </ul>
+              })()}
+            </div>
           </section>
         )}
 
