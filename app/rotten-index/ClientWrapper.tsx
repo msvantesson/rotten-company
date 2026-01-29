@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 type NormalizationMode = "none" | "employees" | "revenue";
 
@@ -15,14 +15,15 @@ export default function ClientWrapper({
   initialOptions,
   normalization,
 }: ClientWrapperProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   function updateParam(key: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString());
     if (!value) params.delete(key);
     else params.set(key, value);
-    router.push(`/rotten-index?${params.toString()}`);
+
+    // IMPORTANT: force full reload so server component re-runs
+    window.location.href = `/rotten-index?${params.toString()}`;
   }
 
   return (
