@@ -5,6 +5,7 @@ export const fetchCache = "force-no-store";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getLeaderData } from "@/lib/getLeaderData";
 import ClientWrapper from "./ClientWrapper";
+import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import Link from "next/link";
 
 type NormalizationMode = "none" | "employees" | "revenue";
@@ -113,6 +114,7 @@ export default async function RottenIndexPage({
 
   let rows: IndexedRow[] = [];
 
+  /* -------------------- COMPANIES -------------------- */
   if (type === "company") {
     let q = supabase
       .from("companies")
@@ -148,6 +150,7 @@ export default async function RottenIndexPage({
       .filter(Boolean) as IndexedRow[];
   }
 
+  /* -------------------- LEADERS (PATCHED) -------------------- */
   if (type === "leader") {
     const { data: leaders } = await supabase
       .from("leaders")
@@ -164,32 +167,46 @@ export default async function RottenIndexPage({
 
     const detailed = await Promise.all(
       (leaders ?? []).map(async (l: any) => {
-        if (selectedCountry && l.companies?.country !== selectedCountry) return null;
+        const company = l.companies ?? null;
+        const country = company?.country ?? null;
 
-        const data = await getLeaderData(l.slug);
+        if (selectedCountry && country !== selectedCountry) return null;
 
-        if (!data) {
+        try {
+          const data = await getLeaderData(l.slug);
+
+          if (!data || !data.score) {
+            return {
+              id: l.id,
+              name: l.name,
+              slug: l.slug,
+              country,
+              rotten_score: 0,
+              normalized_score: 0,
+            };
+          }
+
+          const absolute = data.score.final_score ?? 0;
+          const normalized = normalizeScore(absolute, company, normalization);
+
+          return {
+            id: data.leader.id,
+            name: data.leader.name,
+            slug: data.leader.slug,
+            country,
+            rotten_score: absolute,
+            normalized_score: normalized,
+          };
+        } catch {
           return {
             id: l.id,
             name: l.name,
             slug: l.slug,
-            country: l.companies?.country ?? null,
+            country,
             rotten_score: 0,
             normalized_score: 0,
           };
         }
-
-        const absolute = data.score.final_score ?? 0;
-        const normalized = normalizeScore(absolute, l.companies, normalization);
-
-        return {
-          id: data.leader.id,
-          name: data.leader.name,
-          slug: data.leader.slug,
-          country: l.companies?.country ?? null,
-          rotten_score: absolute,
-          normalized_score: normalized,
-        };
       })
     );
 
@@ -225,6 +242,8 @@ export default async function RottenIndexPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
+      <JsonLdDebugPanel json={jsonLd} />
 
       <ClientWrapper
         initialCountry={selectedCountry}
