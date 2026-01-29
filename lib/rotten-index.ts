@@ -151,7 +151,6 @@ async function getLeaderRottenIndex({
 }): Promise<RottenIndexItem[]> {
   const supabase = getSupabaseServerClient()
 
-  // 1) Fetch leaders + their primary company
   const { data: leadersRaw, error } = await supabase
     .from("leaders")
     .select(
@@ -177,7 +176,6 @@ async function getLeaderRottenIndex({
     return []
   }
 
-  // 2) Filter by country (if selected)
   const filtered = leadersRaw.filter((l: any) => {
     const company = l.companies?.[0] ?? null
     const c = company?.country ?? null
@@ -185,7 +183,6 @@ async function getLeaderRottenIndex({
     return c === country
   })
 
-  // 3) Compute dynamic scores using getLeaderData()
   const detailed = await Promise.all(
     filtered.map(async (l: any) => {
       if (!l.slug) return null
@@ -213,7 +210,7 @@ async function getLeaderRottenIndex({
     })
   )
 
-  const valid = detailed.filter((x): x is RottenIndexItem => x !== null)
+  const valid = detailed.filter((x) => x !== null) as RottenIndexItem[]
 
   valid.sort((a, b) => b.normalizedScore - a.normalizedScore)
 
