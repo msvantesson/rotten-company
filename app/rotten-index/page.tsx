@@ -196,6 +196,55 @@ export default async function RottenIndexPage({
     rows = detailed.filter(Boolean) as IndexedRow[];
   }
 
+  if (type === "pe") {
+    const { data } = await supabase
+      .from("owners_investors")
+      .select(`
+        id,
+        name,
+        slug,
+        company_ownerships (
+          is_control,
+          companies (
+            country,
+            company_rotten_score (
+              rotten_score
+            )
+          )
+        )
+      `)
+      .eq("owner_profile", "private_equity");
+
+    rows = (data ?? [])
+      .map((o: any) => {
+        let total = 0;
+        let country: string | null = null;
+
+        for (const rel of o.company_ownerships ?? []) {
+          if (!rel.is_control) continue;
+          if (selectedCountry && rel.companies?.country !== selectedCountry) continue;
+
+          const score = Number(rel.companies?.company_rotten_score?.rotten_score);
+          if (score) {
+            total += score;
+            country ??= rel.companies?.country ?? null;
+          }
+        }
+
+        if (!total) return null;
+
+        return {
+          id: o.id,
+          name: o.name,
+          slug: o.slug,
+          country,
+          rotten_score: total,
+          normalized_score: total,
+        };
+      })
+      .filter(Boolean) as IndexedRow[];
+  }
+
   rows.sort((a, b) =>
     normalization === "none"
       ? b.rotten_score - a.rotten_score
@@ -205,6 +254,19 @@ export default async function RottenIndexPage({
   rows = rows.slice(0, limit);
 
   const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
+
+  function hrefWith(next: Record<string, string | null>) {
+    const p = new URLSearchParams();
+    p.set("type", type);
+    p.set("limit", String(limit));
+    if (selectedCountry) p.set("country", selectedCountry);
+    if (normalization && normalization !== "none") p.set("normalization", normalization);
+    for (const [k, v] of Object.entries(next)) {
+      if (!v) p.delete(k);
+      else p.set(k, v);
+    }
+    return `/rotten-index?${p.toString()}`;
+  }
 
   return (
     <>
@@ -216,33 +278,4 @@ export default async function RottenIndexPage({
       <ClientWrapper
         initialCountry={selectedCountry}
         initialOptions={countryOptions}
-        normalization={normalization}
-      />
-
-      <table className="mt-6 w-full border-collapse">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Country</th>
-            <th>Rotten Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={r.id}>
-              <td>{i + 1}</td>
-              <td>
-                <Link href={`/${type === "leader" ? "leader" : "company"}/${r.slug}`}>
-                  {r.name}
-                </Link>
-              </td>
-              <td>{r.country ?? "—"}</td>
-              <td>{r.normalized_score.toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
-  );
-}
+        normalization={
