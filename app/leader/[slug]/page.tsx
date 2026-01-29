@@ -24,7 +24,7 @@ export default async function LeaderPage({ params }: { params: Params }) {
     );
   }
 
-  const { leader, score, categories, inequality, evidence } = data;
+  const { leader, score, categories, inequality, evidence, tenures } = data;
 
   const mappedEvidence = (evidence ?? []).map((ev) => ({
     id: ev.id,
@@ -61,7 +61,48 @@ export default async function LeaderPage({ params }: { params: Params }) {
       {/* Developer-only JSON-LD Debug Panel */}
       <JsonLdDebugPanel data={jsonLd} />
 
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-6 space-y-8">
+
+        {/* ----------------------------- */}
+        {/*      TENURE TIMELINE UI       */}
+        {/* ----------------------------- */}
+        {tenures && tenures.length > 0 && (
+          <section>
+            <h2 className="text-xl font-semibold mb-3">Tenure Timeline</h2>
+
+            <ul className="space-y-2">
+              {tenures.map((t, i) => {
+                const start = new Date(t.started_at);
+                const end = t.ended_at ? new Date(t.ended_at) : null;
+
+                const startLabel = start.toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                });
+
+                const endLabel = end
+                  ? end.toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                    })
+                  : "Present";
+
+                return (
+                  <li key={i} className="text-sm text-gray-700">
+                    <span className="font-medium">
+                      {leader.company_name ?? `Company ${t.company_id}`}
+                    </span>{" "}
+                    — {startLabel} → {endLabel}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
+        {/* ----------------------------- */}
+        {/*     EXISTING SCORE PANEL      */}
+        {/* ----------------------------- */}
         <LeaderScorePanel
           name={leader.name}
           role={leader.role ?? ""}
