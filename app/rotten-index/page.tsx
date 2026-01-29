@@ -55,12 +55,8 @@ function buildIndexJsonLd(
   selectedCountry: string | null
 ) {
   const baseUrl = "https://rotten-company.com";
-
   const entityType = type === "leader" ? "Person" : "Organization";
-  const path =
-    type === "leader" ? "leader" :
-    type === "pe" ? "owner" :
-    "company";
+  const path = type === "leader" ? "leader" : type === "pe" ? "owner" : "company";
 
   return {
     "@context": "https://schema.org",
@@ -121,13 +117,10 @@ export default async function RottenIndexPage({
 
   /* ---------------- COMPANY ---------------- */
   if (type === "company") {
-    let q = supabase
+    const { data: companies } = await supabase
       .from("companies")
       .select("id, name, slug, country, employees, annual_revenue");
 
-    if (selectedCountry) q = q.ilike("country", selectedCountry);
-
-    const { data: companies } = await q;
     const ids = (companies ?? []).map((c) => c.id);
 
     const { data: scores } = await supabase
@@ -154,7 +147,7 @@ export default async function RottenIndexPage({
       .filter(Boolean) as IndexedRow[];
   }
 
-  /* ---------------- LEADERS (FIXED) ---------------- */
+  /* ---------------- LEADERS (EVIDENCE‑BASED) ---------------- */
   if (type === "leader") {
     const { data: leaders } = await supabase
       .from("leaders")
@@ -210,8 +203,6 @@ export default async function RottenIndexPage({
           is_control,
           companies (
             country,
-            employees,
-            annual_revenue,
             company_rotten_score (
               rotten_score
             )
@@ -250,7 +241,6 @@ export default async function RottenIndexPage({
       .filter(Boolean) as IndexedRow[];
   }
 
-  /* ---------------- SORT + LIMIT ---------------- */
   rows.sort((a, b) =>
     normalization === "none"
       ? b.rotten_score - a.rotten_score
@@ -260,13 +250,6 @@ export default async function RottenIndexPage({
   rows = rows.slice(0, limit);
 
   const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
-
-  const title =
-    type === "leader"
-      ? "Leaders under whose watch the most corporate damage occurred"
-      : type === "pe"
-      ? "Private equity firms behind the most destructive portfolio patterns"
-      : "Global Rotten Index";
 
   return (
     <>
@@ -282,60 +265,28 @@ export default async function RottenIndexPage({
       />
 
       <main className="max-w-6xl mx-auto px-4 py-10">
-        <header className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">{title}</h1>
-        </header>
-
         <ClientWrapper
           initialCountry={selectedCountry}
           initialOptions={countryOptions}
           normalization={normalization}
         />
 
-        <div className="flex flex-wrap gap-3 mt-4">
-          {["company", "leader", "pe"].map((t) => (
-            <Link
-              key={t}
-              href={`/rotten-index?type=${t}&limit=${limit}`}
-              className={`px-3 py-1 rounded ${
-                type === t ? "bg-black text-white" : "bg-gray-200"
-              }`}
-            >
-              {t === "company" ? "Companies" : t === "leader" ? "Leaders" : "Private Equity"}
-            </Link>
-          ))}
-
-          {[10, 50, 100].map((n) => (
-            <Link
-              key={n}
-              href={`/rotten-index?type=${type}&limit=${n}`}
-              className={`px-3 py-1 rounded ${
-                limit === n ? "bg-blue-600 text-white" : "bg-gray-200"
-              }`}
-            >
-              Top {n}
-            </Link>
-          ))}
-        </div>
-
         <table className="mt-8 w-full border-collapse">
           <thead>
             <tr className="border-b text-left text-sm text-gray-600">
-              <th className="py-2 pr-4">#</th>
-              <th className="py-2 pr-4">Name</th>
-              <th className="py-2 pr-4">Country</th>
-              <th className="py-2 text-right">Rotten Score</th>
+              <th>#</th>
+              <th>Name</th>
+              <th>Country</th>
+              <th className="text-right">Rotten Score</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.id} className="border-b hover:bg-gray-50">
-                <td className="py-2 pr-4">{i + 1}</td>
-                <td className="py-2 pr-4 font-medium">{r.name}</td>
-                <td className="py-2 pr-4 text-sm text-gray-600">
-                  {r.country ? formatCountry(r.country) : "—"}
-                </td>
-                <td className="py-2 text-right font-mono">
+              <tr key={r.id} className="border-b">
+                <td>{i + 1}</td>
+                <td>{r.name}</td>
+                <td>{r.country ? formatCountry(r.country) : "—"}</td>
+                <td className="text-right">
                   {(normalization === "none"
                     ? r.rotten_score
                     : r.normalized_score
