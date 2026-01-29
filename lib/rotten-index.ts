@@ -176,8 +176,9 @@ async function getLeaderRottenIndex({
     return []
   }
 
+  // FIXED: companies is an object, not an array
   const filtered = leadersRaw.filter((l: any) => {
-    const company = l.companies?.[0] ?? null
+    const company = l.companies ?? null
     const c = company?.country ?? null
     if (!country) return true
     return c === country
@@ -190,7 +191,7 @@ async function getLeaderRottenIndex({
       const data = await getLeaderData(l.slug)
       if (!data) return null
 
-      const company = l.companies?.[0] ?? null
+      const company = l.companies ?? null
       const c = company?.country ?? null
 
       const absolute = data.score?.final_score ?? 0
@@ -210,6 +211,7 @@ async function getLeaderRottenIndex({
     })
   )
 
+  // FIXED: TS-safe null filter
   const valid = detailed.filter((x) => x !== null) as RottenIndexItem[]
 
   valid.sort((a, b) => b.normalizedScore - a.normalizedScore)
