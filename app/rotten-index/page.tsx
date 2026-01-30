@@ -38,7 +38,8 @@ function buildIndexJsonLd(
 ) {
   const baseUrl = "https://rotten-company.com";
   const entityType = type === "leader" ? "Person" : "Organization";
-  const path = type === "leader" ? "leader" : type === "owner" ? "owner" : "company";
+  const path =
+    type === "leader" ? "leader" : type === "owner" ? "owner" : "company";
 
   return {
     "@context": "https://schema.org",
@@ -91,10 +92,9 @@ export default async function RottenIndexPage({
   const protocol = host.includes("localhost") ? "http" : "https";
   const baseUrl = `${protocol}://${host}`;
 
-  const res = await fetch(
-    `${baseUrl}/api/rotten-index?${qs.toString()}`,
-    { cache: "no-store" }
-  );
+  const res = await fetch(`${baseUrl}/api/rotten-index?${qs.toString()}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     return <p className="mt-6">Failed to load Rotten Index.</p>;
@@ -143,9 +143,11 @@ export default async function RottenIndexPage({
       <JsonLdDebugPanel data={jsonLd} />
 
       <p className="mt-2 text-sm text-gray-600">
-        Ranked by severity of verified misconduct. Higher scores indicate greater documented harm.
+        Ranked by severity of verified misconduct. Higher scores indicate
+        greater documented harm.
       </p>
 
+      {/* FILTER CONTROLS */}
       <form
         method="get"
         className="mt-6 mb-8 flex flex-wrap items-end gap-4 rounded-lg border bg-gray-50 p-4"
@@ -206,6 +208,7 @@ export default async function RottenIndexPage({
         </button>
       </form>
 
+      {/* TABLE */}
       <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-gray-100 border-b">
@@ -213,7 +216,9 @@ export default async function RottenIndexPage({
               <th className="py-2 pr-2 w-12">#</th>
               <th className="py-2 pr-4">Name</th>
               <th className="py-2 pr-4">Country</th>
-              <th className="py-2 text-right w-32">Rotten Score</th>
+              <th className="py-2 px-4 text-center font-mono tabular-nums w-24">
+                Rotten Score
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -231,11 +236,9 @@ export default async function RottenIndexPage({
                 <td className="py-2 pr-4 text-gray-600">
                   {r.country ?? "—"}
                 </td>
-      <th className="py-2 text-center w-32">Rotten Score</th>
-<td className="py-2 text-center font-mono tabular-nums w-32 bg-gray-50">
-  {r.rotten_score.toFixed(2)}
-</td>
-
+                <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-gray-50">
+                  {r.rotten_score.toFixed(2)}
+                </td>
               </tr>
             ))}
           </tbody>
