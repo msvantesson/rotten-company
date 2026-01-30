@@ -1,69 +1,45 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 
+type EntityType = "company" | "leader" | "owner";
+
+function parseEntityType(value: string | null): EntityType {
+  if (value === "leader" || value === "owner") return value;
+  return "company";
+}
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const country = url.searchParams.get("country") || null;
+
+    const type = parseEntityType(url.searchParams.get("type"));
+    const country = url.searchParams.get("country");
+    const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 200);
 
     const supabase = await supabaseServer();
 
-    // Hent scores
-    const { data: scoreRows, error: scoreError } = await supabase
-      .from("company_rotten_score")
-      .select("company_id, rotten_score")
-      .order("rotten_score", { ascending: false });
+    let query = supabase
+      .from("global_rotten_index")
+      .select("entity_type,id,name,slug,country,rotten_score")
+      .eq("entity_type", type)
+      .order("rotten_score", { ascending: false })
+      .limit(limit);
 
-    if (scoreError) {
-      console.error("[api/rotten-index] scores error:", String(scoreError));
-      return NextResponse.json({ error: "scores query failed" }, { status: 500 });
-    }
-
-    const companyIds = Array.isArray(scoreRows) ? scoreRows.map((r: any) => r.company_id) : [];
-
-    // Hent companies
-    let companyRows: any[] = [];
-    if (companyIds.length > 0) {
-      const { data: companiesData, error: companiesError } = await supabase
-        .from("companies")
-        .select("id, name, slug, industry, country")
-        .in("id", companyIds);
-
-      if (companiesError) {
-        console.error("[api/rotten-index] companies error:", String(companiesError));
-        return NextResponse.json({ error: "companies query failed" }, { status: 500 });
-      }
-      companyRows = Array.isArray(companiesData) ? companiesData : [];
-    }
-
-    // Saml og match i score‑rækkefølge
-    const companyById: Record<number, any> = {};
-    for (const c of companyRows) {
-      companyById[c.id] = c;
-    }
-
-    let companies = (scoreRows || [])
-      .map((r: any) => {
-        const c = companyById[r.company_id];
-        if (!c) return null;
-        return {
-          id: c.id,
-          name: c.name,
-          slug: c.slug,
-          industry: c.industry || null,
-          country: c.country || null,
-          rotten_score: typeof r.rotten_score === "number" ? r.rotten_score : Number(r.rotten_score) || 0,
-        };
-      })
-      .filter((x: any) => x !== null);
-
-    // Filtrer case‑insensitive hvis country er angivet
     if (country && country.trim().length > 0) {
-      const target = country.trim().toLowerCase();
-      companies = companies.filter((c: any) => c.country && c.country.trim().toLowerCase() === target);
+      query = query.eq("country", country.trim());
     }
 
-    return NextResponse.json({ companies });
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[api/rotten-index] query error:", String(error));
+      return NextResponse.json({ error: "query failed" }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      type,
+      rows: data ?? [],
+    });
   } catch (err) {
     console.error("[api/rotten-index] fatal:", err);
     return NextResponse.json({ error: "internal error" }, { status: 500 });
