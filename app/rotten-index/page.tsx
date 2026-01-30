@@ -91,6 +91,7 @@ export default async function RottenIndexPage({
   const protocol = host.includes("localhost") ? "http" : "https";
   const baseUrl = `${protocol}://${host}`;
 
+  // MAIN FILTERED FETCH
   const res = await fetch(
     `${baseUrl}/api/rotten-index?${qs.toString()}`,
     { cache: "no-store" }
@@ -114,18 +115,28 @@ export default async function RottenIndexPage({
 
   rows = rows.slice(0, limit);
 
+  // UNFILTERED COUNTRY LIST FETCH
+  const countryRes = await fetch(
+    `${baseUrl}/api/rotten-index?type=company&limit=1000`,
+    { cache: "no-store" }
+  );
+
+  const countryJson = await countryRes.json();
+
   const countryOptions = Array.from(
     new Set(
-      rows
-        .map((r) => (r.country ?? "").trim())
-        .filter(Boolean)
+      Array.isArray(countryJson.rows)
+        ? countryJson.rows
+            .map((r: any) => (r.country ?? "").trim())
+            .filter(Boolean)
+        : []
     )
   ).sort((a, b) => a.localeCompare(b));
 
   const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
 
   return (
-    <>
+    <div className="max-w-5xl mx-auto px-4 py-8">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -199,37 +210,39 @@ export default async function RottenIndexPage({
       </form>
 
       {/* TABLE */}
-      <table className="w-full border-collapse text-sm">
-        <thead className="sticky top-0 bg-white border-b">
-          <tr className="text-left text-gray-600">
-            <th className="py-2 pr-2 w-12">#</th>
-            <th className="py-2 pr-4">Name</th>
-            <th className="py-2 pr-4">Country</th>
-            <th className="py-2 text-right">Rotten Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={`${type}-${r.id}`} className="border-b hover:bg-gray-50">
-              <td className="py-2 pr-2 text-gray-500">{i + 1}</td>
-              <td className="py-2 pr-4 font-medium">
-                <Link
-                  href={`/${type}/${r.slug}`}
-                  className="hover:underline"
-                >
-                  {r.name}
-                </Link>
-              </td>
-              <td className="py-2 pr-4 text-gray-600">
-                {r.country ?? "—"}
-              </td>
-              <td className="py-2 text-right font-mono">
-                {r.rotten_score.toFixed(2)}
-              </td>
+      <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
+        <table className="w-full border-collapse text-sm">
+          <thead className="bg-gray-100 border-b">
+            <tr className="text-left text-gray-600">
+              <th className="py-2 pr-2 w-12">#</th>
+              <th className="py-2 pr-4">Name</th>
+              <th className="py-2 pr-4">Country</th>
+              <th className="py-2 text-right">Rotten Score</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={`${type}-${r.id}`} className="border-b hover:bg-gray-50">
+                <td className="py-2 pr-2 text-gray-500">{i + 1}</td>
+                <td className="py-2 pr-4 font-medium">
+                  <Link
+                    href={`/${type}/${r.slug}`}
+                    className="hover:underline"
+                  >
+                    {r.name}
+                  </Link>
+                </td>
+                <td className="py-2 pr-4 text-gray-600">
+                  {r.country ?? "—"}
+                </td>
+                <td className="py-2 text-right font-mono">
+                  {r.rotten_score.toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
