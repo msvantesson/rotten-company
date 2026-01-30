@@ -96,13 +96,9 @@ export default async function RottenIndexPage({
   qs.set("limit", String(limit));
   if (selectedCountry) qs.set("country", selectedCountry);
 
-  // ✅ Next.js 16: headers() is async
   const h = await headers();
   const host = h.get("host");
-
-  if (!host) {
-    throw new Error("Missing host header");
-  }
+  if (!host) throw new Error("Missing host header");
 
   const protocol = host.includes("localhost") ? "http" : "https";
   const baseUrl = `${protocol}://${host}`;
@@ -138,6 +134,7 @@ export default async function RottenIndexPage({
 
   return (
     <>
+      {/* JSON‑LD */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -145,6 +142,41 @@ export default async function RottenIndexPage({
 
       <JsonLdDebugPanel data={jsonLd} />
 
+      {/* CONTROLS — URL‑DRIVEN, SERVER‑SAFE */}
+      <form method="get" className="mt-6 flex gap-4 items-center">
+        <select
+          name="type"
+          defaultValue={type}
+          className="border px-3 py-2 rounded"
+        >
+          <option value="company">Companies</option>
+          <option value="leader">Leaders</option>
+          <option value="pe">Private Equity</option>
+        </select>
+
+        <select
+          name="limit"
+          defaultValue={String(limit)}
+          className="border px-3 py-2 rounded"
+        >
+          <option value="10">Top 10</option>
+          <option value="25">Top 25</option>
+          <option value="50">Top 50</option>
+        </select>
+
+        {selectedCountry && (
+          <input type="hidden" name="country" value={selectedCountry} />
+        )}
+
+        <button
+          type="submit"
+          className="bg-black text-white px-4 py-2 rounded"
+        >
+          Apply
+        </button>
+      </form>
+
+      {/* TABLE */}
       <table className="mt-6 w-full border-collapse">
         <thead>
           <tr>
