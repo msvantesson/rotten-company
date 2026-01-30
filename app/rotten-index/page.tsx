@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
+import { headers } from "next/headers";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import Link from "next/link";
 
@@ -32,9 +33,7 @@ function formatCountry(value: string) {
     .join(" ");
 }
 
-function normalizeScore(score: number, mode: NormalizationMode) {
-  // Normalization by employees / revenue should now live in DB later.
-  // For now we keep behavior identical.
+function normalizeScore(score: number, _mode: NormalizationMode) {
   return score;
 }
 
@@ -97,10 +96,21 @@ export default async function RottenIndexPage({
   qs.set("limit", String(limit));
   if (selectedCountry) qs.set("country", selectedCountry);
 
-  // ✅ FIXED: relative URL (no env vars, no crashes)
-  const res = await fetch(`/api/rotten-index?${qs.toString()}`, {
-    cache: "no-store",
-  });
+  // ✅ CORRECT SSR-SAFE BASE URL
+  const h = headers();
+  const host = h.get("host");
+
+  if (!host) {
+    throw new Error("Missing host header");
+  }
+
+  const protocol = host.includes("localhost") ? "http" : "https";
+  const baseUrl = `${protocol}://${host}`;
+
+  const res = await fetch(
+    `${baseUrl}/api/rotten-index?${qs.toString()}`,
+    { cache: "no-store" }
+  );
 
   if (!res.ok) {
     return <p className="mt-6">Failed to load Rotten Index.</p>;
@@ -108,14 +118,19 @@ export default async function RottenIndexPage({
 
   const json = await res.json();
 
-  let rows: IndexedRow[] = (json.rows ?? []).map((r: any) => ({
-    id: r.id,
-    name: r.name,
-    slug: r.slug,
-    country: r.country ?? null,
-    rotten_score: Number(r.rotten_score) || 0,
-    normalized_score: normalizeScore(Number(r.rotten_score) || 0, normalization),
-  }));
+  let rows: IndexedRow[] = Array.isArray(json.rows)
+    ? json.rows.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        country: r.country ?? null,
+        rotten_score: Number(r.rotten_score) || 0,
+        normalized_score: normalizeScore(
+          Number(r.rotten_score) || 0,
+          normalization
+        ),
+      }))
+    : [];
 
   rows = rows.slice(0, limit);
 
