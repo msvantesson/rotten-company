@@ -82,7 +82,7 @@ export default async function RottenIndexPage({
 }) {
   const sp = await Promise.resolve(searchParams ?? {});
   const type = (getFirstString(sp.type) as IndexType) ?? "company";
-  const limit = Number(getFirstString(sp.limit) ?? 10);
+  const limit = Number(getFirstString(sp.limit) ?? 25);
   const selectedCountry = getFirstString(sp.country);
   const normalizationRaw = getFirstString(sp.normalization);
 
@@ -130,6 +130,14 @@ export default async function RottenIndexPage({
 
   rows = rows.slice(0, limit);
 
+  const countryOptions = Array.from(
+    new Set(
+      rows
+        .map((r) => (r.country ?? "").trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
   const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
 
   return (
@@ -142,55 +150,92 @@ export default async function RottenIndexPage({
 
       <JsonLdDebugPanel data={jsonLd} />
 
-      {/* CONTROLS — URL‑DRIVEN, SERVER‑SAFE */}
-      <form method="get" className="mt-6 flex gap-4 items-center">
-        <select
-          name="type"
-          defaultValue={type}
-          className="border px-3 py-2 rounded"
-        >
-          <option value="company">Companies</option>
-          <option value="leader">Leaders</option>
-          <option value="pe">Private Equity</option>
-        </select>
+      <p className="mt-2 text-sm text-gray-600">
+        Ranked by severity of verified misconduct. Higher scores indicate
+        greater documented harm.
+      </p>
 
-        <select
-          name="limit"
-          defaultValue={String(limit)}
-          className="border px-3 py-2 rounded"
-        >
-          <option value="10">Top 10</option>
-          <option value="25">Top 25</option>
-          <option value="50">Top 50</option>
-        </select>
+      {/* FILTER CONTROLS */}
+      <form
+        method="get"
+        className="mt-6 mb-8 flex flex-wrap items-end gap-4 rounded-lg border bg-gray-50 p-4"
+      >
+        <div className="flex flex-col">
+          <label className="text-xs font-semibold text-gray-600 mb-1">
+            Entity
+          </label>
+          <select
+            name="type"
+            defaultValue={type}
+            className="border rounded px-3 py-2 bg-white"
+          >
+            <option value="company">Companies</option>
+            <option value="leader">Leaders</option>
+            <option value="pe">Private Equity</option>
+          </select>
+        </div>
 
-        {selectedCountry && (
-          <input type="hidden" name="country" value={selectedCountry} />
-        )}
+        <div className="flex flex-col">
+          <label className="text-xs font-semibold text-gray-600 mb-1">
+            Country
+          </label>
+          <select
+            name="country"
+            defaultValue={selectedCountry ?? ""}
+            className="border rounded px-3 py-2 bg-white"
+          >
+            <option value="">All countries</option>
+            {countryOptions.map((c) => (
+              <option key={c} value={c}>
+                {formatCountry(c)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col">
+          <label className="text-xs font-semibold text-gray-600 mb-1">
+            Results
+          </label>
+          <select
+            name="limit"
+            defaultValue={String(limit)}
+            className="border rounded px-3 py-2 bg-white"
+          >
+            <option value="10">Top 10</option>
+            <option value="25">Top 25</option>
+            <option value="50">Top 50</option>
+          </select>
+        </div>
 
         <button
           type="submit"
-          className="bg-black text-white px-4 py-2 rounded"
+          className="ml-auto rounded bg-black px-5 py-2 text-white font-semibold hover:bg-gray-800"
         >
           Apply
         </button>
       </form>
 
       {/* TABLE */}
-      <table className="mt-6 w-full border-collapse">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Country</th>
-            <th>Rotten Score</th>
+      <table className="w-full border-collapse text-sm">
+        <thead className="sticky top-0 bg-white border-b">
+          <tr className="text-left text-gray-600">
+            <th className="py-2 pr-2 w-12">#</th>
+            <th className="py-2 pr-4">Name</th>
+            <th className="py-2 pr-4">Country</th>
+            <th className="py-2 text-right">Rotten Score</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={`${type}-${r.id}`}>
-              <td>{i + 1}</td>
-              <td>
+            <tr
+              key={`${type}-${r.id}`}
+              className="border-b hover:bg-gray-50"
+            >
+              <td className="py-2 pr-2 text-gray-500">
+                {i + 1}
+              </td>
+              <td className="py-2 pr-4 font-medium">
                 <Link
                   href={`/${
                     type === "leader"
@@ -199,12 +244,17 @@ export default async function RottenIndexPage({
                       ? "owner"
                       : "company"
                   }/${r.slug}`}
+                  className="hover:underline"
                 >
                   {r.name}
                 </Link>
               </td>
-              <td>{r.country ?? "—"}</td>
-              <td>{r.normalized_score.toFixed(2)}</td>
+              <td className="py-2 pr-4 text-gray-600">
+                {r.country ?? "—"}
+              </td>
+              <td className="py-2 text-right font-mono">
+                {r.normalized_score.toFixed(2)}
+              </td>
             </tr>
           ))}
         </tbody>
