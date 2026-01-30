@@ -76,7 +76,7 @@ export default async function RottenIndexPage({
 }) {
   const sp = await Promise.resolve(searchParams ?? {});
   const type = (getFirstString(sp.type) as IndexType) ?? "company";
-  const limit = Number(getFirstString(sp.limit) ?? 10); // 🔹 default Top 10
+  const limit = Number(getFirstString(sp.limit) ?? 10); // default Top 10
   const selectedCountry = getFirstString(sp.country);
 
   const qs = new URLSearchParams();
@@ -115,7 +115,7 @@ export default async function RottenIndexPage({
 
   rows = rows.slice(0, limit);
 
-  // UNFILTERED COUNTRY LIST FETCH (for dropdown)
+  // UNFILTERED COUNTRY LIST FETCH
   const countryRes = await fetch(
     `${baseUrl}/api/rotten-index?type=company&limit=1000`,
     { cache: "no-store" }
@@ -235,9 +235,9 @@ export default async function RottenIndexPage({
                 <td className="py-2 pr-4 text-gray-600">
                   {r.country ?? "—"}
                 </td>
-               <td className="py-2 text-center font-mono">
-                {r.rotten_score.toFixed(2)}
-              </td>
+                <td className="py-2 text-right font-mono tabular-nums">
+                  {r.rotten_score.toFixed(2)}
+                </td>
               </tr>
             ))}
           </tbody>
