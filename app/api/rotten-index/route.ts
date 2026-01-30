@@ -25,15 +25,17 @@ export async function GET(req: Request) {
 
     let query;
 
+    // ✅ COMPANIES — use the VIEW
     if (type === "company") {
       query = supabase
-        .from("companies")
+        .from("global_rotten_index")
         .select("id, name, slug, country, rotten_score")
         .order("rotten_score", { ascending: false })
         .limit(limit);
 
       if (country) query.eq("country", country);
 
+    // ⚠️ LEADERS — unchanged for now
     } else if (type === "leader") {
       query = supabase
         .from("leaders")
@@ -43,6 +45,7 @@ export async function GET(req: Request) {
 
       if (country) query.eq("country", country);
 
+    // ⚠️ OWNERS — unchanged for now
     } else if (type === "owner") {
       query = supabase
         .from("owners_investors")
@@ -66,7 +69,7 @@ export async function GET(req: Request) {
       name: r.name,
       slug: r.slug,
       country: r.country ?? null,
-      rotten_score: Number(r.rotten_score) || 0,
+      rotten_score: Number(r.rotten_score),
     }));
 
     return NextResponse.json({ rows }, { status: 200 });
