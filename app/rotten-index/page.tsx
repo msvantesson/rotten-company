@@ -2,9 +2,6 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
-import { supabaseServer } from "@/lib/supabase-server";
-import { getLeaderData } from "@/lib/getLeaderData";
-import ClientWrapper from "./ClientWrapper";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import Link from "next/link";
 
@@ -35,17 +32,9 @@ function formatCountry(value: string) {
     .join(" ");
 }
 
-function normalizeScore(
-  score: number,
-  entity: { employees?: number | null; annual_revenue?: number | null } | null,
-  mode: NormalizationMode
-) {
-  if (mode === "employees" && entity?.employees && entity.employees > 0) {
-    return score / Math.log(entity.employees + 10);
-  }
-  if (mode === "revenue" && entity?.annual_revenue && Number(entity.annual_revenue) > 0) {
-    return score / Math.log(Number(entity.annual_revenue) + 10);
-  }
+function normalizeScore(score: number, mode: NormalizationMode) {
+  // Normalization by employees / revenue should now live in DB later.
+  // For now we keep behavior identical.
   return score;
 }
 
@@ -103,110 +92,30 @@ export default async function RottenIndexPage({
       ? normalizationRaw
       : "none";
 
-  const supabase = await supabaseServer();
+  const qs = new URLSearchParams();
+  qs.set("type", type);
+  qs.set("limit", String(limit));
+  if (selectedCountry) qs.set("country", selectedCountry);
 
-  let rows: IndexedRow[] = [];
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_SITE_URL}/api/rotten-index?${qs.toString()}`,
+    { cache: "no-store" }
+  );
 
-  if (type === "leader") {
-    console.log("[LEADER] Fetching leaders…");
-
-    const { data: leaders, error } = await supabase
-      .from("leaders")
-      .select(`
-        id,
-        name,
-        slug,
-        companies (
-          country,
-          employees,
-          annual_revenue
-        )
-      `);
-
-    if (error) {
-      console.error("[LEADER] Supabase error:", error);
-    }
-
-    console.log("[LEADER] Raw leaders count:", leaders?.length ?? 0);
-    console.log("[LEADER] Slugs:", leaders?.map((l) => l.slug));
-
-    const detailed = await Promise.all(
-      (leaders ?? []).map(async (l: any) => {
-        const company = l.companies ?? null;
-        const country = company?.country ?? null;
-
-        console.log(`[LEADER] Processing ${l.slug}`);
-        console.log(`[LEADER] Company country:`, country);
-
-        // TEMPORARILY DISABLED COUNTRY FILTER
-        // if (selectedCountry && country !== selectedCountry) {
-        //   console.log(`[LEADER] SKIP ${l.slug} — country mismatch`);
-        //   return null;
-        // }
-
-        try {
-          const data = await getLeaderData(l.slug);
-
-          if (!data) {
-            console.warn(`[LEADER] getLeaderData returned null for ${l.slug}`);
-            return {
-              id: l.id,
-              name: l.name,
-              slug: l.slug,
-              country,
-              rotten_score: 0,
-              normalized_score: 0,
-            };
-          }
-
-          if (!data.score) {
-            console.warn(`[LEADER] No score for ${l.slug}`);
-            return {
-              id: l.id,
-              name: l.name,
-              slug: l.slug,
-              country,
-              rotten_score: 0,
-              normalized_score: 0,
-            };
-          }
-
-          const absolute = data.score.final_score ?? 0;
-          const normalized = normalizeScore(absolute, company, normalization);
-
-          console.log(`[LEADER] OK ${l.slug} → score=${absolute}, normalized=${normalized}`);
-
-          return {
-            id: data.leader.id,
-            name: data.leader.name,
-            slug: data.leader.slug,
-            country,
-            rotten_score: absolute,
-            normalized_score: normalized,
-          };
-        } catch (err) {
-          console.error(`[LEADER] ERROR ${l.slug}`, err);
-          return {
-            id: l.id,
-            name: l.name,
-            slug: l.slug,
-            country,
-            rotten_score: 0,
-            normalized_score: 0,
-          };
-        }
-      })
-    );
-
-    rows = detailed.filter(Boolean) as IndexedRow[];
-    console.log("[LEADER] Final rows length:", rows.length);
+  if (!res.ok) {
+    return <p className="mt-6">Failed to load Rotten Index.</p>;
   }
 
-  rows.sort((a, b) =>
-    normalization === "none"
-      ? b.rotten_score - a.rotten_score
-      : b.normalized_score - a.normalized_score
-  );
+  const json = await res.json();
+
+  let rows: IndexedRow[] = (json.rows ?? []).map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    slug: r.slug,
+    country: r.country ?? null,
+    rotten_score: Number(r.rotten_score) || 0,
+    normalized_score: normalizeScore(Number(r.rotten_score) || 0, normalization),
+  }));
 
   rows = rows.slice(0, limit);
 
@@ -232,10 +141,12 @@ export default async function RottenIndexPage({
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={r.id}>
+            <tr key={`${type}-${r.id}`}>
               <td>{i + 1}</td>
               <td>
-                <Link href={`/leader/${r.slug}`}>{r.name}</Link>
+                <Link href={`/${type === "leader" ? "leader" : type === "pe" ? "owner" : "company"}/${r.slug}`}>
+                  {r.name}
+                </Link>
               </td>
               <td>{r.country ?? "—"}</td>
               <td>{r.normalized_score.toFixed(2)}</td>
