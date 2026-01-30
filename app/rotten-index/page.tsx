@@ -124,7 +124,7 @@ export default async function RottenIndexPage({
   const countryJson = await countryRes.json();
 
   const countryOptions = Array.from(
-    new Set(
+    new Set<string>(
       Array.isArray(countryJson.rows)
         ? countryJson.rows
             .map((r: any) => (r.country ?? "").trim())
