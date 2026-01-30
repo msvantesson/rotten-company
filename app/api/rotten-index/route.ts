@@ -33,9 +33,8 @@ export async function GET(req: Request) {
         .limit(limit);
 
       if (country) query.eq("country", country);
-    }
 
-    if (type === "leader") {
+    } else if (type === "leader") {
       query = supabase
         .from("leaders")
         .select("id, name, slug, country, rotten_score")
@@ -43,16 +42,16 @@ export async function GET(req: Request) {
         .limit(limit);
 
       if (country) query.eq("country", country);
-    }
 
-    if (type === "owner") {
+    } else if (type === "owner") {
       query = supabase
         .from("owners_investors")
         .select("id, name, slug, rotten_score")
         .order("rotten_score", { ascending: false })
         .limit(limit);
 
-      // owners don't have country yet
+    } else {
+      return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
 
     const { data, error } = await query;
@@ -62,7 +61,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const rows = data.map((r: any) => ({
+    const rows = (data ?? []).map((r: any) => ({
       id: r.id,
       name: r.name,
       slug: r.slug,
@@ -71,6 +70,7 @@ export async function GET(req: Request) {
     }));
 
     return NextResponse.json({ rows }, { status: 200 });
+
   } catch (err) {
     console.error("Error in /api/rotten-index:", err);
     return NextResponse.json(
