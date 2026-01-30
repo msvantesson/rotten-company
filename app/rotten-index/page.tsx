@@ -231,9 +231,11 @@ export default async function RottenIndexPage({
                 <td className="py-2 pr-4 text-gray-600">
                   {r.country ?? "—"}
                 </td>
-                <td className="py-2 text-right font-mono tabular-nums w-32 bg-gray-50">
-                  {r.rotten_score.toFixed(2)}
-                </td>
+      <th className="py-2 text-center w-32">Rotten Score</th>
+<td className="py-2 text-center font-mono tabular-nums w-32 bg-gray-50">
+  {r.rotten_score.toFixed(2)}
+</td>
+
               </tr>
             ))}
           </tbody>
