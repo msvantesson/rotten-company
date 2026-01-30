@@ -96,8 +96,8 @@ export default async function RottenIndexPage({
   qs.set("limit", String(limit));
   if (selectedCountry) qs.set("country", selectedCountry);
 
-  // ✅ CORRECT SSR-SAFE BASE URL
-  const h = headers();
+  // ✅ Next.js 16: headers() is async
+  const h = await headers();
   const host = h.get("host");
 
   if (!host) {
