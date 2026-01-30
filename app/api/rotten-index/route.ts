@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseServer } from '@/lib/supabaseServer';
+import { supabaseRoute } from '@/lib/supabase-route';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -8,14 +8,9 @@ export async function GET(req: Request) {
   const limit = Number(searchParams.get('limit') ?? 25);
   const offset = Number(searchParams.get('offset') ?? 0);
 
-  console.log('[rotten-index] request', {
-    type,
-    limit,
-    offset,
-    url: req.url,
-  });
+  console.log('[rotten-index] request', { type, limit, offset });
 
-  const supabase = await supabaseServer();
+  const supabase = await supabaseRoute();
 
   const { data, error } = await supabase
     .from('global_rotten_index')
@@ -25,25 +20,11 @@ export async function GET(req: Request) {
     .range(offset, offset + limit - 1);
 
   if (error) {
-    console.error('[rotten-index] query failed', {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-    });
-
-    return NextResponse.json(
-      { error: 'query failed' },
-      { status: 500 }
-    );
+    console.error('[rotten-index] query failed', error);
+    return NextResponse.json({ error: 'query failed' }, { status: 500 });
   }
 
-  console.log('[rotten-index] query ok', {
-    rows: data.length,
-    sample: data.slice(0, 2),
-  });
+  console.log('[rotten-index] ok', { rows: data.length });
 
-  return NextResponse.json({
-    type,
-    rows: data,
-  });
+  return NextResponse.json({ type, rows: data });
 }
