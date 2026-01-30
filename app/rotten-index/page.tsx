@@ -6,8 +6,7 @@ import { headers } from "next/headers";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import Link from "next/link";
 
-type NormalizationMode = "none" | "employees" | "revenue";
-type IndexType = "company" | "leader" | "pe";
+type IndexType = "company" | "leader" | "owner";
 
 type IndexedRow = {
   id: number;
@@ -15,7 +14,6 @@ type IndexedRow = {
   slug: string;
   country?: string | null;
   rotten_score: number;
-  normalized_score: number;
 };
 
 type SearchParams = { [key: string]: string | string[] | undefined };
@@ -33,10 +31,6 @@ function formatCountry(value: string) {
     .join(" ");
 }
 
-function normalizeScore(score: number, _mode: NormalizationMode) {
-  return score;
-}
-
 function buildIndexJsonLd(
   rows: IndexedRow[],
   type: IndexType,
@@ -44,7 +38,7 @@ function buildIndexJsonLd(
 ) {
   const baseUrl = "https://rotten-company.com";
   const entityType = type === "leader" ? "Person" : "Organization";
-  const path = type === "leader" ? "leader" : type === "pe" ? "owner" : "company";
+  const path = type === "leader" ? "leader" : type === "owner" ? "owner" : "company";
 
   return {
     "@context": "https://schema.org",
@@ -52,8 +46,8 @@ function buildIndexJsonLd(
     name:
       type === "leader"
         ? "Leaders under whose watch the most corporate damage occurred"
-        : type === "pe"
-        ? "Private equity firms behind the most destructive portfolio patterns"
+        : type === "owner"
+        ? "Owners behind the most destructive portfolio patterns"
         : "Global Rotten Index",
     itemListOrder: "Descending",
     numberOfItems: rows.length,
@@ -84,12 +78,6 @@ export default async function RottenIndexPage({
   const type = (getFirstString(sp.type) as IndexType) ?? "company";
   const limit = Number(getFirstString(sp.limit) ?? 25);
   const selectedCountry = getFirstString(sp.country);
-  const normalizationRaw = getFirstString(sp.normalization);
-
-  const normalization: NormalizationMode =
-    normalizationRaw === "employees" || normalizationRaw === "revenue"
-      ? normalizationRaw
-      : "none";
 
   const qs = new URLSearchParams();
   qs.set("type", type);
@@ -121,10 +109,6 @@ export default async function RottenIndexPage({
         slug: r.slug,
         country: r.country ?? null,
         rotten_score: Number(r.rotten_score) || 0,
-        normalized_score: normalizeScore(
-          Number(r.rotten_score) || 0,
-          normalization
-        ),
       }))
     : [];
 
@@ -142,7 +126,6 @@ export default async function RottenIndexPage({
 
   return (
     <>
-      {/* JSON‑LD */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -151,8 +134,7 @@ export default async function RottenIndexPage({
       <JsonLdDebugPanel data={jsonLd} />
 
       <p className="mt-2 text-sm text-gray-600">
-        Ranked by severity of verified misconduct. Higher scores indicate
-        greater documented harm.
+        Ranked by severity of verified misconduct. Higher scores indicate greater documented harm.
       </p>
 
       {/* FILTER CONTROLS */}
@@ -171,7 +153,7 @@ export default async function RottenIndexPage({
           >
             <option value="company">Companies</option>
             <option value="leader">Leaders</option>
-            <option value="pe">Private Equity</option>
+            <option value="owner">Owners</option>
           </select>
         </div>
 
@@ -228,22 +210,11 @@ export default async function RottenIndexPage({
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr
-              key={`${type}-${r.id}`}
-              className="border-b hover:bg-gray-50"
-            >
-              <td className="py-2 pr-2 text-gray-500">
-                {i + 1}
-              </td>
+            <tr key={`${type}-${r.id}`} className="border-b hover:bg-gray-50">
+              <td className="py-2 pr-2 text-gray-500">{i + 1}</td>
               <td className="py-2 pr-4 font-medium">
                 <Link
-                  href={`/${
-                    type === "leader"
-                      ? "leader"
-                      : type === "pe"
-                      ? "owner"
-                      : "company"
-                  }/${r.slug}`}
+                  href={`/${type}/${r.slug}`}
                   className="hover:underline"
                 >
                   {r.name}
@@ -253,7 +224,7 @@ export default async function RottenIndexPage({
                 {r.country ?? "—"}
               </td>
               <td className="py-2 text-right font-mono">
-                {r.normalized_score.toFixed(2)}
+                {r.rotten_score.toFixed(2)}
               </td>
             </tr>
           ))}
