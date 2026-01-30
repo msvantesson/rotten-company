@@ -97,10 +97,10 @@ export default async function RottenIndexPage({
   qs.set("limit", String(limit));
   if (selectedCountry) qs.set("country", selectedCountry);
 
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SITE_URL}/api/rotten-index?${qs.toString()}`,
-    { cache: "no-store" }
-  );
+  // ✅ FIXED: relative URL (no env vars, no crashes)
+  const res = await fetch(`/api/rotten-index?${qs.toString()}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     return <p className="mt-6">Failed to load Rotten Index.</p>;
@@ -144,7 +144,15 @@ export default async function RottenIndexPage({
             <tr key={`${type}-${r.id}`}>
               <td>{i + 1}</td>
               <td>
-                <Link href={`/${type === "leader" ? "leader" : type === "pe" ? "owner" : "company"}/${r.slug}`}>
+                <Link
+                  href={`/${
+                    type === "leader"
+                      ? "leader"
+                      : type === "pe"
+                      ? "owner"
+                      : "company"
+                  }/${r.slug}`}
+                >
                   {r.name}
                 </Link>
               </td>
