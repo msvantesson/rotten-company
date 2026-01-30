@@ -1,47 +1,49 @@
-import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase-server";
+import { NextResponse } from 'next/server';
+import { supabaseServer } from '@/lib/supabaseServer';
 
-type EntityType = "company" | "leader" | "owner";
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
 
-function parseEntityType(value: string | null): EntityType {
-  if (value === "leader" || value === "owner") return value;
-  return "company";
-}
+  const type = searchParams.get('type') ?? 'company';
+  const limit = Number(searchParams.get('limit') ?? 25);
+  const offset = Number(searchParams.get('offset') ?? 0);
 
-export async function GET(request: Request) {
-  try {
-    const url = new URL(request.url);
+  console.log('[rotten-index] request', {
+    type,
+    limit,
+    offset,
+    url: req.url,
+  });
 
-    const type = parseEntityType(url.searchParams.get("type"));
-    const country = url.searchParams.get("country");
-    const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 200);
+  const supabase = await supabaseServer();
 
-    const supabase = await supabaseServer();
+  const { data, error } = await supabase
+    .from('global_rotten_index')
+    .select('*')
+    .eq('entity_type', type)
+    .order('rotten_score', { ascending: false })
+    .range(offset, offset + limit - 1);
 
-    let query = supabase
-      .from("global_rotten_index")
-      .select("entity_type,id,name,slug,country,rotten_score")
-      .eq("entity_type", type)
-      .order("rotten_score", { ascending: false })
-      .limit(limit);
-
-    if (country && country.trim().length > 0) {
-      query = query.eq("country", country.trim());
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("[api/rotten-index] query error:", String(error));
-      return NextResponse.json({ error: "query failed" }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      type,
-      rows: data ?? [],
+  if (error) {
+    console.error('[rotten-index] query failed', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
     });
-  } catch (err) {
-    console.error("[api/rotten-index] fatal:", err);
-    return NextResponse.json({ error: "internal error" }, { status: 500 });
+
+    return NextResponse.json(
+      { error: 'query failed' },
+      { status: 500 }
+    );
   }
+
+  console.log('[rotten-index] query ok', {
+    rows: data.length,
+    sample: data.slice(0, 2),
+  });
+
+  return NextResponse.json({
+    type,
+    rows: data,
+  });
 }
