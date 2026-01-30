@@ -1,43 +1,104 @@
+// app/api/rotten-index/route.ts
 import { NextResponse } from "next/server";
-import { supabaseRoute } from "@/lib/supabase-route";
+import { sql } from "@vercel/postgres";
 
 type IndexType = "company" | "leader" | "owner";
 
+function getSearchParam(url: URL, key: string): string | null {
+  const value = url.searchParams.get(key);
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+  try {
+    const url = new URL(req.url);
+    const type = (getSearchParam(url, "type") as IndexType) || "company";
+    const limit = Number(getSearchParam(url, "limit") || "10");
+    const country = getSearchParam(url, "country");
 
-  const type = (searchParams.get("type") ?? "company") as IndexType;
-  const limit = Number(searchParams.get("limit") ?? 25);
-  const offset = Number(searchParams.get("offset") ?? 0);
-  const country = searchParams.get("country")?.trim() || null;
+    let rows: {
+      id: number;
+      name: string;
+      slug: string;
+      country: string | null;
+      rotten_score: number;
+    }[] = [];
 
-  console.log("[rotten-index] request", { type, limit, offset, country });
+    if (type === "company") {
+      const result = await sql<{
+        id: number;
+        name: string;
+        slug: string;
+        country: string | null;
+        rotten_score: number;
+      }>`
+        SELECT
+          id,
+          name,
+          slug,
+          country,
+          rotten_score
+        FROM companies
+        WHERE (${country} IS NULL OR country = ${country})
+        ORDER BY rotten_score DESC NULLS LAST, id ASC
+        LIMIT ${limit};
+      `;
+      rows = result.rows;
+    } else if (type === "leader") {
+      const result = await sql<{
+        id: number;
+        name: string;
+        slug: string;
+        country: string | null;
+        rotten_score: number;
+      }>`
+        SELECT
+          id,
+          name,
+          slug,
+          country,
+          rotten_score
+        FROM leaders
+        WHERE (${country} IS NULL OR country = ${country})
+        ORDER BY rotten_score DESC NULLS LAST, id ASC
+        LIMIT ${limit};
+      `;
+      rows = result.rows;
+    } else if (type === "owner") {
+      const result = await sql<{
+        id: number;
+        name: string;
+        slug: string;
+        country: string | null;
+        rotten_score: number;
+      }>`
+        SELECT
+          id,
+          name,
+          slug,
+          NULL::text AS country,
+          rotten_score
+        FROM owners_investors
+        WHERE (${country} IS NULL) -- owners don't have country yet
+        ORDER BY rotten_score DESC NULLS LAST, id ASC
+        LIMIT ${limit};
+      `;
+      rows = result.rows;
+    } else {
+      return NextResponse.json(
+        { error: "Invalid type" },
+        { status: 400 }
+      );
+    }
 
-  const supabase = await supabaseRoute();
-
-  let query = supabase
-    .from("global_rotten_index")
-    .select("*")
-    .eq("entity_type", type);
-
-  // Country only applies to companies
-  if (type === "company" && country) {
-    query = query.eq("country", country);
+    return NextResponse.json({ rows }, { status: 200 });
+  } catch (err) {
+    console.error("Error in /api/rotten-index:", err);
+    return NextResponse.json(
+      { error: "Failed to load Rotten Index" },
+      { status: 500 }
+    );
   }
-
-  const { data, error } = await query
-    .order("rotten_score", { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (error) {
-    console.error("[rotten-index] query failed", error);
-    return NextResponse.json({ error: "query failed" }, { status: 500 });
-  }
-
-  console.log("[rotten-index] ok", { rows: data.length });
-
-  return NextResponse.json({
-    type,
-    rows: data,
-  });
 }
