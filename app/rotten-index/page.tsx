@@ -112,7 +112,10 @@ export default async function RottenIndexPage({
       }))
     : [];
 
-  rows = rows.slice(0, limit);
+  rows = rows
+    .filter((r) => typeof r.rotten_score === "number")
+    .sort((a, b) => b.rotten_score - a.rotten_score)
+    .slice(0, limit);
 
   const countryRes = await fetch(
     `${baseUrl}/api/rotten-index?type=company&limit=1000`,
