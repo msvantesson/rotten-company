@@ -69,6 +69,9 @@ export default function CompanyRequestPage() {
     <main className="mx-auto max-w-2xl px-4 py-10 space-y-8">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Request a new company</h1>
+        <p className="text-sm text-neutral-600">
+          Tell us which company should be added and why. A moderator will review your request.
+        </p>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -130,11 +133,4 @@ export default function CompanyRequestPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
-        >
-          {submitting ? "Submitting..." : "Submit request"}
-        </button>
-      </form>
-    </main>
-  );
-}
+          className="rounded-md
