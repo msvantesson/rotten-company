@@ -24,6 +24,9 @@ export default async function CompanyRequestsModerationPage() {
     <main className="mx-auto max-w-3xl px-4 py-10 space-y-6">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold">Company requests</h1>
+        <p className="text-sm text-neutral-600">
+          Review contributor requests for new companies.
+        </p>
       </header>
 
       <section className="space-y-3">
@@ -43,7 +46,9 @@ export default async function CompanyRequestsModerationPage() {
                   {r.status}
                 </span>
               </div>
+
               <p className="text-xs text-neutral-600 line-clamp-2">{r.why}</p>
+
               <p className="text-[11px] text-neutral-400">
                 {new Date(r.created_at).toLocaleString()}
               </p>
