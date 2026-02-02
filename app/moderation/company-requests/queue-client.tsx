@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 type CompanyRequestRow = {
   id: string;
@@ -85,35 +85,15 @@ export default function CompanyRequestsQueue({
         return;
       }
 
-      // Remove moderated item from the queue
       setRequests((prev) => prev.filter((r) => r.id !== current.id));
       setNote("");
       setBusy(null);
-
-      // Keep index stable (current item removed)
       setIndex((i) => Math.max(0, Math.min(i, requests.length - 2)));
     } catch (e: any) {
       setError(e?.message ?? "Unknown error");
       setBusy(null);
     }
   }
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (!debug.isModerator) return;
-      if (!current) return;
-      if (busy) return;
-
-      const key = e.key.toLowerCase();
-      if (key === "a") act("approve");
-      if (key === "r") act("reject");
-      if (key === "s") act("skip");
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.id, note, busy, debug.isModerator]);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 space-y-8">
@@ -188,17 +168,13 @@ export default function CompanyRequestsQueue({
                 </div>
               )}
 
-              <p className="text-xs text-neutral-500">
-                Keyboard: A=Approve · R=Reject · S=Skip
-              </p>
-
               <div className="flex gap-2">
                 <button
                   className="rounded-md bg-emerald-600 px-3 py-2 text-sm text-white disabled:opacity-50"
                   onClick={() => act("approve")}
                   disabled={!debug.isModerator || !!busy}
                 >
-                  Approve (A)
+                  Approve
                 </button>
 
                 <button
@@ -206,7 +182,7 @@ export default function CompanyRequestsQueue({
                   onClick={() => act("reject")}
                   disabled={!debug.isModerator || !!busy}
                 >
-                  Reject (R)
+                  Reject
                 </button>
 
                 <button
@@ -214,7 +190,7 @@ export default function CompanyRequestsQueue({
                   onClick={() => act("skip")}
                   disabled={!debug.isModerator || !!busy}
                 >
-                  Skip (S)
+                  Skip
                 </button>
               </div>
             </>
