@@ -1,32 +1,108 @@
-import { NextRequest, NextResponse } from "next/server";
-import { supabaseService } from "@/lib/supabase-service";
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
 import { logDebug } from "@/lib/log";
 
-export async function GET(req: NextRequest) {
-  const supabase = supabaseService();
-  const { searchParams } = new URL(req.url);
-  const q = (searchParams.get("q") || "").trim();
+type SearchResult = {
+  name: string;
+  slug: string;
+  submitEvidenceUrl: string;
+};
 
-  if (!q) return NextResponse.json({ results: [] });
+export default function ContributeFindPage() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState(false);
 
-  logDebug("search-entities-api", "Searching", { q });
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    setTouched(true);
+    if (!query.trim()) return;
 
-  const { data, error } = await supabase
-    .from("companies")
-    .select("id, name, slug")
-    .ilike("name", `%${q}%`)
-    .limit(10);
-
-  if (error) {
-    logDebug("search-entities-api", "Error", error);
-    return new NextResponse("Search failed", { status: 500 });
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/search-entities?q=${encodeURIComponent(query.trim())}`
+      );
+      const json = await res.json();
+      logDebug("contribute-find", "Search results", json);
+      setResults(json.results || []);
+    } catch (err) {
+      logDebug("contribute-find", "Search error", err);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const results = (data || []).map((row) => ({
-    name: row.name,
-    slug: row.slug,
-    submitEvidenceUrl: `/company/${row.slug}/submit-evidence`,
-  }));
+  return (
+    <main className="mx-auto max-w-2xl px-4 py-10 space-y-8">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-semibold">Find a company</h1>
+        <p className="text-sm text-neutral-600">
+          Search for a company to submit evidence about.
+        </p>
+      </header>
 
-  return NextResponse.json({ results });
+      <form onSubmit={handleSearch} className="space-y-3">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 rounded-md border px-3 py-2 text-sm"
+            placeholder="Start typing a company name..."
+          />
+          <button
+            type="submit"
+            className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          >
+            Search
+          </button>
+        </div>
+      </form>
+
+      {touched && !loading && results.length === 0 && query.trim() && (
+        <div className="space-y-2 border rounded-lg p-4">
+          <p className="text-sm text-neutral-700">
+            No companies found matching “{query.trim()}”.
+          </p>
+          <Link
+            href={`/company/request?name=${encodeURIComponent(query.trim())}`}
+            className="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-neutral-50"
+          >
+            Request “{query.trim()}”
+          </Link>
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium text-neutral-700">
+            Matching companies
+          </h2>
+          <ul className="space-y-2">
+            {results.map((r) => (
+              <li
+                key={r.slug}
+                className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+              >
+                <div>
+                  <p className="font-medium">{r.name}</p>
+                </div>
+                <Link
+                  href={r.submitEvidenceUrl}
+                  className="rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+                >
+                  Submit evidence
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </main>
+  );
 }
