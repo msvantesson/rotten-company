@@ -6,7 +6,7 @@ export async function POST() {
   const service = supabaseService();
 
   await service.from("notification_jobs").insert({
-    recipient_email: "your-email@example.com",
+    recipient_email: "svante01@yahoo.com",
     subject: "Test email from Rotten Company",
     body: `Hi,
 
