@@ -21,11 +21,11 @@ export async function POST(req: NextRequest) {
       website: body.website || null,
       description: body.description || null,
       why,
-      user_id: null, // TODO: wire in auth
+      user_id: null, // user is optional for now
       status: "pending",
     };
 
-    logDebug("company-request-api", "Inserting", payload);
+    logDebug("company-request-api", "Inserting request", payload);
 
     const { data, error } = await supabase
       .from("company_requests")
