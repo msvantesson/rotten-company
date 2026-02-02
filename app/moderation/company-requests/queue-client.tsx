@@ -38,7 +38,7 @@ export default function CompanyRequestsQueue({
 
   async function act(action: "approve" | "reject" | "skip", id: string) {
     if (!debug.isModerator) {
-      setErrors((prev) => ({ ...prev, [id]: "Not a moderator (UI gated)." }));
+      setErrors((prev) => ({ ...prev, [id]: "Not a moderator." }));
       return;
     }
 
@@ -93,7 +93,7 @@ export default function CompanyRequestsQueue({
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10 space-y-8">
+    <main className="mx-auto max-w-4xl px-4 py-10 space-y-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold">Company requests moderation</h1>
         <p className="text-sm text-neutral-600">
@@ -128,7 +128,7 @@ export default function CompanyRequestsQueue({
       )}
 
       {requests.length > 0 && (
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section className="space-y-6">
           {requests.map((r) => (
             <div
               key={r.id}
