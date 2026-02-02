@@ -1,26 +1,24 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase-server";
+import { supabaseService } from "@/lib/supabase-service";
+import { logDebug } from "@/lib/log";
 
 export async function POST(req: Request) {
   try {
-    console.log("[submit-evidence] Incoming request");
+    logDebug("submit-evidence", "Incoming request");
 
     const formData = await req.formData();
-    console.log("[submit-evidence] Parsed formData");
+    logDebug("submit-evidence", "Parsed formData");
 
-    const supabase = await supabaseServer();
-    console.log("[submit-evidence] Supabase client initialized");
+    // 🔥 Use service role client (required for uploads + inserts)
+    const supabase = supabaseService();
+    logDebug("submit-evidence", "Supabase SERVICE client initialized");
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      console.warn("[submit-evidence] No authenticated user");
+    // User ID is passed from the client
+    const userId = String(formData.get("userId") ?? "").trim();
+    if (!userId) {
+      logDebug("submit-evidence", "Missing userId");
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
-
-    console.log("[submit-evidence] Authenticated user:", user.id);
 
     const file = formData.get("file") as File | null;
     const title = String(formData.get("title") ?? "").trim();
@@ -38,7 +36,6 @@ export async function POST(req: Request) {
     };
 
     const severity = severityMap[severityRaw];
-
     const evidenceType = evidenceTypeRaw.trim().toLowerCase();
 
     const allowedEvidenceTypes = [
@@ -49,50 +46,39 @@ export async function POST(req: Request) {
       "statement",
     ];
 
-    console.log("[submit-evidence] RAW evidenceType:", evidenceTypeRaw);
-    console.log("[submit-evidence] Normalized evidenceType:", evidenceType);
-
     if (!allowedEvidenceTypes.includes(evidenceType)) {
-      console.error("[submit-evidence] Invalid evidenceType:", evidenceType);
       return NextResponse.json(
         { error: "Invalid evidence type" },
         { status: 400 }
       );
     }
 
-    console.log("[submit-evidence] Extracted fields:", {
-      title,
-      summary,
-      entityType,
-      entityId,
-      category,
-      severity,
-      evidenceType,
-      fileName: file?.name,
-    });
-
     if (!file) {
-      console.warn("[submit-evidence] Missing file");
       return NextResponse.json({ error: "Missing file" }, { status: 400 });
     }
 
     if (!title || !entityType || !entityId || !category || !severity) {
-      console.warn("[submit-evidence] Missing required fields");
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
     const filePath = `${entityType}/${entityId}/${Date.now()}-${file.name}`;
-    console.log("[submit-evidence] Uploading file to path:", filePath);
+    logDebug("submit-evidence", "Uploading file", { filePath });
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
     const { error: uploadError } = await supabase.storage
       .from("evidence")
-      .upload(filePath, file, {
-        cacheControl: "3600",
+      .upload(filePath, buffer, {
+        contentType: file.type,
         upsert: false,
       });
 
     if (uploadError) {
-      console.error("[submit-evidence] UPLOAD ERROR", uploadError);
+      logDebug("submit-evidence", "UPLOAD ERROR", uploadError);
       return NextResponse.json(
         { error: "File upload failed" },
         { status: 500 }
@@ -104,7 +90,6 @@ export async function POST(req: Request) {
       .getPublicUrl(filePath);
 
     const fileUrl = publicUrlData?.publicUrl ?? null;
-    console.log("[submit-evidence] File uploaded. Public URL:", fileUrl);
 
     const insertPayload = {
       title,
@@ -115,14 +100,15 @@ export async function POST(req: Request) {
       entity_id: entityId,
       company_id: entityType === "company" ? entityId : null,
       evidence_type: evidenceType,
-      user_id: user.id,
+      user_id: userId,
       file_url: fileUrl,
+      file_path: filePath,
       status: "pending",
       file_type: file.type,
       file_size: file.size,
     };
 
-    console.log("[submit-evidence] Insert payload:", insertPayload);
+    logDebug("submit-evidence", "Insert payload", insertPayload);
 
     const { data: inserted, error: insertError } = await supabase
       .from("evidence")
@@ -131,17 +117,20 @@ export async function POST(req: Request) {
       .single();
 
     if (insertError || !inserted) {
-      console.error("[submit-evidence] INSERT ERROR", insertError);
+      logDebug("submit-evidence", "INSERT ERROR", insertError);
       return NextResponse.json(
         { error: "Failed to insert evidence" },
         { status: 500 }
       );
     }
 
-    console.log("[submit-evidence] Evidence inserted:", inserted.id);
+    logDebug("submit-evidence", "Evidence inserted", { id: inserted.id });
     return NextResponse.json({ evidence_id: inserted.id });
-  } catch (err) {
-    console.error("[submit-evidence] UNEXPECTED ERROR", err);
+  } catch (err: any) {
+    logDebug("submit-evidence", "UNEXPECTED ERROR", {
+      message: err?.message,
+      stack: err?.stack,
+    });
     return NextResponse.json(
       { error: "Unexpected server error" },
       { status: 500 }
