@@ -1,13 +1,15 @@
 // app/api/dev/test-notification/route.ts
 import { NextResponse } from "next/server";
-import { supabaseService } from "../../lib/supabaseService";
-
+import { createClient } from "@supabase/supabase-js";
 
 export async function POST() {
-  const service = supabaseService();
+  const service = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   await service.from("notification_jobs").insert({
-    recipient_email: "svante01@yahoo.com",
+    recipient_email: "your-email@example.com",
     subject: "Test email from Rotten Company",
     body: `Hi,
 
