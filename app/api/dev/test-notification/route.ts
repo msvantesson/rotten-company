@@ -1,6 +1,7 @@
 // app/api/dev/test-notification/route.ts
 import { NextResponse } from "next/server";
-import { supabaseService } from "../../../lib/supabaseService";
+import { supabaseService } from "../../lib/supabaseService";
+
 
 export async function POST() {
   const service = supabaseService();
