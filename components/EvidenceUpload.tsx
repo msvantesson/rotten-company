@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabaseClient"; 
+import { supabaseBrowser } from "@/lib/supabaseClient";
 const supabase = supabaseBrowser();
 
 interface EvidenceUploadProps {
@@ -84,7 +84,6 @@ export default function EvidenceUpload({
       return;
     }
 
-    // Client-side size checks
     if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
       setError(
         `Image too large. Max size is 3MB. Try compressing at ${compressionLinks.images}.`
@@ -102,6 +101,17 @@ export default function EvidenceUpload({
     setLoading(true);
 
     try {
+      // 🔥 REQUIRED: fetch authenticated user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setError("You must be logged in to submit evidence.");
+        setLoading(false);
+        return;
+      }
+
       const form = new FormData();
       form.append("file", file, sanitizeFileName(file.name));
       form.append("title", title);
@@ -111,6 +121,9 @@ export default function EvidenceUpload({
       form.append("categoryId", String(categoryId));
       form.append("severity", String(severity));
       form.append("evidenceType", evidenceType);
+
+      // 🔥 REQUIRED for server-side insert
+      form.append("userId", user.id);
 
       const res = await fetch("/submit-evidence", {
         method: "POST",
@@ -125,7 +138,6 @@ export default function EvidenceUpload({
         return;
       }
 
-      // Redirect to evidence detail
       router.push(`/my-evidence/${json.evidence_id}`);
     } catch (err) {
       console.error("Upload error:", err);
@@ -215,11 +227,21 @@ export default function EvidenceUpload({
         <div className="text-xs text-gray-500 mt-1">
           Max image size 3MB. Max PDF size 8MB. If your file is larger, try:
           <div>
-            <a href={compressionLinks.images} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+            <a
+              href={compressionLinks.images}
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-600 underline"
+            >
               TinyPNG for images
             </a>
             {" • "}
-            <a href={compressionLinks.pdfs} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+            <a
+              href={compressionLinks.pdfs}
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-600 underline"
+            >
               iLovePDF for PDFs
             </a>
           </div>
