@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 "use client";
 
 import { useState } from "react";
@@ -55,7 +57,6 @@ export default function ResetPasswordPage() {
 
     setSuccess(true);
 
-    // Redirect after a short delay
     setTimeout(() => {
       router.push("/login");
     }, 1500);
