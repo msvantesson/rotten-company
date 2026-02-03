@@ -2,24 +2,28 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import sgMail from "@sendgrid/mail";
+import nodemailer from "nodemailer";
 import pRetry from "p-retry";
 
 const {
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
-  SENDGRID_API_KEY,
-  FROM_EMAIL = "no-reply@yourdomain.com",
+  SMTP_HOST,
+  SMTP_PORT,
+  SMTP_USERNAME,
+  SMTP_PASSWORD,
+  FROM_EMAIL,
 } = process.env;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SENDGRID_API_KEY) {
-  console.error(
-    "Missing required env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SENDGRID_API_KEY"
-  );
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("Missing Supabase env vars");
+}
+
+if (!SMTP_HOST || !SMTP_PORT || !SMTP_USERNAME || !SMTP_PASSWORD) {
+  console.error("Missing SMTP env vars");
 }
 
 const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-sgMail.setApiKey(SENDGRID_API_KEY!);
 
 // --- Claim a pending job atomically ---
 async function claimJob() {
@@ -56,16 +60,25 @@ async function markFailed(jobId: number, err: any, attempts: number) {
     .eq("id", jobId);
 }
 
+// --- Create SMTP transporter ---
+const transporter = nodemailer.createTransport({
+  host: SMTP_HOST,
+  port: Number(SMTP_PORT),
+  secure: Number(SMTP_PORT) === 465, // SSL if port 465
+  auth: {
+    user: SMTP_USERNAME,
+    pass: SMTP_PASSWORD,
+  },
+});
+
 // --- Send email once ---
 async function sendEmailOnce(job: any) {
-  const msg = {
-    to: job.recipient_email,
+  await transporter.sendMail({
     from: FROM_EMAIL,
+    to: job.recipient_email,
     subject: job.subject || "Notification",
     text: job.body || "",
-  };
-
-  await sgMail.send(msg);
+  });
 }
 
 // --- Retry wrapper ---
