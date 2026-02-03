@@ -62,7 +62,7 @@ export async function POST(req: Request) {
 
   const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("id, status")
+    .select("id, status, name, user_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -124,6 +124,43 @@ export async function POST(req: Request) {
       `Failed to log action: ${logErr.message}`,
       { status: 500 }
     );
+  }
+
+  /* ─────────────────────────────────────────────
+     Fetch contributor email
+  ───────────────────────────────────────────── */
+
+  let contributorEmail: string | null = null;
+
+  if (cr.user_id) {
+    const { data: userRow } = await service
+      .from("users")
+      .select("email")
+      .eq("id", cr.user_id)
+      .maybeSingle();
+
+    contributorEmail = userRow?.email ?? null;
+  }
+
+  /* ─────────────────────────────────────────────
+     Enqueue notification
+  ───────────────────────────────────────────── */
+
+  if (contributorEmail) {
+    await service.from("notification_jobs").insert({
+      recipient_email: contributorEmail,
+      subject: "Your company request was rejected",
+      body: `Hi,
+
+Your request to add "${cr.name}" was rejected.
+
+Reason:
+${moderator_note}
+
+— Rotten Company`,
+      metadata: { requestId: id, action: "reject" },
+      status: "pending",
+    });
   }
 
   /* ─────────────────────────────────────────────
