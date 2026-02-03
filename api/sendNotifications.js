@@ -1,4 +1,3 @@
-// api/sendNotifications.js
 import { createClient } from "@supabase/supabase-js";
 import sgMail from "@sendgrid/mail";
 import pRetry from "p-retry";
@@ -11,23 +10,20 @@ const {
 } = process.env;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SENDGRID_API_KEY) {
-  console.error("Missing required env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SENDGRID_API_KEY");
+  console.error(
+    "Missing required env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SENDGRID_API_KEY"
+  );
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 sgMail.setApiKey(SENDGRID_API_KEY);
 
-/**
- * Calls the claim_notification_job RPC which should atomically claim one pending job.
- * Adjust return handling if your RPC returns a single object instead of an array.
- */
 async function claimJob() {
   const { data, error } = await supabase.rpc("claim_notification_job");
   if (error) {
     console.error("claim_notification_job rpc error:", error);
     return null;
   }
-  // RPC may return an array or single object depending on implementation
   if (!data) return null;
   return Array.isArray(data) ? data[0] ?? null : data;
 }
@@ -56,19 +52,14 @@ async function sendEmailOnce(job) {
     to: job.recipient_email,
     from: FROM_EMAIL,
     subject: job.subject || "Notification",
-    text: job.body || "",
-    // html: job.html_body || undefined
+    text: job.body || ""
   };
   await sgMail.send(msg);
 }
 
-/**
- * Wrap sendEmailOnce with p-retry so transient SendGrid/network errors are retried.
- * Adjust retries and factor as needed.
- */
 async function sendEmailWithRetry(job) {
   return pRetry(() => sendEmailOnce(job), {
-    retries: 2, // total attempts = retries + 1
+    retries: 2,
     factor: 2,
     minTimeout: 1000
   });
@@ -76,8 +67,7 @@ async function sendEmailWithRetry(job) {
 
 export default async function handler(req, res) {
   try {
-    // Allow GET for quick manual testing and POST for cron/webhooks
-    if (req.method !== "POST" && req.method !== "GET") {
+    if (req.method !== "GET") {
       res.status(405).send("Method not allowed");
       return;
     }
@@ -104,3 +94,13 @@ export default async function handler(req, res) {
     res.status(500).json({ ok: false, error: "internal" });
   }
 }
+
+/**
+ * REQUIRED for Vercel Cron
+ * Explicitly marks this as a GET-safe serverless function
+ */
+export const config = {
+  api: {
+    bodyParser: false
+  }
+};
