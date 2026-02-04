@@ -37,39 +37,66 @@ export default async function HomePage() {
     .sort((a, b) => b.rotten_score - a.rotten_score);
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-12">
+    <main className="max-w-6xl mx-auto px-4 py-12 space-y-20">
+
       {/* HERO */}
-      <section className="mb-16">
-        <h1 className="text-4xl font-bold mb-4">
+      <section className="space-y-6">
+        <h1 className="text-4xl font-bold">
           Rotten Company
         </h1>
 
-        <p className="text-xl text-gray-700 max-w-3xl mb-6">
+        <p className="text-xl text-gray-700 max-w-3xl">
           An evidence‑based accountability platform documenting corporate
-          toxicity, misconduct, and systemic harm — grounded in facts, not
-          public relations.
-        </p>
-
-        <p className="text-gray-600 max-w-3xl mb-4">
-          Our sympathy lies with workers and communities who bear the
-          consequences of poor leadership. When companies fail, it is rarely
-          accidental — responsibility flows from the top. As the saying goes,
-          a fish rots from the head.
+          misconduct and systemic harm.
         </p>
 
         <p className="text-gray-600 max-w-3xl">
-          Rotten Company aggregates verified evidence of corporate behavior
-          across industries and countries, producing transparent Rotten Scores
-          that reflect real‑world impact. We pay particular attention to
-          recurring patterns of extractive ownership and financial engineering
-          — including private equity practices — that repeatedly erode
-          companies, cultures, and livelihoods.
+          Rotten Company aggregates verified evidence across industries and
+          countries to expose patterns of corporate toxicity, extractive
+          ownership, and real‑world impact — grounded in facts, not public
+          relations.
+        </p>
+
+        <div className="flex gap-6 pt-2">
+          <Link
+            href="/rotten-index"
+            className="text-blue-700 font-medium hover:underline"
+          >
+            Explore the Rotten Index →
+          </Link>
+
+          <Link
+            href="/submit"
+            className="text-gray-700 hover:underline"
+          >
+            Submit Evidence
+          </Link>
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section className="max-w-4xl space-y-4">
+        <h2 className="text-2xl font-semibold">
+          How it works
+        </h2>
+
+        <ol className="list-decimal list-inside text-gray-700 space-y-2">
+          <li>Evidence is submitted with sources and documentation.</li>
+          <li>Submissions are moderated for relevance and clarity.</li>
+          <li>Approved evidence becomes permanently public.</li>
+          <li>Rotten Scores update transparently based on verified impact.</li>
+        </ol>
+
+        <p className="text-sm text-gray-600 pt-2">
+          Before submitting evidence for the first time, contributors are
+          expected to participate briefly in moderation when tasks are
+          available. This shared responsibility keeps the platform credible.
         </p>
       </section>
 
       {/* TOP 10 */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-4">
+      <section className="space-y-6">
+        <h2 className="text-2xl font-semibold">
           Top 10 Rotten Companies (Global)
         </h2>
 
@@ -113,7 +140,7 @@ export default async function HomePage() {
           </tbody>
         </table>
 
-        <div className="mt-6 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <Link
             href="/rotten-index"
             className="text-sm text-blue-600 hover:underline"
@@ -129,6 +156,21 @@ export default async function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* GOVERNANCE */}
+      <section className="max-w-4xl space-y-4 text-sm text-gray-600">
+        <h2 className="text-xl font-semibold text-gray-800">
+          Governance & fairness
+        </h2>
+
+        <ul className="list-disc list-inside space-y-1">
+          <li>Evidence‑first moderation</li>
+          <li>Right to respond</li>
+          <li>No anonymous scoring</li>
+          <li>No paid removals or reputation laundering</li>
+        </ul>
+      </section>
+
     </main>
   );
 }
