@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: Call notification worker
         run: |
-          curl -X GET \
+          curl -f -X GET \
             -H "X-Worker-Secret: ${{ secrets.NOTIFICATION_WORKER_SECRET }}" \
             https://rotten-company.com/api/send-notifications
