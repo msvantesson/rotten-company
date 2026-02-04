@@ -6,7 +6,7 @@ const {
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
   SENDGRID_API_KEY,
-  FROM_EMAIL = "no-reply@yourdomain.com"
+  FROM_EMAIL = "no-reply@yourdomain.com" 
 } = process.env;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SENDGRID_API_KEY) {
