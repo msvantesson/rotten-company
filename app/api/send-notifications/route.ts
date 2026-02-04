@@ -13,6 +13,7 @@ const {
   SMTP_USERNAME,
   SMTP_PASSWORD,
   FROM_EMAIL,
+  NOTIFICATION_WORKER_SECRET,
 } = process.env;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -23,7 +24,14 @@ if (!SMTP_HOST || !SMTP_PORT || !SMTP_USERNAME || !SMTP_PASSWORD) {
   console.error("Missing SMTP env vars");
 }
 
-const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+if (!NOTIFICATION_WORKER_SECRET) {
+  console.error("Missing NOTIFICATION_WORKER_SECRET");
+}
+
+const supabase = createClient(
+  SUPABASE_URL!,
+  SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // --- Claim a pending job atomically ---
 async function claimJob() {
@@ -60,11 +68,11 @@ async function markFailed(jobId: number, err: any, attempts: number) {
     .eq("id", jobId);
 }
 
-// --- Create SMTP transporter ---
+// --- SMTP transporter ---
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
   port: Number(SMTP_PORT),
-  secure: Number(SMTP_PORT) === 465, // SSL if port 465
+  secure: Number(SMTP_PORT) === 465,
   auth: {
     user: SMTP_USERNAME,
     pass: SMTP_PASSWORD,
@@ -90,7 +98,7 @@ async function sendEmailWithRetry(job: any) {
   });
 }
 
-// --- Shared handler for GET + POST ---
+// --- Core worker logic ---
 async function processJob() {
   const job = await claimJob();
   if (!job) {
@@ -106,18 +114,30 @@ async function processJob() {
     console.error("sendEmail error for job", job.id, err);
     const attempts = (job.attempts || 0) + 1;
     await markFailed(job.id, err, attempts);
-    return NextResponse.json({
-      ok: false,
-      error: "send_failed",
-      jobId: job.id,
-    });
+    return NextResponse.json(
+      { ok: false, error: "send_failed", jobId: job.id },
+      { status: 500 }
+    );
   }
 }
 
-export async function GET() {
+// --- Authenticated entrypoints ---
+export async function GET(req: Request) {
+  const incoming = req.headers.get("x-worker-secret");
+
+  if (incoming !== NOTIFICATION_WORKER_SECRET) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   return processJob();
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  const incoming = req.headers.get("x-worker-secret");
+
+  if (incoming !== NOTIFICATION_WORKER_SECRET) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   return processJob();
 }
