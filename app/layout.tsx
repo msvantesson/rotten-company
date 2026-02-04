@@ -44,6 +44,9 @@ export default async function RootLayout({
               <NavMenu user={user} />
             ) : (
               <div className="flex gap-4">
+                <Link href="/signup" className="text-sm font-medium">
+                  Sign up
+                </Link>
                 <Link href="/login" className="text-sm font-medium">
                   Log in
                 </Link>
