@@ -18,13 +18,10 @@ function sanitizeFileName(name: string) {
     .toLowerCase();
 }
 
-const MAX_IMAGE_SIZE = 3 * 1024 * 1024; // 3MB
-const MAX_PDF_SIZE = 8 * 1024 * 1024; // 8MB
+const MAX_IMAGE_SIZE = 3 * 1024 * 1024;
+const MAX_PDF_SIZE = 8 * 1024 * 1024;
 
-export default function EvidenceUpload({
-  entityId,
-  entityType,
-}: EvidenceUploadProps) {
+export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadProps) {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
@@ -32,9 +29,7 @@ export default function EvidenceUpload({
   const [file, setFile] = useState<File | null>(null);
   const [evidenceType, setEvidenceType] = useState("misconduct");
 
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>(
-    []
-  );
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
 
   const [severity, setSeverity] = useState<number>(3);
@@ -49,59 +44,29 @@ export default function EvidenceUpload({
         .select("id, name")
         .order("name");
 
-      if (error) {
-        console.error("Error loading categories:", error);
-        return;
-      }
-
-      setCategories(data || []);
+      if (!error && data) setCategories(data);
     }
-
     loadCategories();
   }, []);
-
-  const compressionLinks = {
-    images: "https://tinypng.com",
-    pdfs: "https://www.ilovepdf.com/compress_pdf",
-    pdfsAlt: "https://smallpdf.com/compress-pdf",
-  };
 
   const handleSubmit = async () => {
     setError("");
 
-    if (!title) {
-      setError("Title is required.");
-      return;
-    }
-
-    if (!file) {
-      setError("Please attach a file.");
-      return;
-    }
-
-    if (!categoryId) {
-      setError("Please select a category.");
-      return;
-    }
+    if (!title) return setError("Title is required.");
+    if (!file) return setError("Please attach a file.");
+    if (!categoryId) return setError("Please select a category.");
 
     if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
-      setError(
-        `Image too large. Max size is 3MB. Try compressing at ${compressionLinks.images}.`
-      );
-      return;
+      return setError("Image too large. Max size is 3MB.");
     }
 
     if (file.type === "application/pdf" && file.size > MAX_PDF_SIZE) {
-      setError(
-        `PDF too large. Max size is 8MB. Try compressing at ${compressionLinks.pdfs} or ${compressionLinks.pdfsAlt}.`
-      );
-      return;
+      return setError("PDF too large. Max size is 8MB.");
     }
 
     setLoading(true);
 
     try {
-      // 🔥 REQUIRED: fetch authenticated user
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -118,14 +83,15 @@ export default function EvidenceUpload({
       form.append("summary", summary);
       form.append("entityType", entityType);
       form.append("entityId", String(entityId));
-      form.append("categoryId", String(categoryId));
+      form.append("category", String(categoryId));
       form.append("severity", String(severity));
       form.append("evidenceType", evidenceType);
 
-      // 🔥 REQUIRED for server-side insert
+      // required for server-side insert
       form.append("userId", user.id);
 
-      const res = await fetch("/submit-evidence", {
+      // 🔥 FIXED: correct API route
+      const res = await fetch("/api/evidence/submit", {
         method: "POST",
         body: form,
       });
@@ -138,7 +104,7 @@ export default function EvidenceUpload({
         return;
       }
 
-      router.push(`/my-evidence/${json.evidence_id}`);
+      router.push(`/my-evidence/${json.id}`);
     } catch (err) {
       console.error("Upload error:", err);
       setError("Unexpected upload error.");
@@ -182,9 +148,7 @@ export default function EvidenceUpload({
       </div>
 
       <div className="space-y-1">
-        <label className="block text-sm font-medium">
-          Severity (your suggestion)
-        </label>
+        <label className="block text-sm font-medium">Severity</label>
         <input
           type="range"
           min={1}
@@ -224,28 +188,6 @@ export default function EvidenceUpload({
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           className="border p-2 rounded w-full"
         />
-        <div className="text-xs text-gray-500 mt-1">
-          Max image size 3MB. Max PDF size 8MB. If your file is larger, try:
-          <div>
-            <a
-              href={compressionLinks.images}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-600 underline"
-            >
-              TinyPNG for images
-            </a>
-            {" • "}
-            <a
-              href={compressionLinks.pdfs}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-600 underline"
-            >
-              iLovePDF for PDFs
-            </a>
-          </div>
-        </div>
       </div>
 
       <button
