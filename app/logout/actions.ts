@@ -1,11 +1,10 @@
-'use server';
+"use server";
 
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 export async function logout() {
-  // In server actions, cookies() must be awaited
   const cookieStore = await cookies();
 
   const supabase = createServerClient(
@@ -26,9 +25,9 @@ export async function logout() {
     }
   );
 
-  // This clears the Supabase auth cookies
+  // Clear Supabase auth session
   await supabase.auth.signOut();
 
-  // Redirect to role-debug so you can visually confirm logout
-  redirect('/role-debug');
+  // Return user to public landing page
+  redirect("/");
 }
