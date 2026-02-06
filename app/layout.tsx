@@ -4,6 +4,7 @@ import "./globals.css";
 import Link from "next/link";
 
 import { supabaseServer } from "@/lib/supabase-server";
+import { canModerate } from "@/lib/moderation-guards";
 import NavMenu from "@/components/NavMenu";
 
 const geistSans = Geist({
@@ -31,6 +32,8 @@ export default async function RootLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
+  const isModerator = user ? await canModerate(user.id) : false;
+
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
@@ -41,7 +44,7 @@ export default async function RootLayout({
             </Link>
 
             {user ? (
-              <NavMenu user={user} />
+              <NavMenu user={user} isModerator={isModerator} />
             ) : (
               <div className="flex gap-4">
                 <Link href="/signup" className="text-sm font-medium">
