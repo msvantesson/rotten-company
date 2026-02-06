@@ -117,7 +117,7 @@ export default function ModerationClient({
   }
 
   function handleSkip() {
-    // Phase 1: local skip only (no DB change yet)
+    // Phase 1: local skip only
     advance();
   }
 
@@ -146,6 +146,16 @@ export default function ModerationClient({
         <p className="text-xs text-gray-400 mt-1">
           Submitted at {new Date(current.created_at).toLocaleString()}
         </p>
+
+        {/* 🔍 Canonical inspection link */}
+        <a
+          href={`/my-evidence/${current.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-blue-600 hover:underline mt-1 inline-block"
+        >
+          View full evidence →
+        </a>
       </div>
 
       {current.summary && (
