@@ -1,14 +1,13 @@
-'use server';
+"use server";
 
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 export async function loginWithPassword(formData: FormData) {
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
 
-  // ✅ MUST await cookies() in your environment
   const cookieStore = await cookies();
 
   const supabase = createServerClient(
@@ -45,5 +44,6 @@ export async function loginWithPassword(formData: FormData) {
     redirect("/login");
   }
 
-  redirect("/role-debug");
+  // Successful login → return to landing page
+  redirect("/");
 }
