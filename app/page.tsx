@@ -55,25 +55,12 @@ export default async function HomePage() {
           misconduct and systemic harm.
         </p>
 
-        <p className="text-gray-600 max-w-3xl">
-          Rotten Company aggregates verified evidence across industries and
-          countries to expose patterns of corporate toxicity, extractive
-          ownership, and real‑world impact — grounded in facts, not public
-          relations.
-        </p>
-
         <div className="flex gap-6 pt-2">
-          <Link
-            href="/rotten-index"
-            className="text-blue-700 font-medium hover:underline"
-          >
+          <Link href="/rotten-index" className="text-blue-700 font-medium hover:underline">
             Explore the Rotten Index →
           </Link>
 
-          <Link
-            href={submitEvidenceHref}
-            className="text-gray-700 hover:underline"
-          >
+          <Link href={submitEvidenceHref} className="text-gray-700 hover:underline">
             Submit Evidence
           </Link>
         </div>
@@ -81,9 +68,7 @@ export default async function HomePage() {
 
       {/* TOP 10 */}
       <section className="space-y-6">
-        <h2 className="text-2xl font-semibold">
-          Top 10 Rotten Companies (Global)
-        </h2>
+        <h2 className="text-2xl font-semibold">Top 10 Rotten Companies (Global)</h2>
 
         <table className="w-full border-collapse">
           <thead>
@@ -97,27 +82,20 @@ export default async function HomePage() {
           </thead>
           <tbody>
             {topCompanies.map((company, index) => (
-              <tr
-                key={company.id}
-                className="border-b hover:bg-gray-50 cursor-pointer"
-                onClick={() => {
-                  window.location.href = `/company/${company.slug}`;
-                }}
-              >
-                <td className="py-2 pr-4 text-sm text-gray-500">
-                  {index + 1}
-                </td>
-                <td className="py-2 pr-4 font-medium text-blue-700">
-                  {company.name}
-                </td>
-                <td className="py-2 pr-4 text-sm text-gray-600">
-                  {company.industry ?? "—"}
-                </td>
-                <td className="py-2 pr-4 text-sm text-gray-600">
-                  {company.country ?? "—"}
-                </td>
-                <td className="py-2 text-right font-mono">
-                  {company.rotten_score.toFixed(2)}
+              <tr key={company.id} className="border-b hover:bg-gray-50">
+                <td colSpan={5}>
+                  <Link
+                    href={`/company/${company.slug}`}
+                    className="grid grid-cols-[40px_1fr_1fr_1fr_120px] items-center py-2 px-1"
+                  >
+                    <span className="text-sm text-gray-500">{index + 1}</span>
+                    <span className="font-medium text-blue-700">{company.name}</span>
+                    <span className="text-sm text-gray-600">{company.industry ?? "—"}</span>
+                    <span className="text-sm text-gray-600">{company.country ?? "—"}</span>
+                    <span className="text-right font-mono">
+                      {company.rotten_score.toFixed(2)}
+                    </span>
+                  </Link>
                 </td>
               </tr>
             ))}
