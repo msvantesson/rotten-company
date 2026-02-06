@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react";
 
 export default function NavMenu({
   user,
+  isModerator,
 }: {
   user: { email?: string } | null;
+  isModerator: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -48,6 +50,18 @@ export default function NavMenu({
           >
             My evidence
           </Link>
+
+          {isModerator && (
+            <>
+              <div className="border-t my-1" />
+              <Link
+                href="/moderation"
+                className="block px-4 py-2 hover:bg-gray-50"
+              >
+                Moderation
+              </Link>
+            </>
+          )}
 
           <div className="border-t my-1" />
 
