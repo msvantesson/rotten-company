@@ -13,7 +13,7 @@ export default function LogoutPage() {
       }}
     >
       <h1 style={{ marginBottom: "1.5rem", fontSize: "1.5rem" }}>
-        Logout
+        Log out
       </h1>
 
       <form action={logout}>
