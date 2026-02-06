@@ -1,12 +1,12 @@
-// app/my-evidence/[id]/page.tsx
-
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const revalidate = 0;
 
 import EvidenceClientWrapper from "@/components/EvidenceClientWrapper";
+import { supabaseServer } from "@/lib/supabase-server";
+import { canModerate } from "@/lib/moderation-guards";
 
-export default function MyEvidencePage({
+export default async function MyEvidencePage({
   params,
   searchParams,
 }: {
@@ -25,15 +25,26 @@ export default function MyEvidencePage({
   const isResolved = rawId !== null;
   const isValidId = Number.isInteger(evidenceId) && evidenceId > 0;
 
+  const supabase = await supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const userId = user?.id ?? null;
+  const isModerator = userId ? await canModerate(userId) : false;
+
   return (
     <main style={{ padding: 24 }}>
       {/* Client wrapper owns auth + fetch + render */}
-      <EvidenceClientWrapper />
+      <EvidenceClientWrapper
+        isModerator={isModerator}
+        currentUserId={userId}
+      />
 
-      {/* RSC preflight can arrive without params; treat as loading */}
+      {/* Only show loading if params truly unresolved */}
       {!isResolved && <p>Loading your evidence details…</p>}
 
-      {/* Only show invalid once we actually have something resolved */}
+      {/* Only show invalid once resolved */}
       {isResolved && !isValidId && (
         <div
           style={{
