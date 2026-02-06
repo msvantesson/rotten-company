@@ -7,6 +7,15 @@ import Link from "next/link";
 export default async function HomePage() {
   const supabase = await supabaseServer();
 
+  // Auth check (server-side, authoritative)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const submitEvidenceHref = user
+    ? "/submit-evidence"
+    : "/login?reason=submit-evidence&message=You’ll need an account to submit evidence.";
+
   // Fetch top 10 Rotten Scores
   const { data: scoreRows } = await supabase
     .from("company_rotten_score")
@@ -41,9 +50,7 @@ export default async function HomePage() {
 
       {/* HERO */}
       <section className="space-y-6">
-        <h1 className="text-4xl font-bold">
-          Rotten Company
-        </h1>
+        <h1 className="text-4xl font-bold">Rotten Company</h1>
 
         <p className="text-xl text-gray-700 max-w-3xl">
           An evidence‑based accountability platform documenting corporate
@@ -66,7 +73,7 @@ export default async function HomePage() {
           </Link>
 
           <Link
-            href="/submit"
+            href={submitEvidenceHref}
             className="text-gray-700 hover:underline"
           >
             Submit Evidence
@@ -76,9 +83,7 @@ export default async function HomePage() {
 
       {/* HOW IT WORKS */}
       <section className="max-w-4xl space-y-4">
-        <h2 className="text-2xl font-semibold">
-          How it works
-        </h2>
+        <h2 className="text-2xl font-semibold">How it works</h2>
 
         <ol className="list-decimal list-inside text-gray-700 space-y-2">
           <li>Evidence is submitted with sources and documentation.</li>
@@ -86,12 +91,6 @@ export default async function HomePage() {
           <li>Approved evidence becomes permanently public.</li>
           <li>Rotten Scores update transparently based on verified impact.</li>
         </ol>
-
-        <p className="text-sm text-gray-600 pt-2">
-          Before submitting evidence for the first time, contributors are
-          expected to participate briefly in moderation when tasks are
-          available. This shared responsibility keeps the platform credible.
-        </p>
       </section>
 
       {/* TOP 10 */}
@@ -139,38 +138,7 @@ export default async function HomePage() {
             ))}
           </tbody>
         </table>
-
-        <div className="flex items-center justify-between">
-          <Link
-            href="/rotten-index"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            View full Global Rotten Index →
-          </Link>
-
-          <Link
-            href="/disclaimer"
-            className="text-xs text-gray-500 hover:underline"
-          >
-            Disclaimer
-          </Link>
-        </div>
       </section>
-
-      {/* GOVERNANCE */}
-      <section className="max-w-4xl space-y-4 text-sm text-gray-600">
-        <h2 className="text-xl font-semibold text-gray-800">
-          Governance & fairness
-        </h2>
-
-        <ul className="list-disc list-inside space-y-1">
-          <li>Evidence‑first moderation</li>
-          <li>Right to respond</li>
-          <li>No anonymous scoring</li>
-          <li>No paid removals or reputation laundering</li>
-        </ul>
-      </section>
-
     </main>
   );
 }
