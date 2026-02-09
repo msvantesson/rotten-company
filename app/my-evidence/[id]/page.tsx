@@ -11,23 +11,22 @@ export default async function MyEvidencePage({
   searchParams,
 }: {
   params: { id?: string | string[] };
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-  // ─────────────────────────────────────────────
-  // CANONICAL ID RESOLUTION (MATCHES PROD LOGS)
-  // ─────────────────────────────────────────────
-  const rawId =
-    typeof searchParams?.nxtPid === "string"
-      ? searchParams.nxtPid
-      : Array.isArray(searchParams?.nxtPid)
-      ? searchParams.nxtPid[0]
-      : typeof params?.id === "string"
+  const idFromParams =
+    typeof params?.id === "string"
       ? params.id
       : Array.isArray(params?.id)
       ? params.id[0]
-      : null;
+      : undefined;
 
-  const evidenceId = Number(rawId);
+  const nxtPid = searchParams?.nxtPid;
+  const idFromNxtPid =
+    typeof nxtPid === "string" ? nxtPid : Array.isArray(nxtPid) ? nxtPid[0] : undefined;
+
+  const rawId = idFromParams ?? idFromNxtPid ?? undefined;
+
+  const evidenceId = rawId ? Number.parseInt(rawId, 10) : NaN;
 
   if (!Number.isInteger(evidenceId) || evidenceId <= 0) {
     return (
@@ -45,9 +44,7 @@ export default async function MyEvidencePage({
     );
   }
 
-  // ─────────────────────────────────────────────
-  // NON‑BLOCKING AUTH (CRITICAL)
-  // ─────────────────────────────────────────────
+  // Non-blocking auth (never hang route)
   let userId: string | null = null;
   let isModerator = false;
 
@@ -61,15 +58,9 @@ export default async function MyEvidencePage({
     isModerator = false;
   }
 
-  // ─────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────
   return (
     <main style={{ padding: 24 }}>
-      <EvidenceClientWrapper
-        isModerator={isModerator}
-        currentUserId={userId}
-      />
+      <EvidenceClientWrapper evidenceId={evidenceId} isModerator={isModerator} currentUserId={userId} />
     </main>
   );
 }
