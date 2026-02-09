@@ -3,35 +3,23 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { canModerate } from "@/lib/moderation-guards";
 import ModerationClient from "./ModerationClient";
-import { approveEvidence, rejectEvidence } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-export default async function ModerationPage({
-  searchParams,
-}: {
-  searchParams?: { error?: string };
-}) {
-  const errorParam =
-    typeof searchParams?.error === "string" ? searchParams.error : null;
-
+export default async function ModerationPage() {
   // ─────────────────────────────────────────────
   // BUILD‑TIME GUARD
-  // Next.js executes this page during build.
-  // There is no request, no cookies, no auth.
-  // We must exit early.
   // ─────────────────────────────────────────────
-const hdrs = await headers();
-const isBuildTime = hdrs.get("x-vercel-id") === null;
-
+  const hdrs = await headers();
+  const isBuildTime = hdrs.get("x-vercel-id") === null;
 
   if (isBuildTime) {
     return null;
   }
 
   // ─────────────────────────────────────────────
-  // USER‑SCOPED CLIENT (AUTH)
+  // USER AUTH (COOKIE‑SCOPED)
   // ─────────────────────────────────────────────
   const userClient = await supabaseServer();
 
@@ -40,20 +28,17 @@ const isBuildTime = hdrs.get("x-vercel-id") === null;
     error: userError,
   } = await userClient.auth.getUser();
 
+  const moderatorId = user?.id ?? null;
+
   console.info(
     "[moderation] SSR user present:",
     !!user,
     "userId:",
-    user?.id,
+    moderatorId,
     "error:",
     userError
   );
 
-  const moderatorId = user?.id ?? null;
-
-  // ─────────────────────────────────────────────
-  // AUTH: NOT LOGGED IN
-  // ─────────────────────────────────────────────
   if (!moderatorId) {
     return (
       <main className="max-w-3xl mx-auto py-8">
@@ -64,7 +49,7 @@ const isBuildTime = hdrs.get("x-vercel-id") === null;
   }
 
   // ─────────────────────────────────────────────
-  // AUTH: NOT A MODERATOR
+  // MODERATOR GATE
   // ─────────────────────────────────────────────
   const allowed = await canModerate(moderatorId);
 
@@ -82,21 +67,10 @@ const isBuildTime = hdrs.get("x-vercel-id") === null;
   // ─────────────────────────────────────────────
   const service = supabaseService();
 
-  // ─────────────────────────────────────────────
-  // OPTION A LOGIC
-  // Reviewer sees EXACTLY ONE item
-  //
-  // 1. If already assigned → show it
-  // 2. Else claim ONE oldest unassigned
-  // 3. Fetch again
-  // ─────────────────────────────────────────────
-
   // Step 1 — already assigned?
   const { data: assigned } = await service
     .from("evidence")
-    .select(
-      "id, title, summary, contributor_note, created_at, assigned_moderator_id"
-    )
+    .select("id")
     .eq("assigned_moderator_id", moderatorId)
     .eq("status", "pending")
     .order("created_at", { ascending: true })
@@ -124,9 +98,7 @@ const isBuildTime = hdrs.get("x-vercel-id") === null;
   // Step 3 — fetch final queue (max 1)
   const { data: queue, error } = await service
     .from("evidence")
-    .select(
-      "id, title, summary, contributor_note, created_at, assigned_moderator_id"
-    )
+    .select("id, title, created_at, assigned_moderator_id")
     .eq("assigned_moderator_id", moderatorId)
     .eq("status", "pending")
     .order("created_at", { ascending: true })
@@ -151,26 +123,12 @@ const isBuildTime = hdrs.get("x-vercel-id") === null;
 
       <div className="mb-4 p-3 rounded border bg-yellow-50 text-sm">
         <strong>Debug</strong>
-        <div>
-          SSR user present: <strong>{String(!!user)}</strong>
-        </div>
-        <div>
-          SSR user id: <strong>{moderatorId}</strong>
-        </div>
-        {userError && (
-          <div className="text-red-600">User error: {String(userError)}</div>
-        )}
-        {errorParam && (
-          <div className="text-xs text-gray-500 mt-1">
-            Last action error code: <code>{errorParam}</code>
-          </div>
-        )}
+        <div>SSR user present: {String(!!user)}</div>
+        <div>SSR user id: {moderatorId}</div>
       </div>
 
       <ModerationClient
         evidence={queue ?? []}
-        approveEvidence={approveEvidence}
-        rejectEvidence={rejectEvidence}
         moderatorId={moderatorId}
       />
     </main>
