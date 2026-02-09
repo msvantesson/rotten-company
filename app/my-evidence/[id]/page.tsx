@@ -14,17 +14,17 @@ export default async function MyEvidencePage({
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
   // ─────────────────────────────────────────────
-  // SAFE ID RESOLUTION (ALL APP ROUTER CASES)
+  // CANONICAL ID RESOLUTION (MATCHES PROD LOGS)
   // ─────────────────────────────────────────────
   const rawId =
-    typeof params?.id === "string"
-      ? params.id
-      : Array.isArray(params?.id)
-      ? params.id[0]
-      : typeof searchParams?.nxtPid === "string"
+    typeof searchParams?.nxtPid === "string"
       ? searchParams.nxtPid
       : Array.isArray(searchParams?.nxtPid)
       ? searchParams.nxtPid[0]
+      : typeof params?.id === "string"
+      ? params.id
+      : Array.isArray(params?.id)
+      ? params.id[0]
       : null;
 
   const evidenceId = Number(rawId);
