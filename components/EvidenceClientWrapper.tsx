@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type Evidence = {
@@ -38,11 +38,7 @@ export default function EvidenceClientWrapper({
 }) {
   const params = useParams();
   const searchParams = useSearchParams();
-  const router = useRouter();
 
-  // ─────────────────────────────────────────────
-  // CANONICAL ID RESOLUTION
-  // ─────────────────────────────────────────────
   const rawId =
     typeof params?.id === "string"
       ? params.id
@@ -51,7 +47,6 @@ export default function EvidenceClientWrapper({
       : null;
 
   const evidenceId = Number(rawId);
-  const showDebug = searchParams.get("debug") === "1";
 
   const [loading, setLoading] = useState(true);
   const [evidence, setEvidence] = useState<Evidence | null>(null);
@@ -61,32 +56,23 @@ export default function EvidenceClientWrapper({
   // LOAD EVIDENCE
   // ─────────────────────────────────────────────
   useEffect(() => {
-    if (!Number.isInteger(evidenceId) || evidenceId <= 0) {
+    if (!Number.isInteger(evidenceId)) {
       setLoading(false);
       return;
     }
 
     let cancelled = false;
 
-    async function loadEvidence() {
+    async function load() {
       try {
         if (isModerator) {
-          // 🔐 Moderator: service‑role API
           const res = await fetch(`/api/evidence/by-id?id=${evidenceId}`);
-          if (!res.ok) {
-            setEvidence(null);
-            setLoading(false);
-            return;
-          }
+          if (!res.ok) throw new Error();
           const data = await res.json();
-          if (!cancelled) {
-            setEvidence(data);
-            setLoading(false);
-          }
+          if (!cancelled) setEvidence(data);
         } else {
-          // 👤 Contributor: RLS‑scoped browser client
           const supabase = supabaseBrowser();
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from("evidence")
             .select(
               "id, title, summary, file_url, created_at, category, user_id, entity_type, entity_id"
@@ -94,96 +80,75 @@ export default function EvidenceClientWrapper({
             .eq("id", evidenceId)
             .maybeSingle();
 
-          if (!cancelled) {
-            setEvidence(error || !data ? null : (data as Evidence));
-            setLoading(false);
-          }
+          if (!cancelled) setEvidence(data ?? null);
         }
       } catch {
-        if (!cancelled) {
-          setEvidence(null);
-          setLoading(false);
-        }
+        if (!cancelled) setEvidence(null);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
-    loadEvidence();
+    load();
     return () => {
       cancelled = true;
     };
   }, [evidenceId, isModerator]);
 
   // ─────────────────────────────────────────────
-  // LOAD MODERATION META (MODERATORS ONLY)
+  // LOAD MODERATION META
   // ─────────────────────────────────────────────
   useEffect(() => {
     if (!isModerator || !Number.isInteger(evidenceId)) return;
 
     let cancelled = false;
 
-    async function loadModeration() {
-      const res = await fetch(
-        `/api/moderation/evidence-meta?id=${evidenceId}`
-      );
-      if (!res.ok) return;
+    fetch(`/api/moderation/evidence-meta?id=${evidenceId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setModeration(data);
+      });
 
-      const data = await res.json();
-      if (!cancelled) setModeration(data);
-    }
-
-    loadModeration();
     return () => {
       cancelled = true;
     };
   }, [isModerator, evidenceId]);
 
   const startOverHref = useMemo(() => {
-    const base = "/evidence-upload";
     if (evidence?.entity_type && evidence?.entity_id) {
       const qs = new URLSearchParams({
         entityType: String(evidence.entity_type),
         entityId: String(evidence.entity_id),
       });
-      return `${base}?${qs.toString()}`;
+      return `/evidence-upload?${qs.toString()}`;
     }
-    return base;
+    return "/evidence-upload";
   }, [evidence]);
 
   // ─────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────
   if (loading) {
-    return (
-      <div className="p-6">
-        <h1 className="text-xl font-semibold">Evidence</h1>
-        <p className="mt-2 text-gray-600">Loading evidence…</p>
-      </div>
-    );
+    return <p>Loading evidence…</p>;
   }
 
   if (!evidence) {
     return (
-      <div className="p-6 space-y-4">
-        <h1 className="text-xl font-semibold">Evidence</h1>
-        <div className="rounded border border-red-300 bg-red-50 p-4">
-          <strong>This submission is no longer available.</strong>
-          {!isModerator && (
-            <a
-              href={startOverHref}
-              className="mt-4 inline-block rounded bg-red-600 px-4 py-2 text-sm font-medium text-white"
-            >
-              Start over
-            </a>
-          )}
-        </div>
+      <div>
+        <strong>This submission is no longer available.</strong>
+        {!isModerator && (
+          <a href={startOverHref} className="block mt-4 underline">
+            Start over
+          </a>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {isModerator && moderation && (
-        <div className="rounded border bg-yellow-50 p-4 space-y-2">
+        <div className="border p-4 bg-yellow-50">
           <strong>Moderator panel</strong>
           <div>Status: {moderation.status}</div>
           <div>
@@ -193,7 +158,9 @@ export default function EvidenceClientWrapper({
         </div>
       )}
 
-      <h1 className="text-2xl font-semibold">Evidence #{evidence.id}</h1>
+      <h1 className="text-2xl font-semibold">
+        Evidence #{evidence.id}
+      </h1>
 
       <div>
         <strong>Title:</strong> {evidence.title ?? "(no title)"}
@@ -204,37 +171,12 @@ export default function EvidenceClientWrapper({
         {new Date(evidence.created_at).toLocaleString()}
       </div>
 
-      {evidence.summary && (
-        <div>
-          <strong>Summary:</strong>
-          <p className="mt-1 text-gray-700">{evidence.summary}</p>
-        </div>
-      )}
+      {evidence.summary && <p>{evidence.summary}</p>}
 
       {evidence.file_url && (
-        <a
-          href={evidence.file_url}
-          target="_blank"
-          rel="noreferrer"
-          className="text-blue-600 underline"
-        >
+        <a href={evidence.file_url} target="_blank" rel="noreferrer">
           View uploaded file
         </a>
-      )}
-
-      {!isModerator && (
-        <a
-          href={startOverHref}
-          className="inline-block rounded bg-gray-800 px-4 py-2 text-sm font-medium text-white"
-        >
-          Submit new evidence
-        </a>
-      )}
-
-      {showDebug && (
-        <pre className="mt-6 rounded bg-gray-100 p-3 text-xs">
-          {JSON.stringify({ evidence, moderation }, null, 2)}
-        </pre>
       )}
     </div>
   );
