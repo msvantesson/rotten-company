@@ -19,7 +19,7 @@ type Evidence = {
 type ModerationAction = {
   action: "approve" | "reject" | "assign" | "skip";
   moderator_id: string;
-  note: string | null;
+  moderator_note: string | null;
   created_at: string;
 };
 
@@ -40,7 +40,9 @@ export default function EvidenceClientWrapper({
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // ✅ Canonical ID resolution (matches server)
+  // ─────────────────────────────────────────────
+  // CANONICAL ID RESOLUTION
+  // ─────────────────────────────────────────────
   const rawId =
     typeof params?.id === "string"
       ? params.id
@@ -54,10 +56,9 @@ export default function EvidenceClientWrapper({
   const [loading, setLoading] = useState(true);
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [moderation, setModeration] = useState<ModerationMeta | null>(null);
-  const [actionBusy, setActionBusy] = useState(false);
 
   // ─────────────────────────────────────────────
-  // LOAD EVIDENCE (USER‑SCOPED)
+  // LOAD EVIDENCE
   // ─────────────────────────────────────────────
   useEffect(() => {
     if (!Number.isInteger(evidenceId) || evidenceId <= 0) {
@@ -69,32 +70,35 @@ export default function EvidenceClientWrapper({
 
     async function loadEvidence() {
       try {
-        const supabase = supabaseBrowser();
-        const { data: session } = await supabase.auth.getSession();
+        if (isModerator) {
+          // 🔐 Moderator: service‑role API
+          const res = await fetch(`/api/evidence/by-id?id=${evidenceId}`);
+          if (!res.ok) {
+            setEvidence(null);
+            setLoading(false);
+            return;
+          }
+          const data = await res.json();
+          if (!cancelled) {
+            setEvidence(data);
+            setLoading(false);
+          }
+        } else {
+          // 👤 Contributor: RLS‑scoped browser client
+          const supabase = supabaseBrowser();
+          const { data, error } = await supabase
+            .from("evidence")
+            .select(
+              "id, title, summary, file_url, created_at, category, user_id, entity_type, entity_id"
+            )
+            .eq("id", evidenceId)
+            .maybeSingle();
 
-        if (!session.session) {
-          setLoading(false);
-          return;
+          if (!cancelled) {
+            setEvidence(error || !data ? null : (data as Evidence));
+            setLoading(false);
+          }
         }
-
-        const { data, error } = await supabase
-          .from("evidence")
-          .select(
-            "id, title, summary, file_url, created_at, category, user_id, entity_type, entity_id"
-          )
-          .eq("id", evidenceId)
-          .maybeSingle();
-
-        if (cancelled) return;
-
-        if (error || !data) {
-          setEvidence(null);
-          setLoading(false);
-          return;
-        }
-
-        setEvidence(data as Evidence);
-        setLoading(false);
       } catch {
         if (!cancelled) {
           setEvidence(null);
@@ -107,10 +111,10 @@ export default function EvidenceClientWrapper({
     return () => {
       cancelled = true;
     };
-  }, [evidenceId]);
+  }, [evidenceId, isModerator]);
 
   // ─────────────────────────────────────────────
-  // LOAD MODERATION META (SERVICE‑ROLE)
+  // LOAD MODERATION META (MODERATORS ONLY)
   // ─────────────────────────────────────────────
   useEffect(() => {
     if (!isModerator || !Number.isInteger(evidenceId)) return;
@@ -132,11 +136,6 @@ export default function EvidenceClientWrapper({
       cancelled = true;
     };
   }, [isModerator, evidenceId]);
-
-  const isOwner =
-    evidence && currentUserId
-      ? evidence.user_id === currentUserId
-      : false;
 
   const startOverHref = useMemo(() => {
     const base = "/evidence-upload";
