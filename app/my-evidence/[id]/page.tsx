@@ -35,16 +35,18 @@ export default async function MyEvidencePage({
 
   return (
     <main style={{ padding: 24 }}>
-      {/* Client wrapper owns auth + fetch + render */}
-      <EvidenceClientWrapper
-        isModerator={isModerator}
-        currentUserId={userId}
-      />
+      {/* Only render wrapper once ID is valid */}
+      {isResolved && isValidId && (
+        <EvidenceClientWrapper
+          isModerator={isModerator}
+          currentUserId={userId}
+        />
+      )}
 
-      {/* Only show loading if params truly unresolved */}
+      {/* Loading state */}
       {!isResolved && <p>Loading your evidence details…</p>}
 
-      {/* Only show invalid once resolved */}
+      {/* Invalid ID */}
       {isResolved && !isValidId && (
         <div
           style={{
