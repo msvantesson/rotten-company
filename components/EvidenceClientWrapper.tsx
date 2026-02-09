@@ -39,9 +39,14 @@ export default function EvidenceClientWrapper({
   const params = useParams();
   const searchParams = useSearchParams();
 
+  // ─────────────────────────────────────────────
+  // SAFE ID RESOLUTION (CLIENT)
+  // ─────────────────────────────────────────────
   const rawId =
     typeof params?.id === "string"
       ? params.id
+      : Array.isArray(params?.id)
+      ? params.id[0]
       : typeof searchParams.get("nxtPid") === "string"
       ? searchParams.get("nxtPid")
       : null;
@@ -63,14 +68,16 @@ export default function EvidenceClientWrapper({
 
     let cancelled = false;
 
-    async function load() {
+    async function loadEvidence() {
       try {
         if (isModerator) {
+          // 🔐 Moderator → service‑role API
           const res = await fetch(`/api/evidence/by-id?id=${evidenceId}`);
           if (!res.ok) throw new Error();
           const data = await res.json();
           if (!cancelled) setEvidence(data);
         } else {
+          // 👤 Contributor → RLS browser client
           const supabase = supabaseBrowser();
           const { data } = await supabase
             .from("evidence")
@@ -89,7 +96,7 @@ export default function EvidenceClientWrapper({
       }
     }
 
-    load();
+    loadEvidence();
     return () => {
       cancelled = true;
     };
