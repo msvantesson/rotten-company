@@ -1,50 +1,33 @@
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
-export const revalidate = 0;
+import { headers } from "next/headers";
 
-import EvidenceClientWrapper from "@/components/EvidenceClientWrapper";
-import { supabaseServer } from "@/lib/supabase-server";
-import { canModerate } from "@/lib/moderation-guards";
-
-export default async function MyEvidencePage({
+export default function MyEvidenceDebugPage({
   params,
 }: {
-  params: { id: string };
+  params: { id?: string };
 }) {
-  console.info("[my-evidence] params.id:", params.id);
+  const h = headers();
 
-  const evidenceId = Number(params.id);
-
-  if (!Number.isInteger(evidenceId) || evidenceId <= 0) {
-    return (
-      <main style={{ padding: 24 }}>
-        <strong>Invalid evidence id</strong>
-        <pre style={{ marginTop: 12 }}>
-          {JSON.stringify({ params }, null, 2)}
-        </pre>
-      </main>
-    );
-  }
-
-  let userId: string | null = null;
-  let isModerator = false;
-
-  try {
-    const supabase = await supabaseServer();
-    const { data } = await supabase.auth.getUser();
-    userId = data.user?.id ?? null;
-    isModerator = userId ? await canModerate(userId) : false;
-  } catch (err) {
-    console.error("[my-evidence] auth error", err);
-  }
+  console.log("🔥🔥🔥 HIT app/my-evidence/[id]/page.tsx");
+  console.log("🧩 params:", params);
+  console.log("🌐 x-pathname:", h.get("x-pathname"));
+  console.log("🌐 x-url:", h.get("x-url"));
+  console.log("🌐 referer:", h.get("referer"));
 
   return (
-    <main style={{ padding: 24 }}>
-      <EvidenceClientWrapper
-        evidenceId={evidenceId}
-        isModerator={isModerator}
-        currentUserId={userId}
-      />
-    </main>
+    <pre style={{ padding: 24, fontSize: 14 }}>
+{JSON.stringify(
+  {
+    file: "app/my-evidence/[id]/page.tsx",
+    params,
+    headers: {
+      "x-pathname": h.get("x-pathname"),
+      "x-url": h.get("x-url"),
+      referer: h.get("referer"),
+    },
+  },
+  null,
+  2
+)}
+    </pre>
   );
 }
