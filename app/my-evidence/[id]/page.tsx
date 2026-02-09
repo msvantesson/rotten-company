@@ -13,6 +13,9 @@ export default async function MyEvidencePage({
   params: { id?: string };
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  // ─────────────────────────────────────────────
+  // CANONICAL ID RESOLUTION
+  // ─────────────────────────────────────────────
   const rawId =
     params?.id ??
     (typeof searchParams?.nxtPid === "string"
@@ -22,43 +25,49 @@ export default async function MyEvidencePage({
       : null);
 
   const evidenceId = Number(rawId);
-  const isResolved = rawId !== null;
   const isValidId = Number.isInteger(evidenceId) && evidenceId > 0;
 
-  const supabase = await supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const userId = user?.id ?? null;
-  const isModerator = userId ? await canModerate(userId) : false;
-
-  return (
-    <main style={{ padding: 24 }}>
-      {/* Only render wrapper once ID is valid */}
-      {isResolved && isValidId && (
-        <EvidenceClientWrapper
-          isModerator={isModerator}
-          currentUserId={userId}
-        />
-      )}
-
-      {/* Loading state */}
-      {!isResolved && <p>Loading your evidence details…</p>}
-
-      {/* Invalid ID */}
-      {isResolved && !isValidId && (
+  if (!isValidId) {
+    return (
+      <main style={{ padding: 24 }}>
         <div
           style={{
             background: "#fff7e6",
             padding: 12,
             border: "1px solid #f0c36b",
-            marginBottom: 12,
           }}
         >
           <strong>Invalid evidence id</strong>
         </div>
-      )}
+      </main>
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  // NON‑BLOCKING AUTH (CRITICAL)
+  // ─────────────────────────────────────────────
+  let userId: string | null = null;
+  let isModerator = false;
+
+  try {
+    const supabase = await supabaseServer();
+    const { data } = await supabase.auth.getUser();
+    userId = data.user?.id ?? null;
+    isModerator = userId ? await canModerate(userId) : false;
+  } catch {
+    userId = null;
+    isModerator = false;
+  }
+
+  // ─────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────
+  return (
+    <main style={{ padding: 24 }}>
+      <EvidenceClientWrapper
+        isModerator={isModerator}
+        currentUserId={userId}
+      />
     </main>
   );
 }
