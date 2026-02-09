@@ -8,43 +8,24 @@ import { canModerate } from "@/lib/moderation-guards";
 
 export default async function MyEvidencePage({
   params,
-  searchParams,
 }: {
-  params: { id?: string | string[] };
-  searchParams?: { [key: string]: string | string[] | undefined };
+  params: { id: string };
 }) {
-  const idFromParams =
-    typeof params?.id === "string"
-      ? params.id
-      : Array.isArray(params?.id)
-      ? params.id[0]
-      : undefined;
+  console.info("[my-evidence] params.id:", params.id);
 
-  const nxtPid = searchParams?.nxtPid;
-  const idFromNxtPid =
-    typeof nxtPid === "string" ? nxtPid : Array.isArray(nxtPid) ? nxtPid[0] : undefined;
-
-  const rawId = idFromParams ?? idFromNxtPid ?? undefined;
-
-  const evidenceId = rawId ? Number.parseInt(rawId, 10) : NaN;
+  const evidenceId = Number(params.id);
 
   if (!Number.isInteger(evidenceId) || evidenceId <= 0) {
     return (
       <main style={{ padding: 24 }}>
-        <div
-          style={{
-            background: "#fff7e6",
-            padding: 12,
-            border: "1px solid #f0c36b",
-          }}
-        >
-          <strong>Invalid evidence id</strong>
-        </div>
+        <strong>Invalid evidence id</strong>
+        <pre style={{ marginTop: 12 }}>
+          {JSON.stringify({ params }, null, 2)}
+        </pre>
       </main>
     );
   }
 
-  // Non-blocking auth (never hang route)
   let userId: string | null = null;
   let isModerator = false;
 
@@ -53,14 +34,17 @@ export default async function MyEvidencePage({
     const { data } = await supabase.auth.getUser();
     userId = data.user?.id ?? null;
     isModerator = userId ? await canModerate(userId) : false;
-  } catch {
-    userId = null;
-    isModerator = false;
+  } catch (err) {
+    console.error("[my-evidence] auth error", err);
   }
 
   return (
     <main style={{ padding: 24 }}>
-      <EvidenceClientWrapper evidenceId={evidenceId} isModerator={isModerator} currentUserId={userId} />
+      <EvidenceClientWrapper
+        evidenceId={evidenceId}
+        isModerator={isModerator}
+        currentUserId={userId}
+      />
     </main>
   );
 }
