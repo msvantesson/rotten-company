@@ -1,17 +1,11 @@
 export default function MyEvidencePage({
   params,
 }: {
-  params: { id: string };
+  params: Record<string, string>;
 }) {
   return (
     <pre style={{ padding: 24 }}>
-{JSON.stringify(
-  {
-    id: params.id,
-  },
-  null,
-  2
-)}
+{JSON.stringify(params, null, 2)}
     </pre>
   );
 }
