@@ -40,7 +40,15 @@ export default function EvidenceClientWrapper({
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const evidenceId = Number(params?.id);
+  // ✅ Canonical ID resolution (matches server)
+  const rawId =
+    typeof params?.id === "string"
+      ? params.id
+      : typeof searchParams.get("nxtPid") === "string"
+      ? searchParams.get("nxtPid")
+      : null;
+
+  const evidenceId = Number(rawId);
   const showDebug = searchParams.get("debug") === "1";
 
   const [loading, setLoading] = useState(true);
@@ -80,21 +88,7 @@ export default function EvidenceClientWrapper({
         if (cancelled) return;
 
         if (error || !data) {
-          if (isModerator) {
-            setEvidence({
-              id: evidenceId,
-              title: "(Unavailable to contributor)",
-              summary: null,
-              file_url: null,
-              created_at: new Date().toISOString(),
-              category: null,
-              user_id: "",
-              entity_type: null,
-              entity_id: null,
-            });
-          } else {
-            setEvidence(null);
-          }
+          setEvidence(null);
           setLoading(false);
           return;
         }
@@ -102,9 +96,10 @@ export default function EvidenceClientWrapper({
         setEvidence(data as Evidence);
         setLoading(false);
       } catch {
-        if (cancelled) return;
-        setEvidence(null);
-        setLoading(false);
+        if (!cancelled) {
+          setEvidence(null);
+          setLoading(false);
+        }
       }
     }
 
@@ -112,7 +107,7 @@ export default function EvidenceClientWrapper({
     return () => {
       cancelled = true;
     };
-  }, [evidenceId, isModerator]);
+  }, [evidenceId]);
 
   // ─────────────────────────────────────────────
   // LOAD MODERATION META (SERVICE‑ROLE)
@@ -156,36 +151,6 @@ export default function EvidenceClientWrapper({
   }, [evidence]);
 
   // ─────────────────────────────────────────────
-  // MODERATOR ACTIONS
-  // ─────────────────────────────────────────────
-  async function act(action: "approve" | "reject" | "skip") {
-    if (actionBusy) return;
-    setActionBusy(true);
-
-    const form = new FormData();
-    form.set("evidenceId", String(evidenceId));
-
-    if (action === "reject") {
-      const note = prompt("Explain your decision in plain language:");
-      if (!note) {
-        setActionBusy(false);
-        return;
-      }
-      form.set("note", note);
-    }
-
-    const endpoint =
-      action === "approve"
-        ? "/moderation/actions/approve"
-        : action === "reject"
-        ? "/moderation/actions/reject"
-        : "/moderation/actions/skip";
-
-    await fetch(endpoint, { method: "POST", body: form });
-    router.push("/moderation");
-  }
-
-  // ─────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────
   if (loading) {
@@ -226,40 +191,6 @@ export default function EvidenceClientWrapper({
             Assigned moderator:{" "}
             {moderation.assigned_moderator_id ?? "—"}
           </div>
-
-          <div className="flex gap-2 pt-2">
-            <button
-              onClick={() => act("approve")}
-              className="rounded bg-green-600 px-3 py-1 text-white"
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => act("reject")}
-              className="rounded bg-red-600 px-3 py-1 text-white"
-            >
-              Reject
-            </button>
-            <button
-              onClick={() => act("skip")}
-              className="rounded bg-gray-600 px-3 py-1 text-white"
-            >
-              Skip
-            </button>
-          </div>
-
-          {moderation.history.length > 0 && (
-            <div className="pt-3 text-sm">
-              <strong>History</strong>
-              <ul className="mt-1 space-y-1">
-                {moderation.history.map((h, i) => (
-                  <li key={i}>
-                    {h.action} · {new Date(h.created_at).toLocaleString()}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       )}
 
