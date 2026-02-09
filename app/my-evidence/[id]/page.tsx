@@ -1,29 +1,13 @@
-import { headers } from "next/headers";
-
-export default function MyEvidenceDebugPage({
+export default function MyEvidencePage({
   params,
 }: {
-  params: { id?: string };
+  params: { id: string };
 }) {
-  const h = headers();
-
-  console.log("🔥🔥🔥 HIT app/my-evidence/[id]/page.tsx");
-  console.log("🧩 params:", params);
-  console.log("🌐 x-pathname:", h.get("x-pathname"));
-  console.log("🌐 x-url:", h.get("x-url"));
-  console.log("🌐 referer:", h.get("referer"));
-
   return (
-    <pre style={{ padding: 24, fontSize: 14 }}>
+    <pre style={{ padding: 24 }}>
 {JSON.stringify(
   {
-    file: "app/my-evidence/[id]/page.tsx",
-    params,
-    headers: {
-      "x-pathname": h.get("x-pathname"),
-      "x-url": h.get("x-url"),
-      referer: h.get("referer"),
-    },
+    id: params.id,
   },
   null,
   2
