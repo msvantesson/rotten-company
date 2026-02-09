@@ -10,24 +10,26 @@ export default async function MyEvidencePage({
   params,
   searchParams,
 }: {
-  params: { id?: string };
+  params: { id?: string | string[] };
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
   // ─────────────────────────────────────────────
-  // CANONICAL ID RESOLUTION
+  // SAFE ID RESOLUTION (ALL APP ROUTER CASES)
   // ─────────────────────────────────────────────
   const rawId =
-    params?.id ??
-    (typeof searchParams?.nxtPid === "string"
+    typeof params?.id === "string"
+      ? params.id
+      : Array.isArray(params?.id)
+      ? params.id[0]
+      : typeof searchParams?.nxtPid === "string"
       ? searchParams.nxtPid
       : Array.isArray(searchParams?.nxtPid)
       ? searchParams.nxtPid[0]
-      : null);
+      : null;
 
   const evidenceId = Number(rawId);
-  const isValidId = Number.isInteger(evidenceId) && evidenceId > 0;
 
-  if (!isValidId) {
+  if (!Number.isInteger(evidenceId) || evidenceId <= 0) {
     return (
       <main style={{ padding: 24 }}>
         <div
