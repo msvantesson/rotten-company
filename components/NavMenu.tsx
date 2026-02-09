@@ -1,78 +1,51 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+import { canModerate } from "@/lib/moderation-guards";
 
-export default function NavMenu({
-  user,
-  isModerator,
-}: {
-  user: { email?: string } | null;
-  isModerator: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
+export default function NavMenu() {
+  const [user, setUser] = useState<any>(null);
+  const [isModerator, setIsModerator] = useState(false);
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
+    const supabase = supabaseBrowser();
 
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUser(data.user ?? null);
+      if (data.user) {
+        setIsModerator(await canModerate(data.user.id));
+      }
+    });
   }, []);
 
+  if (!user) {
+    return (
+      <div className="flex gap-4">
+        <Link href="/signup" className="text-sm font-medium">
+          Sign up
+        </Link>
+        <Link href="/login" className="text-sm font-medium">
+          Log in
+        </Link>
+      </div>
+    );
+  }
+
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="px-3 py-2 border rounded text-sm"
-      >
-        {user?.email ?? "Account"}
-      </button>
+    <div className="flex gap-4 items-center">
+      <span className="text-sm">{user.email}</span>
 
-      {open && (
-        <div className="absolute right-0 mt-2 w-56 bg-white border rounded shadow">
-          <Link
-            href="/submit-evidence"
-            className="block px-4 py-2 hover:bg-gray-50"
-          >
-            Submit evidence
-          </Link>
-
-          <Link
-            href="/my-evidence"
-            className="block px-4 py-2 hover:bg-gray-50"
-          >
-            My evidence
-          </Link>
-
-          {isModerator && (
-            <>
-              <div className="border-t my-1" />
-              <Link
-                href="/moderation"
-                className="block px-4 py-2 hover:bg-gray-50"
-              >
-                Moderation
-              </Link>
-            </>
-          )}
-
-          <div className="border-t my-1" />
-
-          <Link
-            href="/logout"
-            className="block px-4 py-2 hover:bg-gray-50"
-          >
-            Log out
-          </Link>
-        </div>
+      {isModerator && (
+        <Link href="/moderation" className="text-sm font-medium">
+          Moderation
+        </Link>
       )}
+
+      <Link href="/logout" className="text-sm">
+        Log out
+      </Link>
     </div>
   );
 }
