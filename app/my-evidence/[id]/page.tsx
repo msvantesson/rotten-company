@@ -1,19 +1,20 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 
-export default async function MyEvidencePage({
-  params,
-}: {
-  params: { id: string };
+type ParamsShape = { id: string };
+
+export default async function MyEvidencePage(props: {
+  params: ParamsShape | Promise<ParamsShape>;
 }) {
-  console.log("[my-evidence] raw params:", params);
+  // In your logs, params is actually a Promise, so normalize it here.
+  const resolvedParams =
+    props.params instanceof Promise ? await props.params : props.params;
 
   const supabase = await supabaseServer();
 
-  // 🔐 Auth check (any logged-in user)
+  // 🔐 Require login
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) {
-    console.log("[my-evidence] no authenticated user");
     redirect(
       `/login?reason=view-evidence&message=${encodeURIComponent(
         "You’ll need an account to view your evidence."
@@ -22,18 +23,14 @@ export default async function MyEvidencePage({
   }
 
   const userId = auth.user.id;
-  console.log("[my-evidence] auth user:", userId);
 
-  // 🧠 Parse ID safely — same pattern as admin moderation page
-  const evidenceId = parseInt(params.id, 10);
-  console.log("[my-evidence] parsed evidenceId:", evidenceId);
-
-  if (Number.isNaN(evidenceId)) {
-    console.log("[my-evidence] evidenceId is NaN, params.id:", params.id);
+  // 🧠 Parse ID from the resolved params
+  const evidenceId = Number(resolvedParams.id);
+  if (!Number.isInteger(evidenceId) || evidenceId <= 0) {
     return <div>Invalid evidence ID</div>;
   }
 
-  // 📄 Load evidence, restricted to this user
+  // 📄 Load evidence belonging to this user
   const { data: evidence, error } = await supabase
     .from("evidence")
     .select("*")
@@ -45,8 +42,6 @@ export default async function MyEvidencePage({
     console.error("[my-evidence] evidence query error:", error.message);
     return <div>Error loading evidence</div>;
   }
-
-  console.log("[my-evidence] evidence row:", evidence);
 
   if (!evidence) {
     return <div>Evidence not found</div>;
