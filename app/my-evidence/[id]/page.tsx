@@ -1,12 +1,13 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import TechnicalDetails from "@/components/MyEvidenceTechnicalDetails";
 
 type ParamsShape = { id: string };
 
 export default async function MyEvidencePage(props: {
   params: ParamsShape | Promise<ParamsShape>;
 }) {
-  // Handle Next 16 quirk: params is coming in as a Promise
+  // Next 16 quirk: params may be a Promise
   const resolvedParams =
     props.params instanceof Promise ? await props.params : props.params;
 
@@ -93,52 +94,7 @@ export default async function MyEvidencePage(props: {
         )}
       </section>
 
-      {/* Optional: short description / future fields could go here */}
-
       <TechnicalDetails evidence={evidence} />
     </main>
-  );
-}
-
-// Small client component to toggle the raw JSON view
-"use client";
-import { useState } from "react";
-
-function TechnicalDetails({ evidence }: { evidence: any }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <section style={{ marginTop: 24 }}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          padding: "6px 12px",
-          fontSize: 13,
-          borderRadius: 4,
-          border: "1px solid #ccc",
-          background: open ? "#eee" : "#f8f8f8",
-          cursor: "pointer",
-        }}
-      >
-        {open ? "Hide technical details" : "Show technical details"}
-      </button>
-
-      {open && (
-        <pre
-          style={{
-            marginTop: 12,
-            background: "#111",
-            color: "#0f0",
-            padding: 16,
-            overflowX: "auto",
-            fontSize: 12,
-            borderRadius: 4,
-          }}
-        >
-          {JSON.stringify(evidence, null, 2)}
-        </pre>
-      )}
-    </section>
   );
 }
