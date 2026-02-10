@@ -6,15 +6,15 @@ export default async function MyEvidencePage({
 }: {
   params: { id: string };
 }) {
-  // Parse ID safely
+  // 🧠 Parse ID safely – this should work for /my-evidence/637
   const evidenceId = parseInt(params.id, 10);
-  if (Number.isNaN(evidenceId)) {
+  if (isNaN(evidenceId)) {
     return <div>Invalid evidence ID</div>;
   }
 
   const supabase = await supabaseServer();
 
-  // Require login
+  // 🔐 Require login
   const {
     data: { user },
     error: authError,
@@ -28,7 +28,7 @@ export default async function MyEvidencePage({
     );
   }
 
-  // Fetch evidence belonging to this user
+  // 📄 Fetch evidence belonging to this user
   const { data: evidence, error } = await supabase
     .from("evidence")
     .select(
@@ -91,7 +91,6 @@ export default async function MyEvidencePage({
         </section>
       )}
 
-      {/* Optional: entity link if you want to show the company/case */}
       {evidence.entity_type && evidence.entity_id && (
         <section className="space-y-2 text-sm text-gray-500">
           <h2 className="font-semibold">Linked entity</h2>
@@ -101,7 +100,6 @@ export default async function MyEvidencePage({
         </section>
       )}
 
-      {/* Debug: raw record */}
       <section>
         <h2 className="font-semibold mb-2 text-sm text-gray-500">
           Raw record (debug)
@@ -112,4 +110,4 @@ export default async function MyEvidencePage({
       </section>
     </main>
   );
-}
+}c
