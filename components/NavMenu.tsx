@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import { canModerate } from "@/lib/canModerate";
 
 export default function NavMenu() {
   const [user, setUser] = useState<any>(null);
@@ -14,28 +13,36 @@ export default function NavMenu() {
   useEffect(() => {
     const supabase = supabaseBrowser();
 
-    // 1) Initial check on mount
-    supabase.auth.getUser().then(async ({ data }) => {
+    async function refreshFromSession() {
+      const { data } = await supabase.auth.getUser();
       const u = data.user ?? null;
       setUser(u);
+
       if (u) {
-        setIsModerator(await canModerate(u.id));
+        const { data: modRow, error } = await supabase
+          .from("moderators")
+          .select("user_id")
+          .eq("user_id", u.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("[NavMenu] moderators lookup error", error);
+        }
+
+        setIsModerator(!!modRow);
       } else {
         setIsModerator(false);
       }
-    });
+    }
 
-    // 2) Subscribe to auth state changes (login / logout)
+    // 1) Initial check
+    refreshFromSession();
+
+    // 2) Listen for auth changes (login/logout)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        setIsModerator(await canModerate(u.id));
-      } else {
-        setIsModerator(false);
-      }
+    } = supabase.auth.onAuthStateChange(async () => {
+      await refreshFromSession();
     });
 
     return () => {
@@ -58,7 +65,7 @@ export default function NavMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  // Signed‑out state
+  // Signed‑out: show Sign up / Log in
   if (!user) {
     return (
       <div className="flex gap-4">
@@ -74,7 +81,7 @@ export default function NavMenu() {
 
   const email = user.email as string;
 
-  // Signed‑in with dropdown
+  // Signed‑in: dropdown menu
   return (
     <div className="relative flex items-center" ref={menuRef}>
       <button
