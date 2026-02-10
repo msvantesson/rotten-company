@@ -13,15 +13,9 @@ export default function NavMenu() {
   useEffect(() => {
     const supabase = supabaseBrowser();
 
-    async function refreshFromSession(source: string) {
+    async function refreshFromSession() {
       const { data } = await supabase.auth.getUser();
       const u = data.user ?? null;
-      console.log(
-        "[NavMenu] refreshFromSession",
-        source,
-        "user:",
-        u?.id ?? null
-      );
       setUser(u);
 
       if (u) {
@@ -41,25 +35,7 @@ export default function NavMenu() {
       }
     }
 
-    // 1) Initial check on mount
-    refreshFromSession("mount");
-
-    // 2) Listen for auth changes (login/logout)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(
-        "[NavMenu] onAuthStateChange",
-        event,
-        "session user:",
-        session?.user?.id ?? null
-      );
-      await refreshFromSession(`auth-change:${event}`);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    refreshFromSession();
   }, []);
 
   // Close dropdown on outside click
