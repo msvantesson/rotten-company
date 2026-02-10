@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { canModerate } from "@/lib/canModerate";
 
 export default function NavMenu() {
   const [user, setUser] = useState<any>(null);
@@ -13,25 +14,33 @@ export default function NavMenu() {
   useEffect(() => {
     const supabase = supabaseBrowser();
 
+    // 1) Initial check on mount
     supabase.auth.getUser().then(async ({ data }) => {
       const u = data.user ?? null;
       setUser(u);
-
       if (u) {
-        // Inline moderator check instead of canModerate()
-        const { data: modRow, error } = await supabase
-          .from("moderators")
-          .select("user_id")
-          .eq("user_id", u.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error("[NavMenu] moderators lookup error", error);
-        }
-
-        setIsModerator(!!modRow);
+        setIsModerator(await canModerate(u.id));
+      } else {
+        setIsModerator(false);
       }
     });
+
+    // 2) Subscribe to auth state changes (login / logout)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        setIsModerator(await canModerate(u.id));
+      } else {
+        setIsModerator(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Close dropdown on outside click
@@ -49,7 +58,7 @@ export default function NavMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  // Signed‑out state: same as before
+  // Signed‑out state
   if (!user) {
     return (
       <div className="flex gap-4">
@@ -78,7 +87,7 @@ export default function NavMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-56 rounded-md border bg-white shadow-lg z-50 text-sm">
+        <div className="absolute right-0 top-full mt-2 w-48 rounded-md border bg-white shadow-lg z-50 text-sm">
           <div className="px-3 py-2 border-b text-xs text-gray-500 break-all">
             Signed in as
             <br />
