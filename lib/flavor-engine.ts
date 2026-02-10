@@ -1,18 +1,67 @@
 // /lib/flavor-engine.ts
 
-//
-// Canonical flavor engine for Rotten Company
-//
-// This file centralizes ALL flavor logic:
-// - Micro flavor (per exact score, 0–100)
-// - Macro tier (8 buckets, 0–100)
-// - Category flavor (per category_id)
-// - Color mapping
-// - Combined RottenFlavor helper
-//
-// Nothing else in the codebase should implement its own
-// score → flavor / tier / color logic.
-//
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ *                      🎨 FLAVOR ENGINE - CANONICAL
+ * ═══════════════════════════════════════════════════════════════════════
+ * 
+ * This file converts NUMERIC SCORES into HUMAN-READABLE text and colors.
+ * 
+ * NOTHING ELSE should implement flavor/tier/color logic!
+ * 
+ * VISUAL FLOW:
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  INPUT: Rotten Score (0-100)                                   │
+ * └────────────────────────┬────────────────────────────────────────┘
+ *                          │
+ *          ┌───────────────┼───────────────┬────────────────┐
+ *          ▼               ▼               ▼                ▼
+ *    
+ *    Macro Tier      Micro Flavor     Color Map     Category Flavor
+ *    (8 buckets)     (101 unique)     (7 colors)    (per category)
+ *    
+ *    0-10:           Score 0:         0-15:         Category 1:
+ *    "Mostly         "Dream job"      #2E8B57       "Rotten to
+ *    Decent"                          (green)        the core"
+ *    
+ *    10-25:          Score 10:        15-30:        Category 2:
+ *    "Mildly         "Few red         #A9A9A9       "Smells like
+ *    Rotten"         flags"           (gray)         spin"
+ *    
+ *    ...             ...              ...            ...
+ *    
+ *    95-100:         Score 100:       90-100:       Category 13:
+ *    "Working        "Abandon         #8B0000       "Customer trust?
+ *    for Satan"      all hope"        (dark red)     Never heard"
+ *    
+ *          │               │               │                │
+ *          └───────────────┴───────────────┴────────────────┘
+ *                          ▼
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  OUTPUT: RottenFlavor Object                                   │
+ * │  {                                                              │
+ * │    score: 73.5,                                                 │
+ * │    roundedScore: 74,                                            │
+ * │    macroTier: "Corporate Disaster Zone",                        │
+ * │    microFlavor: "A toxic mess with a smile",                    │
+ * │    color: "#B22222"                                             │
+ * │  }                                                              │
+ * └─────────────────────────────────────────────────────────────────┘
+ * 
+ * TIER LADDER (Macro Tiers):
+ * ┌──────┬────────────────────────────────────┐
+ * │ 0-10 │ ✨ Mostly Decent                   │
+ * │10-25 │ 🟡 Mildly Rotten                   │
+ * │25-40 │ 🟠 Rotten Enough to Notice         │
+ * │40-55 │ 🔴 Serious Rot Detected            │
+ * │55-70 │ 💀 Rotten but Redeemable           │
+ * │70-85 │ 🏴 Corporate Disaster Zone         │
+ * │85-95 │ ⭐ Working for the Empire          │
+ * │95-100│ 😈 Working for Satan               │
+ * └──────┴────────────────────────────────────┘
+ * 
+ * ═══════════════════════════════════════════════════════════════════════
+ */
 
 import { FLAVOR_TEXT_BY_SCORE } from "@/lib/micro-flavors";
 
@@ -122,8 +171,38 @@ export function getCategoryFlavor(categoryId: number): string {
 }
 
 //
-// Color mapping for the Rotten Score meter
+// ═══════════════════════════════════════════════════════════════════════
+//                    🌈 COLOR MAPPING FOR ROTTEN SCORE
+// ═══════════════════════════════════════════════════════════════════════
 //
+// Returns a hex color for visual score meter display.
+// 7-color gradient from green (clean) to dark red (rotten)
+//
+// Visual Gradient:
+// 
+//  0 ─────────────────────────────────────────────────────────────► 100
+//  │                                                                  │
+//  🟢 Green          Gray     Tan    Gold   Orange    Red      Dark Red 🔴
+//  #2E8B57       #A9A9A9  #CD853F #DAA520 #D2691E  #B22222   #8B0000
+//  0─15          15─30    30─45   45─60   60─75    75─90     90─100
+//  
+//  Clean        Minor    Notice  Warning  Serious   Very Bad  Rotten
+//  
+// Color Palette:
+//   0-15:  #2E8B57 🟢 SeaGreen     - Mostly clean, safe
+//  15-30:  #A9A9A9 ⚪ DarkGray     - Some issues
+//  30-45:  #CD853F 🟤 Peru/Tan     - Noticeable problems
+//  45-60:  #DAA520 🟡 Goldenrod    - Warning zone
+//  60-75:  #D2691E 🟠 Chocolate    - Serious issues
+//  75-90:  #B22222 🔴 Firebrick    - Very bad
+//  90-100: #8B0000 ⚫ DarkRed      - Extremely rotten
+//
+// This palette is carefully chosen to be:
+// • Colorblind-friendly (uses lightness/darkness)
+// • Intuitive (green = good, red = bad)
+// • Distinct (clear boundaries between tiers)
+//
+// ═══════════════════════════════════════════════════════════════════════
 
 /**
  * Returns a hex color for a given Rotten Score.

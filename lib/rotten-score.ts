@@ -1,22 +1,116 @@
 // lib/rotten-score.ts
 
 /**
- * Rotten Score engine (Option A: full taxonomy)
+ * ═══════════════════════════════════════════════════════════════════════
+ *                      🎯 ROTTEN SCORE ENGINE 🎯
+ * ═══════════════════════════════════════════════════════════════════════
+ * 
+ * This is the CORE SCORING ALGORITHM that calculates how "rotten" a company is.
+ * 
+ * VISUAL FLOW:
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  INPUT: Evidence from users (ratings per category)             │
+ * └────────────────────────┬────────────────────────────────────────┘
+ *                          ▼
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  STEP 1: Aggregate by Category (18 categories)                 │
+ * │  • toxic_workplace, wage_abuse, greenwashing, etc.             │
+ * │  • Average all evidence per category → 0-100                   │
+ * └────────────────────────┬────────────────────────────────────────┘
+ *                          ▼
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  STEP 2: Apply Category Weights                                │
+ * │  • Labor issues (32% weight) - most important                  │
+ * │  • Environmental (20%) + Consumer (20%)                        │
+ * │  • Governance (14%), Social (6%), Brand (8%)                   │
+ * │  → Weighted average = Base Score                               │
+ * └────────────────────────┬────────────────────────────────────────┘
+ *                          ▼
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  STEP 3: Apply Company Size Multiplier                         │
+ * │  • micro (1-10):      ×0.8  (smaller impact)                   │
+ * │  • small (11-50):     ×0.9                                     │
+ * │  • medium (51-250):   ×1.0  (baseline)                         │
+ * │  • large (251-1000):  ×1.1                                     │
+ * │  • enterprise (1000+):×1.2  (greater responsibility)           │
+ * └────────────────────────┬────────────────────────────────────────┘
+ *                          ▼
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  STEP 4: Apply Ownership Type Multiplier                       │
+ * │  • independent:       ×1.0  (baseline)                         │
+ * │  • family_owned:      ×0.95 (slightly less scrutiny)           │
+ * │  • public_company:    ×1.05 (shareholder pressure)             │
+ * │  • private_equity:    ×1.2  (profit optimization)              │
+ * │  • hedge_fund:        ×1.25 (maximum profit pressure)          │
+ * └────────────────────────┬────────────────────────────────────────┘
+ *                          ▼
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  STEP 5: Apply Geographic/Region Multiplier                    │
+ * │  • non_western: ×1.0  (baseline)                               │
+ * │  • western:     ×1.1  (higher standards expected)              │
+ * │  • global:      ×1.2  (multinational impact)                   │
+ * └────────────────────────┬────────────────────────────────────────┘
+ *                          ▼
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  OUTPUT: Final Rotten Score (0-100)                            │
+ * │  • 0-5:    Halo Shining                                        │
+ * │  • 5-25:   Mostly Clean                                        │
+ * │  • 25-50:  Yellow Flags                                        │
+ * │  • 50-75:  Red Flags Everywhere                                │
+ * │  • 75-90:  Working for the Empire (Star Wars)                  │
+ * │  • 90-100: Working for Satan                                   │
+ * └─────────────────────────────────────────────────────────────────┘
  *
- * - 18 harm categories with explicit weights
- * - Company size normalization (tiered, DB-aligned)
- * - Ownership-type multipliers
- * - Country/region multipliers (including "global")
- * - Franchise level metadata
- * - Flavor tier mapping (0–100) + micro-flavors per score
- *
- * Direction: 0 = clean, 100 = extremely rotten.
+ * KEY CONCEPTS:
+ * • Direction: 0 = clean, 100 = extremely rotten
+ * • All multipliers make scores HIGHER (more rotten) for same harm
+ * • Category weights reflect ethical priorities (labor matters most)
+ * • Larger companies & certain ownership types face stricter standards
+ * 
+ * ═══════════════════════════════════════════════════════════════════════
  */
 
 import { FLAVOR_TEXT_BY_SCORE } from "./micro-flavors";
 
 
-// ---------- Category taxonomy ----------
+// ═══════════════════════════════════════════════════════════════════════
+//                      📊 CATEGORY TAXONOMY (18 Categories)
+// ═══════════════════════════════════════════════════════════════════════
+//
+//  Visual breakdown of harm categories:
+//
+//  👥 LABOR & WORKPLACE (4 categories) - 32% total weight
+//     Most heavily weighted - worker harm is core focus
+//     ├─ toxic_workplace
+//     ├─ wage_abuse
+//     ├─ union_busting
+//     └─ discrimination_harassment
+//
+//  🌍 ENVIRONMENTAL (3 categories) - 20% total weight
+//     ├─ greenwashing
+//     ├─ pollution_environmental_damage
+//     └─ climate_obstruction
+//
+//  🛒 CONSUMER (4 categories) - 20% total weight
+//     ├─ customer_trust
+//     ├─ unfair_pricing
+//     ├─ product_safety_failures
+//     └─ privacy_data_abuse
+//
+//  ⚖️ GOVERNANCE & ETHICS (3 categories) - 14% total weight
+//     ├─ ethics_failures
+//     ├─ corruption_bribery
+//     └─ fraud_financial_misconduct
+//
+//  🏘️ SOCIAL (2 categories) - 6% total weight
+//     ├─ community_harm
+//     └─ public_health_risk
+//
+//  🏷️ BRAND INTEGRITY (2 categories) - 8% total weight
+//     ├─ broken_promises
+//     └─ misleading_marketing
+//
+// ═══════════════════════════════════════════════════════════════════════
 
 export type CategoryId =
   // Labor & Workplace Harm
@@ -54,12 +148,52 @@ export interface CategoryScoreInput {
 }
 
 /**
- * Category weights across the full taxonomy.
+ * ═══════════════════════════════════════════════════════════════════════
+ *                    ⚖️ CATEGORY WEIGHTS (Sum = 1.0)
+ * ═══════════════════════════════════════════════════════════════════════
+ * 
+ * These weights determine how much each category contributes to the 
+ * final Rotten Score. They reflect our ethical priorities.
  *
- * These weights are ethical design choices and should be
- * documented publicly as part of Rotten Company's methodology.
+ * Visual Distribution:
+ * 
+ * 👥 Labor & Workplace ████████████████ 32%
+ *    toxic_workplace        ██████  11% (highest single category)
+ *    wage_abuse             ████    8%
+ *    discrimination         ███     7%
+ *    union_busting          ███     6%
  *
- * They sum to 1.0.
+ * 🌍 Environmental     ██████████ 20%
+ *    pollution              █████   10%
+ *    greenwashing           ██      5%
+ *    climate_obstruction    ██      5%
+ *
+ * 🛒 Consumer          ██████████ 20%
+ *    customer_trust         ███     6%
+ *    unfair_pricing         ███     6%
+ *    safety_failures        ██      4%
+ *    privacy_abuse          ██      4%
+ *
+ * ⚖️ Governance        ███████ 14%
+ *    ethics_failures        ██      5%
+ *    fraud                  ██      5%
+ *    corruption             ██      4%
+ *
+ * 🏷️ Brand            ████ 8%
+ *    broken_promises        ██      4%
+ *    misleading_marketing   ██      4%
+ *
+ * 🏘️ Social           ███ 6%
+ *    community_harm         █       3%
+ *    public_health_risk     █       3%
+ *
+ * WHY THESE WEIGHTS?
+ * • Labor issues affect the most people directly (employees)
+ * • Environmental + Consumer = 40% (broad societal impact)
+ * • Governance issues are serious but often indirect
+ * • Brand/marketing issues are least severe (annoying vs harmful)
+ *
+ * ═══════════════════════════════════════════════════════════════════════
  */
 export const CATEGORY_WEIGHTS: Record<CategoryId, number> = {
   // Labor & Workplace Harm (total: 0.32)
@@ -93,7 +227,25 @@ export const CATEGORY_WEIGHTS: Record<CategoryId, number> = {
   misleading_marketing: 0.04,
 };
 
-// ---------- Company size normalization (tiered) ----------
+// ═══════════════════════════════════════════════════════════════════════
+//                    📏 COMPANY SIZE MULTIPLIERS
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Larger companies face stricter standards (higher multipliers)
+// 
+// Visual Scale:
+//   micro (1-10)        [████    ] ×0.8  Small impact, learning curve
+//   small (11-50)       [█████   ] ×0.9  Growing pains acceptable
+//   medium (51-250)     [██████  ] ×1.0  BASELINE - no adjustment
+//   large (251-1000)    [███████ ] ×1.1  Should know better
+//   enterprise (1000+)  [████████] ×1.2  Maximum responsibility
+//
+// RATIONALE:
+// • Small companies: Less resources, more forgiveness
+// • Large companies: More resources = higher expectations
+// • Same harm = worse score for bigger company
+//
+// ═══════════════════════════════════════════════════════════════════════
 
 export type CompanySizeTier =
   | "micro" // 1–10
@@ -125,7 +277,25 @@ export function deriveSizeTier(
   return "enterprise";
 }
 
-// ---------- Ownership multipliers ----------
+// ═══════════════════════════════════════════════════════════════════════
+//                    🏢 OWNERSHIP TYPE MULTIPLIERS
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Different ownership structures create different incentives
+//
+// Visual Scale (showing profit pressure):
+//   independent       [█████   ] ×1.00  BASELINE - owner-operated
+//   family_owned      [████    ] ×0.95  Long-term thinking (slight credit)
+//   public_company    [██████  ] ×1.05  Shareholder pressure
+//   private_equity    [████████] ×1.20  Aggressive optimization
+//   hedge_fund        [█████████] ×1.25 Maximum extraction mode
+//
+// RATIONALE:
+// • PE/Hedge funds: Short-term profit maximization → higher risk of harm
+// • Public companies: Quarterly earnings pressure
+// • Independent/Family: More aligned with long-term sustainability
+//
+// ═══════════════════════════════════════════════════════════════════════
 
 export type OwnershipType =
   | "independent"
@@ -142,7 +312,28 @@ export const OWNERSHIP_MULTIPLIERS: Record<OwnershipType, number> = {
   hedge_fund_owned: 1.25,
 };
 
-// ---------- Country / region multipliers ----------
+// ═══════════════════════════════════════════════════════════════════════
+//                    🌍 GEOGRAPHIC REGION MULTIPLIERS
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Companies in developed regions face higher expectations
+//
+// Visual Scale (regulatory maturity):
+//   non_western    [█████  ] ×1.0  BASELINE - developing standards
+//   western        [██████ ] ×1.1  Established labor/env protections
+//   global         [███████] ×1.2  Multinational reach = more impact
+//
+// REGIONS:
+// • "global"      → Multinationals with systemic, cross-border impact
+// • "western"     → US, EU, UK, CA, AU, NZ (mature regulations)
+// • "non_western" → Other regions (different regulatory context)
+//
+// RATIONALE:
+// • Western nations: More resources + stronger regulations = higher bar
+// • Global companies: Can't hide behind borders, massive scale
+// • This accounts for regional labor/environmental standards
+//
+// ═══════════════════════════════════════════════════════════════════════
 
 /**
  * Country / region context.
