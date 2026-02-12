@@ -1,12 +1,11 @@
-// app/api/auth/me/route.ts
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { supabaseRoute } from "@/lib/supabase-route";
+import { supabaseServer } from "@/lib/supabase-server";
 
 export async function GET() {
   try {
-    const supabase = await supabaseRoute();
+    const supabase = await supabaseServer();
     const {
       data: { user },
       error,
