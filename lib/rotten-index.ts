@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabaseService } from "@/lib/supabase-service";
 
 type EntityType = "company" | "leader" | "owner";
 type NormalizationMode = "none" | "employees" | "revenue";
@@ -16,10 +16,9 @@ export type RottenIndexItem = {
 };
 
 function getSupabaseServerClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-    process.env.SUPABASE_SERVICE_ROLE_KEY as string,
-  );
+  // Previously: createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  // Now delegate to the shared helper with identical configuration.
+  return supabaseService();
 }
 
 function normalizeScore(
