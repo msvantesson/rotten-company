@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabaseClient"; 
+import { supabaseBrowser } from "@/lib/supabase-browser";
+
 const supabase = supabaseBrowser();
-
-
-import EvidenceUpload from "@/components/EvidenceUpload";
 
 export default function TestUploadPage() {
   const router = useRouter();
@@ -47,27 +45,31 @@ export default function TestUploadPage() {
   }
 
   if (!userPresent) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-sm text-gray-600">Redirecting to login…</p>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="max-w-xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Evidence Upload Test</h1>
+    <main className="max-w-xl mx-auto px-4 py-10 space-y-6">
+      <h1 className="text-2xl font-semibold">Test Evidence Upload</h1>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">Entity ID</label>
+        <input
+          type="number"
+          className="w-full rounded-md border px-3 py-2 text-sm"
+          value={entityId}
+          onChange={(e) => setEntityId(Number(e.target.value) || 1)}
+        />
+      </div>
 
       <div className="space-y-2">
         <label className="block text-sm font-medium">Entity Type</label>
         <select
+          className="w-full rounded-md border px-3 py-2 text-sm"
           value={entityType}
           onChange={(e) =>
-            setEntityType(
-              e.target.value as "company" | "leader" | "manager" | "owner"
-            )
+            setEntityType(e.target.value as "company" | "leader" | "manager" | "owner")
           }
-          className="border p-2 rounded w-full"
         >
           <option value="company">Company</option>
           <option value="leader">Leader</option>
@@ -76,19 +78,19 @@ export default function TestUploadPage() {
         </select>
       </div>
 
-      <div className="space-y-2">
-        <label className="block text-sm font-medium">Entity ID</label>
-        <input
-          type="number"
-          value={entityId}
-          onChange={(e) => setEntityId(Number(e.target.value))}
-          className="border p-2 rounded w-full"
-        />
-      </div>
-
-      <div className="pt-4 border-t">
-        <EvidenceUpload entityId={entityId} entityType={entityType} />
-      </div>
-    </div>
+      <button
+        type="button"
+        onClick={() =>
+          router.push(
+            `/evidence-upload?entityType=${encodeURIComponent(
+              entityType,
+            )}&entityId=${encodeURIComponent(String(entityId))}`,
+          )
+        }
+        className="rounded-md bg-black text-white px-4 py-2 text-sm font-medium"
+      >
+        Go to upload page
+      </button>
+    </main>
   );
 }
