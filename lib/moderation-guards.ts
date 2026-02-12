@@ -1,8 +1,7 @@
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { supabaseServer } from "@/lib/supabase-server";
 
 type ModerationGateStatus = {
   pendingEvidence: number;
@@ -23,7 +22,7 @@ function adminClient() {
         persistSession: false,
         autoRefreshToken: false,
       },
-    }
+    },
   );
 }
 
@@ -32,16 +31,7 @@ function adminClient() {
  * Used ONLY for participation gates.
  */
 async function getUserId(): Promise<string | null> {
-  const cookieStore = await cookies();
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: cookieStore,
-    }
-  );
-
+  const supabase = await supabaseServer();
   const { data } = await supabase.auth.getUser();
   return data.user?.id ?? null;
 }
@@ -95,7 +85,7 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
  * IMPORTANT: userId is passed explicitly.
  */
 export async function canModerate(
-  userId: string | null
+  userId: string | null,
 ): Promise<boolean> {
   if (!userId) return false;
 
