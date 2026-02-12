@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { logout } from "@/app/logout/actions"; // ✅ import server action
+import { logout } from "@/app/logout/actions";
 
 type Props = {
   email: string | null;
@@ -60,16 +60,25 @@ export default function NavMenuClient({ email, isModerator }: Props) {
           </div>
 
           {isModerator && (
-            <Link
-              href="/moderation"
-              className="block px-3 py-2 hover:bg-gray-100"
-              onClick={() => setOpen(false)}
-            >
-              Moderation
-            </Link>
+            <>
+              <Link
+                href="/moderation"
+                className="block px-3 py-2 hover:bg-gray-100"
+                onClick={() => setOpen(false)}
+              >
+                Moderation
+              </Link>
+
+              <Link
+                href="/moderation/company-requests"
+                className="block px-3 py-2 hover:bg-gray-100"
+                onClick={() => setOpen(false)}
+              >
+                Company requests
+              </Link>
+            </>
           )}
 
-          {/* ✅ use exported server action, no inline "use server" */}
           <form
             action={logout}
             onSubmit={() => setOpen(false)}
