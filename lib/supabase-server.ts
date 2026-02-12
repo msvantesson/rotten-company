@@ -3,10 +3,13 @@ import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function supabaseServer(): Promise<SupabaseClient> {
-  console.info(
-    "[DB DEBUG][supabaseServer] DATABASE_URL prefix:",
-    process.env.DATABASE_URL?.slice?.(0, 60) ?? null
-  );
+  // Optional: keep a very safe dev-only check
+  if (process.env.NODE_ENV !== "production") {
+    console.info(
+      "[DB DEBUG][supabaseServer] DATABASE_URL set:",
+      Boolean(process.env.DATABASE_URL),
+    );
+  }
 
   const store = await cookies();
 
@@ -33,6 +36,6 @@ export async function supabaseServer(): Promise<SupabaseClient> {
           }
         },
       },
-    }
+    },
   );
 }
