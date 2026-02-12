@@ -67,7 +67,8 @@ export default async function EvidenceReviewPage(props: {
       source: "ui",
     });
 
-    redirect("/admin/moderation/evidence");
+    // 👇 Back to main moderation queue
+    redirect("/moderation");
   }
 
   // ❌ Reject
@@ -93,7 +94,8 @@ export default async function EvidenceReviewPage(props: {
       source: "ui",
     });
 
-    redirect("/admin/moderation/evidence");
+    // 👇 Back to main moderation queue
+    redirect("/moderation");
   }
 
   return (
