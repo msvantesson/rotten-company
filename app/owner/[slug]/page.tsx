@@ -1,182 +1,128 @@
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+
 export const dynamic = "force-dynamic";
-export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
-import { supabaseBrowser } from "@/lib/supabaseClient"; 
 const supabase = supabaseBrowser();
 
+type Owner = {
+  id: number;
+  name: string | null;
+  slug: string | null;
+  country: string | null;
+  rotten_score: number | null;
+};
 
-import { buildOwnerJsonLd } from "@/lib/jsonld-owner";
-import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
+type CompanyRow = {
+  id: number;
+  name: string | null;
+  slug: string | null;
+  country: string | null;
+  rotten_score: number | null;
+};
 
-type Params = Promise<{ slug: string }> | { slug: string };
+export default async function OwnerPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const slug = params.slug;
 
-export default async function OwnerPage({ params }: { params: Params }) {
-  const resolvedParams = (await params) as { slug?: string };
-  const rawSlug = resolvedParams?.slug ? decodeURIComponent(resolvedParams.slug) : "";
-
-  // 1. Fetch owner metadata
-  const { data: owner } = await supabase
+  const { data: owner, error: ownerError } = await supabase
     .from("owners_investors")
-    .select("id, name, type, slug, profile")
-    .eq("slug", rawSlug)
-    .maybeSingle();
+    .select("id, name, slug, country, rotten_score")
+    .eq("slug", slug)
+    .maybeSingle<Owner>();
 
-  if (!owner) {
-    return (
-      <div style={{ padding: "2rem" }}>
-        <h1>No owner/investor found</h1>
-        <p>Slug: {rawSlug}</p>
-      </div>
-    );
+  if (ownerError) {
+    console.error("[owner page] error loading owner", slug, ownerError);
   }
 
-  // 2. Fetch portfolio companies
-  const { data: rawPortfolio } = await supabase
-    .from("owner_portfolio_view")
-    .select("company:companies(name, slug)")
-    .eq("owner_id", owner.id);
+  if (!owner) {
+    console.warn("[owner page] no owner found for slug", slug);
+    return notFound();
+  }
 
-  // Normalize shape: company should be an object, not an array
-  const portfolio =
-    rawPortfolio?.map((p) => ({
-      company: Array.isArray(p.company) ? p.company[0] : p.company,
-    })) ?? [];
+  const { data: companies, error: companiesError } = await supabase
+    .from("companies")
+    .select("id, name, slug, country, rotten_score")
+    .eq("owner_investor_id", owner.id)
+    .order("rotten_score", { ascending: false });
 
-  // 3. Fetch ownership signals
-  const { data: signals } = await supabase
-    .from("ownership_signals_summary")
-    .select("*")
-    .eq("owner_slug", owner.slug)
-    .order("severity", { ascending: false });
+  if (companiesError) {
+    console.error("[owner page] error loading companies", owner.id, companiesError);
+  }
 
-  // 4. Fetch breakdown (ratings, evidence, etc.)
-  const { data: breakdown } = await supabase
-    .from("owner_portfolio_breakdown")
-    .select("*")
-    .eq("owner_id", owner.id)
-    .maybeSingle();
-
-  // 5. Fetch destruction lever (optional)
-  const { data: destructionLever } = await supabase
-    .from("owner_destruction_lever")
-    .select("avgDestructionLever:avg_destruction_lever")
-    .eq("owner_id", owner.id)
-    .maybeSingle();
-
-  const avgDestructionLever = destructionLever?.avgDestructionLever ?? null;
-
-  // 6. Build JSON-LD
-  const jsonLd = buildOwnerJsonLd({
-    owner,
-    portfolio,
-    breakdown,
-    signals: signals ?? [],
-    avgDestructionLever,
-  });
+  const companyRows: CompanyRow[] = (companies ?? []) as any;
 
   return (
-    <>
-      {/* JSON-LD injection */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(jsonLd, null, 2),
-        }}
-      />
+    <main className="max-w-5xl mx-auto px-4 py-10 space-y-8">
+      <header className="space-y-2">
+        <h1 className="text-3xl font-semibold">
+          {owner.name ?? "Unknown owner"}
+        </h1>
+        <p className="text-sm text-gray-600">
+          Country: {owner.country ?? "Unknown"}
+        </p>
+        {owner.rotten_score != null && (
+          <p className="text-sm text-gray-700">
+            Rotten Score:{" "}
+            <span className="font-semibold">
+              {Number(owner.rotten_score).toFixed(2)}
+            </span>
+          </p>
+        )}
+      </header>
 
-      {/* Developer-only JSON-LD Debug Panel */}
-      <JsonLdDebugPanel data={jsonLd} />
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">Portfolio companies</h2>
 
-      <div style={{ padding: "2rem" }}>
-        <h1>{owner.name}</h1>
-        <p style={{ opacity: 0.8 }}>{owner.type}</p>
-
-        {owner.profile && (
-          <p style={{ marginTop: 8, opacity: 0.7 }}>{owner.profile}</p>
+        {companyRows.length === 0 && (
+          <p className="text-sm text-gray-600">
+            No companies found for this owner in the Rotten Index.
+          </p>
         )}
 
-        {/* Portfolio */}
-        <section style={{ marginTop: "2rem" }}>
-          <h2>Portfolio Companies</h2>
-
-          {portfolio.length > 0 ? (
-            <ul style={{ marginTop: 12, paddingLeft: 0, listStyle: "none" }}>
-              {portfolio.map((p, i) => (
-                <li
-                  key={i}
-                  style={{
-                    padding: "12px 0",
-                    borderBottom: "1px solid #eee",
-                  }}
-                >
-                  <a
-                    href={`/company/${p.company.slug}`}
-                    style={{
-                      fontSize: "1.1rem",
-                      fontWeight: 600,
-                      textDecoration: "none",
-                    }}
-                  >
-                    {p.company.name}
-                  </a>
-                </li>
+        {companyRows.length > 0 && (
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b text-left text-gray-600">
+                <th className="py-2 pr-4">Company</th>
+                <th className="py-2 pr-4">Country</th>
+                <th className="py-2 text-right">Rotten Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {companyRows.map((c) => (
+                <tr key={c.id} className="border-b hover:bg-gray-50">
+                  <td className="py-2 pr-4">
+                    {c.slug ? (
+                      <Link
+                        href={`/company/${c.slug}`}
+                        className="text-blue-700 hover:underline"
+                      >
+                        {c.name ?? "Unknown company"}
+                      </Link>
+                    ) : (
+                      c.name ?? "Unknown company"
+                    )}
+                  </td>
+                  <td className="py-2 pr-4">
+                    {c.country ?? "Unknown"}
+                  </td>
+                  <td className="py-2 text-right">
+                    {c.rotten_score != null
+                      ? Number(c.rotten_score).toFixed(2)
+                      : "—"}
+                  </td>
+                </tr>
               ))}
-            </ul>
-          ) : (
-            <p>No portfolio companies found.</p>
-          )}
-        </section>
-
-        {/* Ownership Signals */}
-        <section style={{ marginTop: "2rem" }}>
-          <h2>Ownership Signals</h2>
-
-          {signals?.length ? (
-            <ul style={{ marginTop: 12, paddingLeft: 0, listStyle: "none" }}>
-              {signals.map((s) => (
-                <li
-                  key={s.company_id}
-                  style={{
-                    padding: "12px 0",
-                    borderBottom: "1px solid #eee",
-                  }}
-                >
-                  <a
-                    href={`/company/${s.company_slug}`}
-                    style={{
-                      fontSize: "1.1rem",
-                      fontWeight: 600,
-                      textDecoration: "none",
-                    }}
-                  >
-                    {s.company_name}
-                  </a>
-
-                  <div style={{ fontSize: "0.9rem", opacity: 0.7 }}>
-                    Type: {s.signal_type} · Severity: {s.severity}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No ownership signals found.</p>
-          )}
-        </section>
-
-        {/* Breakdown */}
-        <section style={{ marginTop: "2rem" }}>
-          <h2>Portfolio Breakdown</h2>
-
-          {breakdown ? (
-            <pre style={{ background: "#fafafa", padding: "1rem" }}>
-              {JSON.stringify(breakdown, null, 2)}
-            </pre>
-          ) : (
-            <p>No breakdown data available.</p>
-          )}
-        </section>
-      </div>
-    </>
+            </tbody>
+          </table>
+        )}
+      </section>
+    </main>
   );
 }
