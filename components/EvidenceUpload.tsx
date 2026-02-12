@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabaseClient";
-const supabase = supabaseBrowser();
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 interface EvidenceUploadProps {
   entityId: number;
@@ -23,6 +22,7 @@ const MAX_PDF_SIZE = 8 * 1024 * 1024;
 
 export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadProps) {
   const router = useRouter();
+  const supabase = useMemo(() => supabaseBrowser(), []);
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
@@ -47,158 +47,11 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       if (!error && data) setCategories(data);
     }
     loadCategories();
-  }, []);
+  }, [supabase]);
 
   const handleSubmit = async () => {
-    setError("");
-
-    if (!title) return setError("Title is required.");
-    if (!file) return setError("Please attach a file.");
-    if (!categoryId) return setError("Please select a category.");
-
-    if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
-      return setError("Image too large. Max size is 3MB.");
-    }
-
-    if (file.type === "application/pdf" && file.size > MAX_PDF_SIZE) {
-      return setError("PDF too large. Max size is 8MB.");
-    }
-
-    setLoading(true);
-
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setError("You must be logged in to submit evidence.");
-        setLoading(false);
-        return;
-      }
-
-      const form = new FormData();
-      form.append("file", file, sanitizeFileName(file.name));
-      form.append("title", title);
-      form.append("summary", summary);
-      form.append("entityType", entityType);
-      form.append("entityId", String(entityId));
-      form.append("category", String(categoryId));
-      form.append("severity", String(severity));
-      form.append("evidenceType", evidenceType);
-
-      // required for server-side insert
-      form.append("userId", user.id);
-
-      // 🔥 FIXED: correct API route
-      const res = await fetch("/api/evidence/submit", {
-        method: "POST",
-        body: form,
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        setError(json?.error || "Upload failed.");
-        setLoading(false);
-        return;
-      }
-
-      router.push(`/my-evidence/${json.id}`);
-    } catch (err) {
-      console.error("Upload error:", err);
-      setError("Unexpected upload error.");
-      setLoading(false);
-    }
+    // ... keep your existing logic here, using `supabase` ...
   };
 
-  return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold">Submit Evidence</h2>
-
-      <div className="space-y-1">
-        <label className="block text-sm font-medium">Evidence Type</label>
-        <select
-          value={evidenceType}
-          onChange={(e) => setEvidenceType(e.target.value)}
-          className="border p-2 rounded w-full"
-        >
-          <option value="misconduct">Misconduct</option>
-          <option value="remediation">Remediation</option>
-          <option value="correction">Correction</option>
-          <option value="audit">Audit</option>
-          <option value="statement">Statement</option>
-        </select>
-      </div>
-
-      <div className="space-y-1">
-        <label className="block text-sm font-medium">Category</label>
-        <select
-          value={categoryId ?? ""}
-          onChange={(e) => setCategoryId(Number(e.target.value))}
-          className="border p-2 rounded w-full"
-        >
-          <option value="">Select a category</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="space-y-1">
-        <label className="block text-sm font-medium">Severity</label>
-        <input
-          type="range"
-          min={1}
-          max={5}
-          value={severity}
-          onChange={(e) => setSeverity(Number(e.target.value))}
-          className="w-full"
-        />
-        <div className="text-sm text-gray-600">Selected: {severity}</div>
-      </div>
-
-      <div className="space-y-1">
-        <label className="block text-sm font-medium">Title</label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
-      </div>
-
-      <div className="space-y-1">
-        <label className="block text-sm font-medium">Summary (optional)</label>
-        <input
-          type="text"
-          value={summary}
-          onChange={(e) => setSummary(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
-      </div>
-
-      <div className="space-y-1">
-        <label className="block text-sm font-medium">File</label>
-        <input
-          type="file"
-          accept=".jpg,.jpeg,.png,.webp,.pdf"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="border p-2 rounded w-full"
-        />
-      </div>
-
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 disabled:opacity-50"
-      >
-        {loading ? "Uploading…" : "Submit Evidence"}
-      </button>
-
-      {error && <p className="text-red-600">{error}</p>}
-    </div>
-  );
+  // ...rest of your JSX...
 }
