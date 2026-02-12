@@ -8,7 +8,9 @@ export async function supabaseRoute(): Promise<SupabaseClient> {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.");
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.",
+    );
   }
 
   // await cookies() because in this runtime it returns a Promise
@@ -29,7 +31,8 @@ export async function supabaseRoute(): Promise<SupabaseClient> {
         const cookieObj: any = { name, value };
         if (options && typeof options === "object") {
           if (options.path) cookieObj.path = options.path;
-          if (options.httpOnly !== undefined) cookieObj.httpOnly = options.httpOnly;
+          if (options.httpOnly !== undefined)
+            cookieObj.httpOnly = options.httpOnly;
           if (options.sameSite) cookieObj.sameSite = options.sameSite;
           if (options.maxAge) cookieObj.maxAge = options.maxAge;
           if (options.expires) cookieObj.expires = options.expires;
