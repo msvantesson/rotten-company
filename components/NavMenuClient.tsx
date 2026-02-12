@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { logout } from "@/app/logout/actions";
 
 type Props = {
   email: string | null;
@@ -12,22 +13,18 @@ export default function NavMenuClient({ email, isModerator }: Props) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     if (!open) return;
-
     function handleClickOutside(e: MouseEvent) {
       if (!menuRef.current) return;
       if (!menuRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  // Signed‑out
   if (!email) {
     return (
       <div className="flex gap-4">
@@ -41,7 +38,6 @@ export default function NavMenuClient({ email, isModerator }: Props) {
     );
   }
 
-  // Signed‑in
   return (
     <div className="relative flex items-center" ref={menuRef}>
       <button
@@ -71,13 +67,20 @@ export default function NavMenuClient({ email, isModerator }: Props) {
             </Link>
           )}
 
-          <Link
-            href="/logout"
-            className="block px-3 py-2 text-red-600 hover:bg-gray-100"
-            onClick={() => setOpen(false)}
+          <form
+            action={async () => {
+              "use server";
+              await logout();
+            }}
           >
-            Log out
-          </Link>
+            <button
+              type="submit"
+              className="w-full text-left block px-3 py-2 text-red-600 hover:bg-gray-100"
+              onClick={() => setOpen(false)}
+            >
+              Log out
+            </button>
+          </form>
         </div>
       )}
     </div>
