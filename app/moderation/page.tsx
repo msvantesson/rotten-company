@@ -36,7 +36,7 @@ export default async function ModerationPage() {
     "userId:",
     moderatorId,
     "error:",
-    userError
+    userError,
   );
 
   if (!moderatorId) {
@@ -49,7 +49,7 @@ export default async function ModerationPage() {
   }
 
   // ─────────────────────────────────────────────
-  // MODERATOR GATE
+  // MODERATOR GATE (EXPLICIT AUTHORITY ROLE)
   // ─────────────────────────────────────────────
   const allowed = await canModerate(moderatorId);
 
@@ -67,12 +67,14 @@ export default async function ModerationPage() {
   // ─────────────────────────────────────────────
   const service = supabaseService();
 
-  // Step 1 — already assigned?
+  // Step 1 — already assigned (and not mine)
   const { data: assigned } = await service
     .from("evidence")
     .select("id")
     .eq("assigned_moderator_id", moderatorId)
     .eq("status", "pending")
+    // IMPORTANT: do not keep self-assigned items in the queue
+    .neq("user_id", moderatorId)
     .order("created_at", { ascending: true })
     .limit(1);
 
@@ -83,6 +85,8 @@ export default async function ModerationPage() {
       .select("id")
       .is("assigned_moderator_id", null)
       .eq("status", "pending")
+      // IMPORTANT: never assign the moderator their own submissions
+      .neq("user_id", moderatorId)
       .order("created_at", { ascending: true })
       .limit(1);
 
@@ -95,7 +99,7 @@ export default async function ModerationPage() {
     }
   }
 
-  // Step 3 — fetch final queue (max 1)
+  // Step 3 — fetch final queue (max 1 for now)
   const { data: queue, error } = await service
     .from("evidence")
     .select("id, title, created_at, assigned_moderator_id")
@@ -114,7 +118,7 @@ export default async function ModerationPage() {
     );
   }
 
-  // ─────────────────────────────────────────────
+  // ──────────────────────────────────────��──────
   // RENDER
   // ─────────────────────────────────────────────
   return (
@@ -127,10 +131,7 @@ export default async function ModerationPage() {
         <div>SSR user id: {moderatorId}</div>
       </div>
 
-      <ModerationClient
-        evidence={queue ?? []}
-        moderatorId={moderatorId}
-      />
+      <ModerationClient evidence={queue ?? []} moderatorId={moderatorId} />
     </main>
   );
 }
