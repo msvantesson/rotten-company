@@ -67,7 +67,9 @@ export default function EvidenceClientWrapper({
           const supabase = supabaseBrowser();
           const { data, error } = await supabase
             .from("evidence")
-            .select("id, title, summary, file_url, created_at, category, user_id, entity_type, entity_id")
+            .select(
+              "id, title, summary, file_url, created_at, category, user_id, entity_type, entity_id",
+            )
             .eq("id", evidenceId)
             .maybeSingle();
 
@@ -112,138 +114,177 @@ export default function EvidenceClientWrapper({
       return `${base}?${qs.toString()}`;
     }
     return base;
-  }, [evidence]);
+  }, [evidence?.entity_type, evidence?.entity_id]);
 
-  async function act(action: "approve" | "reject" | "skip") {
+  async function handleModerationAction(action: ModerationAction["action"]) {
+    if (!isModerator || !currentUserId || !evidence) return;
     if (actionBusy) return;
+
     setActionBusy(true);
+    try {
+      const res = await fetch("/api/moderation/evidence-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          evidence_id: evidence.id,
+          action,
+        }),
+      });
 
-    const form = new FormData();
-    form.set("evidenceId", String(evidenceId));
-
-    if (action === "reject") {
-      const note = prompt("Explain your decision in plain language:");
-      if (!note) {
-        setActionBusy(false);
+      if (!res.ok) {
+        console.error("Moderation action failed", await res.text());
         return;
       }
-      form.set("note", note);
+
+      // Refresh metadata after moderation
+      const metaRes = await fetch(
+        `/api/moderation/evidence-meta?id=${evidence.id}`,
+      );
+      if (metaRes.ok) {
+        const meta = await metaRes.json();
+        setModeration(meta);
+      }
+    } finally {
+      setActionBusy(false);
     }
-
-    const endpoint =
-      action === "approve"
-        ? "/moderation/actions/approve"
-        : action === "reject"
-        ? "/moderation/actions/reject"
-        : "/moderation/actions/skip";
-
-    await fetch(endpoint, { method: "POST", body: form });
-    router.push("/moderation");
   }
 
   if (loading) {
     return (
-      <div className="p-6">
-        <h1 className="text-xl font-semibold">Evidence</h1>
-        <p className="mt-2 text-gray-600">Loading evidence…</p>
+      <div className="p-6 text-sm text-gray-600">
+        Loading evidence…
       </div>
     );
   }
 
   if (!evidence) {
     return (
-      <div className="p-6 space-y-4">
-        <h1 className="text-xl font-semibold">Evidence</h1>
-        <div className="rounded border border-red-300 bg-red-50 p-4">
-          <strong>This submission is no longer available.</strong>
-          {!isModerator && (
-            <a
-              href={startOverHref}
-              className="mt-4 inline-block rounded bg-red-600 px-4 py-2 text-sm font-medium text-white"
-            >
-              Start over
-            </a>
-          )}
-        </div>
-
-        {showDebug && (
-          <pre className="mt-6 rounded bg-gray-100 p-3 text-xs">
-            {JSON.stringify({ evidenceId, isModerator, currentUserId }, null, 2)}
-          </pre>
-        )}
+      <div className="p-6 text-sm text-red-600">
+        Evidence not found or you do not have access.
       </div>
     );
   }
 
+  const isOwner = currentUserId && evidence.user_id === currentUserId;
+
   return (
-    <div className="p-6 space-y-6">
-      {isModerator && moderation && (
-        <div className="rounded border bg-yellow-50 p-4 space-y-2">
-          <strong>Moderator panel</strong>
-          <div>Status: {moderation.status}</div>
-          <div>Assigned moderator: {moderation.assigned_moderator_id ?? "—"}</div>
-
-          <div className="flex gap-2 pt-2">
-            <button onClick={() => act("approve")} className="rounded bg-green-600 px-3 py-1 text-white">
-              Approve
-            </button>
-            <button onClick={() => act("reject")} className="rounded bg-red-600 px-3 py-1 text-white">
-              Reject
-            </button>
-            <button onClick={() => act("skip")} className="rounded bg-gray-600 px-3 py-1 text-white">
-              Skip
-            </button>
-          </div>
-
-          {moderation.history?.length > 0 && (
-            <div className="pt-3 text-sm">
-              <strong>History</strong>
-              <ul className="mt-1 space-y-1">
-                {moderation.history.map((h, i) => (
-                  <li key={i}>
-                    {h.action} · {new Date(h.created_at).toLocaleString()}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
-      <h1 className="text-2xl font-semibold">Evidence #{evidence.id}</h1>
-
-      <div>
-        <strong>Title:</strong> {evidence.title ?? "(no title)"}
-      </div>
-
-      <div>
-        <strong>Created:</strong> {new Date(evidence.created_at).toLocaleString()}
-      </div>
+    <main className="mx-auto max-w-3xl px-4 py-8 space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold">
+          {evidence.title || "Untitled evidence"}
+        </h1>
+        <p className="text-xs text-gray-500">
+          Uploaded on{" "}
+          {new Date(evidence.created_at).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}
+        </p>
+      </header>
 
       {evidence.summary && (
-        <div>
-          <strong>Summary:</strong>
-          <p className="mt-1 text-gray-700">{evidence.summary}</p>
-        </div>
+        <section className="rounded-md border bg-gray-50 p-4 text-sm">
+          <h2 className="font-medium mb-1">Summary</h2>
+          <p className="text-gray-800 whitespace-pre-wrap">
+            {evidence.summary}
+          </p>
+        </section>
       )}
 
       {evidence.file_url && (
-        <a href={evidence.file_url} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-          View uploaded file
-        </a>
+        <section className="space-y-2">
+          <h2 className="text-sm font-medium">Attached document</h2>
+          <a
+            href={evidence.file_url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-blue-700 hover:underline"
+          >
+            View evidence file
+          </a>
+        </section>
       )}
 
-      {!isModerator && (
-        <a href={startOverHref} className="inline-block rounded bg-gray-800 px-4 py-2 text-sm font-medium text-white">
-          Submit new evidence
-        </a>
+      <section className="flex flex-wrap gap-3 items-center text-xs text-gray-600">
+        {evidence.entity_type && evidence.entity_id && (
+          <button
+            type="button"
+            onClick={() => router.push(startOverHref)}
+            className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-gray-50"
+          >
+            Start a new upload for this entity
+          </button>
+        )}
+
+        {isOwner && (
+          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs">
+            You uploaded this evidence
+          </span>
+        )}
+
+        {isModerator && (
+          <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-800">
+            Moderator view
+          </span>
+        )}
+      </section>
+
+      {isModerator && moderation && (
+        <section className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-sm">Moderation status</h2>
+              <p className="text-xs text-amber-800">
+                Status:{" "}
+                <span className="font-semibold">
+                  {moderation.status.toUpperCase()}
+                </span>
+              </p>
+              {moderation.assigned_moderator_id && (
+                <p className="text-xs">
+                  Assigned to: {moderation.assigned_moderator_id}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                disabled={actionBusy}
+                onClick={() => handleModerationAction("approve")}
+                className="rounded bg-emerald-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                disabled={actionBusy}
+                onClick={() => handleModerationAction("reject")}
+                className="rounded bg-red-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+
+          {moderation.history?.length > 0 && showDebug && (
+            <details className="mt-2">
+              <summary className="cursor-pointer font-medium">
+                Moderation history (debug)
+              </summary>
+              <pre className="mt-2 max-h-64 overflow-auto rounded bg-amber-100 p-2 text-[10px]">
+                {JSON.stringify(moderation.history, null, 2)}
+              </pre>
+            </details>
+          )}
+        </section>
       )}
 
-      {showDebug && (
-        <pre className="mt-6 rounded bg-gray-100 p-3 text-xs">
-          {JSON.stringify({ evidenceId, evidence, moderation }, null, 2)}
-        </pre>
+      {!isModerator && moderation && moderation.status !== "approved" && (
+        <section className="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
+          This evidence is still under review by moderators.
+        </section>
       )}
-    </div>
+    </main>
   );
 }
