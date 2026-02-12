@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { logout } from "@/app/logout/actions";
+import { logout } from "@/app/logout/actions"; // ✅ import server action
 
 type Props = {
   email: string | null;
@@ -15,12 +15,14 @@ export default function NavMenuClient({ email, isModerator }: Props) {
 
   useEffect(() => {
     if (!open) return;
+
     function handleClickOutside(e: MouseEvent) {
       if (!menuRef.current) return;
       if (!menuRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
@@ -67,16 +69,14 @@ export default function NavMenuClient({ email, isModerator }: Props) {
             </Link>
           )}
 
+          {/* ✅ use exported server action, no inline "use server" */}
           <form
-            action={async () => {
-              "use server";
-              await logout();
-            }}
+            action={logout}
+            onSubmit={() => setOpen(false)}
           >
             <button
               type="submit"
               className="w-full text-left block px-3 py-2 text-red-600 hover:bg-gray-100"
-              onClick={() => setOpen(false)}
             >
               Log out
             </button>
