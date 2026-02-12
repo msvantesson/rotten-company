@@ -1,11 +1,15 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 
-export default async function EvidenceReviewPage({
-  params,
-}: {
-  params: { id: string };
+type ParamsShape = { id: string };
+
+export default async function EvidenceReviewPage(props: {
+  params: ParamsShape | Promise<ParamsShape>;
 }) {
+  // Next 16 quirk: params may be a Promise
+  const resolvedParams =
+    props.params instanceof Promise ? await props.params : props.params;
+
   const supabase = await supabaseServer();
 
   // 🔐 Auth check
@@ -23,7 +27,7 @@ export default async function EvidenceReviewPage({
   if (!isModerator) return null;
 
   // 🧠 Parse ID safely
-  const evidenceId = parseInt(params.id, 10);
+  const evidenceId = parseInt(resolvedParams.id, 10);
   if (isNaN(evidenceId)) {
     return <div>Invalid evidence ID</div>;
   }
