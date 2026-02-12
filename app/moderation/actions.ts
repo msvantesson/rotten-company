@@ -2,77 +2,83 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseService } from "@/lib/supabase-service";
+import { supabaseServer } from "@/lib/supabase-server";
 
-export type ActionResult =
-  | { ok: true }
-  | { ok: false; error: string };
+/**
+ * Result type returned by moderation server actions.
+ */
+export type ActionResult = {
+  ok: boolean;
+  error?: string;
+};
 
-async function validateModeratorId(moderatorId: string | null) {
-  if (!moderatorId) return null;
+/**
+ * Validate a moderator ID coming from formData.
+ * Ensures the ID is a real moderator in the database.
+ */
+async function validateModeratorId(raw: string | null): Promise<string | null> {
+  if (!raw) return null;
 
   const supabase = supabaseService();
   const { data, error } = await supabase
-    .from("users")
-    .select("id")
-    .eq("id", moderatorId)
+    .from("moderators")
+    .select("user_id")
+    .eq("user_id", raw)
     .maybeSingle();
 
-  if (error || !data?.id) {
-    console.error("[moderation] invalid moderator_id", { moderatorId, error });
+  if (error || !data) {
+    console.error("[moderation] validateModeratorId failed", { raw, error });
     return null;
   }
 
-  return data.id as string;
+  return data.user_id;
 }
 
+/**
+ * Fetch submitter email + evidence title for notifications.
+ */
 async function fetchSubmitterEmail(
   supabase: ReturnType<typeof supabaseService>,
-  evidenceId: number
-) {
-  const { data: ev, error: evErr } = await supabase
+  evidenceId: number,
+): Promise<{ email: string | null; evidenceTitle: string | null }> {
+  const { data, error } = await supabase
     .from("evidence")
-    .select("user_id, title")
+    .select("title, user_id, users ( email )")
     .eq("id", evidenceId)
-    .maybeSingle();
+    .single();
 
-  if (evErr || !ev) {
-    console.error("[moderation] fetchSubmitterEmail evidence fetch failed", evErr);
+  if (error || !data) {
+    console.error("[moderation] fetchSubmitterEmail failed", { evidenceId, error });
     return { email: null, evidenceTitle: null };
   }
 
-  if (!ev.user_id) {
-    return { email: null, evidenceTitle: ev.title ?? null };
-  }
+  // If you have a foreign key from evidence.user_id to users.id with a join alias
+  const email =
+    (data as any).users?.email ??
+    null;
 
-  const { data: user, error: userErr } = await supabase
-    .from("users")
-    .select("email")
-    .eq("id", ev.user_id)
-    .maybeSingle();
+  const evidenceTitle = (data as any).title ?? null;
 
-  if (userErr || !user) {
-    console.error("[moderation] fetchSubmitterEmail user fetch failed", userErr);
-    return { email: null, evidenceTitle: ev.title ?? null };
-  }
-
-  return { email: user.email as string, evidenceTitle: ev.title ?? null };
+  return { email, evidenceTitle };
 }
 
+/**
+ * Enqueue an email notification in notification_jobs.
+ */
 async function enqueueNotification(
   supabase: ReturnType<typeof supabaseService>,
-  email: string | null,
+  recipientEmail: string | null,
   subject: string,
   body: string,
-  metadata: object = {}
+  metadata: Record<string, any>,
 ) {
-  if (!email) return;
+  if (!recipientEmail) return;
 
   const { error } = await supabase.from("notification_jobs").insert({
-    recipient_email: email,
+    recipient_email: recipientEmail,
     subject,
     body,
     metadata,
-    status: "pending",
   });
 
   if (error) {
@@ -80,6 +86,32 @@ async function enqueueNotification(
   }
 }
 
+/**
+ * Fetch the owner (submitter) of a piece of evidence.
+ * Used to enforce that moderators cannot act on their own submissions.
+ */
+async function fetchEvidenceOwnerId(
+  supabase: ReturnType<typeof supabaseService>,
+  evidenceId: number,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("evidence")
+    .select("user_id")
+    .eq("id", evidenceId)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error("[moderation] fetchEvidenceOwnerId failed", { evidenceId, error });
+    return null;
+  }
+
+  return data.user_id ?? null;
+}
+
+/**
+ * Approve evidence (main moderation flow).
+ * NOW enforces: moderator cannot approve their own evidence.
+ */
 export async function approveEvidence(formData: FormData): Promise<ActionResult> {
   const supabase = supabaseService();
 
@@ -96,6 +128,12 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
   const moderatorId = await validateModeratorId(moderatorIdRaw);
   if (!moderatorId) {
     return { ok: false, error: "invalid_moderator" };
+  }
+
+  // 🚫 Prevent self‑moderation: moderator cannot approve their own evidence.
+  const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
+  if (ownerId && ownerId === moderatorId) {
+    return { ok: false, error: "cannot_moderate_own_evidence" };
   }
 
   const { error: updateError } = await supabase
@@ -129,7 +167,7 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
 
   const { email, evidenceTitle } = await fetchSubmitterEmail(
     supabase,
-    evidenceId
+    evidenceId,
   );
 
   await enqueueNotification(
@@ -143,13 +181,17 @@ Your submission${
     } has been approved.
 
 — Rotten Company`,
-    { evidenceId, action: "approve" }
+    { evidenceId, action: "approve" },
   );
 
   revalidatePath("/moderation");
   return { ok: true };
 }
 
+/**
+ * Reject evidence (main moderation flow).
+ * NOW enforces: moderator cannot reject their own evidence.
+ */
 export async function rejectEvidence(formData: FormData): Promise<ActionResult> {
   const supabase = supabaseService();
 
@@ -172,13 +214,50 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
     return { ok: false, error: "invalid_moderator" };
   }
 
-  // 1. Fetch submitter email BEFORE deletion
+  // 🚫 Prevent self‑moderation: moderator cannot reject their own evidence.
+  const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
+  if (ownerId && ownerId === moderatorId) {
+    return { ok: false, error: "cannot_moderate_own_evidence" };
+  }
+
+  // 1. Fetch submitter email BEFORE status update
   const { email, evidenceTitle } = await fetchSubmitterEmail(
     supabase,
-    evidenceId
+    evidenceId,
   );
 
-  // 2. Enqueue rejection notification
+  // 2. Update evidence status
+  const { error: updateError } = await supabase
+    .from("evidence")
+    .update({
+      status: "rejected",
+      assigned_moderator_id: null,
+    })
+    .eq("id", evidenceId);
+
+  if (updateError) {
+    console.error("[moderation] REJECT update failed", updateError);
+    return { ok: false, error: "update_failed" };
+  }
+
+  // 3. Log moderation action
+  const { error: moderationError } = await supabase
+    .from("moderation_actions")
+    .insert({
+      target_type: "evidence",
+      target_id: String(evidenceId),
+      action: "reject",
+      moderator_note: moderatorNote,
+      moderator_id: moderatorId,
+      source: "ui",
+    });
+
+  if (moderationError) {
+    console.error("[moderation] REJECT moderation insert failed", moderationError);
+    return { ok: false, error: "moderation_log_failed" };
+  }
+
+  // 4. Enqueue rejection notification
   await enqueueNotification(
     supabase,
     email,
@@ -187,68 +266,14 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
 
 Your submission${
       evidenceTitle ? ` "${evidenceTitle}"` : ""
-    } was rejected.
+    } has been rejected.
 
-Reason:
+Moderator note:
 ${moderatorNote}
 
 — Rotten Company`,
-    { evidenceId, action: "reject" }
+    { evidenceId, action: "reject" },
   );
-
-  // 3. Authoritative rejection (logs + deletes)
-  const { error } = await supabase.rpc("reject_evidence", {
-    p_evidence_id: evidenceId,
-    p_moderator_id: moderatorId,
-    p_moderator_note: moderatorNote,
-  });
-
-  if (error) {
-    console.error("[moderation] REJECT RPC failed", error);
-    return { ok: false, error: "reject_failed" };
-  }
-
-  revalidatePath("/moderation");
-  return { ok: true };
-}
-
-// Phase 1: not yet wired into the client, but ready when we want real skip semantics.
-export async function skipEvidence(
-  evidenceId: number,
-  moderatorId: string
-): Promise<ActionResult> {
-  const supabase = supabaseService();
-
-  const validModerator = await validateModeratorId(moderatorId);
-  if (!validModerator) {
-    return { ok: false, error: "invalid_moderator" };
-  }
-
-  const { error: updateError } = await supabase
-    .from("evidence")
-    .update({ assigned_moderator_id: null })
-    .eq("id", evidenceId);
-
-  if (updateError) {
-    console.error("[moderation] SKIP update failed", updateError);
-    return { ok: false, error: "update_failed" };
-  }
-
-  const { error: moderationError } = await supabase
-    .from("moderation_actions")
-    .insert({
-      target_type: "evidence",
-      target_id: String(evidenceId),
-      action: "skip",
-      moderator_note: "skipped",
-      moderator_id: moderatorId,
-      source: "ui",
-    });
-
-  if (moderationError) {
-    console.error("[moderation] SKIP moderation insert failed", moderationError);
-    return { ok: false, error: "moderation_log_failed" };
-  }
 
   revalidatePath("/moderation");
   return { ok: true };
