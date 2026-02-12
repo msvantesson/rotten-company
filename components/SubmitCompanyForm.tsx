@@ -1,124 +1,146 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { supabaseBrowser } from "@/lib/supabaseClient";
-const supabase = supabaseBrowser();
+import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
+const COUNTRIES = [
+  "Denmark",
+  "United Kingdom",
+  "Germany",
+  "United Arab Emirates",
+  "Indonesia",
+  // add others as needed
+];
 
 export default function SubmitCompanyForm() {
-  const [formData, setFormData] = useState({
-    name: '',
-    country: '',
-    website: '',
-    description: '',
-    why: '',
-  });
+  const router = useRouter();
+  const supabase = useMemo(() => supabaseBrowser(), []);
 
-  const [status, setStatus] = useState('');
+  const [name, setName] = useState("");
+  const [country, setCountry] = useState<string>("");
+  const [industry, setIndustry] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setStatus('');
+    setError(null);
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      setStatus('You must be logged in to submit a company.');
+    if (!name.trim()) {
+      setError("Company name is required.");
       return;
     }
 
-    const { data: request, error: requestError } = await supabase
-      .from('company_requests')
-      .insert([{ ...formData, user_id: user.id }])
-      .select()
-      .single();
+    setSubmitting(true);
 
-    if (requestError) {
-      setStatus(`Error creating request: ${requestError.message}`);
-      return;
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setError("You must be logged in to submit a company.");
+        setSubmitting(false);
+        return;
+      }
+
+      const { data, error: insertError } = await supabase
+        .from("companies")
+        .insert({
+          name: name.trim(),
+          country: country || null,
+          industry: industry.trim() || null,
+          description: description.trim() || null,
+          created_by: user.id,
+        })
+        .select("slug")
+        .maybeSingle();
+
+      if (insertError) {
+        console.error("[SubmitCompanyForm] insert error", insertError);
+        setError("Failed to submit company.");
+        setSubmitting(false);
+        return;
+      }
+
+      if (data?.slug) {
+        router.push(`/company/${data.slug}`);
+      } else {
+        setSubmitting(false);
+      }
+    } catch (err) {
+      console.error("[SubmitCompanyForm] unexpected error", err);
+      setError("Unexpected error submitting company.");
+      setSubmitting(false);
     }
-
-    const { error: evidenceError } = await supabase.from('evidence').insert([
-      {
-        title: formData.name,
-        summary: formData.why || formData.description,
-        entity_type: 'company',
-        entity_id: null,
-        company_request_id: request.id,
-        user_id: user.id,
-        status: 'pending',
-      },
-    ]);
-
-    if (evidenceError) {
-      setStatus(`Error creating evidence: ${evidenceError.message}`);
-      return;
-    }
-
-    setStatus('Company submitted for moderation.');
-    setFormData({
-      name: '',
-      country: '',
-      website: '',
-      description: '',
-      why: '',
-    });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h2 className="text-xl font-bold">Submit a New Company</h2>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <label className="block text-sm font-medium">Company name *</label>
+        <input
+          className="w-full rounded-md border px-3 py-2 text-sm"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={submitting}
+          required
+        />
+      </div>
 
-      <input
-        type="text"
-        placeholder="Company Name"
-        required
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-        className="w-full border p-2 rounded"
-      />
+      <div>
+        <label className="block text-sm font-medium">Country</label>
+        <select
+          className="w-full rounded-md border px-3 py-2 text-sm"
+          value={country}
+          onChange={(e) => setCountry(e.target.value)}
+          disabled={submitting}
+        >
+          <option value="">Select a country</option>
+          {COUNTRIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      <input
-        type="text"
-        placeholder="Country"
-        required
-        value={formData.country}
-        onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-        className="w-full border p-2 rounded"
-      />
+      <div>
+        <label className="block text-sm font-medium">Industry</label>
+        <input
+          className="w-full rounded-md border px-3 py-2 text-sm"
+          value={industry}
+          onChange={(e) => setIndustry(e.target.value)}
+          disabled={submitting}
+        />
+      </div>
 
-      <input
-        type="url"
-        placeholder="Website (optional)"
-        value={formData.website}
-        onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-        className="w-full border p-2 rounded"
-      />
+      <div>
+        <label className="block text-sm font-medium">Description</label>
+        <textarea
+          className="w-full rounded-md border px-3 py-2 text-sm"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          disabled={submitting}
+          rows={4}
+        />
+      </div>
 
-      <textarea
-        placeholder="Description (optional)"
-        value={formData.description}
-        onChange={(e) =>
-          setFormData({ ...formData, description: e.target.value })
-        }
-        className="w-full border p-2 rounded"
-      />
+      {error && (
+        <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
 
-      <textarea
-        placeholder="Why are you submitting this company? (optional)"
-        value={formData.why}
-        onChange={(e) => setFormData({ ...formData, why: e.target.value })}
-        className="w-full border p-2 rounded"
-      />
-
-      <button type="submit" className="bg-black text-white px-4 py-2 rounded">
-        Submit Company
+      <button
+        type="submit"
+        disabled={submitting}
+        className="rounded-md bg-black text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+      >
+        {submitting ? "Submitting…" : "Submit company"}
       </button>
-
-      {status && <p className="text-sm mt-2">{status}</p>}
     </form>
   );
 }
