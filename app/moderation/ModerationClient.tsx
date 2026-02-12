@@ -14,10 +14,7 @@ type Props = {
   moderatorId: string;
 };
 
-export default function ModerationClient({
-  evidence,
-  moderatorId,
-}: Props) {
+export default function ModerationClient({ evidence, moderatorId }: Props) {
   const myQueue = useMemo(
     () =>
       evidence.filter(
@@ -62,7 +59,7 @@ export default function ModerationClient({
         </p>
 
         <a
-          href={`/my-evidence/${current.id}`}
+          href={`/admin/moderation/evidence/${current.id}`}
           className="text-sm text-blue-600 hover:underline mt-2 inline-block"
         >
           View full evidence →
