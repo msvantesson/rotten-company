@@ -1,5 +1,9 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import {
+  approveEvidence,
+  rejectEvidence,
+} from "@/app/moderation/actions";
 
 type ParamsShape = { id: string };
 
@@ -18,6 +22,7 @@ export default async function EvidenceReviewPage(props: {
 
   const moderatorId = auth.user.id;
 
+  // Ensure user is a moderator
   const { data: isModerator } = await supabase
     .from("moderators")
     .select("user_id")
@@ -28,7 +33,7 @@ export default async function EvidenceReviewPage(props: {
 
   // 🧠 Parse ID safely
   const evidenceId = parseInt(resolvedParams.id, 10);
-  if (isNaN(evidenceId)) {
+  if (Number.isNaN(evidenceId) || evidenceId <= 0) {
     return <div>Invalid evidence ID</div>;
   }
 
@@ -40,7 +45,7 @@ export default async function EvidenceReviewPage(props: {
     .maybeSingle();
 
   if (error) {
-    console.error("Evidence query failed:", error.message);
+    console.error("[admin-evidence] evidence query failed:", error.message);
     return <div>Error loading evidence</div>;
   }
 
@@ -48,53 +53,34 @@ export default async function EvidenceReviewPage(props: {
     return <div>Evidence not found</div>;
   }
 
-  // ✅ Approve
-  async function approve() {
+  // 🔄 Use shared moderation actions (app/moderation/actions.ts)
+
+  async function handleApprove(formData: FormData) {
     "use server";
 
-    const supabase = await supabaseServer();
+    // Optional: allow a note on approve too
+    const note = formData.get("note")?.toString() ?? "";
 
-    await supabase
-      .from("evidence")
-      .update({ status: "approved" })
-      .eq("id", evidenceId);
+    const fd = new FormData();
+    fd.set("evidence_id", String(evidenceId));
+    fd.set("moderator_id", moderatorId);
+    fd.set("moderator_note", note || "approved via admin detail page");
 
-    await supabase.from("moderation_actions").insert({
-      moderator_id: moderatorId,
-      target_type: "evidence",
-      target_id: evidenceId,
-      action: "approve",
-      source: "ui",
-    });
-
-    // 👇 Back to main moderation queue
+    await approveEvidence(fd);
     redirect("/moderation");
   }
 
-  // ❌ Reject
-  async function reject(formData: FormData) {
+  async function handleReject(formData: FormData) {
     "use server";
 
-    const note = formData.get("note")?.toString();
-    if (!note) return;
+    const note = formData.get("note")?.toString() ?? "";
 
-    const supabase = await supabaseServer();
+    const fd = new FormData();
+    fd.set("evidence_id", String(evidenceId));
+    fd.set("moderator_id", moderatorId);
+    fd.set("moderator_note", note);
 
-    await supabase
-      .from("evidence")
-      .update({ status: "rejected" })
-      .eq("id", evidenceId);
-
-    await supabase.from("moderation_actions").insert({
-      moderator_id: moderatorId,
-      target_type: "evidence",
-      target_id: evidenceId,
-      action: "reject",
-      note,
-      source: "ui",
-    });
-
-    // 👇 Back to main moderation queue
+    await rejectEvidence(fd);
     redirect("/moderation");
   }
 
@@ -102,30 +88,55 @@ export default async function EvidenceReviewPage(props: {
     <main style={{ padding: 24 }}>
       <h1>Moderate Evidence #{evidence.id}</h1>
 
+      {/* Raw JSON debug view */}
       <pre
         style={{
           background: "#111",
           color: "#0f0",
           padding: 16,
           overflowX: "auto",
+          marginBottom: 24,
         }}
       >
         {JSON.stringify(evidence, null, 2)}
       </pre>
 
-      <form action={approve} style={{ marginTop: 24 }}>
-        <button type="submit">Approve</button>
-      </form>
+      {/* Approve with optional note */}
+      <section style={{ marginBottom: 32 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+          Approve
+        </h2>
+        <form action={handleApprove} style={{ display: "grid", gap: 8 }}>
+          <label style={{ fontSize: 13 }}>
+            Optional note to submitter / log
+            <textarea
+              name="note"
+              placeholder="(Optional) Short note for approval"
+              style={{ width: "100%", minHeight: 60, display: "block" }}
+            />
+          </label>
+          <button type="submit">Approve</button>
+        </form>
+      </section>
 
-      <form action={reject} style={{ marginTop: 16 }}>
-        <textarea
-          name="note"
-          placeholder="Reason for rejection"
-          required
-          style={{ width: "100%", height: 80 }}
-        />
-        <button type="submit">Reject</button>
-      </form>
+      {/* Reject with required note */}
+      <section>
+        <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+          Reject
+        </h2>
+        <form action={handleReject} style={{ display: "grid", gap: 8 }}>
+          <label style={{ fontSize: 13 }}>
+            Reason for rejection (required)
+            <textarea
+              name="note"
+              placeholder="Explain why this evidence is being rejected"
+              required
+              style={{ width: "100%", minHeight: 80, display: "block" }}
+            />
+          </label>
+          <button type="submit">Reject</button>
+        </form>
+      </section>
     </main>
   );
 }
