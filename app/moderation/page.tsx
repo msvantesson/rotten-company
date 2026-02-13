@@ -111,9 +111,11 @@ export default async function ModerationPage() {
       <section>
         <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
         <ModerationClient
-          assignedEvidence={assignedEvidence}
-          pendingAvailable={pendingCount}
+          evidence={assignedEvidence}
+          moderatorId={moderatorId}
           gate={gate}
+          pendingAvailable={pendingCount}
+          canRequestNewCase={false}
         />
       </section>
 
