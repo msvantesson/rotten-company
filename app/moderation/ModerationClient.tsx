@@ -1,8 +1,5 @@
 "use client";
 
-import { useTransition } from "react";
-import { assignNextEvidence } from "./actions";
-
 type EvidenceRow = {
   id: number;
   title: string;
@@ -23,7 +20,7 @@ type Props = {
   moderatorId: string;
   gate: ModerationGateStatus;
   pendingAvailable: number;
-  canRequestNewCase: boolean;
+  canRequestNewCase: boolean; // still passed from page.tsx, but we'll just show it in debug text
 };
 
 export default function ModerationClient({
@@ -33,60 +30,35 @@ export default function ModerationClient({
   pendingAvailable,
   canRequestNewCase,
 }: Props) {
-  const [isAssigning, startAssign] = useTransition();
-
   const hasAssigned = evidence.length > 0;
   const current = hasAssigned ? evidence[0] : null;
 
-  function handleGetNewCase() {
-    if (!canRequestNewCase || isAssigning) return;
-    startAssign(() => {
-      void assignNextEvidence();
-    });
-  }
-
   return (
     <section className="space-y-6">
-      {/* Gate info + “get new case” button */}
+      {/* Info box explaining the flow */}
       <section className="rounded-md border bg-white p-4 space-y-3 text-sm">
         {!gate.allowed ? (
           <p className="text-neutral-700">
-            Before picking up cases, please help by moderating{" "}
+            Before helping with company requests, please moderate{" "}
             {gate.requiredModerations} evidence item
-            {gate.requiredModerations === 1 ? "" : "s"} in total. Your
-            completed moderations: {gate.userModerations}.
+            {gate.requiredModerations === 1 ? "" : "s"} in total. You have
+            completed {gate.userModerations}.
           </p>
         ) : (
           <p className="text-neutral-700">
-            You’ve completed the required evidence moderations. You can
-            optionally pick up evidence cases to review their details.
+            You’ve completed the required evidence moderations. Further work
+            happens in{" "}
+            <span className="font-medium">Company requests moderation</span>.
+            Use the “Get a new company request” button on that page to pick up
+            new cases.
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={handleGetNewCase}
-          disabled={!canRequestNewCase || isAssigning}
-          className="inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-        >
-          {isAssigning ? "Assigning…" : "Get a new evidence item"}
-        </button>
-
-        {!canRequestNewCase && gate.allowed && hasAssigned && (
-          <p className="text-xs text-neutral-500">
-            You already have an assigned evidence item below. Complete that
-            review before requesting another.
-          </p>
-        )}
-
-        {!canRequestNewCase &&
-          gate.allowed &&
-          !hasAssigned &&
-          pendingAvailable === 0 && (
-            <p className="text-xs text-neutral-500">
-              There are currently no pending evidence items to assign.
-            </p>
-          )}
+        <p className="text-xs text-neutral-500">
+          Debug: pendingAvailable evidence (unassigned, not yours) ={" "}
+          {pendingAvailable}, canRequestNewCase flag ={" "}
+          {String(canRequestNewCase)} (not used here).
+        </p>
       </section>
 
       {/* No assigned evidence */}
@@ -101,7 +73,7 @@ export default function ModerationClient({
         <section className="rounded-md border bg-white p-4 space-y-3">
           <div className="space-y-1">
             <p className="text-xs text-neutral-500">
-              Item 1 of 1 • Assigned to you
+              Item 1 of 1 • Assigned to you ({moderatorId})
             </p>
             <h2 className="text-lg font-semibold">{current.title}</h2>
             <p className="text-xs text-neutral-500">
@@ -109,7 +81,7 @@ export default function ModerationClient({
             </p>
           </div>
 
-          {/* TODO: preserve your existing “View evidence” + Approve / Reject controls here */}
+          {/* Keep your existing “view evidence / approve / reject” controls here */}
         </section>
       )}
     </section>
