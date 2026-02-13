@@ -8,7 +8,6 @@ export default async function EvidenceReviewPage(props: {
   params: ParamsShape | Promise<ParamsShape>;
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-  // Next 16 quirk: params may be a Promise
   const resolvedParams =
     props.params instanceof Promise ? await props.params : props.params;
 
@@ -22,7 +21,7 @@ export default async function EvidenceReviewPage(props: {
 
   const supabase = await supabaseServer();
 
-  // 🔐 Auth check
+  // Auth
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) return null;
 
@@ -37,13 +36,13 @@ export default async function EvidenceReviewPage(props: {
 
   if (!isModerator) return null;
 
-  // 🧠 Parse ID safely
+  // ID parsing
   const evidenceId = parseInt(resolvedParams.id, 10);
   if (Number.isNaN(evidenceId) || evidenceId <= 0) {
     return <div>Invalid evidence ID</div>;
   }
 
-  // 📄 Load evidence + submitter email via FK to users
+  // Evidence + submitter email
   const { data: evidence, error } = await supabase
     .from("evidence")
     .select("*, users ( email )")
@@ -65,7 +64,14 @@ export default async function EvidenceReviewPage(props: {
   const submitterEmail =
     (evidence as any).users?.email ?? "(unknown submitter)";
 
-  // Optional: load related company request for more context
+  // Moderation history
+  const { data: events } = await supabase
+    .from("moderation_events")
+    .select("action, note, moderator_id, created_at")
+    .eq("evidence_id", evidenceId)
+    .order("created_at", { ascending: false });
+
+  // Optional company request context
   let companyName: string | null = null;
   let companySlug: string | null = null;
 
@@ -82,7 +88,7 @@ export default async function EvidenceReviewPage(props: {
     }
   }
 
-  // 🔄 Use shared moderation actions (app/moderation/actions.ts)
+  // Actions
 
   async function handleApprove(formData: FormData) {
     "use server";
@@ -140,6 +146,18 @@ export default async function EvidenceReviewPage(props: {
 
   return (
     <main style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
+      <a
+        href="/moderation"
+        style={{
+          display: "inline-block",
+          marginBottom: 12,
+          fontSize: 13,
+          color: "#2563eb",
+        }}
+      >
+        ← Back to moderation queue
+      </a>
+
       {errorMessage && (
         <section
           style={{
@@ -218,6 +236,57 @@ export default async function EvidenceReviewPage(props: {
         )}
       </section>
 
+      {/* Moderation history */}
+      {events && events.length > 0 && (
+        <section
+          style={{
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 24,
+            background: "#ffffff",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              margin: "0 0 8px",
+            }}
+          >
+            Moderation history
+          </h2>
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: 0,
+              fontSize: 13,
+            }}
+          >
+            {events.map((evt) => (
+              <li
+                key={`${evt.moderator_id}-${evt.created_at}-${evt.action}`}
+                style={{ marginBottom: 6 }}
+              >
+                <strong>{evt.action}</strong> by{" "}
+                <code>{evt.moderator_id}</code> at{" "}
+                {new Date(evt.created_at as any).toLocaleString()}
+                {evt.note && (
+                  <>
+                    {" "}
+                    –{" "}
+                    <span style={{ color: "#4b5563" }}>
+                      {evt.note}
+                    </span>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Self-moderation notice */}
       {isSelfOwned && (
         <section
@@ -251,8 +320,8 @@ export default async function EvidenceReviewPage(props: {
           }}
         >
           This evidence has already been{" "}
-          <strong>{status.toLowerCase()}</strong>. No further moderation actions
-          are available here.
+            <strong>{status.toLowerCase()}</strong>. No further moderation
+            actions are available here.
         </section>
       )}
 
@@ -379,7 +448,7 @@ export default async function EvidenceReviewPage(props: {
         </section>
       )}
 
-      {/* Optional: technical JSON at the bottom */}
+      {/* Technical JSON */}
       <details>
         <summary style={{ cursor: "pointer", fontSize: 13 }}>
           Show technical details (raw JSON)
