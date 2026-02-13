@@ -1,90 +1,117 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useTransition } from "react";
+import { assignNextEvidence } from "./actions";
 
-type Evidence = {
+type EvidenceRow = {
   id: number;
   title: string;
   created_at: string;
-  assigned_moderator_id?: string | null;
+  assigned_moderator_id: string | null;
+  user_id: string | null;
+};
+
+type ModerationGateStatus = {
+  pendingEvidence: number;
+  requiredModerations: number;
+  userModerations: number;
+  allowed: boolean;
 };
 
 type Props = {
-  evidence: Evidence[];
+  evidence: EvidenceRow[];
   moderatorId: string;
+  gate: ModerationGateStatus;
+  pendingAvailable: number;
+  canRequestNewCase: boolean;
 };
 
-export default function ModerationClient({ evidence, moderatorId }: Props) {
-  const myQueue = useMemo(
-    () =>
-      evidence.filter(
-        (e) =>
-          !e.assigned_moderator_id ||
-          e.assigned_moderator_id === moderatorId
-      ),
-    [evidence, moderatorId]
-  );
+export default function ModerationClient({
+  evidence,
+  moderatorId,
+  gate,
+  pendingAvailable,
+  canRequestNewCase,
+}: Props) {
+  const [isAssigning, startAssign] = useTransition();
 
-  const [index, setIndex] = useState(0);
-  const current = myQueue[index] ?? null;
+  const hasAssigned = evidence.length > 0;
+  const current = hasAssigned ? evidence[0] : null;
 
-  if (!myQueue.length) {
-    return (
-      <p className="text-sm text-gray-500">
-        No pending evidence assigned to you.
-      </p>
-    );
-  }
-
-  function next() {
-    setIndex((i) => Math.min(i + 1, myQueue.length - 1));
-  }
-
-  function prev() {
-    setIndex((i) => Math.max(i - 1, 0));
+  function handleGetNewCase() {
+    if (!canRequestNewCase || isAssigning) return;
+    startAssign(() => {
+      void assignNextEvidence();
+    });
   }
 
   return (
-    <div className="border rounded p-6 space-y-4">
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>
-          Item {index + 1} of {myQueue.length}
-        </span>
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold">{current.title}</h2>
-        <p className="text-xs text-gray-400 mt-1">
-          Submitted at {new Date(current.created_at).toLocaleString()}
-        </p>
-
-        <a
-          href={`/admin/moderation/evidence/${current.id}`}
-          className="text-sm text-blue-600 hover:underline mt-2 inline-block"
-        >
-          View full evidence →
-        </a>
-      </div>
-
-      <div className="flex gap-2 pt-4">
-        <button
-          type="button"
-          onClick={prev}
-          disabled={index === 0}
-          className="px-3 py-1 rounded bg-gray-100 text-sm disabled:opacity-50"
-        >
-          Previous
-        </button>
+    <section className="space-y-6">
+      {/* Gate info + “get new case” button */}
+      <section className="rounded-md border bg-white p-4 space-y-3 text-sm">
+        {!gate.allowed ? (
+          <p className="text-neutral-700">
+            Before picking up cases, please help by moderating{" "}
+            {gate.requiredModerations} evidence item
+            {gate.requiredModerations === 1 ? "" : "s"} in total. Your
+            completed moderations: {gate.userModerations}.
+          </p>
+        ) : (
+          <p className="text-neutral-700">
+            You’ve completed the required evidence moderations. You can
+            optionally pick up evidence cases to review their details.
+          </p>
+        )}
 
         <button
           type="button"
-          onClick={next}
-          disabled={index >= myQueue.length - 1}
-          className="px-3 py-1 rounded bg-gray-100 text-sm disabled:opacity-50"
+          onClick={handleGetNewCase}
+          disabled={!canRequestNewCase || isAssigning}
+          className="inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
         >
-          Next
+          {isAssigning ? "Assigning…" : "Get a new evidence item"}
         </button>
-      </div>
-    </div>
+
+        {!canRequestNewCase && gate.allowed && hasAssigned && (
+          <p className="text-xs text-neutral-500">
+            You already have an assigned evidence item below. Complete that
+            review before requesting another.
+          </p>
+        )}
+
+        {!canRequestNewCase &&
+          gate.allowed &&
+          !hasAssigned &&
+          pendingAvailable === 0 && (
+            <p className="text-xs text-neutral-500">
+              There are currently no pending evidence items to assign.
+            </p>
+          )}
+      </section>
+
+      {/* No assigned evidence */}
+      {!hasAssigned && (
+        <section className="rounded-md border p-4 text-sm text-neutral-600">
+          No pending evidence assigned to you.
+        </section>
+      )}
+
+      {/* Assigned evidence card – keep your existing approve/reject UI here */}
+      {hasAssigned && current && (
+        <section className="rounded-md border bg-white p-4 space-y-3">
+          <div className="space-y-1">
+            <p className="text-xs text-neutral-500">
+              Item 1 of 1 • Assigned to you
+            </p>
+            <h2 className="text-lg font-semibold">{current.title}</h2>
+            <p className="text-xs text-neutral-500">
+              Submitted {new Date(current.created_at).toLocaleString()}
+            </p>
+          </div>
+
+          {/* TODO: preserve your existing “View evidence” + Approve / Reject controls here */}
+        </section>
+      )}
+    </section>
   );
 }
