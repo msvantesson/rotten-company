@@ -19,12 +19,14 @@ function adminClient() {
 }
 
 /**
- * Assign the next pending company request (FIFO) to the current moderator.
+ * Assign the next pending evidence request (FIFO) to the current moderator.
  * Only allowed if:
  * - user is logged in
  * - user is in `moderators`
- * - moderation gate status `allowed === true` (i.e. they’ve done their required evidence moderations)
- * - they do NOT already have an assigned pending company request
+ * - moderation gate status `allowed === true`
+ * - they do NOT already have an assigned pending evidence request
+ *
+ * NOTE: name kept as assignNextCompanyRequest so existing imports keep working.
  */
 export async function assignNextCompanyRequest() {
   const supabase = await supabaseServer();
@@ -33,8 +35,8 @@ export async function assignNextCompanyRequest() {
 
   if (!userId) {
     redirect(
-      "/login?reason=moderate-company-requests&message=" +
-        encodeURIComponent("You’ll need an account to access company requests."),
+      "/login?reason=moderate-evidence-requests&message=" +
+        encodeURIComponent("You’ll need an account to access evidence requests."),
     );
   }
 
@@ -57,24 +59,26 @@ export async function assignNextCompanyRequest() {
     redirect("/moderation/company-requests");
   }
 
-  // Do they already have an assigned pending request?
+  // Do they already have an assigned pending evidence request?
   const { data: existing } = await admin
-    .from("company_requests")
+    .from("evidence")
     .select("id")
-    .eq("assigned_moderator_id", userId)
     .eq("status", "pending")
+    .eq("entity_type", "company")
+    .eq("assigned_moderator_id", userId)
     .limit(1);
 
   if (existing && existing.length > 0) {
     redirect("/moderation/company-requests");
   }
 
-  // Claim the oldest unassigned pending request that is not theirs
+  // Claim the oldest unassigned pending evidence request that is not theirs
   const { data: candidate } = await admin
-    .from("company_requests")
+    .from("evidence")
     .select("id")
-    .is("assigned_moderator_id", null)
     .eq("status", "pending")
+    .eq("entity_type", "company")
+    .is("assigned_moderator_id", null)
     .neq("user_id", userId)
     .order("created_at", { ascending: true })
     .limit(1);
@@ -85,7 +89,7 @@ export async function assignNextCompanyRequest() {
   }
 
   await admin
-    .from("company_requests")
+    .from("evidence")
     .update({
       assigned_moderator_id: userId,
       assigned_at: new Date().toISOString(),
