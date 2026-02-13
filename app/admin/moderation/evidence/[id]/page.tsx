@@ -6,13 +6,23 @@ type ParamsShape = { id: string };
 
 export default async function EvidenceReviewPage(props: {
   params: ParamsShape | Promise<ParamsShape>;
+  searchParams?: { [key: string]: string | string[] | undefined };
 }) {
+  // Next 16 quirk: params may be a Promise
   const resolvedParams =
     props.params instanceof Promise ? await props.params : props.params;
 
+  const errorMessageRaw =
+    typeof props.searchParams?.error === "string"
+      ? props.searchParams.error
+      : undefined;
+  const errorMessage = errorMessageRaw
+    ? decodeURIComponent(errorMessageRaw)
+    : null;
+
   const supabase = await supabaseServer();
 
-  // Auth
+  // 🔐 Auth check
   const { data: auth } = await supabase.auth.getUser();
   if (!auth?.user) return null;
 
@@ -27,16 +37,16 @@ export default async function EvidenceReviewPage(props: {
 
   if (!isModerator) return null;
 
-  // Parse ID
+  // 🧠 Parse ID safely
   const evidenceId = parseInt(resolvedParams.id, 10);
   if (Number.isNaN(evidenceId) || evidenceId <= 0) {
     return <div>Invalid evidence ID</div>;
   }
 
-  // Load evidence
+  // 📄 Load evidence + submitter email via FK to users
   const { data: evidence, error } = await supabase
     .from("evidence")
-    .select("*")
+    .select("*, users ( email )")
     .eq("id", evidenceId)
     .maybeSingle();
 
@@ -52,8 +62,27 @@ export default async function EvidenceReviewPage(props: {
   const status: string = evidence.status ?? "pending";
   const isPending = status === "pending";
   const isSelfOwned = evidence.user_id === moderatorId;
+  const submitterEmail =
+    (evidence as any).users?.email ?? "(unknown submitter)";
 
-  // Shared moderation actions
+  // Optional: load related company request for more context
+  let companyName: string | null = null;
+  let companySlug: string | null = null;
+
+  if (evidence.company_request_id) {
+    const { data: companyReq, error: companyErr } = await supabase
+      .from("company_requests")
+      .select("company_name, slug")
+      .eq("id", evidence.company_request_id)
+      .maybeSingle();
+
+    if (!companyErr && companyReq) {
+      companyName = (companyReq as any).company_name ?? null;
+      companySlug = (companyReq as any).slug ?? null;
+    }
+  }
+
+  // 🔄 Use shared moderation actions (app/moderation/actions.ts)
 
   async function handleApprove(formData: FormData) {
     "use server";
@@ -69,12 +98,16 @@ export default async function EvidenceReviewPage(props: {
     fd.set("moderator_id", moderatorId);
     fd.set("moderator_note", note || "approved via admin detail page");
 
-    // This will:
-    // - update evidence status
-    // - enqueue an email to the submitter (including your note)
-    await approveEvidence(fd);
+    const result = await approveEvidence(fd);
 
-    // Back to queue, where item will disappear / move
+    if (!result.ok) {
+      redirect(
+        `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
+          result.error ?? "Unknown error",
+        )}`,
+      );
+    }
+
     redirect("/moderation");
   }
 
@@ -92,23 +125,45 @@ export default async function EvidenceReviewPage(props: {
     fd.set("moderator_id", moderatorId);
     fd.set("moderator_note", note);
 
-    // This will:
-    // - mark evidence as rejected
-    // - enqueue a rejection email including your note
-    await rejectEvidence(fd);
+    const result = await rejectEvidence(fd);
+
+    if (!result.ok) {
+      redirect(
+        `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
+          result.error ?? "Unknown error",
+        )}`,
+      );
+    }
 
     redirect("/moderation");
   }
 
   return (
     <main style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
+      {errorMessage && (
+        <section
+          style={{
+            marginBottom: 16,
+            padding: 10,
+            borderRadius: 6,
+            border: "1px solid #fecaca",
+            background: "#fef2f2",
+            color: "#b91c1c",
+            fontSize: 13,
+          }}
+        >
+          {errorMessage}
+        </section>
+      )}
+
       <header style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
           Moderate Evidence #{evidence.id}
         </h1>
         <p style={{ margin: 0, fontSize: 14, color: "#555" }}>
-          Submitted by <code>{evidence.user_id}</code> · Current status:{" "}
-          <strong>{status.toUpperCase()}</strong>
+          Submitted by <strong>{submitterEmail}</strong>{" "}
+          <span style={{ color: "#9ca3af" }}>({evidence.user_id})</span> ·
+          Current status: <strong>{status.toUpperCase()}</strong>
         </p>
       </header>
 
@@ -129,6 +184,24 @@ export default async function EvidenceReviewPage(props: {
           ID: {evidence.id} · Created at:{" "}
           {new Date(evidence.created_at).toLocaleString()}
         </p>
+
+        {companyName && (
+          <p style={{ margin: "8px 0 0", fontSize: 13 }}>
+            <strong>Company:</strong>{" "}
+            {companySlug ? (
+              <a
+                href={`/company/${companySlug}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "#2563eb" }}
+              >
+                {companyName}
+              </a>
+            ) : (
+              companyName
+            )}
+          </p>
+        )}
 
         {evidence.file_url && (
           <p style={{ marginTop: 8, fontSize: 13 }}>
@@ -176,8 +249,8 @@ export default async function EvidenceReviewPage(props: {
           }}
         >
           This evidence has already been{" "}
-          <strong>{status.toLowerCase()}</strong>. No further moderation
-          actions are available here.
+          <strong>{status.toLowerCase()}</strong>. No further moderation actions
+          are available here.
         </section>
       )}
 
@@ -210,9 +283,9 @@ export default async function EvidenceReviewPage(props: {
             </h2>
             <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>
               Approving will mark this evidence as{" "}
-              <strong>approved</strong> and send a confirmation email to
-              the submitter. Any note you add will be included in the email
-              and stored in the moderation log.
+              <strong>approved</strong> and send a confirmation email to the
+              submitter. Any note you add will be included in the email and
+              stored in the moderation log.
             </p>
             <form action={handleApprove} style={{ display: "grid", gap: 8 }}>
               <label style={{ fontSize: 13 }}>
@@ -264,10 +337,10 @@ export default async function EvidenceReviewPage(props: {
               Reject
             </h2>
             <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>
-              Rejecting will mark this evidence as{" "}
-              <strong>rejected</strong> and send a rejection email to the
-              submitter. Your note is <strong>required</strong> and will be
-              included in the email and moderation log.
+              Rejecting will mark this evidence as <strong>rejected</strong> and
+              send a rejection email to the submitter. Your note is{" "}
+              <strong>required</strong> and will be included in the email and
+              moderation log.
             </p>
             <form action={handleReject} style={{ display: "grid", gap: 8 }}>
               <label style={{ fontSize: 13 }}>
@@ -304,7 +377,7 @@ export default async function EvidenceReviewPage(props: {
         </section>
       )}
 
-      {/* Optional: technical JSON at the bottom instead of dominating the page */}
+      {/* Optional: technical JSON at the bottom */}
       <details>
         <summary style={{ cursor: "pointer", fontSize: 13 }}>
           Show technical details (raw JSON)
