@@ -1,47 +1,50 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { logout } from "@/app/logout/actions";
+import { usePathname } from "next/navigation";
+import { logout } from "@/lib/logout";
+import { getModerationGateStatus } from "@/lib/moderation-guards";
 
-type Props = {
-  email: string | null;
-  isModerator: boolean;
-};
-
-type GateStatus = {
+type ModerationGateStatus = {
   pendingEvidence: number;
   requiredModerations: number;
   userModerations: number;
   allowed: boolean;
 };
 
-async function fetchGateStatus(): Promise<GateStatus | null> {
+async function fetchGateStatus(): Promise<ModerationGateStatus | null> {
   try {
-    const res = await fetch("/api/moderation/gate", {
-      method: "GET",
+    const res = await fetch("/api/moderation/gate-status", {
       credentials: "include",
     });
     if (!res.ok) return null;
-    return (await res.json()) as GateStatus;
+    return (await res.json()) as ModerationGateStatus;
   } catch {
     return null;
   }
 }
 
-export default function NavMenuClient({ email, isModerator }: Props) {
-  const pathname = usePathname();
+export default function NavMenuClient({
+  email,
+  isModerator,
+}: {
+  email: string | null;
+  isModerator: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  const [gate, setGate] = useState<ModerationGateStatus | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const [gate, setGate] = useState<GateStatus | null>(null);
+  const pathname = usePathname();
 
-  // Load moderation gate status for signed‑in users
-  // and refresh it whenever the route changes.
   useEffect(() => {
-    if (!email) return;
+    if (!email || !isModerator) {
+      setGate(null);
+      return;
+    }
+
     void fetchGateStatus().then(setGate);
-  }, [email, pathname]);
+  }, [email, pathname, isModerator]);
 
   useEffect(() => {
     if (!open) return;
@@ -128,7 +131,7 @@ export default function NavMenuClient({ email, isModerator }: Props) {
                 className="block px-3 py-2 hover:bg-gray-100"
                 onClick={() => setOpen(false)}
               >
-                Company requests
+                Evidence requests moderation
               </Link>
             </>
           )}
