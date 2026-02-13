@@ -75,10 +75,16 @@ export default function NavMenuClient({ email, isModerator }: Props) {
   let moderationLine: string | null = null;
   if (gate && isModerator) {
     if (!hasRequirement) {
+      // No backlog at all
       moderationLine = "No pending cases – you’re all caught up.";
+    } else if (moderated === 0) {
+      // Hasn't helped yet; keep it neutral and inviting
+      moderationLine = `You’ve moderated 0 of ${required} required items. Please help by reviewing a couple of cases.`;
     } else if (!hasMetRequirement) {
-      moderationLine = `You’ve moderated ${moderated} of ${required} required items – thanks for helping.`;
+      // Started helping but not at requirement yet
+      moderationLine = `You’ve moderated ${moderated} of ${required} required items – thank you, keep going.`;
     } else {
+      // Requirement met or exceeded
       moderationLine = `You’ve moderated ${moderated} items – thank you for your help.`;
     }
   }
