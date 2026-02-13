@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { logout } from "@/lib/logout";
+import { logout } from "@/app/logout/actions";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
 
 type ModerationGateStatus = {
