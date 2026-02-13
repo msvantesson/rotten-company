@@ -9,9 +9,36 @@ type Props = {
   isModerator: boolean;
 };
 
+type GateStatus = {
+  pendingEvidence: number;
+  requiredModerations: number;
+  userModerations: number;
+  allowed: boolean;
+};
+
+async function fetchGateStatus(): Promise<GateStatus | null> {
+  try {
+    const res = await fetch("/api/moderation/gate", {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as GateStatus;
+  } catch {
+    return null;
+  }
+}
+
 export default function NavMenuClient({ email, isModerator }: Props) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const [gate, setGate] = useState<GateStatus | null>(null);
+
+  // Load moderation gate status once for signed‑in users
+  useEffect(() => {
+    if (!email) return;
+    void fetchGateStatus().then(setGate);
+  }, [email]);
 
   useEffect(() => {
     if (!open) return;
@@ -40,6 +67,22 @@ export default function NavMenuClient({ email, isModerator }: Props) {
     );
   }
 
+  const moderated = gate?.userModerations ?? 0;
+  const required = gate?.requiredModerations ?? 0;
+  const hasRequirement = required > 0;
+  const hasMetRequirement = gate?.allowed ?? false;
+
+  let moderationLine: string | null = null;
+  if (gate && isModerator) {
+    if (!hasRequirement) {
+      moderationLine = "No pending cases – you’re all caught up.";
+    } else if (!hasMetRequirement) {
+      moderationLine = `You’ve moderated ${moderated} of ${required} required items – thanks for helping.`;
+    } else {
+      moderationLine = `You’ve moderated ${moderated} items – thank you for your help.`;
+    }
+  }
+
   return (
     <div className="relative flex items-center" ref={menuRef}>
       <button
@@ -52,12 +95,18 @@ export default function NavMenuClient({ email, isModerator }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-48 rounded-md border bg-white shadow-lg z-50 text-sm">
+        <div className="absolute right-0 top-full mt-2 w-56 rounded-md border bg-white shadow-lg z-50 text-sm">
           <div className="px-3 py-2 border-b text-xs text-gray-500 break-all">
             Signed in as
             <br />
             <span className="font-medium text-gray-800">{email}</span>
           </div>
+
+          {isModerator && moderationLine && (
+            <div className="px-3 py-2 border-b text-xs text-gray-600 leading-snug">
+              {moderationLine}
+            </div>
+          )}
 
           {isModerator && (
             <>
@@ -79,10 +128,7 @@ export default function NavMenuClient({ email, isModerator }: Props) {
             </>
           )}
 
-          <form
-            action={logout}
-            onSubmit={() => setOpen(false)}
-          >
+          <form action={logout} onSubmit={() => setOpen(false)}>
             <button
               type="submit"
               className="w-full text-left block px-3 py-2 text-red-600 hover:bg-gray-100"
