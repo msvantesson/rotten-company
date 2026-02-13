@@ -43,9 +43,11 @@ export default async function ModerationPage() {
 
   if (!moderatorId) {
     return (
-      <main className="max-w-3xl mx-auto py-8">
-        <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
-        <p>You must be logged in to access moderation.</p>
+      <main className="max-w-3xl mx-auto py-8 space-y-6">
+        <section>
+          <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
+          <p>You must be logged in to access moderation.</p>
+        </section>
       </main>
     );
   }
@@ -53,9 +55,11 @@ export default async function ModerationPage() {
   const allowedModerator = await canModerate(moderatorId);
   if (!allowedModerator) {
     return (
-      <main className="max-w-3xl mx-auto py-8">
-        <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
-        <p>You do not have moderator access.</p>
+      <main className="max-w-3xl mx-auto py-8 space-y-6">
+        <section>
+          <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
+          <p>You do not have moderator access.</p>
+        </section>
       </main>
     );
   }
@@ -65,9 +69,7 @@ export default async function ModerationPage() {
 
   const { data: queue, error } = await service
     .from("evidence")
-    .select(
-      "id, title, created_at, assigned_moderator_id, user_id",
-    )
+    .select("id, title, created_at, assigned_moderator_id, user_id")
     .eq("assigned_moderator_id", moderatorId)
     .eq("status", "pending")
     .order("created_at", { ascending: true })
@@ -76,9 +78,11 @@ export default async function ModerationPage() {
   if (error) {
     console.error("[moderation] fetch failed", error);
     return (
-      <main className="max-w-3xl mx-auto py-8">
-        <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
-        <p className="text-red-600">Failed to load moderation queue.</p>
+      <main className="max-w-3xl mx-auto py-8 space-y-6">
+        <section>
+          <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
+          <p className="text-red-600">Failed to load moderation queue.</p>
+        </section>
       </main>
     );
   }
@@ -99,36 +103,42 @@ export default async function ModerationPage() {
     );
   }
 
-  const pendingEvidenceCount = pendingAvailable ?? 0;
-
-  const canRequestNewCase =
-    gate.allowed &&
-    assignedEvidence.length === 0 &&
-    pendingEvidenceCount > 0;
+  const pendingCount = pendingAvailable ?? 0;
 
   return (
-    <main className="max-w-3xl mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-2">Moderation queue</h1>
+    <main className="max-w-3xl mx-auto py-8 space-y-8">
+      {/* Main moderation queue */}
+      <section>
+        <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
+        <ModerationClient
+          assignedEvidence={assignedEvidence}
+          pendingAvailable={pendingCount}
+          gate={gate}
+        />
+      </section>
 
-      <div className="mb-4 p-3 rounded border bg-yellow-50 text-sm">
-        <strong>Debug</strong>
-        <div>SSR user present: {String(!!user)}</div>
-        <div>SSR user id: {moderatorId}</div>
-        <div>
-          Evidence gate: {gate.userModerations} of{" "}
-          {gate.requiredModerations} required moderations (
-          {gate.allowed ? "unlocked" : "locked"})
-        </div>
-        <div>Pending available evidence: {pendingEvidenceCount}</div>
-      </div>
-
-      <ModerationClient
-        evidence={assignedEvidence}
-        moderatorId={moderatorId}
-        gate={gate}
-        pendingAvailable={pendingEvidenceCount}
-        canRequestNewCase={canRequestNewCase}
-      />
+      {/* Extra work: Evidence requests moderation */}
+      <section className="border-t pt-6">
+        <h2 className="text-lg font-semibold mb-2">
+          Extra: Evidence requests moderation
+        </h2>
+        <p className="text-sm text-neutral-700 mb-3">
+          After you&apos;ve worked through the main moderation queue, you can
+          optionally help with extra evidence items in the{" "}
+          <a
+            href="/moderation/company-requests"
+            className="underline text-blue-600 hover:text-blue-800"
+          >
+            Evidence requests moderation
+          </a>{" "}
+          view.
+        </p>
+        <p className="text-xs text-neutral-500">
+          That page shows pending, unassigned evidence submissions as optional
+          extra work. Decisions are still made here in the main moderation
+          queue.
+        </p>
+      </section>
     </main>
   );
 }
