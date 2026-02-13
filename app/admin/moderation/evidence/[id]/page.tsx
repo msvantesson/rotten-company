@@ -218,7 +218,7 @@ export default async function EvidenceReviewPage(props: {
         )}
       </section>
 
-      {/* Self-moderation warning */}
+      {/* Self-moderation notice */}
       {isSelfOwned && (
         <section
           style={{
@@ -231,12 +231,14 @@ export default async function EvidenceReviewPage(props: {
             fontSize: 13,
           }}
         >
-          You submitted this evidence, so you cannot moderate it. Another
-          moderator must review this item.
+          This evidence was submitted by you. Moderators can never review or
+          change their own submissions. Because this item is already{" "}
+          <strong>{status.toLowerCase()}</strong>, its moderation decision
+          cannot be changed here.
         </section>
       )}
 
-      {/* Already moderated */}
+      {/* Already moderated (for non‑self‑owned items) */}
       {!isPending && !isSelfOwned && (
         <section
           style={{
