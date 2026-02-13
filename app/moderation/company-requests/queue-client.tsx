@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { assignNextCompanyRequest } from "./actions";
 
 type CompanyRequestRow = {
@@ -42,14 +42,35 @@ export default function CompanyRequestsQueue({
   canRequestNewCase: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
+  const hasAssigned = !!assignedRequest;
+
+  // Local flag so the button immediately disables after click,
+  // even before the redirect finishes.
+  const [canRequestLocally, setCanRequestLocally] =
+    useState<boolean>(canRequestNewCase);
+
+  useEffect(() => {
+    // If the server says you *cannot* request a new case (e.g. because
+    // you already have one), sync that down into local state.
+    setCanRequestLocally(canRequestNewCase);
+  }, [canRequestNewCase]);
 
   function handleGetNewCase() {
+    if (!canRequestLocally || isPending) return;
+
+    // Immediately prevent further clicks in this session
+    setCanRequestLocally(false);
+
     startTransition(() => {
       void assignNextCompanyRequest();
     });
   }
 
-  const hasAssigned = !!assignedRequest;
+  const showGetNewButton =
+    debug.isModerator &&
+    gate.allowed &&
+    !hasAssigned &&
+    pendingCompanyRequests > 0;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 space-y-8">
@@ -105,27 +126,32 @@ export default function CompanyRequestsQueue({
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={handleGetNewCase}
-            disabled={!canRequestNewCase || isPending}
-            className="mt-1 inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          >
-            {isPending ? "Assigning…" : "Get a new company request"}
-          </button>
+          {showGetNewButton && (
+            <button
+              type="button"
+              onClick={handleGetNewCase}
+              disabled={!canRequestLocally || isPending}
+              className="mt-1 inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              {isPending ? "Assigning…" : "Get a new company request"}
+            </button>
+          )}
 
-          {!canRequestNewCase && gate.allowed && pendingCompanyRequests === 0 && (
+          {!showGetNewButton && gate.allowed && hasAssigned && (
             <p className="text-xs text-neutral-500">
-              There are currently no pending company requests to assign.
+              You already have an assigned company request below. Review its
+              details before requesting another.
             </p>
           )}
 
-          {!canRequestNewCase && gate.allowed && hasAssigned && (
-            <p className="text-xs text-neutral-500">
-              You already have an assigned company request below. Complete or
-              hand it off with an admin before requesting another.
-            </p>
-          )}
+          {!showGetNewButton &&
+            gate.allowed &&
+            !hasAssigned &&
+            pendingCompanyRequests === 0 && (
+              <p className="text-xs text-neutral-500">
+                There are currently no pending company requests to assign.
+              </p>
+            )}
         </section>
       )}
 
@@ -140,7 +166,8 @@ export default function CompanyRequestsQueue({
           <div className="space-y-1">
             <h2 className="text-lg font-semibold">{assignedRequest.name}</h2>
             <p className="text-xs text-neutral-500">
-              Submitted {new Date(assignedRequest.created_at).toLocaleString()}
+              Submitted{" "}
+              {new Date(assignedRequest.created_at).toLocaleString()}
             </p>
           </div>
 
