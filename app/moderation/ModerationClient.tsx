@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 type EvidenceRow = {
   id: number;
   title: string;
@@ -20,7 +22,7 @@ type Props = {
   moderatorId: string;
   gate: ModerationGateStatus;
   pendingAvailable: number;
-  canRequestNewCase: boolean; // still passed from page.tsx, but we'll just show it in debug text
+  canRequestNewCase: boolean;
 };
 
 export default function ModerationClient({
@@ -28,7 +30,6 @@ export default function ModerationClient({
   moderatorId,
   gate,
   pendingAvailable,
-  canRequestNewCase,
 }: Props) {
   const hasAssigned = evidence.length > 0;
   const current = hasAssigned ? evidence[0] : null;
@@ -39,25 +40,23 @@ export default function ModerationClient({
       <section className="rounded-md border bg-white p-4 space-y-3 text-sm">
         {!gate.allowed ? (
           <p className="text-neutral-700">
-            Before helping with company requests, please moderate{" "}
+            Before helping with extra evidence requests, please moderate{" "}
             {gate.requiredModerations} evidence item
             {gate.requiredModerations === 1 ? "" : "s"} in total. You have
             completed {gate.userModerations}.
           </p>
         ) : (
           <p className="text-neutral-700">
-            You’ve completed the required evidence moderations. Further work
-            happens in{" "}
-            <span className="font-medium">Company requests moderation</span>.
-            Use the “Get a new company request” button on that page to pick up
-            new cases.
+            You&apos;ve completed the required evidence moderations. You can
+            continue working through items assigned to you here, and optionally
+            pick up extra cases in{" "}
+            <span className="font-medium">Evidence requests moderation</span>.
           </p>
         )}
 
         <p className="text-xs text-neutral-500">
           Debug: pendingAvailable evidence (unassigned, not yours) ={" "}
-          {pendingAvailable}, canRequestNewCase flag ={" "}
-          {String(canRequestNewCase)} (not used here).
+          {pendingAvailable}.
         </p>
       </section>
 
@@ -68,7 +67,7 @@ export default function ModerationClient({
         </section>
       )}
 
-      {/* Assigned evidence card – keep your existing approve/reject UI here */}
+      {/* Assigned evidence card with link to full moderation UI */}
       {hasAssigned && current && (
         <section className="rounded-md border bg-white p-4 space-y-3">
           <div className="space-y-1">
@@ -81,7 +80,14 @@ export default function ModerationClient({
             </p>
           </div>
 
-          {/* Keep your existing “view evidence / approve / reject” controls here */}
+          <div className="pt-2">
+            <Link
+              href={`/admin/moderation/evidence/${current.id}`}
+              className="inline-flex items-center rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-900"
+            >
+              View evidence &amp; moderate
+            </Link>
+          </div>
         </section>
       )}
     </section>
