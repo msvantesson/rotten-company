@@ -76,7 +76,7 @@ export default async function CompanyRequestsModerationPage() {
 
   const isModerator = !!moderatorRow;
 
-  // Gate status (from evidence moderation)
+  // Evidence moderation gate status
   const gate = await getModerationGateStatus();
 
   // If not a moderator, do NOT expose any requests
@@ -84,11 +84,22 @@ export default async function CompanyRequestsModerationPage() {
   let pendingCount = 0;
 
   if (isModerator && userId) {
-    // How many pending requests exist in total?
-    const { count: pending } = await admin
+    // Count only pending, *unassigned* company requests
+    // that were NOT created by this moderator.
+    const { count: pending, error: pendingErr } = await admin
       .from("company_requests")
       .select("id", { count: "exact", head: true })
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .is("assigned_moderator_id", null)
+      .neq("user_id", userId);
+
+    if (pendingErr) {
+      logDebug(
+        "moderation-company-requests",
+        "company_requests pending count error",
+        pendingErr,
+      );
+    }
 
     pendingCount = pending ?? 0;
 
