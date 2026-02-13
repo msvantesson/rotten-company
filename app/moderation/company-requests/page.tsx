@@ -6,19 +6,15 @@ import { getModerationGateStatus } from "@/lib/moderation-guards";
 
 export const dynamic = "force-dynamic";
 
-type CompanyRequestRow = {
-  id: string;
-  name: string;
-  why: string | null;
+type EvidenceRequestRow = {
+  id: number;
+  title: string;
+  summary: string | null;
   status: string;
   created_at: string;
-  country: string | null;
-  website: string | null;
-  description: string | null;
   user_id: string | null;
-  moderator_id?: string | null;       // existing column in schema
-  decision_reason?: string | null;
-  moderated_at?: string | null;
+  company_id: number | null;
+  evidence_type: string | null;
 };
 
 type DebugInfo = {
@@ -40,10 +36,10 @@ function adminClient() {
   );
 }
 
-export default async function CompanyRequestsModerationPage() {
+export default async function EvidenceRequestsModerationPage() {
   const supabase = await supabaseServer();
 
-  logDebug("moderation-company-requests", "Loading");
+  logDebug("moderation-evidence-requests", "Loading");
 
   const {
     data: { user },
@@ -51,11 +47,7 @@ export default async function CompanyRequestsModerationPage() {
   } = await supabase.auth.getUser();
 
   if (userError) {
-    logDebug(
-      "moderation-company-requests",
-      "auth.getUser error",
-      userError,
-    );
+    logDebug("moderation-evidence-requests", "auth.getUser error", userError);
   }
 
   const userId = user?.id ?? null;
@@ -69,7 +61,7 @@ export default async function CompanyRequestsModerationPage() {
 
   if (moderatorError) {
     logDebug(
-      "moderation-company-requests",
+      "moderation-evidence-requests",
       "moderators lookup error",
       moderatorError,
     );
@@ -81,75 +73,77 @@ export default async function CompanyRequestsModerationPage() {
   const gate = await getModerationGateStatus();
 
   // If not a moderator, do NOT expose any requests
-  let assignedRequest: CompanyRequestRow | null = null;
+  let assignedRequest: EvidenceRequestRow | null = null;
   let pendingCount = 0;
+  let canRequestNewCase = false;
 
   if (isModerator && userId) {
-    // Count only pending company requests that:
-    // - are still pending
-    // - have a real submitter (user_id IS NOT NULL)
-    // - were not submitted by this moderator
-    //
-    // These are the items that are meaningful for moderators to triage.
+    // Count pending "evidence requests":
+    // - status = pending
+    // - company-level evidence (entity_type = 'company')
+    // - not yet assigned to any moderator
+    // - not self-submitted
     const { count: pending, error: pendingErr } = await admin
-      .from("company_requests")
+      .from("evidence")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending")
-      .not("user_id", "is", null)
+      .eq("entity_type", "company")
+      .is("assigned_moderator_id", null)
       .neq("user_id", userId);
 
     if (pendingErr) {
       logDebug(
-        "moderation-company-requests",
-        "company_requests pending count error",
+        "moderation-evidence-requests",
+        "evidence pending count error",
         pendingErr,
       );
     }
 
     pendingCount = pending ?? 0;
 
-    // Find this moderator's assigned pending request (at most 1),
-    // using the existing moderator_id column in the schema.
-    const { data, error } = await admin
-      .from("company_requests")
+    // Does this moderator already have an assigned pending evidence request?
+    const { data: existingAssigned, error: assignedErr } = await admin
+      .from("evidence")
       .select(
-        "id, name, why, status, created_at, country, website, description, user_id, moderator_id, decision_reason, moderated_at",
+        "id, title, summary, status, created_at, user_id, company_id, evidence_type",
       )
-      .eq("moderator_id", userId)
       .eq("status", "pending")
+      .eq("entity_type", "company")
+      .eq("assigned_moderator_id", userId)
       .order("created_at", { ascending: true })
       .limit(1);
 
-    if (error) {
+    if (assignedErr) {
       logDebug(
-        "moderation-company-requests",
-        "company_requests assigned query error",
-        error,
+        "moderation-evidence-requests",
+        "evidence assigned lookup error",
+        assignedErr,
       );
-    } else if (data && data.length > 0) {
-      assignedRequest = data[0] as CompanyRequestRow;
     }
+
+    assignedRequest =
+      existingAssigned && existingAssigned.length > 0
+        ? (existingAssigned[0] as EvidenceRequestRow)
+        : null;
+
+    // You can only request a new case if:
+    // - you are a moderator
+    // - the gate is unlocked
+    // - you don't already have an assigned case
+    canRequestNewCase = gate.allowed && !assignedRequest;
   }
 
   const debug: DebugInfo = {
-    ssrUserPresent: !!userId,
+    ssrUserPresent: !!user,
     ssrUserId: userId,
     isModerator,
   };
-
-  const canRequestNewCase =
-    isModerator && gate.allowed && !assignedRequest && pendingCount > 0;
 
   return (
     <CompanyRequestsQueue
       assignedRequest={assignedRequest}
       debug={debug}
-      gate={{
-        pendingEvidence: gate.pendingEvidence,
-        requiredModerations: gate.requiredModerations,
-        userModerations: gate.userModerations,
-        allowed: gate.allowed,
-      }}
+      gate={gate}
       pendingCompanyRequests={pendingCount}
       canRequestNewCase={canRequestNewCase}
     />
