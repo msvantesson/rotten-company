@@ -16,8 +16,9 @@ type CompanyRequestRow = {
   website: string | null;
   description: string | null;
   user_id: string | null;
-  assigned_moderator_id?: string | null;
-  assigned_at?: string | null;
+  moderator_id?: string | null;       // existing column in schema
+  decision_reason?: string | null;
+  moderated_at?: string | null;
 };
 
 type DebugInfo = {
@@ -84,13 +85,17 @@ export default async function CompanyRequestsModerationPage() {
   let pendingCount = 0;
 
   if (isModerator && userId) {
-    // Count only pending, *unassigned* company requests
-    // that were NOT created by this moderator.
+    // Count only pending company requests that:
+    // - are still pending
+    // - have a real submitter (user_id IS NOT NULL)
+    // - were not submitted by this moderator
+    //
+    // These are the items that are meaningful for moderators to triage.
     const { count: pending, error: pendingErr } = await admin
       .from("company_requests")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending")
-      .is("assigned_moderator_id", null)
+      .not("user_id", "is", null)
       .neq("user_id", userId);
 
     if (pendingErr) {
@@ -103,13 +108,14 @@ export default async function CompanyRequestsModerationPage() {
 
     pendingCount = pending ?? 0;
 
-    // Find this moderator's assigned pending request (at most 1)
+    // Find this moderator's assigned pending request (at most 1),
+    // using the existing moderator_id column in the schema.
     const { data, error } = await admin
       .from("company_requests")
       .select(
-        "id, name, why, status, created_at, country, website, description, user_id, assigned_moderator_id, assigned_at",
+        "id, name, why, status, created_at, country, website, description, user_id, moderator_id, decision_reason, moderated_at",
       )
-      .eq("assigned_moderator_id", userId)
+      .eq("moderator_id", userId)
       .eq("status", "pending")
       .order("created_at", { ascending: true })
       .limit(1);
