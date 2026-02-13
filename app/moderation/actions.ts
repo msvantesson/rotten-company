@@ -48,15 +48,14 @@ async function fetchSubmitterEmail(
     .single();
 
   if (error || !data) {
-    console.error("[moderation] fetchSubmitterEmail failed", { evidenceId, error });
+    console.error("[moderation] fetchSubmitterEmail failed", {
+      evidenceId,
+      error,
+    });
     return { email: null, evidenceTitle: null };
   }
 
-  // If you have a foreign key from evidence.user_id to users.id with a join alias
-  const email =
-    (data as any).users?.email ??
-    null;
-
+  const email = (data as any).users?.email ?? null;
   const evidenceTitle = (data as any).title ?? null;
 
   return { email, evidenceTitle };
@@ -101,7 +100,10 @@ async function fetchEvidenceOwnerId(
     .maybeSingle();
 
   if (error || !data) {
-    console.error("[moderation] fetchEvidenceOwnerId failed", { evidenceId, error });
+    console.error("[moderation] fetchEvidenceOwnerId failed", {
+      evidenceId,
+      error,
+    });
     return null;
   }
 
@@ -109,172 +111,214 @@ async function fetchEvidenceOwnerId(
 }
 
 /**
- * Approve evidence (main moderation flow).
- * NOW enforces: moderator cannot approve their own evidence.
+ * Insert a row into moderation_events for audit logging.
  */
-export async function approveEvidence(formData: FormData): Promise<ActionResult> {
+async function insertModerationEvent(params: {
+  evidenceId: number;
+  moderatorId: string;
+  action: "approved" | "rejected" | "assigned";
+  note?: string | null;
+}) {
+  const supabase = supabaseService();
+  const { evidenceId, moderatorId, action, note } = params;
+
+  const { error } = await supabase.from("moderation_events").insert({
+    evidence_id: evidenceId,
+    moderator_id: moderatorId,
+    action,
+    note: note ?? null,
+  });
+
+  if (error) {
+    console.error("[moderation] insertModerationEvent failed", {
+      evidenceId,
+      moderatorId,
+      action,
+      error,
+    });
+  }
+}
+
+/**
+ * Approve evidence (main moderation flow).
+ * Enforces: moderator cannot approve their own evidence.
+ */
+export async function approveEvidence(
+  formData: FormData,
+): Promise<ActionResult> {
   const supabase = supabaseService();
 
-  const evidenceIdRaw = String(formData.get("evidence_id") ?? "").trim();
-  const evidenceId = Number(evidenceIdRaw);
-  const moderatorNote = String(formData.get("moderator_note") ?? "").trim();
-  const moderatorIdRaw =
-    String(formData.get("moderator_id") ?? "").trim() || null;
+  const evidenceIdRaw = formData.get("evidence_id")?.toString() ?? null;
+  const moderatorIdRaw = formData.get("moderator_id")?.toString() ?? null;
+  const moderatorNote = formData.get("moderator_note")?.toString() ?? "";
 
-  if (!evidenceIdRaw || Number.isNaN(evidenceId)) {
-    return { ok: false, error: "invalid_evidence_id" };
+  const evidenceId = evidenceIdRaw ? Number(evidenceIdRaw) : NaN;
+  if (!evidenceId || Number.isNaN(evidenceId)) {
+    return { ok: false, error: "Invalid evidence ID" };
   }
 
   const moderatorId = await validateModeratorId(moderatorIdRaw);
   if (!moderatorId) {
-    return { ok: false, error: "invalid_moderator" };
+    return { ok: false, error: "Invalid moderator" };
   }
 
-  // 🚫 Prevent self‑moderation: moderator cannot approve their own evidence.
+  // Enforce "cannot moderate own evidence"
   const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
-  if (ownerId && ownerId === moderatorId) {
-    return { ok: false, error: "cannot_moderate_own_evidence" };
+  if (!ownerId) {
+    return { ok: false, error: "Could not resolve evidence owner" };
   }
 
+  if (ownerId === moderatorId) {
+    return {
+      ok: false,
+      error: "Moderators cannot approve their own submissions.",
+    };
+  }
+
+  // Update evidence status
   const { error: updateError } = await supabase
     .from("evidence")
     .update({
       status: "approved",
-      assigned_moderator_id: null,
+      assigned_moderator_id: moderatorId,
+      assigned_at: new Date().toISOString(),
     })
     .eq("id", evidenceId);
 
   if (updateError) {
-    console.error("[moderation] APPROVE update failed", updateError);
-    return { ok: false, error: "update_failed" };
+    console.error("[moderation] approveEvidence update failed", updateError);
+    return { ok: false, error: "Failed to update evidence status" };
   }
 
-  const { error: moderationError } = await supabase
-    .from("moderation_actions")
-    .insert({
-      target_type: "evidence",
-      target_id: String(evidenceId),
-      action: "approve",
-      moderator_note: moderatorNote || "approved",
-      moderator_id: moderatorId,
-      source: "ui",
-    });
+  // Insert audit log entry
+  await insertModerationEvent({
+    evidenceId,
+    moderatorId,
+    action: "approved",
+    note: moderatorNote,
+  });
 
-  if (moderationError) {
-    console.error("[moderation] APPROVE moderation insert failed", moderationError);
-    return { ok: false, error: "moderation_log_failed" };
-  }
-
+  // Notification
   const { email, evidenceTitle } = await fetchSubmitterEmail(
     supabase,
     evidenceId,
   );
 
-  await enqueueNotification(
-    supabase,
-    email,
-    "Your submission was approved",
-    `Hi,
+  const subject = "Your evidence was approved on Rotten Company";
+  const body = [
+    "Hi,",
+    "",
+    `Your evidence "${evidenceTitle ?? "(untitled)"}" has been approved by our moderators and is now live on Rotten Company.`,
+    moderatorNote ? "" : null,
+    moderatorNote
+      ? `Moderator note: "${moderatorNote}"`
+      : null,
+    "",
+    "— Rotten Company",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-Your submission${
-      evidenceTitle ? ` "${evidenceTitle}"` : ""
-    } has been approved.
+  await enqueueNotification(supabase, email, subject, body, {
+    type: "evidence_approved",
+    evidence_id: evidenceId,
+    moderator_id: moderatorId,
+  });
 
-— Rotten Company`,
-    { evidenceId, action: "approve" },
-  );
-
+  // Revalidate relevant paths
   revalidatePath("/moderation");
+  revalidatePath("/my/evidence");
   return { ok: true };
 }
 
 /**
  * Reject evidence (main moderation flow).
- * NOW enforces: moderator cannot reject their own evidence.
+ * Enforces: moderator cannot reject their own evidence.
  */
-export async function rejectEvidence(formData: FormData): Promise<ActionResult> {
+export async function rejectEvidence(
+  formData: FormData,
+): Promise<ActionResult> {
   const supabase = supabaseService();
 
-  const evidenceIdRaw = String(formData.get("evidence_id") ?? "").trim();
-  const evidenceId = Number(evidenceIdRaw);
-  const moderatorNote = String(formData.get("moderator_note") ?? "").trim();
-  const moderatorIdRaw =
-    String(formData.get("moderator_id") ?? "").trim() || null;
+  const evidenceIdRaw = formData.get("evidence_id")?.toString() ?? null;
+  const moderatorIdRaw = formData.get("moderator_id")?.toString() ?? null;
+  const moderatorNote = formData.get("moderator_note")?.toString() ?? "";
 
-  if (!evidenceIdRaw || Number.isNaN(evidenceId)) {
-    return { ok: false, error: "invalid_evidence_id" };
-  }
-
-  if (!moderatorNote) {
-    return { ok: false, error: "moderator_note_required" };
+  const evidenceId = evidenceIdRaw ? Number(evidenceIdRaw) : NaN;
+  if (!evidenceId || Number.isNaN(evidenceId)) {
+    return { ok: false, error: "Invalid evidence ID" };
   }
 
   const moderatorId = await validateModeratorId(moderatorIdRaw);
   if (!moderatorId) {
-    return { ok: false, error: "invalid_moderator" };
+    return { ok: false, error: "Invalid moderator" };
   }
 
-  // 🚫 Prevent self‑moderation: moderator cannot reject their own evidence.
   const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
-  if (ownerId && ownerId === moderatorId) {
-    return { ok: false, error: "cannot_moderate_own_evidence" };
+  if (!ownerId) {
+    return { ok: false, error: "Could not resolve evidence owner" };
   }
 
-  // 1. Fetch submitter email BEFORE status update
+  if (ownerId === moderatorId) {
+    return {
+      ok: false,
+      error: "Moderators cannot reject their own submissions.",
+    };
+  }
+
+  if (!moderatorNote.trim()) {
+    return {
+      ok: false,
+      error: "Rejection reason is required.",
+    };
+  }
+
+  const { error: updateError } = await supabase
+    .from("evidence")
+    .update({
+      status: "rejected",
+      assigned_moderator_id: moderatorId,
+      assigned_at: new Date().toISOString(),
+    })
+    .eq("id", evidenceId);
+
+  if (updateError) {
+    console.error("[moderation] rejectEvidence update failed", updateError);
+    return { ok: false, error: "Failed to update evidence status" };
+  }
+
+  // Insert audit log entry
+  await insertModerationEvent({
+    evidenceId,
+    moderatorId,
+    action: "rejected",
+    note: moderatorNote,
+  });
+
   const { email, evidenceTitle } = await fetchSubmitterEmail(
     supabase,
     evidenceId,
   );
 
-  // 2. Update evidence status
-  const { error: updateError } = await supabase
-    .from("evidence")
-    .update({
-      status: "rejected",
-      assigned_moderator_id: null,
-    })
-    .eq("id", evidenceId);
+  const subject = "Your evidence was rejected on Rotten Company";
+  const body = [
+    "Hi,",
+    "",
+    `Your evidence "${evidenceTitle ?? "(untitled)"}" was reviewed by our moderators but was not approved.`,
+    "",
+    "Reason for rejection:",
+    moderatorNote,
+    "",
+    "— Rotten Company",
+  ].join("\n");
 
-  if (updateError) {
-    console.error("[moderation] REJECT update failed", updateError);
-    return { ok: false, error: "update_failed" };
-  }
-
-  // 3. Log moderation action
-  const { error: moderationError } = await supabase
-    .from("moderation_actions")
-    .insert({
-      target_type: "evidence",
-      target_id: String(evidenceId),
-      action: "reject",
-      moderator_note: moderatorNote,
-      moderator_id: moderatorId,
-      source: "ui",
-    });
-
-  if (moderationError) {
-    console.error("[moderation] REJECT moderation insert failed", moderationError);
-    return { ok: false, error: "moderation_log_failed" };
-  }
-
-  // 4. Enqueue rejection notification
-  await enqueueNotification(
-    supabase,
-    email,
-    "Your submission was rejected",
-    `Hi,
-
-Your submission${
-      evidenceTitle ? ` "${evidenceTitle}"` : ""
-    } has been rejected.
-
-Moderator note:
-${moderatorNote}
-
-— Rotten Company`,
-    { evidenceId, action: "reject" },
-  );
+  await enqueueNotification(supabase, email, subject, body, {
+    type: "evidence_rejected",
+    evidence_id: evidenceId,
+    moderator_id: moderatorId,
+  });
 
   revalidatePath("/moderation");
+  revalidatePath("/my/evidence");
   return { ok: true };
 }
