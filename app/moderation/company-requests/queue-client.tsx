@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useTransition } from "react";
+import { assignNextCompanyRequest } from "./actions";
 
 type CompanyRequestRow = {
   id: string;
@@ -20,84 +21,44 @@ type DebugInfo = {
   isModerator: boolean;
 };
 
+type GateStatus = {
+  pendingEvidence: number;
+  requiredModerations: number;
+  userModerations: number;
+  allowed: boolean;
+};
+
 export default function CompanyRequestsQueue({
-  initialRequests,
+  assignedRequest,
   debug,
+  gate,
+  pendingCompanyRequests,
+  canRequestNewCase,
 }: {
-  initialRequests: CompanyRequestRow[];
+  assignedRequest: CompanyRequestRow | null;
   debug: DebugInfo;
+  gate: GateStatus;
+  pendingCompanyRequests: number;
+  canRequestNewCase: boolean;
 }) {
-  const [requests, setRequests] = useState<CompanyRequestRow[]>(initialRequests);
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isPending, startTransition] = useTransition();
 
-  function updateNote(id: string, value: string) {
-    setNotes((prev) => ({ ...prev, [id]: value }));
+  function handleGetNewCase() {
+    startTransition(() => {
+      void assignNextCompanyRequest();
+    });
   }
 
-  async function act(action: "approve" | "reject" | "skip", id: string) {
-    if (!debug.isModerator) {
-      setErrors((prev) => ({ ...prev, [id]: "Not a moderator." }));
-      return;
-    }
-
-    const note = notes[id]?.trim() ?? "";
-
-    if (action === "reject" && !note) {
-      setErrors((prev) => ({
-        ...prev,
-        [id]: "Moderator note is required for rejection.",
-      }));
-      return;
-    }
-
-    setBusyId(id);
-    setErrors((prev) => ({ ...prev, [id]: "" }));
-
-    try {
-      if (action === "skip") {
-        setRequests((prev) => prev.filter((r) => r.id !== id));
-        setBusyId(null);
-        return;
-      }
-
-      const res = await fetch(`/api/moderation/company-requests/${action}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          moderator_note: note || null,
-        }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        setErrors((prev) => ({
-          ...prev,
-          [id]: text || `Failed to ${action}`,
-        }));
-        setBusyId(null);
-        return;
-      }
-
-      setRequests((prev) => prev.filter((r) => r.id !== id));
-      setBusyId(null);
-    } catch (e: any) {
-      setErrors((prev) => ({
-        ...prev,
-        [id]: e?.message ?? "Unknown error",
-      }));
-      setBusyId(null);
-    }
-  }
+  const hasAssigned = !!assignedRequest;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 space-y-8">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold">Company requests moderation</h1>
+        <h1 className="text-2xl font-semibold">
+          Company requests moderation
+        </h1>
         <p className="text-sm text-neutral-600">
-          Review contributor requests for new companies.
+          Read-only triage view for contributor requests to add new companies.
         </p>
       </header>
 
@@ -112,6 +73,13 @@ export default function CompanyRequestsQueue({
         <p className="text-xs text-neutral-600">
           isModerator: {String(debug.isModerator)}
         </p>
+        <p className="text-xs text-neutral-600">
+          Evidence gate: {gate.userModerations} of {gate.requiredModerations}{" "}
+          required moderations ({gate.allowed ? "unlocked" : "locked"})
+        </p>
+        <p className="text-xs text-neutral-600">
+          Pending company requests: {pendingCompanyRequests}
+        </p>
       </section>
 
       {!debug.isModerator && (
@@ -121,73 +89,107 @@ export default function CompanyRequestsQueue({
         </section>
       )}
 
-      {requests.length === 0 && (
-        <section className="rounded-md border p-4 text-sm text-neutral-600">
-          No pending company requests.
+      {debug.isModerator && (
+        <section className="rounded-md border bg-white p-4 space-y-3 text-sm">
+          {!gate.allowed ? (
+            <p className="text-neutral-700">
+              Company requests are optional extra work. First, help by
+              moderating {gate.requiredModerations} evidence item
+              {gate.requiredModerations === 1 ? "" : "s"} in the main{" "}
+              <span className="font-medium">Moderation</span> queue.
+            </p>
+          ) : (
+            <p className="text-neutral-700">
+              You’ve completed the required evidence moderations. You can
+              optionally pick up company request cases to review their details.
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={handleGetNewCase}
+            disabled={!canRequestNewCase || isPending}
+            className="mt-1 inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            {isPending ? "Assigning…" : "Get a new company request"}
+          </button>
+
+          {!canRequestNewCase && gate.allowed && pendingCompanyRequests === 0 && (
+            <p className="text-xs text-neutral-500">
+              There are currently no pending company requests to assign.
+            </p>
+          )}
+
+          {!canRequestNewCase && gate.allowed && hasAssigned && (
+            <p className="text-xs text-neutral-500">
+              You already have an assigned company request below. Complete or
+              hand it off with an admin before requesting another.
+            </p>
+          )}
         </section>
       )}
 
-      {requests.length > 0 && (
-        <section className="space-y-6">
-          {requests.map((r) => (
-            <div
-              key={r.id}
-              className="rounded-md border bg-white p-4 space-y-3"
-            >
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold">{r.name}</h2>
-                <p className="text-xs text-neutral-500">
-                  Submitted {new Date(r.created_at).toLocaleString()}
-                </p>
-              </div>
+      {debug.isModerator && !hasAssigned && pendingCompanyRequests === 0 && (
+        <section className="rounded-md border p-4 text-sm text-neutral-600">
+          No pending company requests right now.
+        </section>
+      )}
 
-              {r.why && (
-                <p className="text-sm text-neutral-800 whitespace-pre-wrap">
-                  {r.why}
-                </p>
-              )}
+      {debug.isModerator && hasAssigned && assignedRequest && (
+        <section className="space-y-3 rounded-md border bg-white p-4">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold">{assignedRequest.name}</h2>
+            <p className="text-xs text-neutral-500">
+              Submitted {new Date(assignedRequest.created_at).toLocaleString()}
+            </p>
+          </div>
 
-              <textarea
-                className="w-full rounded-md border px-3 py-2 text-sm min-h-[80px]"
-                placeholder="Moderator note (required for rejection)"
-                value={notes[r.id] ?? ""}
-                onChange={(e) => updateNote(r.id, e.target.value)}
-                disabled={busyId === r.id || !debug.isModerator}
-              />
+          {assignedRequest.country && (
+            <p className="text-xs text-neutral-600">
+              Country: {assignedRequest.country}
+            </p>
+          )}
 
-              {errors[r.id] && (
-                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-                  {errors[r.id]}
-                </div>
-              )}
+          {assignedRequest.website && (
+            <p className="text-xs text-neutral-600">
+              Website:{" "}
+              <a
+                href={assignedRequest.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 underline"
+              >
+                {assignedRequest.website}
+              </a>
+            </p>
+          )}
 
-              <div className="flex gap-2">
-                <button
-                  className="rounded-md bg-emerald-600 px-3 py-2 text-sm text-white disabled:opacity-50"
-                  onClick={() => act("approve", r.id)}
-                  disabled={busyId === r.id || !debug.isModerator}
-                >
-                  Approve
-                </button>
-
-                <button
-                  className="rounded-md bg-red-600 px-3 py-2 text-sm text-white disabled:opacity-50"
-                  onClick={() => act("reject", r.id)}
-                  disabled={busyId === r.id || !debug.isModerator}
-                >
-                  Reject
-                </button>
-
-                <button
-                  className="rounded-md border px-3 py-2 text-sm disabled:opacity-50"
-                  onClick={() => act("skip", r.id)}
-                  disabled={busyId === r.id || !debug.isModerator}
-                >
-                  Skip
-                </button>
-              </div>
+          {assignedRequest.why && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-neutral-600">
+                Why this company?
+              </p>
+              <p className="text-sm text-neutral-800 whitespace-pre-wrap">
+                {assignedRequest.why}
+              </p>
             </div>
-          ))}
+          )}
+
+          {assignedRequest.description && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-neutral-600">
+                Additional details
+              </p>
+              <p className="text-sm text-neutral-800 whitespace-pre-wrap">
+                {assignedRequest.description}
+              </p>
+            </div>
+          )}
+
+          <p className="text-xs text-neutral-500 italic">
+            This page is read-only. Admins can use this context when deciding
+            whether and how to create a new company entry.
+          </p>
         </section>
       )}
     </main>
