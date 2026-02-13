@@ -1,28 +1,30 @@
 import { headers } from "next/headers";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
-import { canModerate } from "@/lib/moderation-guards";
+import { canModerate, getModerationGateStatus } from "@/lib/moderation-guards";
 import ModerationClient from "./ModerationClient";
+import { releaseExpiredEvidenceAssignments } from "@/lib/release-expired-evidence";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
+type EvidenceRow = {
+  id: number;
+  title: string;
+  created_at: string;
+  assigned_moderator_id: string | null;
+  user_id: string | null;
+};
+
 export default async function ModerationPage() {
-  // ─────────────────────────────────────────────
-  // BUILD‑TIME GUARD
-  // ─────────────────────────────────────────────
   const hdrs = await headers();
   const isBuildTime = hdrs.get("x-vercel-id") === null;
+  if (isBuildTime) return null;
 
-  if (isBuildTime) {
-    return null;
-  }
+  // Release assignments older than 8 hours
+  await releaseExpiredEvidenceAssignments(60 * 8);
 
-  // ─────────────────────────────────────────────
-  // USER AUTH (COOKIE‑SCOPED)
-  // ─────────────────────────────────────────────
   const userClient = await supabaseServer();
-
   const {
     data: { user },
     error: userError,
@@ -48,12 +50,8 @@ export default async function ModerationPage() {
     );
   }
 
-  // ─────────────────────────────────────────────
-  // MODERATOR GATE (EXPLICIT AUTHORITY ROLE)
-  // ─────────────────────────────────────────────
-  const allowed = await canModerate(moderatorId);
-
-  if (!allowed) {
+  const allowedModerator = await canModerate(moderatorId);
+  if (!allowedModerator) {
     return (
       <main className="max-w-3xl mx-auto py-8">
         <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
@@ -62,47 +60,14 @@ export default async function ModerationPage() {
     );
   }
 
-  // ─────────────────────────────────────────────
-  // SERVICE‑ROLE CLIENT (QUEUE + ASSIGNMENT)
-  // ─────────────────────────────────────────────
+  const gate = await getModerationGateStatus();
   const service = supabaseService();
 
-  // Step 1 — already assigned (and not mine)
-  const { data: assigned } = await service
-    .from("evidence")
-    .select("id")
-    .eq("assigned_moderator_id", moderatorId)
-    .eq("status", "pending")
-    // IMPORTANT: do not keep self-assigned items in the queue
-    .neq("user_id", moderatorId)
-    .order("created_at", { ascending: true })
-    .limit(1);
-
-  // Step 2 — claim one if none assigned
-  if (!assigned || assigned.length === 0) {
-    const { data: unassigned } = await service
-      .from("evidence")
-      .select("id")
-      .is("assigned_moderator_id", null)
-      .eq("status", "pending")
-      // IMPORTANT: never assign the moderator their own submissions
-      .neq("user_id", moderatorId)
-      .order("created_at", { ascending: true })
-      .limit(1);
-
-    if (unassigned && unassigned.length > 0) {
-      await service
-        .from("evidence")
-        .update({ assigned_moderator_id: moderatorId })
-        .eq("id", unassigned[0].id)
-        .is("assigned_moderator_id", null);
-    }
-  }
-
-  // Step 3 — fetch final queue (max 1 for now)
   const { data: queue, error } = await service
     .from("evidence")
-    .select("id, title, created_at, assigned_moderator_id")
+    .select(
+      "id, title, created_at, assigned_moderator_id, user_id",
+    )
     .eq("assigned_moderator_id", moderatorId)
     .eq("status", "pending")
     .order("created_at", { ascending: true })
@@ -118,9 +83,29 @@ export default async function ModerationPage() {
     );
   }
 
-  // ──────────────────────────────────────��──────
-  // RENDER
-  // ─────────────────────────────────────────────
+  const assignedEvidence: EvidenceRow[] = queue ?? [];
+
+  const { count: pendingAvailable, error: pendingErr } = await service
+    .from("evidence")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending")
+    .is("assigned_moderator_id", null)
+    .neq("user_id", moderatorId);
+
+  if (pendingErr) {
+    console.error(
+      "[moderation] pending available evidence count failed",
+      pendingErr,
+    );
+  }
+
+  const pendingEvidenceCount = pendingAvailable ?? 0;
+
+  const canRequestNewCase =
+    gate.allowed &&
+    assignedEvidence.length === 0 &&
+    pendingEvidenceCount > 0;
+
   return (
     <main className="max-w-3xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-2">Moderation queue</h1>
@@ -129,9 +114,21 @@ export default async function ModerationPage() {
         <strong>Debug</strong>
         <div>SSR user present: {String(!!user)}</div>
         <div>SSR user id: {moderatorId}</div>
+        <div>
+          Evidence gate: {gate.userModerations} of{" "}
+          {gate.requiredModerations} required moderations (
+          {gate.allowed ? "unlocked" : "locked"})
+        </div>
+        <div>Pending available evidence: {pendingEvidenceCount}</div>
       </div>
 
-      <ModerationClient evidence={queue ?? []} moderatorId={moderatorId} />
+      <ModerationClient
+        evidence={assignedEvidence}
+        moderatorId={moderatorId}
+        gate={gate}
+        pendingAvailable={pendingEvidenceCount}
+        canRequestNewCase={canRequestNewCase}
+      />
     </main>
   );
 }
