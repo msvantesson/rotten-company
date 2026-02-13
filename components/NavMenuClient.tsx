@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { logout } from "@/app/logout/actions";
 
@@ -30,15 +31,17 @@ async function fetchGateStatus(): Promise<GateStatus | null> {
 }
 
 export default function NavMenuClient({ email, isModerator }: Props) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [gate, setGate] = useState<GateStatus | null>(null);
 
-  // Load moderation gate status once for signed‑in users
+  // Load moderation gate status for signed‑in users
+  // and refresh it whenever the route changes.
   useEffect(() => {
     if (!email) return;
     void fetchGateStatus().then(setGate);
-  }, [email]);
+  }, [email, pathname]);
 
   useEffect(() => {
     if (!open) return;
@@ -75,16 +78,12 @@ export default function NavMenuClient({ email, isModerator }: Props) {
   let moderationLine: string | null = null;
   if (gate && isModerator) {
     if (!hasRequirement) {
-      // No backlog at all
       moderationLine = "No pending cases – you’re all caught up.";
     } else if (moderated === 0) {
-      // Hasn't helped yet; keep it neutral and inviting
       moderationLine = `You’ve moderated 0 of ${required} required items. Please help by reviewing a couple of cases.`;
     } else if (!hasMetRequirement) {
-      // Started helping but not at requirement yet
       moderationLine = `You’ve moderated ${moderated} of ${required} required items – thank you, keep going.`;
     } else {
-      // Requirement met or exceeded
       moderationLine = `You’ve moderated ${moderated} items – thank you for your help.`;
     }
   }
