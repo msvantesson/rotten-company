@@ -1,13 +1,12 @@
 import { headers } from "next/headers";
-import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
-import ModerationClient from "./ModerationClient";
 import { supabaseServer } from "@/lib/supabase-server";
-import {
-  getModerationGateStatus,
-  canModerate,
-} from "@/lib/moderation-guards";
-import { releaseExpiredEvidenceAssignments } from "./actions";
+import { supabaseService } from "@/lib/supabase-service";
+import { canModerate, getModerationGateStatus } from "@/lib/moderation-guards";
+import ModerationClient from "./ModerationClient";
+import { releaseExpiredEvidenceAssignments } from "@/lib/release-expired-evidence";
+
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 type EvidenceRow = {
   id: number;
@@ -18,15 +17,13 @@ type EvidenceRow = {
 };
 
 export default async function ModerationPage() {
-  // Avoid rendering at build time
   const hdrs = await headers();
   const isBuildTime = hdrs.get("x-vercel-id") === null;
   if (isBuildTime) return null;
 
-  // Release old assignments (keeps the queue healthy)
+  // Release assignments older than 8 hours
   await releaseExpiredEvidenceAssignments(60 * 8);
 
-  // Server-side auth client (reads cookies)
   const userClient = await supabaseServer();
   const {
     data: { user },
@@ -55,7 +52,6 @@ export default async function ModerationPage() {
     );
   }
 
-  // Ensure the user is in the moderators table
   const allowedModerator = await canModerate(moderatorId);
   if (!allowedModerator) {
     return (
@@ -68,23 +64,10 @@ export default async function ModerationPage() {
     );
   }
 
-  // Get gate status (counts pending evidence, required moderations, user moderations)
   const gate = await getModerationGateStatus();
+  const service = supabaseService();
 
-  // Use a service-role client for assignment / counts that must bypass RLS
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    },
-  );
-
-  // Fetch any evidence already assigned to this moderator (limit 1 shown in UI)
-  const { data: queue, error } = await admin
+  const { data: queue, error } = await service
     .from("evidence")
     .select("id, title, created_at, assigned_moderator_id, user_id")
     .eq("assigned_moderator_id", moderatorId)
@@ -104,14 +87,12 @@ export default async function ModerationPage() {
     );
   }
 
-  let assignedEvidence: EvidenceRow[] = (queue ?? []) as EvidenceRow[];
+  let assignedEvidence: EvidenceRow[] = queue ?? [];
 
-  // === AUTO-ASSIGNMENT: give new moderators items so they can reach required moderations ===
-  // Behavior:
-  // - If the moderator currently has fewer moderations than requiredModerations
-  //   and they have no assigned pending evidence, we auto-assign up to
-  //   (requiredModerations - userModerations) items from unassigned pending evidence
-  //   (excluding evidence they submitted).
+  // === AUTO-ASSIGNMENT ===
+  // If the moderator has no assigned pending evidence and they haven't yet
+  // completed the required moderations, automatically assign them up to
+  // (requiredModerations - userModerations) items from unassigned pending evidence.
   try {
     const userModerations = gate.userModerations ?? 0;
     const requiredModerations = gate.requiredModerations ?? 0;
@@ -120,8 +101,8 @@ export default async function ModerationPage() {
     const hasAssigned = assignedEvidence.length > 0;
 
     if (!hasAssigned && needs > 0) {
-      // Pick oldest candidates (not submitted by this moderator)
-      const { data: candidates, error: candErr } = await admin
+      // Select oldest unassigned pending items not submitted by this moderator
+      const { data: candidates, error: candErr } = await service
         .from("evidence")
         .select("id")
         .eq("status", "pending")
@@ -132,11 +113,11 @@ export default async function ModerationPage() {
 
       if (candErr) {
         console.error("[moderation] candidate lookup failed", candErr);
-      } else if (candidates && candidates.length > 0) {
+      } else if (candidates && (candidates as any[]).length > 0) {
         const ids = (candidates as any[]).map((c) => c.id);
 
         // Claim them — update will only affect rows still unassigned
-        const { error: updErr } = await admin
+        const { error: updErr } = await service
           .from("evidence")
           .update({
             assigned_moderator_id: moderatorId,
@@ -148,8 +129,8 @@ export default async function ModerationPage() {
         if (updErr) {
           console.error("[moderation] auto-assign update failed", updErr);
         } else {
-          // Re-fetch assigned evidence so UI shows newly claimed item
-          const { data: newQueue, error: newQueueErr } = await admin
+          // Re-fetch assigned evidence so UI shows the newly claimed item
+          const { data: newQueue, error: newQueueErr } = await service
             .from("evidence")
             .select("id, title, created_at, assigned_moderator_id, user_id")
             .eq("assigned_moderator_id", moderatorId)
@@ -169,8 +150,7 @@ export default async function ModerationPage() {
     console.error("[moderation] auto-assign exception", e);
   }
 
-  // Count pending available evidence (unassigned and not owned by the moderator)
-  const { count: pendingAvailable, error: pendingErr } = await admin
+  const { count: pendingAvailable, error: pendingErr } = await service
     .from("evidence")
     .select("id", { count: "exact", head: true })
     .eq("status", "pending")
@@ -186,13 +166,10 @@ export default async function ModerationPage() {
 
   const pendingCount = pendingAvailable ?? 0;
 
-  // canRequestNewCase historically tracks whether the moderator can click
-  // "Get new case" (we keep true here; UI/assign handler will also enforce server rules)
   const canRequestNewCase = true;
 
   return (
     <main className="max-w-3xl mx-auto py-8 space-y-8">
-      {/* Main moderation queue */}
       <section>
         <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
 
@@ -207,7 +184,6 @@ export default async function ModerationPage() {
 
       <hr />
 
-      {/* Extra evidence requests moderation info */}
       <section>
         <h2 className="text-xl font-semibold">Extra: Evidence requests moderation</h2>
         <p className="text-sm text-neutral-600">
