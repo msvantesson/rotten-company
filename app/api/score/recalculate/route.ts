@@ -28,10 +28,9 @@ export async function POST() {
     // Recalculate scores for each company
     // Note: This endpoint currently does not perform actual score recalculation.
     // Implementation needed: Import and call the score calculation function for each company.
-    for (const c of companies) {
+    for (const _c of companies) {
       // TODO: Implement score recalculation
-      // Example: await computeRottenScore({ companyId: c.id, ... });
-      void c; // Placeholder to avoid unused variable warning
+      // Example: await computeRottenScore({ companyId: _c.id, ... });
     }
 
     return NextResponse.json(
