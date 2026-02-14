@@ -12,15 +12,9 @@ type Props = {
 export default function EvidenceAnchorButton({ id, className, children }: Props) {
   const href = `/my-evidence/${id}`;
 
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    // Browser console log to verify id and href before navigation
-    console.log("[EvidenceAnchorButton] clicked, id:", id, "href:", href);
-  };
-
   return (
     <a
       href={href}
-      onClick={handleClick}
       className={className}
       style={{ textDecoration: "none", display: "inline-block" }}
       aria-label={`Open evidence ${id}`}

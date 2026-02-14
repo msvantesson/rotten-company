@@ -37,8 +37,6 @@ export type CompanyWithRelations = {
 export async function getCompanyBySlug(
   slug: string
 ): Promise<CompanyWithRelations | null> {
-  console.log("🔍 getCompanyBySlug →", slug);
-
   //
   // STEP 1 — Load company
   //
