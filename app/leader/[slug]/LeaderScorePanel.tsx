@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { getMacroTier } from "@/lib/flavor-engine";
 
 interface LeaderScorePanelProps {
   name: string;
@@ -47,7 +48,7 @@ export default function LeaderScorePanel(props: LeaderScorePanelProps) {
     payRatio
   } = props;
 
-  const flavorTier = getFlavorTier(finalScore);
+  const flavorTier = getMacroTier(finalScore);
 
   return (
     <div className="w-full space-y-8">
@@ -72,11 +73,4 @@ function BreakdownItem({ label, value, tooltip }: {
   );
 }
 
-function getFlavorTier(score: number): string {
-  if (score <= 10) return "Fresh";
-  if (score <= 30) return "Slightly Rotten";
-  if (score <= 50) return "Rotten";
-  if (score <= 70) return "Deeply Rotten";
-  if (score <= 90) return "Working for the Empire";
-  return "Working for Satan";
-}
+

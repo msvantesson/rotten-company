@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { clamp } from "@/lib/utils/math";
 
 function cx(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
@@ -11,15 +12,8 @@ type ScoreMeterProps = {
   className?: string;
 };
 
-function clampScore(score: number): number {
-  if (Number.isNaN(score)) return 0;
-  if (score < 0) return 0;
-  if (score > 100) return 100;
-  return score;
-}
-
 export default function ScoreMeter({ score, className }: ScoreMeterProps) {
-  const clamped = clampScore(score);
+  const clamped = clamp(score, 0, 100);
 
   let colorClass = "bg-yellow-500";
   if (clamped >= 70) colorClass = "bg-red-500";
