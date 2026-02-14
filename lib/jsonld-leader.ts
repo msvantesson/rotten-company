@@ -1,5 +1,7 @@
 // /lib/jsonld-leader.ts
 
+import { JSONLD_CONTEXT, createIdentityUrl, createEntityUrl, createPropertyValue } from "@/lib/utils/jsonld";
+
 export function buildLeaderJsonLd({
   leader,
   score,
@@ -28,74 +30,44 @@ export function buildLeaderJsonLd({
     severity: string;
   }[];
 }) {
-  const baseUrl = "https://rotten-company.com";
-
   return {
-    "@context": "https://schema.org",
+    "@context": JSONLD_CONTEXT,
     "@type": "Person",
-    "@id": `${baseUrl}/leader/${leader.slug}#identity`,
+    "@id": createIdentityUrl("leader", leader.slug),
     name: leader.name,
     jobTitle: leader.role ?? undefined,
-    url: `${baseUrl}/leader/${leader.slug}`,
+    url: createEntityUrl("leader", leader.slug),
 
     worksFor: leader.company_id
       ? {
           "@type": "Organization",
-          "@id": `${baseUrl}/company/${leader.company_id}#identity`,
+          "@id": createIdentityUrl("company", leader.company_id),
           name: leader.company_name ?? "",
-          url: `${baseUrl}/company/${leader.company_id}`,
+          url: createEntityUrl("company", leader.company_id.toString()),
         }
       : undefined,
 
     identifier: [
-      {
-        "@type": "PropertyValue",
-        name: "leaderId",
-        value: leader.id,
-      },
+      createPropertyValue("leaderId", leader.id),
     ],
 
     additionalProperty: [
-      {
-        "@type": "PropertyValue",
-        name: "finalScore",
-        value: score.final_score,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "rawScore",
-        value: score.raw_score,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "directEvidenceScore",
-        value: score.direct_evidence_score,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "inequalityScore",
-        value: score.inequality_score,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "companyInfluenceScore",
-        value: score.company_rotten_score,
-      },
+      createPropertyValue("finalScore", score.final_score),
+      createPropertyValue("rawScore", score.raw_score),
+      createPropertyValue("directEvidenceScore", score.direct_evidence_score),
+      createPropertyValue("inequalityScore", score.inequality_score),
+      createPropertyValue("companyInfluenceScore", score.company_rotten_score),
     ],
 
     hasPart: evidence.map((ev) => ({
       "@type": "CreativeWork",
-      "@id": `${baseUrl}/evidence/${ev.id}#identity`,
+      "@id": createIdentityUrl("evidence", ev.id),
       name: ev.title,
       description: ev.summary,
-      url: `${baseUrl}/evidence/${ev.id}`,
+      url: createEntityUrl("evidence", ev.id.toString()),
       about: ev.category,
       additionalProperty: [
-        {
-          "@type": "PropertyValue",
-          name: "severity",
-          value: ev.severity,
-        },
+        createPropertyValue("severity", ev.severity),
       ],
     })),
   };
