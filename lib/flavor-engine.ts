@@ -15,6 +15,7 @@
 //
 
 import { FLAVOR_TEXT_BY_SCORE } from "@/lib/micro-flavors";
+import { clamp } from "@/lib/utils/math";
 
 //
 // Types
@@ -39,7 +40,7 @@ export type RottenFlavor = {
  * - Falls back to a generic line if somehow missing
  */
 export function getMicroFlavor(score: number): string {
-  const clamped = Math.max(0, Math.min(100, score));
+  const clamped = clamp(score, 0, 100);
   const rounded = Math.round(clamped);
 
   return (
@@ -65,7 +66,7 @@ export function getMicroFlavor(score: number): string {
  * 95–100 Working for Satan
  */
 export function getMacroTier(score: number): string {
-  const clamped = Math.max(0, Math.min(100, score));
+  const clamped = clamp(score, 0, 100);
 
   if (clamped >= 95) {
     return "Working for Satan";
@@ -138,7 +139,7 @@ export function getCategoryFlavor(categoryId: number): string {
  * - 90–100 deep hell red
  */
 export function getScoreColor(score: number): string {
-  const clamped = Math.max(0, Math.min(100, score));
+  const clamped = clamp(score, 0, 100);
 
   if (clamped >= 90) return "#8B0000"; // deep hell red
   if (clamped >= 75) return "#B22222"; // imperial red
@@ -166,7 +167,7 @@ export function getScoreColor(score: number): string {
  * - the color for the meter
  */
 export function getRottenFlavor(score: number): RottenFlavor {
-  const clamped = Math.max(0, Math.min(100, score));
+  const clamped = clamp(score, 0, 100);
   const roundedScore = Math.round(clamped);
 
   const microFlavor = getMicroFlavor(clamped);

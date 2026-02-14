@@ -14,6 +14,7 @@
  */
 
 import { FLAVOR_TEXT_BY_SCORE } from "./micro-flavors";
+import { clamp } from "./utils/math";
 
 
 // ---------- Category taxonomy ----------
@@ -343,10 +344,6 @@ function computeBaseCategoryScore(categories: CategoryScoreInput[]): number {
 
   // Because weights sum to 1.0, total is already in [0, 100].
   return total;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
 
 /**

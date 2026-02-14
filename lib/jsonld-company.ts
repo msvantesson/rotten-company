@@ -1,6 +1,7 @@
 // /lib/jsonld-company.ts
 
 import { getRottenFlavor, getCategoryFlavor } from "@/lib/flavor-engine";
+import { JSONLD_CONTEXT, createEntityUrl, createPropertyValue } from "@/lib/utils/jsonld";
 
 type CategoryBreakdownJsonLd = {
   category_id: number;
@@ -66,12 +67,12 @@ export function buildCompanyJsonLd({
     "Low";
 
   return {
-    "@context": "https://schema.org",
+    "@context": JSONLD_CONTEXT,
     "@type": "Organization",
 
     // Identity
     name: company.name,
-    url: `https://rotten-company.com/company/${company.slug}`,
+    url: createEntityUrl("company", company.slug),
     description: microFlavor,
     industry: company.industry ?? undefined,
     numberOfEmployees: company.size_employees ?? undefined,
@@ -105,23 +106,11 @@ export function buildCompanyJsonLd({
       ownershipSignals?.map((s) => ({
         "@type": "Organization",
         name: s.owner_name,
-        url: `https://rotten-company.com/owner/${s.owner_slug}`,
+        url: createEntityUrl("owner", s.owner_slug),
         additionalProperty: [
-          {
-            "@type": "PropertyValue",
-            name: "ownerProfile",
-            value: s.owner_profile ?? null,
-          },
-          {
-            "@type": "PropertyValue",
-            name: "signalType",
-            value: s.signal_type,
-          },
-          {
-            "@type": "PropertyValue",
-            name: "signalSeverity",
-            value: s.severity,
-          },
+          createPropertyValue("ownerProfile", s.owner_profile ?? null),
+          createPropertyValue("signalType", s.signal_type),
+          createPropertyValue("signalSeverity", s.severity),
         ],
       })) ?? [],
 

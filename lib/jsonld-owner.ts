@@ -1,5 +1,7 @@
 // /lib/jsonld-owner.ts
 
+import { JSONLD_CONTEXT, createIdentityUrl, createEntityUrl, createPropertyValue } from "@/lib/utils/jsonld";
+
 type OwnerJsonLdInput = {
   owner: {
     id: number;
@@ -32,40 +34,30 @@ export function buildOwnerJsonLd({
   signals,
   avgDestructionLever,
 }: OwnerJsonLdInput) {
-  const baseUrl = "https://rotten-company.com";
-
   const schemaType =
     owner.type === "individual" ? "Person" : "Organization";
 
   return {
-    "@context": "https://schema.org",
+    "@context": JSONLD_CONTEXT,
     "@type": schemaType,
-    "@id": `${baseUrl}/owner/${owner.slug}#identity`,
+    "@id": createIdentityUrl("owner", owner.slug),
 
     name: owner.name,
-    url: `${baseUrl}/owner/${owner.slug}`,
+    url: createEntityUrl("owner", owner.slug),
     description:
       owner.profile ??
       `Portfolio accountability profile for ${owner.name}.`,
 
     identifier: [
-      {
-        "@type": "PropertyValue",
-        name: "ownerId",
-        value: owner.id,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "ownerType",
-        value: owner.type,
-      },
+      createPropertyValue("ownerId", owner.id),
+      createPropertyValue("ownerType", owner.type),
     ],
 
     owns: portfolio.map((p) => ({
       "@type": "Organization",
-      "@id": `${baseUrl}/company/${p.company.slug}#identity`,
+      "@id": createIdentityUrl("company", p.company.slug),
       name: p.company.name,
-      url: `${baseUrl}/company/${p.company.slug}`,
+      url: createEntityUrl("company", p.company.slug),
     })),
 
     aggregateRating: {
@@ -77,27 +69,11 @@ export function buildOwnerJsonLd({
     numberOfEmployees: breakdown?.total_employees ?? undefined,
 
     additionalProperty: [
-      {
-        "@type": "PropertyValue",
-        name: "portfolioCompanyCount",
-        value: breakdown?.company_count ?? portfolio.length,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "totalEvidence",
-        value: breakdown?.total_evidence ?? undefined,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "avgDestructionLever",
-        value: avgDestructionLever ?? undefined,
-      },
+      createPropertyValue("portfolioCompanyCount", breakdown?.company_count ?? portfolio.length),
+      createPropertyValue("totalEvidence", breakdown?.total_evidence ?? undefined),
+      createPropertyValue("avgDestructionLever", avgDestructionLever ?? undefined),
     ],
 
-    hasPart: signals.map((s) => ({
-      "@type": "PropertyValue",
-      name: s.signal_type,
-      value: s.severity,
-    })),
+    hasPart: signals.map((s) => createPropertyValue(s.signal_type, s.severity)),
   };
 }
