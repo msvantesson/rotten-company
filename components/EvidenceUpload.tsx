@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
@@ -22,7 +22,7 @@ const MAX_PDF_SIZE = 8 * 1024 * 1024;
 
 export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadProps) {
   const router = useRouter();
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = supabaseBrowser();
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");

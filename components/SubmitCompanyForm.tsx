@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
@@ -15,7 +15,7 @@ const COUNTRIES = [
 
 export default function SubmitCompanyForm() {
   const router = useRouter();
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = supabaseBrowser();
 
   const [name, setName] = useState("");
   const [country, setCountry] = useState<string>("");
