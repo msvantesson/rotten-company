@@ -44,7 +44,7 @@ export default async function CompanyRequestReviewPage(props: {
   // Fetch company request + submitter email
   const { data: companyRequest, error } = await supabase
     .from("company_requests")
-    .select("*, users ( email )")
+    .select("*, submitter:users!company_requests_user_id_fkey(email)")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -64,7 +64,7 @@ export default async function CompanyRequestReviewPage(props: {
   const isPending = status === "pending";
   const isSelfOwned = companyRequest.user_id === moderatorId;
   const submitterEmail =
-    (companyRequest as any).users?.email ?? "(unknown submitter)";
+    (companyRequest as any).submitter?.email ?? "(unknown submitter)";
 
   // Moderation history from moderation_actions table
   const { data: actions } = await supabase
