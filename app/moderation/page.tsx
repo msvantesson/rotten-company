@@ -108,7 +108,7 @@ export default async function ModerationPage() {
         .select("id")
         .eq("status", "pending")
         .is("assigned_moderator_id", null)
-        .neq("user_id", moderatorId)
+        .or(`user_id.is.null,user_id.neq.${moderatorId}`)
         .order("created_at", { ascending: true })
         .limit(needs);
 
@@ -140,7 +140,10 @@ export default async function ModerationPage() {
             .limit(1);
 
           if (newQueueErr) {
-            console.error("[moderation] refetch after auto-assign failed", newQueueErr);
+            console.error(
+              "[moderation] refetch after auto-assign failed",
+              newQueueErr,
+            );
           } else if (newQueue) {
             assignedEvidence = newQueue as EvidenceRow[];
           }
@@ -156,13 +159,10 @@ export default async function ModerationPage() {
     .select("id", { count: "exact", head: true })
     .eq("status", "pending")
     .is("assigned_moderator_id", null)
-    .neq("user_id", moderatorId);
+    .or(`user_id.is.null,user_id.neq.${moderatorId}`);
 
   if (pendingErr) {
-    console.error(
-      "[moderation] pending available evidence count failed",
-      pendingErr,
-    );
+    console.error("[moderation] pending available evidence count failed", pendingErr);
   }
 
   const pendingCount = pendingAvailable ?? 0;
@@ -186,19 +186,24 @@ export default async function ModerationPage() {
       <hr />
 
       <section>
-        <h2 className="text-xl font-semibold">Extra: Evidence requests moderation</h2>
+        <h2 className="text-xl font-semibold">
+          Extra: Evidence requests moderation
+        </h2>
         <p className="text-sm text-neutral-600">
-          After you've worked through the main moderation queue, you can optionally help with extra
-          evidence items in the{" "}
-          <Link href="/moderation/company-requests" className="text-blue-700 hover:underline">
+          After you've worked through the main moderation queue, you can
+          optionally help with extra evidence items in the{" "}
+          <Link
+            href="/moderation/company-requests"
+            className="text-blue-700 hover:underline"
+          >
             Evidence requests moderation
           </Link>{" "}
           view.
         </p>
 
         <p className="mt-4 text-xs text-neutral-500">
-          That page shows pending, unassigned evidence submissions as optional extra work.
-          Decisions are still made in the main moderation queue.
+          That page shows pending, unassigned evidence submissions as optional
+          extra work. Decisions are still made in the main moderation queue.
         </p>
       </section>
     </main>
