@@ -78,12 +78,18 @@ export default async function EvidenceRequestsModerationPage() {
   let canRequestNewCase = false;
 
   if (isModerator && userId) {
+    // "Company-level evidence" filter:
+    // - entity_type = 'company'
+    // - OR legacy rows: entity_type IS NULL but company_id is present
+    const companyEvidenceFilter =
+      "entity_type.eq.company,and(entity_type.is.null,company_id.not.is.null)";
+
     // Pending unassigned EVIDENCE requests (company-level evidence)
     const { count: pendingEvidence, error: pendingEvidenceErr } = await admin
       .from("evidence")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending")
-      .eq("entity_type", "company")
+      .or(companyEvidenceFilter)
       .is("assigned_moderator_id", null)
       // exclude self-submitted; include unknown submitters
       .or(`user_id.is.null,user_id.neq.${userId}`);
@@ -123,7 +129,7 @@ export default async function EvidenceRequestsModerationPage() {
           "id, title, summary, status, created_at, user_id, company_id, evidence_type",
         )
         .eq("status", "pending")
-        .eq("entity_type", "company")
+        .or(companyEvidenceFilter)
         .eq("assigned_moderator_id", userId)
         .order("created_at", { ascending: true })
         .limit(1);
@@ -160,7 +166,8 @@ export default async function EvidenceRequestsModerationPage() {
 
     const hasAssignedEvidence = !!assignedRequest;
     const hasAssignedCompanyRequest =
-      Array.isArray(existingAssignedCompanyReq) && existingAssignedCompanyReq.length > 0;
+      Array.isArray(existingAssignedCompanyReq) &&
+      existingAssignedCompanyReq.length > 0;
 
     const hasAnyAssigned = hasAssignedEvidence || hasAssignedCompanyRequest;
 
