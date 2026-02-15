@@ -88,6 +88,10 @@ async function enqueueNotification(
 /**
  * Fetch the owner (submitter) of a piece of evidence.
  * Used to enforce that moderators cannot act on their own submissions.
+ *
+ * IMPORTANT:
+ * Historical/synthetic evidence rows may have user_id = NULL.
+ * In that case we cannot enforce "no self-moderation" by owner id.
  */
 async function fetchEvidenceOwnerId(
   supabase: ReturnType<typeof supabaseService>,
@@ -141,11 +145,9 @@ async function insertModerationEvent(params: {
 
 /**
  * Approve evidence (main moderation flow).
- * Enforces: moderator cannot approve their own evidence.
+ * Enforces: moderator cannot approve their own evidence (when owner is known).
  */
-export async function approveEvidence(
-  formData: FormData,
-): Promise<ActionResult> {
+export async function approveEvidence(formData: FormData): Promise<ActionResult> {
   const supabase = supabaseService();
 
   const evidenceIdRaw = formData.get("evidence_id")?.toString() ?? null;
@@ -162,13 +164,9 @@ export async function approveEvidence(
     return { ok: false, error: "Invalid moderator" };
   }
 
-  // Enforce "cannot moderate own evidence"
+  // Enforce "cannot moderate own evidence" (only when owner is known)
   const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
-  if (!ownerId) {
-    return { ok: false, error: "Could not resolve evidence owner" };
-  }
-
-  if (ownerId === moderatorId) {
+  if (ownerId && ownerId === moderatorId) {
     return {
       ok: false,
       error: "Moderators cannot approve their own submissions.",
@@ -198,11 +196,8 @@ export async function approveEvidence(
     note: moderatorNote,
   });
 
-  // Notification
-  const { email, evidenceTitle } = await fetchSubmitterEmail(
-    supabase,
-    evidenceId,
-  );
+  // Notification (will no-op if submitter email cannot be resolved)
+  const { email, evidenceTitle } = await fetchSubmitterEmail(supabase, evidenceId);
 
   const subject = "Your evidence was approved on Rotten Company";
   const body = [
@@ -210,9 +205,7 @@ export async function approveEvidence(
     "",
     `Your evidence "${evidenceTitle ?? "(untitled)"}" has been approved by our moderators and is now live on Rotten Company.`,
     moderatorNote ? "" : null,
-    moderatorNote
-      ? `Moderator note: "${moderatorNote}"`
-      : null,
+    moderatorNote ? `Moderator note: "${moderatorNote}"` : null,
     "",
     "— Rotten Company",
   ]
@@ -233,11 +226,9 @@ export async function approveEvidence(
 
 /**
  * Reject evidence (main moderation flow).
- * Enforces: moderator cannot reject their own evidence.
+ * Enforces: moderator cannot reject their own evidence (when owner is known).
  */
-export async function rejectEvidence(
-  formData: FormData,
-): Promise<ActionResult> {
+export async function rejectEvidence(formData: FormData): Promise<ActionResult> {
   const supabase = supabaseService();
 
   const evidenceIdRaw = formData.get("evidence_id")?.toString() ?? null;
@@ -254,12 +245,9 @@ export async function rejectEvidence(
     return { ok: false, error: "Invalid moderator" };
   }
 
+  // Enforce "cannot moderate own evidence" (only when owner is known)
   const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
-  if (!ownerId) {
-    return { ok: false, error: "Could not resolve evidence owner" };
-  }
-
-  if (ownerId === moderatorId) {
+  if (ownerId && ownerId === moderatorId) {
     return {
       ok: false,
       error: "Moderators cannot reject their own submissions.",
@@ -295,10 +283,7 @@ export async function rejectEvidence(
     note: moderatorNote,
   });
 
-  const { email, evidenceTitle } = await fetchSubmitterEmail(
-    supabase,
-    evidenceId,
-  );
+  const { email, evidenceTitle } = await fetchSubmitterEmail(supabase, evidenceId);
 
   const subject = "Your evidence was rejected on Rotten Company";
   const body = [
