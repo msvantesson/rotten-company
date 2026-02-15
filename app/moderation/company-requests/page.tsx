@@ -78,17 +78,14 @@ export default async function EvidenceRequestsModerationPage() {
   let canRequestNewCase = false;
 
   if (isModerator && userId) {
-    // Count pending "evidence requests":
-    // - status = pending
-    // - company-level evidence (entity_type = 'company')
-    // - not yet assigned to any moderator
-    // - not self-submitted (allow unknown submitters)
+    // Pending unassigned EVIDENCE requests (company-level evidence)
     const { count: pendingEvidence, error: pendingEvidenceErr } = await admin
       .from("evidence")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending")
       .eq("entity_type", "company")
       .is("assigned_moderator_id", null)
+      // exclude self-submitted; include unknown submitters
       .or(`user_id.is.null,user_id.neq.${userId}`);
 
     if (pendingEvidenceErr) {
@@ -99,15 +96,13 @@ export default async function EvidenceRequestsModerationPage() {
       );
     }
 
-    // Count pending "company requests":
-    // - status = pending
-    // - not yet assigned to any moderator
-    // - not self-submitted (allow unknown submitters)
+    // Pending unassigned COMPANY_REQUESTS
     const { count: pendingCompanyRequests, error: pendingCompanyErr } = await admin
       .from("company_requests")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending")
       .is("assigned_moderator_id", null)
+      // exclude self-submitted; include unknown submitters
       .or(`user_id.is.null,user_id.neq.${userId}`);
 
     if (pendingCompanyErr) {
@@ -120,43 +115,60 @@ export default async function EvidenceRequestsModerationPage() {
 
     pendingCount = (pendingEvidence ?? 0) + (pendingCompanyRequests ?? 0);
 
-    // Does this moderator already have an assigned pending evidence request?
-    const { data: existingAssigned, error: assignedErr } = await admin
-      .from("evidence")
-      .select(
-        "id, title, summary, status, created_at, user_id, company_id, evidence_type",
-      )
-      .eq("status", "pending")
-      .eq("entity_type", "company")
-      .eq("assigned_moderator_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1);
+    // Assigned pending EVIDENCE request for this moderator?
+    const { data: existingAssignedEvidence, error: assignedEvidenceErr } =
+      await admin
+        .from("evidence")
+        .select(
+          "id, title, summary, status, created_at, user_id, company_id, evidence_type",
+        )
+        .eq("status", "pending")
+        .eq("entity_type", "company")
+        .eq("assigned_moderator_id", userId)
+        .order("created_at", { ascending: true })
+        .limit(1);
 
-    if (assignedErr) {
+    if (assignedEvidenceErr) {
       logDebug(
         "moderation-evidence-requests",
         "evidence assigned lookup error",
-        assignedErr,
+        assignedEvidenceErr,
       );
     }
 
     assignedRequest =
-      existingAssigned && existingAssigned.length > 0
-        ? (existingAssigned[0] as EvidenceRequestRow)
+      existingAssignedEvidence && existingAssignedEvidence.length > 0
+        ? (existingAssignedEvidence[0] as EvidenceRequestRow)
         : null;
+
+    // Assigned pending COMPANY_REQUEST for this moderator?
+    const { data: existingAssignedCompanyReq, error: assignedCompanyReqErr } =
+      await admin
+        .from("company_requests")
+        .select("id")
+        .eq("status", "pending")
+        .eq("assigned_moderator_id", userId)
+        .limit(1);
+
+    if (assignedCompanyReqErr) {
+      logDebug(
+        "moderation-evidence-requests",
+        "company_requests assigned lookup error",
+        assignedCompanyReqErr,
+      );
+    }
+
+    const hasAssignedEvidence = !!assignedRequest;
+    const hasAssignedCompanyRequest =
+      Array.isArray(existingAssignedCompanyReq) && existingAssignedCompanyReq.length > 0;
+
+    const hasAnyAssigned = hasAssignedEvidence || hasAssignedCompanyRequest;
 
     // You can only request a new case if:
     // - you are a moderator
     // - the gate is unlocked
-    // - you don't already have an assigned case (evidence case)
-    //
-    // NOTE: We are still only checking assigned evidence here. If your RPC
-    // assigns a company_request to a moderator, the redirect will take them to
-    // /admin/moderation/company-requests/[id] (once implemented), but this page
-    // currently won't detect that as "already assigned".
-    // If you want strict 1-case-at-a-time across both kinds, we can add a check
-    // for assigned company_requests too.
-    canRequestNewCase = gate.allowed && !assignedRequest;
+    // - you don't already have an assigned case (either kind)
+    canRequestNewCase = gate.allowed && !hasAnyAssigned;
   }
 
   const debug: DebugInfo = {
