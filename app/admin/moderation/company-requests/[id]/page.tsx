@@ -238,13 +238,10 @@ export default async function CompanyRequestReviewPage(props: {
         `Your request to add "${cr.name}" has been approved and is now live on Rotten Company.`,
         "",
         `Slug: ${company.slug}`,
-        note ? "" : null,
-        note ? `Moderator note: "${note}"` : null,
+        ...(note ? ["", `Moderator note: "${note}"`] : []),
         "",
         "— Rotten Company",
-      ]
-        .filter((line) => line !== null)
-        .join("\n");
+      ].join("\n");
 
       await service.from("notification_jobs").insert({
         recipient_email: contributorEmail,
