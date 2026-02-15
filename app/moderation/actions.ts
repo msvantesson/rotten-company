@@ -151,22 +151,49 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
   const supabase = supabaseService();
 
   const evidenceIdRaw = formData.get("evidence_id")?.toString() ?? null;
-  const moderatorIdRaw = formData.get("moderator_id")?.toString() ?? null;
   const moderatorNote = formData.get("moderator_note")?.toString() ?? "";
 
   const evidenceId = evidenceIdRaw ? Number(evidenceIdRaw) : NaN;
   if (!evidenceId || Number.isNaN(evidenceId)) {
+    console.warn("[moderation] approveEvidence: Invalid evidence ID", { evidenceIdRaw });
     return { ok: false, error: "Invalid evidence ID" };
   }
 
-  const moderatorId = await validateModeratorId(moderatorIdRaw);
-  if (!moderatorId) {
-    return { ok: false, error: "Invalid moderator" };
+  // Get moderator ID from authenticated session
+  const authSupabase = await supabaseServer();
+  const { data: authData } = await authSupabase.auth.getUser();
+  
+  if (!authData?.user) {
+    console.warn("[moderation] approveEvidence: Not authenticated");
+    return { ok: false, error: "Not authenticated" };
   }
+
+  const userId = authData.user.id;
+
+  // Validate that the authenticated user is a moderator
+  const { data: moderatorData, error: moderatorError } = await supabase
+    .from("moderators")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (moderatorError || !moderatorData) {
+    console.warn("[moderation] approveEvidence: User is not a moderator", { 
+      userId, 
+      error: moderatorError 
+    });
+    return { ok: false, error: "Not authorized as moderator" };
+  }
+
+  const moderatorId = moderatorData.user_id;
 
   // Enforce "cannot moderate own evidence" (only when owner is known)
   const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
   if (ownerId && ownerId === moderatorId) {
+    console.warn("[moderation] approveEvidence: Moderator cannot approve own submission", {
+      evidenceId,
+      moderatorId,
+    });
     return {
       ok: false,
       error: "Moderators cannot approve their own submissions.",
@@ -184,7 +211,11 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
     .eq("id", evidenceId);
 
   if (updateError) {
-    console.error("[moderation] approveEvidence update failed", updateError);
+    console.error("[moderation] approveEvidence update failed", { 
+      evidenceId,
+      moderatorId,
+      error: updateError 
+    });
     return { ok: false, error: "Failed to update evidence status" };
   }
 
@@ -232,22 +263,49 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
   const supabase = supabaseService();
 
   const evidenceIdRaw = formData.get("evidence_id")?.toString() ?? null;
-  const moderatorIdRaw = formData.get("moderator_id")?.toString() ?? null;
   const moderatorNote = formData.get("moderator_note")?.toString() ?? "";
 
   const evidenceId = evidenceIdRaw ? Number(evidenceIdRaw) : NaN;
   if (!evidenceId || Number.isNaN(evidenceId)) {
+    console.warn("[moderation] rejectEvidence: Invalid evidence ID", { evidenceIdRaw });
     return { ok: false, error: "Invalid evidence ID" };
   }
 
-  const moderatorId = await validateModeratorId(moderatorIdRaw);
-  if (!moderatorId) {
-    return { ok: false, error: "Invalid moderator" };
+  // Get moderator ID from authenticated session
+  const authSupabase = await supabaseServer();
+  const { data: authData } = await authSupabase.auth.getUser();
+  
+  if (!authData?.user) {
+    console.warn("[moderation] rejectEvidence: Not authenticated");
+    return { ok: false, error: "Not authenticated" };
   }
+
+  const userId = authData.user.id;
+
+  // Validate that the authenticated user is a moderator
+  const { data: moderatorData, error: moderatorError } = await supabase
+    .from("moderators")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (moderatorError || !moderatorData) {
+    console.warn("[moderation] rejectEvidence: User is not a moderator", { 
+      userId, 
+      error: moderatorError 
+    });
+    return { ok: false, error: "Not authorized as moderator" };
+  }
+
+  const moderatorId = moderatorData.user_id;
 
   // Enforce "cannot moderate own evidence" (only when owner is known)
   const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
   if (ownerId && ownerId === moderatorId) {
+    console.warn("[moderation] rejectEvidence: Moderator cannot reject own submission", {
+      evidenceId,
+      moderatorId,
+    });
     return {
       ok: false,
       error: "Moderators cannot reject their own submissions.",
@@ -255,6 +313,10 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
   }
 
   if (!moderatorNote.trim()) {
+    console.warn("[moderation] rejectEvidence: Rejection reason required", {
+      evidenceId,
+      moderatorId,
+    });
     return {
       ok: false,
       error: "Rejection reason is required.",
@@ -271,7 +333,11 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
     .eq("id", evidenceId);
 
   if (updateError) {
-    console.error("[moderation] rejectEvidence update failed", updateError);
+    console.error("[moderation] rejectEvidence update failed", {
+      evidenceId,
+      moderatorId,
+      error: updateError,
+    });
     return { ok: false, error: "Failed to update evidence status" };
   }
 

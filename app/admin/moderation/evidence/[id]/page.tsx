@@ -101,7 +101,6 @@ export default async function EvidenceReviewPage(props: {
 
     const fd = new FormData();
     fd.set("evidence_id", String(evidenceId));
-    fd.set("moderator_id", moderatorId);
     fd.set("moderator_note", note || "approved via admin detail page");
 
     const result = await approveEvidence(fd);
@@ -128,7 +127,6 @@ export default async function EvidenceReviewPage(props: {
 
     const fd = new FormData();
     fd.set("evidence_id", String(evidenceId));
-    fd.set("moderator_id", moderatorId);
     fd.set("moderator_note", note);
 
     const result = await rejectEvidence(fd);
