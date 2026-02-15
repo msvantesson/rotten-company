@@ -18,16 +18,8 @@ function adminClient() {
   );
 }
 
-/**
- * Assign the next pending evidence request (FIFO) to the current moderator.
- * Only allowed if:
- * - user is logged in
- * - user is in `moderators`
- * - moderation gate status `allowed === true`
- * - they do NOT already have an assigned pending evidence request
- *
- * NOTE: name kept as assignNextCompanyRequest so existing imports keep working.
- */
+type ClaimRow = { kind: "evidence" | "company_request"; item_id: string };
+
 export async function assignNextCompanyRequest() {
   const supabase = await supabaseServer();
   const { data: auth } = await supabase.auth.getUser();
@@ -42,60 +34,65 @@ export async function assignNextCompanyRequest() {
 
   const gate = await getModerationGateStatus();
   if (!gate.allowed) {
-    // They haven’t done required evidence moderations; just bounce back.
     redirect("/moderation/company-requests");
   }
 
   const admin = adminClient();
 
   // Check moderator role
-  const { data: modRow } = await admin
+  const { data: modRow, error: modErr } = await admin
     .from("moderators")
     .select("user_id")
     .eq("user_id", userId)
     .maybeSingle();
 
+  if (modErr) {
+    console.error("[assignNextCompanyRequest] moderators lookup error", modErr);
+    redirect("/moderation/company-requests");
+  }
+
   if (!modRow) {
     redirect("/moderation/company-requests");
   }
 
-  // Do they already have an assigned pending evidence request?
-  const { data: existing } = await admin
+  // If they already have an assigned pending evidence item, bounce back (keep current behavior)
+  // (Later we can expand this to also check assigned company_requests.)
+  const { data: existingEvidence, error: existingErr } = await admin
     .from("evidence")
     .select("id")
     .eq("status", "pending")
-    .eq("entity_type", "company")
     .eq("assigned_moderator_id", userId)
     .limit(1);
 
-  if (existing && existing.length > 0) {
+  if (existingErr) {
+    console.error("[assignNextCompanyRequest] existing evidence lookup error", existingErr);
+  }
+
+  if (existingEvidence && existingEvidence.length > 0) {
     redirect("/moderation/company-requests");
   }
 
-  // Claim the oldest unassigned pending evidence request that is not theirs
-  const { data: candidate } = await admin
-    .from("evidence")
-    .select("id")
-    .eq("status", "pending")
-    .eq("entity_type", "company")
-    .is("assigned_moderator_id", null)
-    .neq("user_id", userId)
-    .order("created_at", { ascending: true })
-    .limit(1);
+  // RPC: claim the next moderation item (atomic in DB)
+  const { data, error } = await admin.rpc("claim_next_moderation_item", {
+    p_moderator_id: userId,
+  });
 
-  if (!candidate || candidate.length === 0) {
-    // Nothing to assign
+  if (error) {
+    console.error("[assignNextCompanyRequest] claim_next_moderation_item error", error);
     redirect("/moderation/company-requests");
   }
 
-  await admin
-    .from("evidence")
-    .update({
-      assigned_moderator_id: userId,
-      assigned_at: new Date().toISOString(),
-    })
-    .eq("id", candidate[0].id)
-    .is("assigned_moderator_id", null);
+  const row: ClaimRow | null = Array.isArray(data) && data.length > 0 ? data[0] : null;
 
-  redirect("/moderation/company-requests");
+  if (!row) {
+    // Nothing available
+    redirect("/moderation/company-requests");
+  }
+
+  if (row.kind === "evidence") {
+    redirect(`/admin/moderation/evidence/${row.item_id}`);
+  }
+
+  // Company request moderation detail page (we’ll add next)
+  redirect(`/admin/moderation/company-requests/${row.item_id}`);
 }
