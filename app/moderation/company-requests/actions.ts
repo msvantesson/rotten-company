@@ -55,8 +55,7 @@ export async function assignNextCompanyRequest() {
     redirect("/moderation/company-requests");
   }
 
-  // If they already have an assigned pending evidence item, bounce back (keep current behavior)
-  // (Later we can expand this to also check assigned company_requests.)
+  // If they already have an assigned pending evidence item, bounce back
   const { data: existingEvidence, error: existingErr } = await admin
     .from("evidence")
     .select("id")
@@ -69,6 +68,22 @@ export async function assignNextCompanyRequest() {
   }
 
   if (existingEvidence && existingEvidence.length > 0) {
+    redirect("/moderation/company-requests");
+  }
+
+  // Also check if they already have an assigned pending company request
+  const { data: existingCompanyReq, error: existingCompanyErr } = await admin
+    .from("company_requests")
+    .select("id")
+    .eq("status", "pending")
+    .eq("assigned_moderator_id", userId)
+    .limit(1);
+
+  if (existingCompanyErr) {
+    console.error("[assignNextCompanyRequest] existing company_request lookup error", existingCompanyErr);
+  }
+
+  if (existingCompanyReq && existingCompanyReq.length > 0) {
     redirect("/moderation/company-requests");
   }
 
