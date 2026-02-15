@@ -55,7 +55,7 @@ export async function assignNextCompanyRequest() {
     redirect("/moderation/company-requests");
   }
 
-  // If they already have an assigned pending evidence item, bounce back
+  // Check if they already have an assigned pending evidence item
   const { data: existingEvidence, error: existingErr } = await admin
     .from("evidence")
     .select("id")
@@ -65,10 +65,6 @@ export async function assignNextCompanyRequest() {
 
   if (existingErr) {
     console.error("[assignNextCompanyRequest] existing evidence lookup error", existingErr);
-  }
-
-  if (existingEvidence && existingEvidence.length > 0) {
-    redirect("/moderation/company-requests");
   }
 
   // Also check if they already have an assigned pending company request
@@ -83,7 +79,11 @@ export async function assignNextCompanyRequest() {
     console.error("[assignNextCompanyRequest] existing company_request lookup error", existingCompanyErr);
   }
 
-  if (existingCompanyReq && existingCompanyReq.length > 0) {
+  // If they already have any assigned item, bounce back
+  const hasAssignedEvidence = existingEvidence && existingEvidence.length > 0;
+  const hasAssignedCompanyReq = existingCompanyReq && existingCompanyReq.length > 0;
+
+  if (hasAssignedEvidence || hasAssignedCompanyReq) {
     redirect("/moderation/company-requests");
   }
 
