@@ -168,24 +168,22 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
     return { ok: false, error: "Not authenticated" };
   }
 
-  const userId = authData.user.id;
+  const moderatorId = authData.user.id;
 
   // Validate that the authenticated user is a moderator
   const { data: moderatorData, error: moderatorError } = await supabase
     .from("moderators")
     .select("user_id")
-    .eq("user_id", userId)
+    .eq("user_id", moderatorId)
     .maybeSingle();
 
   if (moderatorError || !moderatorData) {
     console.warn("[moderation] approveEvidence: User is not a moderator", { 
-      userId, 
+      moderatorId, 
       error: moderatorError 
     });
     return { ok: false, error: "Not authorized as moderator" };
   }
-
-  const moderatorId = moderatorData.user_id;
 
   // Enforce "cannot moderate own evidence" (only when owner is known)
   const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
@@ -280,24 +278,22 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
     return { ok: false, error: "Not authenticated" };
   }
 
-  const userId = authData.user.id;
+  const moderatorId = authData.user.id;
 
   // Validate that the authenticated user is a moderator
   const { data: moderatorData, error: moderatorError } = await supabase
     .from("moderators")
     .select("user_id")
-    .eq("user_id", userId)
+    .eq("user_id", moderatorId)
     .maybeSingle();
 
   if (moderatorError || !moderatorData) {
     console.warn("[moderation] rejectEvidence: User is not a moderator", { 
-      userId, 
+      moderatorId, 
       error: moderatorError 
     });
     return { ok: false, error: "Not authorized as moderator" };
   }
-
-  const moderatorId = moderatorData.user_id;
 
   // Enforce "cannot moderate own evidence" (only when owner is known)
   const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
