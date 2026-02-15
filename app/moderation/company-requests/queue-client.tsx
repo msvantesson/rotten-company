@@ -70,11 +70,10 @@ export default function CompanyRequestsQueue({
     <main className="mx-auto max-w-4xl px-4 py-10 space-y-8">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold">
-          Evidence requests moderation
+          Company & Evidence Requests
         </h1>
         <p className="text-sm text-neutral-600">
-          Optional extra evidence items you can help moderate, after the main
-          moderation queue.
+          Review company requests and evidence submissions from contributors.
         </p>
       </header>
 
@@ -94,13 +93,13 @@ export default function CompanyRequestsQueue({
           required moderations ({gate.allowed ? "unlocked" : "locked"})
         </p>
         <p className="text-xs text-neutral-600">
-          Pending evidence requests: {pendingCompanyRequests}
+          Pending items (company + evidence requests): {pendingCompanyRequests}
         </p>
       </section>
 
       {!debug.isModerator && (
         <p className="text-sm text-neutral-600">
-          You need to be a moderator to access evidence requests.
+          You need to be a moderator to access this moderation queue.
         </p>
       )}
 
@@ -109,8 +108,8 @@ export default function CompanyRequestsQueue({
           <div className="flex items-center justify-between">
             <p className="text-sm text-neutral-700">
               {hasAssigned
-                ? "You have an assigned evidence request."
-                : "You have no assigned evidence request yet."}
+                ? "You have an assigned moderation item."
+                : "You have no assigned moderation item yet."}
             </p>
 
             {showGetNewButton && (
@@ -120,7 +119,7 @@ export default function CompanyRequestsQueue({
                 disabled={!canRequestLocally || isPending}
                 className="rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
               >
-                {isPending ? "Assigning…" : "Get next evidence request"}
+                {isPending ? "Assigning…" : "Get next item"}
               </button>
             )}
           </div>
@@ -128,7 +127,7 @@ export default function CompanyRequestsQueue({
           {hasAssigned && assignedRequest && (
             <div className="rounded-md border bg-white p-4 space-y-2 text-sm">
               <p className="text-xs uppercase tracking-wide text-neutral-500">
-                Assigned evidence
+                Assigned item
               </p>
               <p className="font-medium">{assignedRequest.title}</p>
               {assignedRequest.summary && (
