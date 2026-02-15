@@ -76,7 +76,7 @@ export async function assignNextCompanyRequest() {
     .limit(1);
 
   if (existingCompanyErr) {
-    console.error("[assignNextCompanyRequest] existing company_request lookup error", existingCompanyErr);
+    console.error("[assignNextCompanyRequest] existing company_requests lookup error", existingCompanyErr);
   }
 
   // If they already have any assigned item, bounce back
