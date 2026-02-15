@@ -142,7 +142,7 @@ export default async function CompanyRequestReviewPage(props: {
     const baseSlug = slugify(cr.name);
     let slug = baseSlug || `company-${requestId.slice(0, 8)}`;
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 20; i++) {
       const { data: existing } = await service
         .from("companies")
         .select("id")
@@ -150,7 +150,13 @@ export default async function CompanyRequestReviewPage(props: {
         .maybeSingle();
 
       if (!existing) break;
-      slug = `${baseSlug}-${i + 2}`;
+      
+      if (i >= 19) {
+        // Fallback to timestamp if we've exhausted attempts
+        slug = `${baseSlug}-${Date.now()}`;
+      } else {
+        slug = `${baseSlug}-${i + 2}`;
+      }
     }
 
     const { data: company, error: companyErr } = await service
@@ -226,16 +232,24 @@ export default async function CompanyRequestReviewPage(props: {
 
     // Enqueue notification
     if (contributorEmail) {
+      const emailBody = [
+        "Hi,",
+        "",
+        `Your request to add "${cr.name}" has been approved and is now live on Rotten Company.`,
+        "",
+        `Slug: ${company.slug}`,
+        note ? "" : null,
+        note ? `Moderator note: "${note}"` : null,
+        "",
+        "— Rotten Company",
+      ]
+        .filter((line) => line !== null)
+        .join("\n");
+
       await service.from("notification_jobs").insert({
         recipient_email: contributorEmail,
         subject: "Your company request was approved",
-        body: `Hi,
-
-Your request to add "${cr.name}" has been approved and is now live on Rotten Company.
-
-Slug: ${company.slug}
-
-— Rotten Company`,
+        body: emailBody,
         metadata: { requestId, action: "approve" },
         status: "pending",
       });
@@ -528,9 +542,7 @@ ${note}
           }}
         >
           This company request was submitted by you. Moderators can never review
-          or change their own submissions. Because this item is already{" "}
-          <strong>{status.toLowerCase()}</strong>, its moderation decision
-          cannot be changed here.
+          or change their own submissions.
         </section>
       )}
 
@@ -582,8 +594,8 @@ ${note}
             <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>
               Approving will create a new company in the database, mark this
               request as <strong>approved</strong>, and send a confirmation email
-              to the submitter. Any note you add will be included in the email
-              and stored in the moderation log.
+              to the submitter. Any note you add will be included in both the
+              email and the moderation log.
             </p>
             <form action={handleApprove} style={{ display: "grid", gap: 8 }}>
               <label style={{ fontSize: 13 }}>
