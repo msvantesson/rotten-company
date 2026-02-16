@@ -20,6 +20,7 @@ export async function POST() {
     const user = await getSsrUser();
     
     if (!user) {
+      console.log("[claim-next API] No authenticated user");
       return NextResponse.json(
         { ok: false, error: "Not authenticated" },
         { status: 401 }
@@ -27,6 +28,7 @@ export async function POST() {
     }
 
     const moderatorId = user.id;
+    console.log("[claim-next API] Claiming for moderator:", moderatorId);
 
     // Use service client to claim next moderation item
     const service = supabaseService();
@@ -43,16 +45,20 @@ export async function POST() {
       );
     }
 
+    console.log("[claim-next API] RPC returned data:", data);
+
     const row: ClaimRow | null = 
       Array.isArray(data) && data.length > 0 ? data[0] as ClaimRow : null;
 
     if (!row) {
+      console.log("[claim-next API] No items available for moderator:", moderatorId);
       return NextResponse.json(
         { ok: false, error: "No items available to claim" },
         { status: 404 }
       );
     }
 
+    console.log("[claim-next API] Successfully claimed:", row);
     return NextResponse.json({
       ok: true,
       data: row,

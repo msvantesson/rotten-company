@@ -68,9 +68,20 @@ export default function CompanyRequestsQueue({
         method: "POST",
       });
 
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[handleGetNewCase] HTTP error:", response.status, errorText);
+        setErrorMessage(`Failed to claim: ${response.status} ${response.statusText}`);
+        setCanRequestLocally(canRequestNewCase);
+        setIsLoading(false);
+        return;
+      }
+
       const result = await response.json();
 
       if (!result.ok) {
+        console.error("[handleGetNewCase] API returned error:", result.error);
         setErrorMessage(result.error || "Failed to claim item");
         setCanRequestLocally(canRequestNewCase); // Re-enable on error
         setIsLoading(false);
@@ -79,6 +90,8 @@ export default function CompanyRequestsQueue({
 
       // Navigate based on the claimed item type
       const { kind, item_id } = result.data;
+      
+      console.log("[handleGetNewCase] Successfully claimed:", { kind, item_id });
       
       if (kind === "evidence") {
         router.push(`/admin/moderation/evidence/${item_id}`);
@@ -89,10 +102,10 @@ export default function CompanyRequestsQueue({
         router.push("/moderation/company-requests");
       }
     } catch (err) {
+      console.error("[handleGetNewCase] error:", err);
       setErrorMessage("Network error while claiming item");
       setCanRequestLocally(canRequestNewCase); // Re-enable on error
       setIsLoading(false);
-      console.error("[handleGetNewCase] error:", err);
     }
   }
 
