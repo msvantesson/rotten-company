@@ -56,31 +56,35 @@ export default async function UnifiedModerationPage(props: {
 
   if (!isModerator) return null;
 
-  // Try to parse ID
-  const itemId = resolvedParams.id;
+  // Detect ID type: evidence uses integer IDs, company_requests use UUID strings
+  const rawId = resolvedParams.id;
+  const parsedInt = parseInt(rawId, 10);
+  const isNumericId = !Number.isNaN(parsedInt) && String(parsedInt) === rawId;
 
-  // First, try to load as evidence
-  const { data: evidence } = await service
-    .from("evidence")
-    .select("*, users ( email )")
-    .eq("id", itemId)
-    .maybeSingle();
+  // Try evidence first if ID is numeric (evidence uses integer IDs)
+  if (isNumericId) {
+    const { data: evidence } = await service
+      .from("evidence")
+      .select("*, users ( email )")
+      .eq("id", parsedInt)
+      .maybeSingle();
 
-  if (evidence) {
-    // Render evidence moderation UI
-    return renderEvidenceUI({
-      evidence,
-      moderatorId,
-      errorMessage,
-      service,
-    });
+    if (evidence) {
+      // Render evidence moderation UI
+      return renderEvidenceUI({
+        evidence,
+        moderatorId,
+        errorMessage,
+        service,
+      });
+    }
   }
 
-  // If no evidence, try to load as company_request
+  // If not numeric or not found as evidence, try as company_request (UUID)
   const { data: companyRequest } = await service
     .from("company_requests")
     .select("*, users ( email )")
-    .eq("id", itemId)
+    .eq("id", rawId)
     .maybeSingle();
 
   if (companyRequest) {
