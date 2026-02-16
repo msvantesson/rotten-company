@@ -5,6 +5,13 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
 
+/**
+ * Temporary fallback: when the claim RPC returns a company_request, don't send
+ * the moderator directly to the admin detail page (which may require a valid
+ * browser session). Instead redirect back to the queue so the moderator can
+ * continue. This prevents moderator UX loops while we fix any auth/session issues.
+ */
+
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,6 +33,7 @@ export async function assignNextCompanyRequest() {
   const userId = auth.user?.id ?? null;
 
   if (!userId) {
+    // Not signed in — go to login
     redirect(
       "/login?reason=moderate-evidence-requests&message=" +
         encodeURIComponent("You’ll need an account to access evidence requests."),
@@ -39,50 +47,52 @@ export async function assignNextCompanyRequest() {
 
   const admin = adminClient();
 
-  // Check moderator role
+  // Check moderator row
   const { data: modRow, error: modErr } = await admin
     .from("moderators")
     .select("user_id")
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (modErr) {
-    console.error("[assignNextCompanyRequest] moderators lookup error", modErr);
+  if (modErr || !modRow) {
+    console.error("[assignNextCompanyRequest] moderator lookup failed", modErr);
     redirect("/moderation/company-requests");
   }
 
-  if (!modRow) {
-    redirect("/moderation/company-requests");
-  }
-
-  // If they already have an assigned pending evidence item, bounce back (keep current behavior)
-  // (Later we can expand this to also check assigned company_requests.)
-  const { data: existingEvidence, error: existingErr } = await admin
+  // Prevent double-assignment
+  const { data: existingEvidence } = await admin
     .from("evidence")
     .select("id")
     .eq("status", "pending")
     .eq("assigned_moderator_id", userId)
     .limit(1);
 
-  if (existingErr) {
-    console.error("[assignNextCompanyRequest] existing evidence lookup error", existingErr);
-  }
-
   if (existingEvidence && existingEvidence.length > 0) {
     redirect("/moderation/company-requests");
   }
 
-  // RPC: claim the next moderation item (atomic in DB)
+  const { data: existingCompanyReq } = await admin
+    .from("company_requests")
+    .select("id")
+    .eq("status", "pending")
+    .eq("assigned_moderator_id", userId)
+    .limit(1);
+
+  if (existingCompanyReq && existingCompanyReq.length > 0) {
+    redirect("/moderation/company-requests");
+  }
+
+  // Claim via RPC
   const { data, error } = await admin.rpc("claim_next_moderation_item", {
     p_moderator_id: userId,
   });
 
   if (error) {
-    console.error("[assignNextCompanyRequest] claim_next_moderation_item error", error);
+    console.error("[assignNextCompanyRequest] claim RPC error", error);
     redirect("/moderation/company-requests");
   }
 
-  const row: ClaimRow | null = Array.isArray(data) && data.length > 0 ? data[0] : null;
+  const row: ClaimRow | null = Array.isArray(data) && data.length > 0 ? data[0] as ClaimRow : null;
 
   if (!row) {
     // Nothing available
@@ -93,6 +103,8 @@ export async function assignNextCompanyRequest() {
     redirect(`/admin/moderation/evidence/${row.item_id}`);
   }
 
-  // Company request moderation detail page (we’ll add next)
-  redirect(`/admin/moderation/company-requests/${row.item_id}`);
+  // TEMPORARY FALLBACK:
+  // If it's a company_request, redirect to the queue instead of the admin detail page.
+  // This is safer while debugging auth/session issues in admin pages.
+  redirect("/moderation/company-requests");
 }
