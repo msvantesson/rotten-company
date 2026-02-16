@@ -8,13 +8,8 @@ import { canModerate } from "@/lib/moderation-guards";
 /**
  * Admin moderation detail page for a single company_request
  *
- * - Defensive server-side auth: treat auth.getUser errors as "no user" rather than
- *   throwing/returning notFound().
- * - If the row is missing, show a debug panel (server-rendered) with the service
- *   fetch error and environment presence booleans.
- *
- * Keep this diagnostic behavior only as long as you need it; remove debug bits
- * when root cause is confirmed.
+ * Defensive auth handling + debug panel when row missing.
+ * Fixed: server actions use `requestId` (string) instead of closing over `cr`.
  */
 
 type RequestRow = {
@@ -51,14 +46,12 @@ export default async function Page({
     const supabase = await supabaseServer();
     const { data, error } = await supabase.auth.getUser();
     if (error) {
-      // treat as unauthenticated but capture error for diagnostics
       authError = error;
       user = null;
     } else {
       user = data.user ?? null;
     }
   } catch (e) {
-    // Defensive: don't throw; treat as unauthenticated
     authError = e;
     user = null;
   }
@@ -75,7 +68,6 @@ export default async function Page({
       isModerator = false;
     }
   } catch (e) {
-    // If guard check fails for any reason, treat as not moderator
     console.error("[admin/company-requests] canModerate threw", e);
     isModerator = false;
   }
@@ -199,8 +191,9 @@ export default async function Page({
   }
 
   // Normal rendering when row exists
-  const isPending = cr.status === "pending";
+  const isPending = cr?.status === "pending";
 
+  // Note: server actions must not close over `cr` (TS can't prove non-null). Use requestId instead.
   async function approveAction(formData: FormData) {
     "use server";
     const note = formData.get("note")?.toString() ?? "";
@@ -214,12 +207,13 @@ export default async function Page({
         decision_reason: note,
         moderated_at: new Date().toISOString(),
       })
-      .eq("id", cr.id)
+      .eq("id", requestId)
       .eq("status", "pending")
       .select("id");
 
     if (updateErr) {
       console.error("[admin/company-requests][approve] updateErr", updateErr);
+      redirect(`/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent(String(updateErr.message ?? updateErr))}`);
     } else {
       try {
         revalidatePath("/moderation/company-requests");
@@ -232,10 +226,10 @@ export default async function Page({
     "use server";
     const note = formData.get("note")?.toString() ?? "";
     if (!note.trim()) {
-      redirect(`/admin/moderation/company-requests/${cr.id}?error=${encodeURIComponent("Rejection reason required")}`);
+      redirect(`/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent("Rejection reason required")}`);
     }
     const svc = supabaseService();
-    await svc
+    const { data: updated, error: updateErr } = await svc
       .from("company_requests")
       .update({
         status: "rejected",
@@ -243,12 +237,19 @@ export default async function Page({
         decision_reason: note,
         moderated_at: new Date().toISOString(),
       })
-      .eq("id", cr.id)
-      .eq("status", "pending");
-    try {
-      revalidatePath("/moderation/company-requests");
-    } catch (_) {}
-    redirect("/moderation/company-requests");
+      .eq("id", requestId)
+      .eq("status", "pending")
+      .select("id");
+
+    if (updateErr) {
+      console.error("[admin/company-requests][reject] updateErr", updateErr);
+      redirect(`/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent(String(updateErr.message ?? updateErr))}`);
+    } else {
+      try {
+        revalidatePath("/moderation/company-requests");
+      } catch (_) {}
+      redirect("/moderation/company-requests");
+    }
   }
 
   return (
@@ -268,28 +269,28 @@ export default async function Page({
       </header>
 
       <div className="rounded-md border bg-white p-4 mb-4">
-        <h2 className="font-semibold text-lg">{cr.name}</h2>
+        <h2 className="font-semibold text-lg">{cr!.name}</h2>
         <p className="text-sm text-neutral-600">
-          ID: {cr.id} · Created at: {new Date(cr.created_at).toLocaleString()}
+          ID: {cr!.id} · Created at: {new Date(cr!.created_at).toLocaleString()}
         </p>
-        {cr.website && (
+        {cr!.website && (
           <p className="text-sm">
-            Website: <a href={cr.website} className="text-blue-700">{cr.website}</a>
+            Website: <a href={cr!.website} className="text-blue-700">{cr!.website}</a>
           </p>
         )}
-        {cr.description && <p className="mt-2 text-sm text-neutral-700">{cr.description}</p>}
+        {cr!.description && <p className="mt-2 text-sm text-neutral-700">{cr!.description}</p>}
       </div>
 
       {!isPending && (
         <div className="rounded-md border bg-yellow-50 p-4 text-sm text-neutral-700">
-          This request is in state: {cr.status}. Moderation actions are closed.
+          This request is in state: {cr!.status}. Moderation actions are closed.
         </div>
       )}
 
       {isPending && (
         <div className="flex gap-4">
           <form action={approveAction}>
-            <input type="hidden" name="id" value={cr.id} />
+            <input type="hidden" name="id" value={cr!.id} />
             <div>
               <label className="text-sm block mb-1">Moderator note (optional)</label>
               <input name="note" className="border px-2 py-1 rounded w-full" />
@@ -302,7 +303,7 @@ export default async function Page({
           </form>
 
           <form action={rejectAction}>
-            <input type="hidden" name="id" value={cr.id} />
+            <input type="hidden" name="id" value={cr!.id} />
             <div>
               <label className="text-sm block mb-1">Rejection reason (required)</label>
               <input name="note" required className="border px-2 py-1 rounded w-full" />
