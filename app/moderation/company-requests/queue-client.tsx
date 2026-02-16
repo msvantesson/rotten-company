@@ -129,7 +129,7 @@ export default function CompanyRequestsQueue({
           required moderations ({gate.allowed ? "unlocked" : "locked"})
         </p>
         <p className="text-xs text-neutral-600">
-          Pending evidence requests: {pendingCompanyRequests}
+          Pending items (company + evidence requests): {pendingCompanyRequests}
         </p>
       </section>
 

@@ -55,11 +55,18 @@ export async function assignNextCompanyRequest() {
     redirect("/moderation/company-requests");
   }
 
-  // If they already have an assigned pending evidence item, redirect to it
+  // If they already have an assigned pending company-level evidence item, redirect to it
+  // "Company-level evidence" filter:
+  // - entity_type = 'company'
+  // - OR legacy rows: entity_type IS NULL but company_id is present
+  const companyEvidenceFilter =
+    "entity_type.eq.company,and(entity_type.is.null,company_id.not.is.null)";
+  
   const { data: existingEvidence, error: existingErr } = await admin
     .from("evidence")
     .select("id")
     .eq("status", "pending")
+    .or(companyEvidenceFilter)
     .eq("assigned_moderator_id", userId)
     .limit(1);
 
