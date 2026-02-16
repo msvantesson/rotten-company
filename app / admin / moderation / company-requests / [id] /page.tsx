@@ -6,14 +6,15 @@ import { supabaseService } from "@/lib/supabase-service";
 import { canModerate } from "@/lib/moderation-guards";
 
 /**
- * Debuggable admin moderation detail page for a single company_request.
+ * Admin moderation detail page for a single company_request
  *
- * For diagnostics: when a moderator visits this page it will show a
- * server-rendered debug panel with the service query result (cr) and any
- * service errors. This helps root-cause the 404 (page returned notFound())
- * even when the DB row exists.
+ * - Defensive server-side auth: treat auth.getUser errors as "no user" rather than
+ *   throwing/returning notFound().
+ * - If the row is missing, show a debug panel (server-rendered) with the service
+ *   fetch error and environment presence booleans.
  *
- * Remove / revert to the normal page after debugging.
+ * Keep this diagnostic behavior only as long as you need it; remove debug bits
+ * when root cause is confirmed.
  */
 
 type RequestRow = {
@@ -38,29 +39,52 @@ export default async function Page({
   params: { id: string };
 }) {
   const requestId = params?.id;
+  if (!requestId) return notFound();
 
-  // Basic pre-check
-  if (!requestId) {
-    return notFound();
+  // -----------------------
+  // Robust SSR auth.getUser
+  // -----------------------
+  let user: { id?: string; email?: string } | null = null;
+  let authError: unknown = null;
+
+  try {
+    const supabase = await supabaseServer();
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      // treat as unauthenticated but capture error for diagnostics
+      authError = error;
+      user = null;
+    } else {
+      user = data.user ?? null;
+    }
+  } catch (e) {
+    // Defensive: don't throw; treat as unauthenticated
+    authError = e;
+    user = null;
   }
-
-  // SSR cookie-scoped client: get user context
-  const supabase = await supabaseServer();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
 
   const moderatorId = user?.id ?? null;
   const moderatorEmail = user?.email ?? null;
 
-  // Quick moderator guard
-  const isModerator = moderatorId ? await canModerate(moderatorId) : false;
+  // Quick moderator check - wrap in try/catch
+  let isModerator = false;
+  try {
+    if (moderatorId) {
+      isModerator = await canModerate(moderatorId);
+    } else {
+      isModerator = false;
+    }
+  } catch (e) {
+    // If guard check fails for any reason, treat as not moderator
+    console.error("[admin/company-requests] canModerate threw", e);
+    isModerator = false;
+  }
 
-  // Service (service-role) client for authoritative read
+  // -----------------------
+  // Authoritative service fetch
+  // -----------------------
   const service = supabaseService();
 
-  // Fetch the company_request (authoritative)
   const { data: cr, error: crErr } = await service
     .from("company_requests")
     .select(
@@ -69,7 +93,10 @@ export default async function Page({
     .eq("id", requestId)
     .maybeSingle();
 
-  // If we're not a moderator, show a simple UI (no debug leak)
+  const hasServiceKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const hasPublicUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+  // If user isn't authenticated / moderator, show explicit UI rather than 404.
   if (!moderatorId) {
     return (
       <main className="max-w-3xl mx-auto py-8">
@@ -80,12 +107,18 @@ export default async function Page({
         </nav>
 
         <h1 className="text-2xl font-bold mb-4">Moderation</h1>
-        <p>You must be logged in to access this page.</p>
+        <p className="text-sm text-neutral-700">
+          You are not signed in. Please <Link href="/login" className="text-blue-700">sign in</Link> to access moderation.
+        </p>
+
+        <div className="mt-4 text-xs text-neutral-500">
+          <p>Server diag: auth error:</p>
+          <pre className="text-xs text-red-600">{authError ? String((authError as any).message ?? authError) : "none"}</pre>
+        </div>
       </main>
     );
   }
 
-  // If user is not a moderator, show limited UI
   if (!isModerator) {
     return (
       <main className="max-w-3xl mx-auto py-8">
@@ -96,20 +129,13 @@ export default async function Page({
         </nav>
 
         <h1 className="text-2xl font-bold mb-4">Moderation</h1>
-        <p>You do not have moderator access.</p>
+        <p className="text-sm text-neutral-700">You do not have moderator access.</p>
       </main>
     );
   }
 
-  // If we have the row, render the normal moderation UI (but still show debug header)
-  const isPending = cr?.status === "pending";
-
-  // Environment presence checks (do NOT print secrets)
-  const hasServiceKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const hasPublicUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
-
-  // If the row was not found, instead of notFound() — render a debug panel so you can see why
-  if (!cr) {
+  // If the service query errored or returned no row, show a debug panel instead of throwing 404.
+  if (crErr || !cr) {
     return (
       <main className="max-w-4xl mx-auto py-8 space-y-6">
         <nav>
@@ -121,7 +147,7 @@ export default async function Page({
         <h1 className="text-2xl font-bold">Company request diagnostics</h1>
 
         <section className="rounded-md border bg-white p-4">
-          <p className="text-sm text-neutral-700">Debug information (server rendered)</p>
+          <p className="text-sm text-neutral-700">Server-rendered debug info</p>
 
           <dl className="mt-3 space-y-2 text-sm">
             <div>
@@ -130,13 +156,8 @@ export default async function Page({
             </div>
 
             <div>
-              <dt className="font-medium">SSR user present</dt>
-              <dd>{String(Boolean(user))}</dd>
-            </div>
-
-            <div>
               <dt className="font-medium">SSR user id</dt>
-              <dd>{moderatorId ?? "null"}</dd>
+              <dd>{moderatorId}</dd>
             </div>
 
             <div>
@@ -163,31 +184,73 @@ export default async function Page({
                 {crErr ? String(crErr.message ?? crErr) : "null"}
               </dd>
             </div>
-          </dl>
 
-          <div className="mt-4 text-sm">
-            <p className="font-medium">Interpretation / next steps</p>
-            <ul className="list-disc ml-5 mt-2 text-sm text-neutral-700">
-              <li>
-                If <code>service query error</code> is non-null, your SUPABASE service role key or
-                URL may be missing or incorrect in production. Check Vercel environment variables.
-              </li>
-              <li>
-                If <code>service query error</code> is null and the row exists in the DB (you can confirm in Supabase SQL),
-                then the deployed page that handled the request may be older than the diagnostic build — confirm the commit SHA in Vercel for the deployment.
-              </li>
-              <li>
-                To immediately stop being redirected to a broken detail page, you can unassign this
-                company_request in the DB (clear assigned_moderator_id/assigned_at).
-              </li>
-            </ul>
-          </div>
+            <div>
+              <dt className="font-medium">notes</dt>
+              <dd className="text-xs text-neutral-700">
+                If service query error is present, check SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL in Vercel environment variables.
+                If no error and row exists in DB, confirm deployed commit contains this diagnostic page.
+              </dd>
+            </div>
+          </dl>
         </section>
       </main>
     );
   }
 
-  // Render the normal moderation UI when row is present (but include a debug header so you can still see server facts)
+  // Normal rendering when row exists
+  const isPending = cr.status === "pending";
+
+  async function approveAction(formData: FormData) {
+    "use server";
+    const note = formData.get("note")?.toString() ?? "";
+    const svc = supabaseService();
+
+    const { data: updated, error: updateErr } = await svc
+      .from("company_requests")
+      .update({
+        status: "approved",
+        moderator_id: moderatorId,
+        decision_reason: note,
+        moderated_at: new Date().toISOString(),
+      })
+      .eq("id", cr.id)
+      .eq("status", "pending")
+      .select("id");
+
+    if (updateErr) {
+      console.error("[admin/company-requests][approve] updateErr", updateErr);
+    } else {
+      try {
+        revalidatePath("/moderation/company-requests");
+      } catch (_) {}
+      redirect("/moderation/company-requests");
+    }
+  }
+
+  async function rejectAction(formData: FormData) {
+    "use server";
+    const note = formData.get("note")?.toString() ?? "";
+    if (!note.trim()) {
+      redirect(`/admin/moderation/company-requests/${cr.id}?error=${encodeURIComponent("Rejection reason required")}`);
+    }
+    const svc = supabaseService();
+    await svc
+      .from("company_requests")
+      .update({
+        status: "rejected",
+        moderator_id: moderatorId,
+        decision_reason: note,
+        moderated_at: new Date().toISOString(),
+      })
+      .eq("id", cr.id)
+      .eq("status", "pending");
+    try {
+      revalidatePath("/moderation/company-requests");
+    } catch (_) {}
+    redirect("/moderation/company-requests");
+  }
+
   return (
     <main className="max-w-3xl mx-auto py-8">
       <nav className="mb-4">
@@ -225,20 +288,7 @@ export default async function Page({
 
       {isPending && (
         <div className="flex gap-4">
-          <form action={async (formData: FormData) => {
-            "use server";
-            const note = formData.get("note")?.toString() ?? "";
-            const service = supabaseService();
-            // perform approve (same logic as before, simplified here for brevity)
-            await service.from("company_requests").update({
-              status: "approved",
-              moderator_id: moderatorId,
-              decision_reason: note,
-              moderated_at: new Date().toISOString(),
-            }).eq("id", cr.id).eq("status", "pending");
-            revalidatePath("/moderation/company-requests");
-            redirect("/moderation/company-requests");
-          }}>
+          <form action={approveAction}>
             <input type="hidden" name="id" value={cr.id} />
             <div>
               <label className="text-sm block mb-1">Moderator note (optional)</label>
@@ -251,22 +301,7 @@ export default async function Page({
             </div>
           </form>
 
-          <form action={async (formData: FormData) => {
-            "use server";
-            const note = formData.get("note")?.toString() ?? "";
-            if (!note.trim()) {
-              redirect(`/admin/moderation/company-requests/${cr.id}?error=${encodeURIComponent("Rejection reason is required")}`);
-            }
-            const service = supabaseService();
-            await service.from("company_requests").update({
-              status: "rejected",
-              moderator_id: moderatorId,
-              decision_reason: note,
-              moderated_at: new Date().toISOString(),
-            }).eq("id", cr.id).eq("status", "pending");
-            revalidatePath("/moderation/company-requests");
-            redirect("/moderation/company-requests");
-          }}>
+          <form action={rejectAction}>
             <input type="hidden" name="id" value={cr.id} />
             <div>
               <label className="text-sm block mb-1">Rejection reason (required)</label>
