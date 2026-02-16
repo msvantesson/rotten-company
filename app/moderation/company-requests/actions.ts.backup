@@ -111,48 +111,6 @@ export async function assignNextCompanyRequest() {
     redirect("/moderation/company-requests?error=no-eligible-items");
   }
 
-  // Validate that the assigned item was not submitted by this moderator
-  // (self-moderation protection)
-  let itemUserId: string | null = null;
-  
-  if (row.kind === "evidence") {
-    const { data: evidenceItem } = await admin
-      .from("evidence")
-      .select("user_id")
-      .eq("id", row.item_id)
-      .maybeSingle();
-    itemUserId = evidenceItem?.user_id ?? null;
-  } else {
-    const { data: companyRequestItem } = await admin
-      .from("company_requests")
-      .select("user_id")
-      .eq("id", row.item_id)
-      .maybeSingle();
-    itemUserId = companyRequestItem?.user_id ?? null;
-  }
-
-  // If the item was submitted by this moderator, unassign it and show error
-  if (itemUserId === userId) {
-    console.error(
-      `[assignNextCompanyRequest] Self-moderation detected: moderator ${userId} was assigned their own ${row.kind} ${row.item_id}`
-    );
-    
-    // Unassign the item
-    if (row.kind === "evidence") {
-      await admin
-        .from("evidence")
-        .update({ assigned_moderator_id: null, assigned_at: null })
-        .eq("id", row.item_id);
-    } else {
-      await admin
-        .from("company_requests")
-        .update({ assigned_moderator_id: null, assigned_at: null })
-        .eq("id", row.item_id);
-    }
-    
-    redirect("/moderation/company-requests?error=self-moderation-prevented");
-  }
-
   if (row.kind === "evidence") {
     redirect(`/admin/moderation/evidence/${row.item_id}`);
   }

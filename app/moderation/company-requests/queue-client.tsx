@@ -65,6 +65,8 @@ export default function CompanyRequestsQueue({
         return "No eligible moderation items available at this time. Please check back later.";
       case "claim-failed":
         return "Failed to claim the next item. Please try again.";
+      case "self-moderation-prevented":
+        return "You were assigned your own submission. The system has automatically unassigned it. Please try again to get a different item.";
       default:
         return "An error occurred. Please try again.";
     }
