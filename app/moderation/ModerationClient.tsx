@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 
-type EvidenceRow = {
-  id: number;
+type ModerationItem = {
+  id: string | number;
   title: string;
   created_at: string;
   assigned_moderator_id: string | null;
   user_id: string | null;
+  item_type: "evidence" | "company_request";
 };
 
 type ModerationGateStatus = {
@@ -18,7 +19,7 @@ type ModerationGateStatus = {
 };
 
 type Props = {
-  evidence: EvidenceRow[];
+  items: ModerationItem[];
   moderatorId: string;
   gate: ModerationGateStatus;
   pendingAvailable: number;
@@ -26,13 +27,13 @@ type Props = {
 };
 
 export default function ModerationClient({
-  evidence,
+  items,
   moderatorId,
   gate,
   pendingAvailable,
 }: Props) {
-  const hasAssigned = evidence.length > 0;
-  const current = hasAssigned ? evidence[0] : null;
+  const hasAssigned = items.length > 0;
+  const current = hasAssigned ? items[0] : null;
 
   return (
     <section className="space-y-6">
@@ -41,13 +42,13 @@ export default function ModerationClient({
         {!gate.allowed ? (
           <p className="text-neutral-700">
             Before helping with extra evidence requests, please moderate{" "}
-            {gate.requiredModerations} evidence item
+            {gate.requiredModerations} item
             {gate.requiredModerations === 1 ? "" : "s"} in total. You have
             completed {gate.userModerations}.
           </p>
         ) : (
           <p className="text-neutral-700">
-            You&apos;ve completed the required evidence moderations. You can
+            You&apos;ve completed the required moderations. You can
             continue working through items assigned to you here, and optionally
             pick up extra cases in{" "}
             <span className="font-medium">Evidence requests moderation</span>.
@@ -55,24 +56,26 @@ export default function ModerationClient({
         )}
 
         <p className="text-xs text-neutral-500">
-          Debug: pendingAvailable evidence (unassigned, not yours) ={" "}
+          Debug: pendingAvailable items (unassigned, not yours) ={" "}
           {pendingAvailable}.
         </p>
       </section>
 
-      {/* No assigned evidence */}
+      {/* No assigned items */}
       {!hasAssigned && (
         <section className="rounded-md border p-4 text-sm text-neutral-600">
-          No pending evidence assigned to you.
+          No pending items assigned to you.
         </section>
       )}
 
-      {/* Assigned evidence card with link to full moderation UI */}
+      {/* Assigned item card with link to full moderation UI */}
       {hasAssigned && current && (
         <section className="rounded-md border bg-white p-4 space-y-3">
           <div className="space-y-1">
             <p className="text-xs text-neutral-500">
               Item 1 of 1 • Assigned to you ({moderatorId})
+              {current.item_type === "company_request" && " • Company Request"}
+              {current.item_type === "evidence" && " • Evidence"}
             </p>
             <h2 className="text-lg font-semibold">{current.title}</h2>
             <p className="text-xs text-neutral-500">
@@ -85,7 +88,9 @@ export default function ModerationClient({
               href={`/admin/moderation/evidence/${current.id}`}
               className="inline-flex items-center rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-900"
             >
-              View evidence &amp; moderate
+              {current.item_type === "company_request" 
+                ? "View company request & moderate" 
+                : "View evidence & moderate"}
             </Link>
           </div>
         </section>

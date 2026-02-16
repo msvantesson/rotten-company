@@ -9,12 +9,13 @@ import { releaseExpiredEvidenceAssignments } from "@/lib/release-expired-evidenc
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-type EvidenceRow = {
-  id: number;
+type ModerationItem = {
+  id: string | number; // Can be integer (evidence) or UUID (company_request)
   title: string;
   created_at: string;
   assigned_moderator_id: string | null;
   user_id: string | null;
+  item_type: "evidence" | "company_request"; // Track which table it's from
 };
 
 export default async function ModerationPage() {
@@ -62,7 +63,8 @@ export default async function ModerationPage() {
   const gate = await getModerationGateStatus();
   const service = supabaseService();
 
-  const { data: queue, error } = await service
+  // Fetch assigned evidence
+  const { data: evidenceQueue, error: evidenceError } = await service
     .from("evidence")
     .select("id, title, created_at, assigned_moderator_id, user_id")
     .eq("assigned_moderator_id", moderatorId)
@@ -70,8 +72,17 @@ export default async function ModerationPage() {
     .order("created_at", { ascending: true })
     .limit(1);
 
-  if (error) {
-    console.error("[moderation] fetch failed", error);
+  // Fetch assigned company_requests
+  const { data: companyQueue, error: companyError } = await service
+    .from("company_requests")
+    .select("id, name, created_at, assigned_moderator_id, user_id")
+    .eq("assigned_moderator_id", moderatorId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (evidenceError || companyError) {
+    console.error("[moderation] fetch failed", { evidenceError, companyError });
     return (
       <main className="max-w-3xl mx-auto py-8 space-y-6">
         <section>
@@ -82,22 +93,48 @@ export default async function ModerationPage() {
     );
   }
 
-  let assignedEvidence: EvidenceRow[] = queue ?? [];
+  // Combine both types into a unified queue
+  let assignedItems: ModerationItem[] = [];
+
+  if (evidenceQueue && evidenceQueue.length > 0) {
+    assignedItems.push({
+      ...evidenceQueue[0],
+      item_type: "evidence",
+    });
+  }
+
+  if (companyQueue && companyQueue.length > 0) {
+    assignedItems.push({
+      id: companyQueue[0].id,
+      title: companyQueue[0].name, // company_requests use "name" instead of "title"
+      created_at: companyQueue[0].created_at,
+      assigned_moderator_id: companyQueue[0].assigned_moderator_id,
+      user_id: companyQueue[0].user_id,
+      item_type: "company_request",
+    });
+  }
+
+  // Sort by creation date and take the oldest one
+  assignedItems.sort((a, b) => 
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  const assignedItem = assignedItems.length > 0 ? [assignedItems[0]] : [];
 
   // === AUTO-ASSIGNMENT ===
-  // If the moderator has no assigned pending evidence and they haven't yet
+  // If the moderator has no assigned items and they haven't yet
   // completed the required moderations, automatically assign them up to
-  // (requiredModerations - userModerations) items from unassigned pending evidence.
+  // (requiredModerations - userModerations) items from unassigned pending evidence OR company_requests.
   try {
     const userModerations = gate.userModerations ?? 0;
     const requiredModerations = gate.requiredModerations ?? 0;
 
     const needs = Math.max(0, requiredModerations - userModerations);
-    const hasAssigned = assignedEvidence.length > 0;
+    const hasAssigned = assignedItem.length > 0;
 
     if (!hasAssigned && needs > 0) {
-      // Select oldest unassigned pending items not submitted by this moderator
-      const { data: candidates, error: candErr } = await service
+      // Select oldest unassigned pending evidence not submitted by this moderator
+      const { data: evidenceCandidates, error: evidenceCandErr } = await service
         .from("evidence")
         .select("id")
         .eq("status", "pending")
@@ -106,40 +143,100 @@ export default async function ModerationPage() {
         .order("created_at", { ascending: true })
         .limit(needs);
 
-      if (candErr) {
-        console.error("[moderation] candidate lookup failed", candErr);
-      } else if (candidates && (candidates as any[]).length > 0) {
-        const ids = (candidates as any[]).map((c) => c.id);
+      // Select oldest unassigned pending company_requests not submitted by this moderator
+      const { data: companyCandidates, error: companyCandErr } = await service
+        .from("company_requests")
+        .select("id, created_at")
+        .eq("status", "pending")
+        .is("assigned_moderator_id", null)
+        .or(`user_id.is.null,user_id.neq.${moderatorId}`)
+        .order("created_at", { ascending: true })
+        .limit(needs);
 
-        // Claim them — update will only affect rows still unassigned
+      if (evidenceCandErr) {
+        console.error("[moderation] evidence candidate lookup failed", evidenceCandErr);
+      }
+      if (companyCandErr) {
+        console.error("[moderation] company candidate lookup failed", companyCandErr);
+      }
+
+      // Combine candidates and take oldest
+      const allCandidates: Array<{ id: string | number; created_at: string; type: "evidence" | "company_request" }> = [];
+      
+      if (evidenceCandidates && evidenceCandidates.length > 0) {
+        allCandidates.push(...evidenceCandidates.map((c: any) => ({ 
+          id: c.id, 
+          created_at: c.created_at || new Date().toISOString(),
+          type: "evidence" as const 
+        })));
+      }
+      
+      if (companyCandidates && companyCandidates.length > 0) {
+        allCandidates.push(...companyCandidates.map((c: any) => ({ 
+          id: c.id, 
+          created_at: c.created_at,
+          type: "company_request" as const 
+        })));
+      }
+
+      // Sort by created_at and take first one
+      allCandidates.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+
+      const candidateToAssign = allCandidates[0];
+
+      if (candidateToAssign) {
+        const table = candidateToAssign.type === "evidence" ? "evidence" : "company_requests";
+        
+        // Claim it — update will only affect row if still unassigned
         const { error: updErr } = await service
-          .from("evidence")
+          .from(table)
           .update({
             assigned_moderator_id: moderatorId,
             assigned_at: new Date().toISOString(),
           })
-          .in("id", ids)
+          .eq("id", candidateToAssign.id)
           .is("assigned_moderator_id", null);
 
         if (updErr) {
-          console.error("[moderation] auto-assign update failed", updErr);
+          console.error(`[moderation] auto-assign ${table} update failed`, updErr);
         } else {
-          // Re-fetch assigned evidence so UI shows the newly claimed item
-          const { data: newQueue, error: newQueueErr } = await service
-            .from("evidence")
-            .select("id, title, created_at, assigned_moderator_id, user_id")
-            .eq("assigned_moderator_id", moderatorId)
-            .eq("status", "pending")
-            .order("created_at", { ascending: true })
-            .limit(1);
+          // Re-fetch to show the newly claimed item
+          if (candidateToAssign.type === "evidence") {
+            const { data: newQueue } = await service
+              .from("evidence")
+              .select("id, title, created_at, assigned_moderator_id, user_id")
+              .eq("assigned_moderator_id", moderatorId)
+              .eq("status", "pending")
+              .order("created_at", { ascending: true })
+              .limit(1);
 
-          if (newQueueErr) {
-            console.error(
-              "[moderation] refetch after auto-assign failed",
-              newQueueErr,
-            );
-          } else if (newQueue) {
-            assignedEvidence = newQueue as EvidenceRow[];
+            if (newQueue && newQueue.length > 0) {
+              assignedItem[0] = {
+                ...newQueue[0],
+                item_type: "evidence",
+              };
+            }
+          } else {
+            const { data: newQueue } = await service
+              .from("company_requests")
+              .select("id, name, created_at, assigned_moderator_id, user_id")
+              .eq("assigned_moderator_id", moderatorId)
+              .eq("status", "pending")
+              .order("created_at", { ascending: true })
+              .limit(1);
+
+            if (newQueue && newQueue.length > 0) {
+              assignedItem[0] = {
+                id: newQueue[0].id,
+                title: newQueue[0].name,
+                created_at: newQueue[0].created_at,
+                assigned_moderator_id: newQueue[0].assigned_moderator_id,
+                user_id: newQueue[0].user_id,
+                item_type: "company_request",
+              };
+            }
           }
         }
       }
@@ -148,18 +245,29 @@ export default async function ModerationPage() {
     console.error("[moderation] auto-assign exception", e);
   }
 
-  const { count: pendingAvailable, error: pendingErr } = await service
+  // Count pending available items (both evidence and company_requests)
+  const { count: pendingEvidence, error: pendingEvidenceErr } = await service
     .from("evidence")
     .select("id", { count: "exact", head: true })
     .eq("status", "pending")
     .is("assigned_moderator_id", null)
     .or(`user_id.is.null,user_id.neq.${moderatorId}`);
 
-  if (pendingErr) {
-    console.error("[moderation] pending available evidence count failed", pendingErr);
+  const { count: pendingCompanyRequests, error: pendingCompanyErr } = await service
+    .from("company_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending")
+    .is("assigned_moderator_id", null)
+    .or(`user_id.is.null,user_id.neq.${moderatorId}`);
+
+  if (pendingEvidenceErr) {
+    console.error("[moderation] pending available evidence count failed", pendingEvidenceErr);
+  }
+  if (pendingCompanyErr) {
+    console.error("[moderation] pending available company_requests count failed", pendingCompanyErr);
   }
 
-  const pendingCount = pendingAvailable ?? 0;
+  const pendingCount = (pendingEvidence ?? 0) + (pendingCompanyRequests ?? 0);
 
   const canRequestNewCase = true;
 
@@ -169,7 +277,7 @@ export default async function ModerationPage() {
         <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
 
         <ModerationClient
-          evidence={assignedEvidence}
+          items={assignedItem}
           moderatorId={moderatorId}
           gate={gate}
           pendingAvailable={pendingCount}
