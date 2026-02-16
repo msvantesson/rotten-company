@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { redirect, notFound, revalidatePath } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { canModerate } from "@/lib/moderation-guards";
@@ -299,7 +300,13 @@ export default async function Page({
       });
     }
 
-    revalidatePath("/moderation/company-requests");
+    // Revalidate the listing page so it reflects the approved state
+    try {
+      revalidatePath("/moderation/company-requests");
+    } catch (e) {
+      console.warn("[admin/company-requests] revalidatePath failed", e);
+    }
+
     redirect("/moderation/company-requests");
   }
 
@@ -430,6 +437,12 @@ ${note}
         metadata: { requestId, action: "reject" },
         status: "pending",
       });
+    }
+
+    try {
+      revalidatePath("/moderation/company-requests");
+    } catch (e) {
+      console.warn("[admin/company-requests] revalidatePath failed", e);
     }
 
     revalidatePath("/moderation/company-requests");
