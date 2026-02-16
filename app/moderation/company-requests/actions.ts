@@ -94,69 +94,86 @@ export async function assignNextCompanyRequest() {
     redirect(`/admin/moderation/company-requests/${existingCompanyRequest[0].id}`);
   }
 
-  // RPC: claim the next moderation item (atomic in DB)
-  const { data, error } = await admin.rpc("claim_next_moderation_item", {
-    p_moderator_id: userId,
-  });
+  // Try to claim a moderation item, with retries for self-submissions
+  // (RPC may return self-submitted items; we need to skip them)
+  const MAX_RETRIES = 5;
+  const rejectedItemIds = new Set<string>();
 
-  if (error) {
-    console.error("[assignNextCompanyRequest] claim_next_moderation_item error", error);
-    redirect("/moderation/company-requests?error=claim-failed");
-  }
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    // RPC: claim the next moderation item (atomic in DB)
+    const { data, error } = await admin.rpc("claim_next_moderation_item", {
+      p_moderator_id: userId,
+    });
 
-  const row: ClaimRow | null = Array.isArray(data) && data.length > 0 ? data[0] : null;
-
-  if (!row) {
-    // Nothing available
-    redirect("/moderation/company-requests?error=no-eligible-items");
-  }
-
-  // Validate that the assigned item was not submitted by this moderator
-  // (self-moderation protection)
-  let itemUserId: string | null = null;
-  
-  if (row.kind === "evidence") {
-    const { data: evidenceItem } = await admin
-      .from("evidence")
-      .select("user_id")
-      .eq("id", row.item_id)
-      .maybeSingle();
-    itemUserId = evidenceItem?.user_id ?? null;
-  } else {
-    const { data: companyRequestItem } = await admin
-      .from("company_requests")
-      .select("user_id")
-      .eq("id", row.item_id)
-      .maybeSingle();
-    itemUserId = companyRequestItem?.user_id ?? null;
-  }
-
-  // If the item was submitted by this moderator, unassign it and show error
-  if (itemUserId === userId) {
-    console.error(
-      `[assignNextCompanyRequest] Self-moderation detected: moderator ${userId} was assigned their own ${row.kind} ${row.item_id}`
-    );
-    
-    // Unassign the item
-    if (row.kind === "evidence") {
-      await admin
-        .from("evidence")
-        .update({ assigned_moderator_id: null, assigned_at: null })
-        .eq("id", row.item_id);
-    } else {
-      await admin
-        .from("company_requests")
-        .update({ assigned_moderator_id: null, assigned_at: null })
-        .eq("id", row.item_id);
+    if (error) {
+      console.error("[assignNextCompanyRequest] claim_next_moderation_item error", error);
+      redirect("/moderation/company-requests?error=claim-failed");
     }
+
+    const row: ClaimRow | null = Array.isArray(data) && data.length > 0 ? data[0] : null;
+
+    if (!row) {
+      // Nothing available
+      redirect("/moderation/company-requests?error=no-eligible-items");
+    }
+
+    // Validate that the assigned item was not submitted by this moderator
+    // (self-moderation protection)
+    let itemUserId: string | null = null;
     
-    redirect("/moderation/company-requests?error=self-moderation-prevented");
+    if (row.kind === "evidence") {
+      const { data: evidenceItem } = await admin
+        .from("evidence")
+        .select("user_id")
+        .eq("id", row.item_id)
+        .maybeSingle();
+      itemUserId = evidenceItem?.user_id ?? null;
+    } else {
+      const { data: companyRequestItem } = await admin
+        .from("company_requests")
+        .select("user_id")
+        .eq("id", row.item_id)
+        .maybeSingle();
+      itemUserId = companyRequestItem?.user_id ?? null;
+    }
+
+    // If the item was submitted by this moderator, unassign it and try again
+    if (itemUserId === userId) {
+      console.error(
+        `[assignNextCompanyRequest] Self-moderation detected (attempt ${attempt + 1}/${MAX_RETRIES}): moderator ${userId} was assigned their own ${row.kind} ${row.item_id}`
+      );
+      
+      rejectedItemIds.add(row.item_id);
+      
+      // Unassign the item
+      if (row.kind === "evidence") {
+        await admin
+          .from("evidence")
+          .update({ assigned_moderator_id: null, assigned_at: null })
+          .eq("id", row.item_id);
+      } else {
+        await admin
+          .from("company_requests")
+          .update({ assigned_moderator_id: null, assigned_at: null })
+          .eq("id", row.item_id);
+      }
+      
+      // Try again (continue loop)
+      continue;
+    }
+
+    // Success! Found a non-self item
+    if (row.kind === "evidence") {
+      redirect(`/admin/moderation/evidence/${row.item_id}`);
+    }
+
+    // Company request moderation detail page
+    redirect(`/admin/moderation/company-requests/${row.item_id}`);
   }
 
-  if (row.kind === "evidence") {
-    redirect(`/admin/moderation/evidence/${row.item_id}`);
-  }
-
-  // Company request moderation detail page (we’ll add next)
-  redirect(`/admin/moderation/company-requests/${row.item_id}`);
+  // If we exhausted all retries, all available items were self-submitted
+  console.error(
+    `[assignNextCompanyRequest] Exhausted ${MAX_RETRIES} retries. All available items were self-submitted. Rejected IDs: ${Array.from(rejectedItemIds).join(", ")}`
+  );
+  redirect("/moderation/company-requests?error=only-self-submissions");
 }

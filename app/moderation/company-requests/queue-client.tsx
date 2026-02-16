@@ -67,6 +67,8 @@ export default function CompanyRequestsQueue({
         return "Failed to claim the next item. Please try again.";
       case "self-moderation-prevented":
         return "You were assigned your own submission. The system has automatically unassigned it. Please try again to get a different item.";
+      case "only-self-submissions":
+        return "All available items in the queue were submitted by you. You cannot moderate your own submissions. Please check back later when other items are available.";
       default:
         return "An error occurred. Please try again.";
     }
