@@ -15,6 +15,15 @@ function slugify(input: string) {
     .slice(0, 80);
 }
 
+function generateFallbackSlug(name: string, id: string): string {
+  const slugified = slugify(name);
+  if (slugified) return slugified;
+  
+  // If name doesn't slugify well, try using sanitized ID
+  const sanitizedId = slugify(id) || id.replace(/[^a-z0-9]/g, '').substring(0, 8);
+  return sanitizedId ? `company-${sanitizedId}` : 'company-new';
+}
+
 export default async function UnifiedModerationPage(props: {
   params: ParamsShape | Promise<ParamsShape>;
   searchParams?: { [key: string]: string | string[] | undefined };
@@ -650,7 +659,7 @@ async function renderCompanyRequestUI({
   errorMessage: string | null;
   service: ReturnType<typeof supabaseService>;
 }) {
-  const requestId = companyRequest.id;
+  const requestId = String(companyRequest.id);
   const status: string = companyRequest.status ?? "pending";
   const isPending = status === "pending";
   const isSelfOwned = companyRequest.user_id === moderatorId;
@@ -698,19 +707,31 @@ async function renderCompanyRequestUI({
       redirect(`/admin/moderation/evidence/${requestId}?error=Request+not+pending`);
     }
 
-    // Create company with slug
-    const baseSlug = slugify(cr.name);
-    let slug = baseSlug || `company-${requestId.slice(0, 8)}`;
+    // Create company with slug (with collision handling)
+    const fallbackBase = generateFallbackSlug(cr.name, requestId);
+    let slug = '';
+    let foundUnique = false;
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 100; i++) {
+      const testSlug = i === 0 ? fallbackBase : `${fallbackBase}-${i}`;
+      
       const { data: existing } = await service
         .from("companies")
         .select("id")
-        .eq("slug", slug)
+        .eq("slug", testSlug)
         .maybeSingle();
 
-      if (!existing) break;
-      slug = `${baseSlug}-${i + 2}`;
+      if (!existing) {
+        slug = testSlug;
+        foundUnique = true;
+        break;
+      }
+    }
+
+    if (!foundUnique) {
+      redirect(
+        `/admin/moderation/evidence/${requestId}?error=${encodeURIComponent("Unable to generate unique slug after 100 attempts")}`,
+      );
     }
 
     const { data: company, error: companyErr } = await service

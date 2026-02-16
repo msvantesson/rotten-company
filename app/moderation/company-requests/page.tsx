@@ -169,13 +169,13 @@ export default async function EvidenceRequestsModerationPage() {
       Array.isArray(existingAssignedCompanyReq) &&
       existingAssignedCompanyReq.length > 0;
 
-    const hasAnyAssigned = hasAssignedEvidence || hasAssignedCompanyRequest;
-
+    // FIXED: Button disabled only if moderator has assigned evidence,
+    // not if they have only assigned company_requests.
     // You can only request a new case if:
     // - you are a moderator
     // - the gate is unlocked
-    // - you don't already have an assigned case (either kind)
-    canRequestNewCase = gate.allowed && !hasAnyAssigned;
+    // - you don't already have an assigned evidence (company_requests don't block)
+    canRequestNewCase = gate.allowed && !hasAssignedEvidence;
   }
 
   const debug: DebugInfo = {
