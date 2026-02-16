@@ -17,6 +17,18 @@ type EvidenceRequestRow = {
   evidence_type: string | null;
 };
 
+type CompanyRequestRow = {
+  id: string;
+  name: string;
+  status: string;
+  created_at: string;
+};
+
+type AssignedItem =
+  | { kind: "evidence"; data: EvidenceRequestRow }
+  | { kind: "company_request"; data: CompanyRequestRow }
+  | null;
+
 type DebugInfo = {
   ssrUserPresent: boolean;
   ssrUserId: string | null;
@@ -36,10 +48,20 @@ function adminClient() {
   );
 }
 
-export default async function EvidenceRequestsModerationPage() {
+export default async function EvidenceRequestsModerationPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const supabase = await supabaseServer();
 
   logDebug("moderation-evidence-requests", "Loading");
+
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const errorCode =
+    typeof resolvedSearchParams.error === "string"
+      ? resolvedSearchParams.error
+      : null;
 
   const {
     data: { user },
@@ -73,7 +95,7 @@ export default async function EvidenceRequestsModerationPage() {
   const gate = await getModerationGateStatus();
 
   // If not a moderator, do NOT expose any requests
-  let assignedRequest: EvidenceRequestRow | null = null;
+  let assignedItem: AssignedItem = null;
   let pendingCount = 0;
   let canRequestNewCase = false;
 
@@ -142,7 +164,7 @@ export default async function EvidenceRequestsModerationPage() {
       );
     }
 
-    assignedRequest =
+    const assignedEvidence =
       existingAssignedEvidence && existingAssignedEvidence.length > 0
         ? (existingAssignedEvidence[0] as EvidenceRequestRow)
         : null;
@@ -151,7 +173,7 @@ export default async function EvidenceRequestsModerationPage() {
     const { data: existingAssignedCompanyReq, error: assignedCompanyReqErr } =
       await admin
         .from("company_requests")
-        .select("id")
+        .select("id, name, status, created_at")
         .eq("status", "pending")
         .eq("assigned_moderator_id", userId)
         .limit(1);
@@ -164,12 +186,19 @@ export default async function EvidenceRequestsModerationPage() {
       );
     }
 
-    const hasAssignedEvidence = !!assignedRequest;
-    const hasAssignedCompanyRequest =
-      Array.isArray(existingAssignedCompanyReq) &&
-      existingAssignedCompanyReq.length > 0;
+    const assignedCompanyRequest =
+      existingAssignedCompanyReq && existingAssignedCompanyReq.length > 0
+        ? (existingAssignedCompanyReq[0] as CompanyRequestRow)
+        : null;
 
-    const hasAnyAssigned = hasAssignedEvidence || hasAssignedCompanyRequest;
+    // Prioritize evidence if both exist (edge case)
+    if (assignedEvidence) {
+      assignedItem = { kind: "evidence", data: assignedEvidence };
+    } else if (assignedCompanyRequest) {
+      assignedItem = { kind: "company_request", data: assignedCompanyRequest };
+    }
+
+    const hasAnyAssigned = !!assignedItem;
 
     // You can only request a new case if:
     // - you are a moderator
@@ -186,11 +215,12 @@ export default async function EvidenceRequestsModerationPage() {
 
   return (
     <CompanyRequestsQueue
-      assignedRequest={assignedRequest}
+      assignedItem={assignedItem}
       debug={debug}
       gate={gate}
       pendingCompanyRequests={pendingCount}
       canRequestNewCase={canRequestNewCase}
+      errorCode={errorCode}
     />
   );
 }

@@ -55,8 +55,7 @@ export async function assignNextCompanyRequest() {
     redirect("/moderation/company-requests");
   }
 
-  // If they already have an assigned pending evidence item, bounce back (keep current behavior)
-  // (Later we can expand this to also check assigned company_requests.)
+  // If they already have an assigned pending evidence item, redirect to it
   const { data: existingEvidence, error: existingErr } = await admin
     .from("evidence")
     .select("id")
@@ -69,7 +68,23 @@ export async function assignNextCompanyRequest() {
   }
 
   if (existingEvidence && existingEvidence.length > 0) {
-    redirect("/moderation/company-requests");
+    redirect(`/admin/moderation/evidence/${existingEvidence[0].id}`);
+  }
+
+  // If they already have an assigned pending company_request, redirect to it
+  const { data: existingCompanyRequest, error: existingCRErr } = await admin
+    .from("company_requests")
+    .select("id")
+    .eq("status", "pending")
+    .eq("assigned_moderator_id", userId)
+    .limit(1);
+
+  if (existingCRErr) {
+    console.error("[assignNextCompanyRequest] existing company_request lookup error", existingCRErr);
+  }
+
+  if (existingCompanyRequest && existingCompanyRequest.length > 0) {
+    redirect(`/admin/moderation/company-requests/${existingCompanyRequest[0].id}`);
   }
 
   // RPC: claim the next moderation item (atomic in DB)
@@ -79,14 +94,14 @@ export async function assignNextCompanyRequest() {
 
   if (error) {
     console.error("[assignNextCompanyRequest] claim_next_moderation_item error", error);
-    redirect("/moderation/company-requests");
+    redirect("/moderation/company-requests?error=claim-failed");
   }
 
   const row: ClaimRow | null = Array.isArray(data) && data.length > 0 ? data[0] : null;
 
   if (!row) {
     // Nothing available
-    redirect("/moderation/company-requests");
+    redirect("/moderation/company-requests?error=no-eligible-items");
   }
 
   if (row.kind === "evidence") {
