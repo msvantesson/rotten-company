@@ -257,7 +257,7 @@ function renderEvidenceModeration({
       </section>
 
       {/* Company panel if evidence has company_id */}
-      {evidence.company_id && <CompanyPanel companyId={evidence.company_id} itemId={evidence.id} />}
+      {evidence.company_id && <CompanyPanel companyId={evidence.company_id} />}
 
       {/* Self-moderation notice */}
       {isSelfOwned && (
@@ -805,7 +805,7 @@ function renderCompanyRequestModeration({
    Company Panel (for evidence with company_id)
 ────────────────────────────────────────────── */
 
-async function CompanyPanel({ companyId, itemId }: { companyId: number; itemId: number }) {
+async function CompanyPanel({ companyId }: { companyId: number }) {
   const supabase = supabaseService();
 
   const { data: company } = await supabase
