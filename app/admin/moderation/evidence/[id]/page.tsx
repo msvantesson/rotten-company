@@ -846,14 +846,6 @@ async function CompanyPanel({ companyId }: { companyId: number }) {
           {company.name}
         </a>
       </p>
-      <p style={{ fontSize: 13 }}>
-        <a
-          href={`#company-${companyId}`}
-          style={{ color: "#2563eb" }}
-        >
-          View company moderation section below
-        </a>
-      </p>
     </section>
   );
 }

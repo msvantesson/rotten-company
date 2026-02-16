@@ -2,14 +2,14 @@ import { supabaseServer } from "./supabase-server";
 
 /**
  * Defensive SSR auth helper.
- * Returns user object { id, email } or null on any error.
+ * Returns user object with id and email, or null on any error or missing data.
  * Logs errors for diagnostics but never throws or causes 404.
  *
  * Use this helper in admin pages instead of calling
  * supabaseServer().auth.getUser() directly to prevent stale/invalid
  * refresh tokens from causing 404s.
  */
-export async function getSsrUser(): Promise<{ id?: string; email?: string } | null> {
+export async function getSsrUser(): Promise<{ id: string; email: string } | null> {
   try {
     const supabase = await supabaseServer();
     const { data, error } = await supabase.auth.getUser();
@@ -19,7 +19,7 @@ export async function getSsrUser(): Promise<{ id?: string; email?: string } | nu
       return null;
     }
 
-    if (!data?.user) {
+    if (!data?.user?.id || !data?.user?.email) {
       return null;
     }
 
