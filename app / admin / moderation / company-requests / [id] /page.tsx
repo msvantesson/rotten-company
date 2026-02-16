@@ -167,7 +167,7 @@ export default async function Page({
     if (!isPending) {
       console.info("[admin/company-requests][action] cannot approve - not pending", {
         requestId,
-        status: cr.status,
+        status: cr?.status,
       });
       redirect("/moderation/company-requests");
     }
@@ -386,7 +386,7 @@ Slug: ${company.slug}
     if (!isPending) {
       console.info("[admin/company-requests][action] cannot reject - not pending", {
         requestId,
-        status: cr.status,
+        status: cr?.status,
       });
       redirect("/moderation/company-requests");
     }
