@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase-service";
 
+/**
+ * GET /api/debug/company-request?id=<id>
+ * Temporary debug endpoint to validate that supabaseService() can read a row
+ * in production. Returns JSON with the row or error message.
+ *
+ * Remove this file after debugging.
+ */
+
 export async function GET(req: Request) {
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
