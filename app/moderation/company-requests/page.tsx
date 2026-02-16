@@ -22,6 +22,7 @@ type CompanyRequestRow = {
   name: string;
   status: string;
   created_at: string;
+  user_id?: string | null;
 };
 
 type AssignedItem =
@@ -164,16 +165,30 @@ export default async function EvidenceRequestsModerationPage({
       );
     }
 
-    const assignedEvidence =
+    let assignedEvidence =
       existingAssignedEvidence && existingAssignedEvidence.length > 0
         ? (existingAssignedEvidence[0] as EvidenceRequestRow)
         : null;
+
+    // If the assigned evidence is a self-submission, unassign it
+    if (assignedEvidence && assignedEvidence.user_id === userId) {
+      logDebug(
+        "moderation-evidence-requests",
+        `Unassigning self-submitted evidence ${assignedEvidence.id} from moderator ${userId}`,
+      );
+      await admin
+        .from("evidence")
+        .update({ assigned_moderator_id: null, assigned_at: null })
+        .eq("id", assignedEvidence.id);
+      // Clear it so it won't be shown
+      assignedEvidence = null;
+    }
 
     // Assigned pending COMPANY_REQUEST for this moderator?
     const { data: existingAssignedCompanyReq, error: assignedCompanyReqErr } =
       await admin
         .from("company_requests")
-        .select("id, name, status, created_at")
+        .select("id, name, status, created_at, user_id")
         .eq("status", "pending")
         .eq("assigned_moderator_id", userId)
         .limit(1);
@@ -186,10 +201,24 @@ export default async function EvidenceRequestsModerationPage({
       );
     }
 
-    const assignedCompanyRequest =
+    let assignedCompanyRequest =
       existingAssignedCompanyReq && existingAssignedCompanyReq.length > 0
         ? (existingAssignedCompanyReq[0] as CompanyRequestRow)
         : null;
+
+    // If the assigned company request is a self-submission, unassign it
+    if (assignedCompanyRequest && assignedCompanyRequest.user_id === userId) {
+      logDebug(
+        "moderation-evidence-requests",
+        `Unassigning self-submitted company_request ${assignedCompanyRequest.id} from moderator ${userId}`,
+      );
+      await admin
+        .from("company_requests")
+        .update({ assigned_moderator_id: null, assigned_at: null })
+        .eq("id", assignedCompanyRequest.id);
+      // Clear it so it won't be shown
+      assignedCompanyRequest = null;
+    }
 
     // Prioritize evidence if both exist (edge case)
     if (assignedEvidence) {
