@@ -101,7 +101,7 @@ export async function assignNextCompanyRequest() {
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     // RPC: claim the next moderation item (atomic in DB)
-    const rpcResult = await admin.rpc("claim_next_moderation_item", {
+    const rpcResult: any = await admin.rpc("claim_next_moderation_item", {
       p_moderator_id: userId,
     });
 
