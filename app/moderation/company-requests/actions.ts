@@ -101,16 +101,16 @@ export async function assignNextCompanyRequest() {
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     // RPC: claim the next moderation item (atomic in DB)
-    const { data: rpcData, error: rpcError } = await admin.rpc("claim_next_moderation_item", {
+    const rpcResult = await admin.rpc("claim_next_moderation_item", {
       p_moderator_id: userId,
     });
 
-    if (rpcError) {
-      console.error("[assignNextCompanyRequest] claim_next_moderation_item error", rpcError);
+    if (rpcResult.error) {
+      console.error("[assignNextCompanyRequest] claim_next_moderation_item error", rpcResult.error);
       redirect("/moderation/company-requests?error=claim-failed");
     }
 
-    const row: ClaimRow | null = Array.isArray(rpcData) && rpcData.length > 0 ? rpcData[0] : null;
+    const row: ClaimRow | null = Array.isArray(rpcResult.data) && rpcResult.data.length > 0 ? rpcResult.data[0] : null;
 
     if (!row) {
       // Nothing available
