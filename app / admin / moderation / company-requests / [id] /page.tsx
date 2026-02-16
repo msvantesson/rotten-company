@@ -1,81 +1,136 @@
+import Link from "next/link";
+import { redirect, notFound, revalidatePath } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
-import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { canModerate } from "@/lib/moderation-guards";
 
-type ParamsShape = { id: string };
+/**
+ * Admin moderation detail page for a single company_request
+ *
+ * This file includes two server actions (approve/reject) that run as
+ * "use server" functions inside the component so they have access to
+ * the route param and can perform service-role mutations.
+ */
 
-export default async function CompanyRequestReviewPage(props: {
-  params: ParamsShape | Promise<ParamsShape>;
-  searchParams?: { [key: string]: string | string[] | undefined };
+type RequestRow = {
+  id: string;
+  name: string;
+  country: string | null;
+  website: string | null;
+  description: string | null;
+  status: string;
+  user_id: string | null;
+  moderator_id: string | null;
+  decision_reason: string | null;
+  moderated_at: string | null;
+  assigned_moderator_id: string | null;
+  assigned_at: string | null;
+  created_at: string;
+};
+
+export default async function Page({
+  params,
+}: {
+  params: { id: string };
 }) {
-  const resolvedParams =
-    props.params instanceof Promise ? await props.params : props.params;
+  const requestId = params?.id;
 
-  const errorMessageRaw =
-    typeof props.searchParams?.error === "string"
-      ? props.searchParams.error
-      : undefined;
-  const errorMessage = errorMessageRaw ? decodeURIComponent(errorMessageRaw) : null;
-
-  const supabase = await supabaseServer();
-
-  // Auth
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth?.user) return null;
-
-  const moderatorId = auth.user.id;
-
-  // Ensure user is a moderator
-  const { data: isModerator } = await supabase
-    .from("moderators")
-    .select("user_id")
-    .eq("user_id", moderatorId)
-    .maybeSingle();
-
-  if (!isModerator) return null;
-
-  // ID parsing
-  const requestId = resolvedParams.id;
   if (!requestId) {
-    return <div>Invalid request ID</div>;
+    console.warn("[admin/company-requests] missing requestId param");
+    return notFound();
   }
 
-  // Fetch company request + submitter email
-  const { data: companyRequest, error } = await supabase
+  // Cookie-scoped client to check current user auth
+  const supabase = await supabaseServer();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    console.error("[admin/company-requests] auth.getUser error", userError);
+  }
+
+  const moderatorId = user?.id ?? null;
+
+  console.info(
+    "[admin/company-requests] SSR user present:",
+    !!user,
+    "userId:",
+    moderatorId,
+    "error:",
+    userError,
+  );
+
+  if (!moderatorId) {
+    return (
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Moderation</h1>
+        <p>You must be logged in to access this page.</p>
+      </main>
+    );
+  }
+
+  // Check moderator role
+  const allowed = await canModerate(moderatorId);
+  if (!allowed) {
+    return (
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Moderation</h1>
+        <p>You do not have moderator access.</p>
+      </main>
+    );
+  }
+
+  // Service-role client for authoritative reads / writes
+  const service = supabaseService();
+
+  // ----------------------
+  // DIAGNOSTIC LOGGING
+  // Inserted to help debug 404s in production: prints the incoming
+  // requestId and the result/error of the authoritative query.
+  // ----------------------
+  console.info("[admin/company-requests] requestId param:", requestId);
+
+  const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("*, users ( email )")
+    .select(
+      "id, name, country, website, description, status, user_id, moderator_id, decision_reason, moderated_at, assigned_moderator_id, assigned_at, created_at"
+    )
     .eq("id", requestId)
     .maybeSingle();
 
-  if (error) {
-    console.error(
-      "[admin-company-request] company request query failed:",
-      error.message,
+  console.info("[admin/company-requests] fetched company_request:", {
+    found: !!cr,
+    id: cr?.id ?? null,
+    status: cr?.status ?? null,
+    user_id: cr?.user_id ?? null,
+    assigned_moderator_id: cr?.assigned_moderator_id ?? null,
+    assigned_at: cr?.assigned_at ?? null,
+    created_at: cr?.created_at ?? null,
+    error: crErr ? crErr.message : null,
+  });
+
+  if (crErr) {
+    // If there is a service error (permissions, etc.) surface a 500-like page
+    console.error("[admin/company-requests] service fetch error", crErr);
+    return (
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Moderation</h1>
+        <p className="text-red-600">Failed to load company request.</p>
+      </main>
     );
-    return <div>Error loading company request</div>;
   }
 
-  if (!companyRequest) {
-    return <div>Company request not found</div>;
+  if (!cr) {
+    // Not found — preserve existing behaviour: show 404
+    console.warn("[admin/company-requests] company_request not found", requestId);
+    return notFound();
   }
 
-  const status: string = companyRequest.status ?? "pending";
-  const isPending = status === "pending";
-  const isSelfOwned = companyRequest.user_id === moderatorId;
-  const submitterEmail =
-    (companyRequest as any).users?.email ?? "(unknown submitter)";
+  const isPending = cr.status === "pending";
 
-  // Moderation history from moderation_actions table
-  const { data: actions } = await supabase
-    .from("moderation_actions")
-    .select("action, moderator_note, moderator_id, created_at")
-    .eq("target_type", "company_request")
-    .eq("target_id", requestId)
-    .order("created_at", { ascending: false });
-
-  // Actions
-
+  // Server action: approve
   async function handleApprove(formData: FormData) {
     "use server";
 
@@ -85,7 +140,7 @@ export default async function CompanyRequestReviewPage(props: {
 
     const note = formData.get("note")?.toString() ?? "";
 
-    // Use supabaseService for mutations
+    // Use service client for mutations
     const service = supabaseService();
 
     // Validate moderator
@@ -104,13 +159,13 @@ export default async function CompanyRequestReviewPage(props: {
     }
 
     // Fetch current request to validate
-    const { data: cr, error: crErr } = await service
+    const { data: crFresh, error: crFreshErr } = await service
       .from("company_requests")
-      .select("id, name, country, website, description, status, user_id")
+      .select("id, status, name, user_id")
       .eq("id", requestId)
       .maybeSingle();
 
-    if (crErr || !cr) {
+    if (crFreshErr || !crFresh) {
       redirect(
         `/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent(
           "Company request not found",
@@ -118,7 +173,7 @@ export default async function CompanyRequestReviewPage(props: {
       );
     }
 
-    if (cr.status !== "pending") {
+    if (crFresh.status !== "pending") {
       redirect(
         `/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent(
           "Request is not pending",
@@ -137,10 +192,10 @@ export default async function CompanyRequestReviewPage(props: {
         .slice(0, 80);
     }
 
-    const baseSlug = slugify(cr.name);
+    const baseSlug = slugify(crFresh.name);
     let slug = baseSlug || `company-${requestId.slice(0, 8)}`;
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 10; i++) {
       const { data: existing } = await service
         .from("companies")
         .select("id")
@@ -148,20 +203,14 @@ export default async function CompanyRequestReviewPage(props: {
         .maybeSingle();
 
       if (!existing) break;
-
-      if (i >= 19) {
-        // Fallback to timestamp if we've exhausted attempts
-        slug = `${baseSlug}-${Date.now()}`;
-      } else {
-        slug = `${baseSlug}-${i + 2}`;
-      }
+      slug = `${baseSlug}-${i + 2}`;
     }
 
     const { data: company, error: companyErr } = await service
       .from("companies")
       .insert({
-        name: cr.name,
-        country: cr.country,
+        name: crFresh.name,
+        country: crFresh.country,
         slug,
         industry: null,
       })
@@ -176,13 +225,13 @@ export default async function CompanyRequestReviewPage(props: {
       );
     }
 
-    // Update request
+    /* Update request (belt‑and‑suspenders) */
     const { data: updated, error: updateErr } = await service
       .from("company_requests")
       .update({
         status: "approved",
         moderator_id: moderatorId,
-        decision_reason: note || "approved via admin detail page",
+        decision_reason: note,
         moderated_at: new Date().toISOString(),
       })
       .eq("id", requestId)
@@ -218,11 +267,11 @@ export default async function CompanyRequestReviewPage(props: {
     // Fetch contributor email
     let contributorEmail: string | null = null;
 
-    if (cr.user_id) {
+    if (crFresh.user_id) {
       const { data: userRow } = await service
         .from("users")
         .select("email")
-        .eq("id", cr.user_id)
+        .eq("id", crFresh.user_id)
         .maybeSingle();
 
       contributorEmail = userRow?.email ?? null;
@@ -233,7 +282,7 @@ export default async function CompanyRequestReviewPage(props: {
       const emailBody = [
         "Hi,",
         "",
-        `Your request to add "${cr.name}" has been approved and is now live on Rotten Company.`,
+        `Your request to add "${crFresh.name}" has been approved and is now live on Rotten Company.`,
         "",
         `Slug: ${company.slug}`,
         ...(note ? ["", `Moderator note: "${note}"`] : []),
@@ -254,6 +303,7 @@ export default async function CompanyRequestReviewPage(props: {
     redirect("/moderation/company-requests");
   }
 
+  // Server action: reject
   async function handleReject(formData: FormData) {
     "use server";
 
@@ -290,13 +340,13 @@ export default async function CompanyRequestReviewPage(props: {
     }
 
     // Fetch current request to validate
-    const { data: cr, error: crErr } = await service
+    const { data: crFresh, error: crErr2 } = await service
       .from("company_requests")
       .select("id, status, name, user_id")
       .eq("id", requestId)
       .maybeSingle();
 
-    if (crErr || !cr) {
+    if (crErr2 || !crFresh) {
       redirect(
         `/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent(
           "Company request not found",
@@ -304,7 +354,7 @@ export default async function CompanyRequestReviewPage(props: {
       );
     }
 
-    if (cr.status !== "pending") {
+    if (crFresh.status !== "pending") {
       redirect(
         `/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent(
           "Request is not pending",
@@ -354,11 +404,11 @@ export default async function CompanyRequestReviewPage(props: {
     // Fetch contributor email
     let contributorEmail: string | null = null;
 
-    if (cr.user_id) {
+    if (crFresh.user_id) {
       const { data: userRow } = await service
         .from("users")
         .select("email")
-        .eq("id", cr.user_id)
+        .eq("id", crFresh.user_id)
         .maybeSingle();
 
       contributorEmail = userRow?.email ?? null;
@@ -371,7 +421,7 @@ export default async function CompanyRequestReviewPage(props: {
         subject: "Your company request was rejected",
         body: `Hi,
 
-Your request to add "${cr.name}" was rejected.
+Your request to add "${crFresh.name}" was rejected.
 
 Reason:
 ${note}
@@ -386,320 +436,65 @@ ${note}
     redirect("/moderation/company-requests");
   }
 
+  // Render the admin detail UI
   return (
-    <main style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
-      <a
-        href="/moderation/company-requests"
-        style={{
-          display: "inline-block",
-          marginBottom: 12,
-          fontSize: 13,
-          color: "#2563eb",
-        }}
-      >
-        ← Back to moderation queue
-      </a>
+    <main className="max-w-3xl mx-auto py-8">
+      <nav className="mb-4">
+        <Link href="/moderation/company-requests" className="text-sm text-blue-700">
+          ← Back to moderation queue
+        </Link>
+      </nav>
 
-      {errorMessage && (
-        <section
-          style={{
-            marginBottom: 16,
-            padding: 10,
-            borderRadius: 6,
-            border: "1px solid #fecaca",
-            background: "#fef2f2",
-            color: "#b91c1c",
-            fontSize: 13,
-          }}
-        >
-          {errorMessage}
-        </section>
-      )}
+      <h1 className="text-2xl font-bold mb-4">Moderate company request</h1>
 
-      <header style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
-          Moderate Company Request #{companyRequest.id}
-        </h1>
-        <p style={{ margin: 0, fontSize: 14, color: "#555" }}>
-          Submitted by <strong>{submitterEmail}</strong>{" "}
-          <span style={{ color: "#9ca3af" }}>({companyRequest.user_id})</span> ·
-          Current status: <strong>{status.toUpperCase()}</strong>
+      <div className="rounded-md border bg-white p-4 mb-4">
+        <h2 className="font-semibold text-lg">{cr.name}</h2>
+        <p className="text-sm text-neutral-600">
+          ID: {cr.id} · Created at: {new Date(cr.created_at).toLocaleString()}
         </p>
-      </header>
-
-      {/* Summary card */}
-      <section
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          padding: 16,
-          marginBottom: 24,
-          background: "#f9fafb",
-        }}
-      >
-        <p style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 600 }}>
-          {companyRequest.name || "Untitled company"}
-        </p>
-        <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
-          ID: {companyRequest.id} · Created at:{" "}
-          {new Date(companyRequest.created_at).toLocaleString()}
-        </p>
-
-        {companyRequest.country && (
-          <p style={{ marginTop: 8, fontSize: 13 }}>
-            <strong>Country:</strong> {companyRequest.country}
+        {cr.website && (
+          <p className="text-sm">
+            Website: <a href={cr.website} className="text-blue-700">{cr.website}</a>
           </p>
         )}
+        {cr.description && <p className="mt-2 text-sm text-neutral-700">{cr.description}</p>}
+      </div>
 
-        {companyRequest.website && (
-          <p style={{ marginTop: 8, fontSize: 13 }}>
-            <strong>Website:</strong>{" "}
-            <a
-              href={companyRequest.website}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "#2563eb" }}
-            >
-              {companyRequest.website}
-            </a>
-          </p>
-        )}
-
-        {companyRequest.description && (
-          <p style={{ marginTop: 8, fontSize: 13 }}>
-            <strong>Description:</strong> {companyRequest.description}
-          </p>
-        )}
-      </section>
-
-      {/* Moderation history */}
-      {actions && actions.length > 0 && (
-        <section
-          style={{
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            padding: 16,
-            marginBottom: 24,
-            background: "#ffffff",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              margin: "0 0 8px",
-            }}
-          >
-            Moderation history
-          </h2>
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: 0,
-              fontSize: 13,
-            }}
-          >
-            {actions.map((action) => (
-              <li
-                key={`${action.moderator_id}-${action.created_at}-${action.action}`}
-                style={{ marginBottom: 6 }}
-              >
-                <strong>{action.action}</strong> by{" "}
-                <code>{action.moderator_id}</code> at{" "}
-                {new Date(action.created_at as any).toLocaleString()}
-                {action.moderator_note && (
-                  <>
-                    {" "}
-                    –{" "}
-                    <span style={{ color: "#4b5563" }}>
-                      {action.moderator_note}
-                    </span>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
+      {!isPending && (
+        <div className="rounded-md border bg-yellow-50 p-4 text-sm text-neutral-700">
+          This request is in state: {cr.status}. Moderation actions are closed.
+        </div>
       )}
 
-      {/* Self-moderation notice */}
-      {isSelfOwned && (
-        <section
-          style={{
-            marginBottom: 24,
-            padding: 12,
-            borderRadius: 6,
-            border: "1px solid #fecaca",
-            background: "#fef2f2",
-            color: "#b91c1c",
-            fontSize: 13,
-          }}
-        >
-          This company request was submitted by you. Moderators can never review
-          or change their own submissions.
-        </section>
-      )}
-
-      {/* Already moderated (for non‑self‑owned items) */}
-      {!isPending && !isSelfOwned && (
-        <section
-          style={{
-            marginBottom: 24,
-            padding: 12,
-            borderRadius: 6,
-            border: "1px solid #d4d4d4",
-            background: "#f9fafb",
-            fontSize: 13,
-          }}
-        >
-          This company request has already been{" "}
-          <strong>{status.toLowerCase()}</strong>. No further moderation actions
-          are available here.
-        </section>
-      )}
-
-      {/* Actions */}
-      {isPending && !isSelfOwned && (
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 24,
-            marginBottom: 32,
-          }}
-        >
-          {/* Approve */}
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 8,
-              padding: 16,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 16,
-                fontWeight: 600,
-                marginBottom: 8,
-              }}
-            >
-              Approve
-            </h2>
-            <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>
-              Approving will create a new company in the database, mark this
-              request as <strong>approved</strong>, and send a confirmation email
-              to the submitter. Any note you add will be included in both the
-              email and the moderation log.
-            </p>
-            <form action={handleApprove} style={{ display: "grid", gap: 8 }}>
-              <label style={{ fontSize: 13 }}>
-                Approval note (optional)
-                <textarea
-                  name="note"
-                  placeholder="(Optional) Short note to include in the approval email"
-                  style={{
-                    width: "100%",
-                    minHeight: 70,
-                    display: "block",
-                    marginTop: 4,
-                  }}
-                />
-              </label>
-              <button
-                type="submit"
-                style={{
-                  marginTop: 4,
-                  padding: "6px 12px",
-                  fontSize: 14,
-                  borderRadius: 4,
-                  border: "none",
-                  background: "#16a34a",
-                  color: "white",
-                  cursor: "pointer",
-                }}
-              >
-                Approve and send email
+      {isPending && (
+        <div className="flex gap-4">
+          <form action={handleApprove}>
+            <input type="hidden" name="id" value={cr.id} />
+            <div>
+              <label className="text-sm block mb-1">Moderator note (optional)</label>
+              <input name="note" className="border px-2 py-1 rounded w-full" />
+            </div>
+            <div className="pt-3">
+              <button type="submit" className="rounded bg-emerald-600 text-white px-4 py-2">
+                Approve
               </button>
-            </form>
-          </div>
+            </div>
+          </form>
 
-          {/* Reject */}
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 8,
-              padding: 16,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 16,
-                fontWeight: 600,
-                marginBottom: 8,
-              }}
-            >
-              Reject
-            </h2>
-            <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>
-              Rejecting will mark this company request as{" "}
-              <strong>rejected</strong> and send a rejection email to the
-              submitter. Your note is <strong>required</strong> and will be
-              included in the email and moderation log.
-            </p>
-            <form action={handleReject} style={{ display: "grid", gap: 8 }}>
-              <label style={{ fontSize: 13 }}>
-                Rejection reason (required)
-                <textarea
-                  name="note"
-                  placeholder="Explain briefly why this company request is being rejected. This text will be sent to the submitter."
-                  required
-                  style={{
-                    width: "100%",
-                    minHeight: 90,
-                    display: "block",
-                    marginTop: 4,
-                  }}
-                />
-              </label>
-              <button
-                type="submit"
-                style={{
-                  marginTop: 4,
-                  padding: "6px 12px",
-                  fontSize: 14,
-                  borderRadius: 4,
-                  border: "none",
-                  background: "#dc2626",
-                  color: "white",
-                  cursor: "pointer",
-                }}
-              >
-                Reject and send email
+          <form action={handleReject}>
+            <input type="hidden" name="id" value={cr.id} />
+            <div>
+              <label className="text-sm block mb-1">Rejection reason (required)</label>
+              <input name="note" required className="border px-2 py-1 rounded w-full" />
+            </div>
+            <div className="pt-3">
+              <button type="submit" className="rounded bg-red-600 text-white px-4 py-2">
+                Reject
               </button>
-            </form>
-          </div>
-        </section>
+            </div>
+          </form>
+        </div>
       )}
-
-      {/* Technical JSON */}
-      <details>
-        <summary style={{ cursor: "pointer", fontSize: 13 }}>
-          Show technical details (raw JSON)
-        </summary>
-        <pre
-          style={{
-            background: "#111",
-            color: "#0f0",
-            padding: 16,
-            overflowX: "auto",
-            marginTop: 8,
-            borderRadius: 4,
-          }}
-        >
-          {JSON.stringify(companyRequest, null, 2)}
-        </pre>
-      </details>
     </main>
   );
 }
