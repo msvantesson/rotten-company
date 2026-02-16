@@ -83,7 +83,9 @@ export default function CompanyRequestsQueue({
       if (kind === "evidence") {
         router.push(`/admin/moderation/evidence/${item_id}`);
       } else if (kind === "company_request") {
-        // For now, redirect back to queue as a safe fallback
+        // TODO: Create company_request detail page similar to evidence page
+        // For now, redirect back to queue as a safe fallback to avoid 404
+        // when browser session is stale (matching the behavior in actions.ts line 109)
         router.push("/moderation/company-requests");
       }
     } catch (err) {
