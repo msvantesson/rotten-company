@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { canModerate, getModerationGateStatus } from "@/lib/moderation-guards";
 import ModerationClient from "./ModerationClient";
-import { releaseExpiredEvidenceAssignments } from "@/lib/release-expired-evidence";
+import { releaseExpiredEvidenceAssignments, releaseExpiredCompanyRequestAssignments } from "@/lib/release-expired-evidence";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -24,6 +24,7 @@ export default async function ModerationPage() {
 
   // Release assignments older than 8 hours
   await releaseExpiredEvidenceAssignments(60 * 8);
+  await releaseExpiredCompanyRequestAssignments(60 * 8);
 
   const userClient = await supabaseServer();
   const {

@@ -43,3 +43,28 @@ export async function releaseExpiredEvidenceAssignments(
     );
   }
 }
+
+/**
+ * Releases company_request assignments that are older than maxAgeMinutes.
+ * Default: 8 hours (480 minutes).
+ */
+export async function releaseExpiredCompanyRequestAssignments(
+  maxAgeMinutes = 60 * 8, // 8 hours
+) {
+  const admin = adminClient();
+
+  const cutoff = new Date(
+    Date.now() - maxAgeMinutes * 60 * 1000,
+  ).toISOString();
+
+  const { error: crErr } = await admin
+    .from("company_requests")
+    .update({ assigned_moderator_id: null, assigned_at: null })
+    .eq("status", "pending")
+    .not("assigned_moderator_id", "is", null)
+    .lt("assigned_at", cutoff);
+
+  if (crErr) {
+    console.error("[moderation] releaseExpiredCompanyRequestAssignments failed", crErr);
+  }
+}
