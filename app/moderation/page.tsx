@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { supabaseServer } from "@/lib/supabase-server";
+import { getSsrUser } from "@/lib/get-ssr-user";
 import { supabaseService } from "@/lib/supabase-service";
 import { canModerate, getModerationGateStatus } from "@/lib/moderation-guards";
 import ModerationClient from "./ModerationClient";
@@ -25,12 +25,8 @@ export default async function ModerationPage() {
   // Release assignments older than 8 hours
   await releaseExpiredEvidenceAssignments(60 * 8);
 
-  const userClient = await supabaseServer();
-  const {
-    data: { user },
-    error: userError,
-  } = await userClient.auth.getUser();
-
+  // Use defensive auth helper to prevent stale session errors
+  const user = await getSsrUser();
   const moderatorId = user?.id ?? null;
 
   console.info(
@@ -38,8 +34,6 @@ export default async function ModerationPage() {
     !!user,
     "userId:",
     moderatorId,
-    "error:",
-    userError,
   );
 
   if (!moderatorId) {
