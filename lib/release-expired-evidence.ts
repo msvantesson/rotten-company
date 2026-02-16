@@ -42,4 +42,16 @@ export async function releaseExpiredEvidenceAssignments(
       error,
     );
   }
+
+  // --- NEW: also release company_request assignments older than cutoff ---
+  const { error: crErr } = await admin
+    .from("company_requests")
+    .update({ assigned_moderator_id: null, assigned_at: null })
+    .eq("status", "pending")
+    .not("assigned_moderator_id", "is", null)
+    .lt("assigned_at", cutoff);
+
+  if (crErr) {
+    console.error("[moderation] releaseExpiredCompanyRequestAssignments failed", crErr);
+  }
 }
