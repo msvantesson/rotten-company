@@ -40,10 +40,12 @@ export default async function CompanyRequestDetailPage(props: {
   // Use service role for data fetch to avoid RLS issues
   const service = supabaseService();
 
-  // Fetch company_requests row
+  // Fetch company_requests row with submitter email
+  // Use !user_id to specify which foreign key relationship to follow
+  // (company_requests has multiple FK to users: user_id and moderator_id)
   const { data: companyRequest, error } = await service
     .from("company_requests")
-    .select("*, users ( email )")
+    .select("*, users!user_id ( email )")
     .eq("id", resolvedParams.id)
     .maybeSingle();
 
