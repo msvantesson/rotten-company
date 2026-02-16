@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase-server";
+import { getSsrUser } from "@/lib/get-ssr-user";
 import { logDebug } from "@/lib/log";
 import CompanyRequestsQueue from "./queue-client";
 import { createClient } from "@supabase/supabase-js";
@@ -41,14 +42,8 @@ export default async function EvidenceRequestsModerationPage() {
 
   logDebug("moderation-evidence-requests", "Loading");
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    logDebug("moderation-evidence-requests", "auth.getUser error", userError);
-  }
+  // Use safe auth helper to avoid 404 on stale sessions
+  const user = await getSsrUser();
 
   const userId = user?.id ?? null;
   const admin = adminClient();
@@ -169,13 +164,9 @@ export default async function EvidenceRequestsModerationPage() {
       Array.isArray(existingAssignedCompanyReq) &&
       existingAssignedCompanyReq.length > 0;
 
-    const hasAnyAssigned = hasAssignedEvidence || hasAssignedCompanyRequest;
-
-    // You can only request a new case if:
-    // - you are a moderator
-    // - the gate is unlocked
-    // - you don't already have an assigned case (either kind)
-    canRequestNewCase = gate.allowed && !hasAnyAssigned;
+    // Workflow change: allow moderators to claim evidence even if they have
+    // an assigned company_request. Only block if they have assigned evidence.
+    canRequestNewCase = gate.allowed && !hasAssignedEvidence;
   }
 
   const debug: DebugInfo = {

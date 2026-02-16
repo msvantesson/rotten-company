@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { assignNextCompanyRequest } from "./actions";
+import { useRouter } from "next/navigation";
 
 type EvidenceRequestRow = {
   id: number;
@@ -41,26 +42,54 @@ export default function CompanyRequestsQueue({
   canRequestNewCase: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const hasAssigned = !!assignedRequest;
 
   // Local flag so the button immediately disables after click,
   // even before the redirect finishes.
   const [canRequestLocally, setCanRequestLocally] =
     useState<boolean>(canRequestNewCase);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setCanRequestLocally(canRequestNewCase);
   }, [canRequestNewCase]);
 
-  function handleGetNewCase() {
+  // Client-side handler that calls the new claim API endpoint
+  async function handleGetNewCase() {
     if (!canRequestLocally || isPending) return;
 
     // Immediately prevent further clicks in this session
     setCanRequestLocally(false);
+    setErrorMessage(null);
 
-    startTransition(() => {
-      void assignNextCompanyRequest();
-    });
+    try {
+      const response = await fetch("/api/moderation/claim-next", {
+        method: "POST",
+      });
+
+      const result = await response.json();
+
+      if (!result.ok) {
+        setErrorMessage(result.error || "Failed to claim item");
+        setCanRequestLocally(canRequestNewCase); // Re-enable on error
+        return;
+      }
+
+      // Navigate based on the claimed item type
+      const { kind, item_id } = result.data;
+      
+      if (kind === "evidence") {
+        router.push(`/admin/moderation/evidence/${item_id}`);
+      } else if (kind === "company_request") {
+        // For now, redirect back to queue as a safe fallback
+        router.push("/moderation/company-requests");
+      }
+    } catch (err) {
+      setErrorMessage("Network error while claiming item");
+      setCanRequestLocally(canRequestNewCase); // Re-enable on error
+      console.error("[handleGetNewCase] error:", err);
+    }
   }
 
   const showGetNewButton =
@@ -97,6 +126,12 @@ export default function CompanyRequestsQueue({
           Pending evidence requests: {pendingCompanyRequests}
         </p>
       </section>
+
+      {errorMessage && (
+        <section className="rounded-md border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-800">{errorMessage}</p>
+        </section>
+      )}
 
       {!debug.isModerator && (
         <p className="text-sm text-neutral-600">

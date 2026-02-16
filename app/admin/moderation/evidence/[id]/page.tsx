@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase-server";
+import { getSsrUser } from "@/lib/get-ssr-user";
 import { redirect } from "next/navigation";
 import { approveEvidence, rejectEvidence } from "@/app/moderation/actions";
 
@@ -21,11 +22,36 @@ export default async function EvidenceReviewPage(props: {
 
   const supabase = await supabaseServer();
 
-  // Auth
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth?.user) return null;
+  // Auth - use safe helper to avoid 404 on stale sessions
+  const user = await getSsrUser();
+  if (!user) {
+    return (
+      <div style={{ padding: 32, maxWidth: 600, margin: "0 auto" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 12 }}>
+          Sign in required
+        </h1>
+        <p style={{ fontSize: 14, color: "#555", marginBottom: 16 }}>
+          You need to be signed in to view this moderation page. Your session
+          may have expired.
+        </p>
+        <a
+          href="/login"
+          style={{
+            display: "inline-block",
+            padding: "8px 16px",
+            background: "#2563eb",
+            color: "white",
+            borderRadius: 4,
+            textDecoration: "none",
+          }}
+        >
+          Go to sign in
+        </a>
+      </div>
+    );
+  }
 
-  const moderatorId = auth.user.id;
+  const moderatorId = user.id;
 
   // Ensure user is a moderator
   const { data: isModerator } = await supabase
