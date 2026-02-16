@@ -85,8 +85,10 @@ export default async function CompanyRequestDetailPage(props: {
 
     const note = formData.get("note")?.toString() ?? "";
 
+    // Call the API route to handle approval
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL!.replace("/graphql/v1", "")}/api/moderation/company-requests/approve`,
+      `${baseUrl}/api/moderation/company-requests/approve`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,8 +128,10 @@ export default async function CompanyRequestDetailPage(props: {
       );
     }
 
+    // Call the API route to handle rejection
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL!.replace("/graphql/v1", "")}/api/moderation/company-requests/reject`,
+      `${baseUrl}/api/moderation/company-requests/reject`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
