@@ -1,4 +1,4 @@
-import { supabaseServer } from "@/lib/supabase-server";
+import { getSsrUser } from "@/lib/get-ssr-user";
 import { logDebug } from "@/lib/log";
 import CompanyRequestsQueue from "./queue-client";
 import { createClient } from "@supabase/supabase-js";
@@ -37,19 +37,9 @@ function adminClient() {
 }
 
 export default async function EvidenceRequestsModerationPage() {
-  const supabase = await supabaseServer();
-
   logDebug("moderation-evidence-requests", "Loading");
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    logDebug("moderation-evidence-requests", "auth.getUser error", userError);
-  }
-
+  const user = await getSsrUser();
   const userId = user?.id ?? null;
   const admin = adminClient();
 

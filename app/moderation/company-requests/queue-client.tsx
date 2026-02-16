@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { assignNextCompanyRequest } from "./actions";
+import { useEffect, useState } from "react";
+import ClientClaimButton from "../components/ClientClaimButton";
 
 type EvidenceRequestRow = {
   id: number;
@@ -40,28 +40,7 @@ export default function CompanyRequestsQueue({
   pendingCompanyRequests: number; // now "pending evidence requests"
   canRequestNewCase: boolean;
 }) {
-  const [isPending, startTransition] = useTransition();
   const hasAssigned = !!assignedRequest;
-
-  // Local flag so the button immediately disables after click,
-  // even before the redirect finishes.
-  const [canRequestLocally, setCanRequestLocally] =
-    useState<boolean>(canRequestNewCase);
-
-  useEffect(() => {
-    setCanRequestLocally(canRequestNewCase);
-  }, [canRequestNewCase]);
-
-  function handleGetNewCase() {
-    if (!canRequestLocally || isPending) return;
-
-    // Immediately prevent further clicks in this session
-    setCanRequestLocally(false);
-
-    startTransition(() => {
-      void assignNextCompanyRequest();
-    });
-  }
 
   const showGetNewButton =
     debug.isModerator && gate.allowed && !hasAssigned && pendingCompanyRequests > 0;
@@ -113,15 +92,11 @@ export default function CompanyRequestsQueue({
                 : "You have no assigned evidence request yet."}
             </p>
 
-            {showGetNewButton && (
-              <button
-                type="button"
-                onClick={handleGetNewCase}
-                disabled={!canRequestLocally || isPending}
-                className="rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-              >
-                {isPending ? "Assigning…" : "Get next evidence request"}
-              </button>
+            {showGetNewButton && debug.ssrUserId && (
+              <ClientClaimButton
+                moderatorId={debug.ssrUserId}
+                disabled={!canRequestNewCase}
+              />
             )}
           </div>
 
