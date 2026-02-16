@@ -1,10 +1,11 @@
-import { supabaseServer } from "@/lib/supabase-server";
+import { getSsrUser } from "@/lib/get-ssr-user";
+import { supabaseService } from "@/lib/supabase-service";
 import { redirect } from "next/navigation";
 import { approveEvidence, rejectEvidence } from "@/app/moderation/actions";
 
 type ParamsShape = { id: string };
 
-export default async function EvidenceReviewPage(props: {
+export default async function UnifiedModerationPage(props: {
   params: ParamsShape | Promise<ParamsShape>;
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
@@ -19,13 +20,18 @@ export default async function EvidenceReviewPage(props: {
     ? decodeURIComponent(errorMessageRaw)
     : null;
 
-  const supabase = await supabaseServer();
+  // Use defensive SSR auth
+  const user = await getSsrUser();
+  if (!user?.id) {
+    return (
+      <main style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
+        <p>You must be signed in to access moderation.</p>
+      </main>
+    );
+  }
 
-  // Auth
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth?.user) return null;
-
-  const moderatorId = auth.user.id;
+  const moderatorId = user.id;
+  const supabase = supabaseService();
 
   // Ensure user is a moderator
   const { data: isModerator } = await supabase
@@ -34,64 +40,94 @@ export default async function EvidenceReviewPage(props: {
     .eq("user_id", moderatorId)
     .maybeSingle();
 
-  if (!isModerator) return null;
+  if (!isModerator) {
+    return (
+      <main style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
+        <p>You do not have moderator access.</p>
+      </main>
+    );
+  }
 
   // ID parsing
-  const evidenceId = parseInt(resolvedParams.id, 10);
-  if (Number.isNaN(evidenceId) || evidenceId <= 0) {
-    return <div>Invalid evidence ID</div>;
+  const itemId = parseInt(resolvedParams.id, 10);
+  if (Number.isNaN(itemId) || itemId <= 0) {
+    return <div>Invalid ID</div>;
   }
 
-  // Evidence + submitter email
-  const { data: evidence, error } = await supabase
+  // Try to fetch as evidence first
+  const { data: evidence, error: evidenceError } = await supabase
     .from("evidence")
     .select("*, users ( email )")
-    .eq("id", evidenceId)
+    .eq("id", itemId)
     .maybeSingle();
 
-  if (error) {
-    console.error("[admin-evidence] evidence query failed:", error.message);
-    return <div>Error loading evidence</div>;
+  // If evidence exists, render evidence moderation UI
+  if (evidence) {
+    return renderEvidenceModeration({
+      evidence,
+      moderatorId,
+      errorMessage,
+    });
   }
 
-  if (!evidence) {
-    return <div>Evidence not found</div>;
+  // If no evidence, try to fetch as company_request
+  const { data: companyRequest, error: companyError } = await supabase
+    .from("company_requests")
+    .select("*, users ( email )")
+    .eq("id", itemId)
+    .maybeSingle();
+
+  if (companyRequest) {
+    return renderCompanyRequestModeration({
+      companyRequest,
+      moderatorId,
+      errorMessage,
+    });
   }
 
+  // Neither found
+  return (
+    <main style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
+      <a
+        href="/moderation"
+        style={{
+          display: "inline-block",
+          marginBottom: 12,
+          fontSize: 13,
+          color: "#2563eb",
+        }}
+      >
+        ← Back to moderation queue
+      </a>
+      <div>Item not found (ID: {itemId})</div>
+    </main>
+  );
+}
+
+/* ──────────────────────────────────────────────
+   Evidence Moderation UI
+────────────────────────────────────────────── */
+
+function renderEvidenceModeration({
+  evidence,
+  moderatorId,
+  errorMessage,
+}: {
+  evidence: any;
+  moderatorId: string;
+  errorMessage: string | null;
+}) {
   const status: string = evidence.status ?? "pending";
   const isPending = status === "pending";
   const isSelfOwned = evidence.user_id === moderatorId;
   const submitterEmail =
-    (evidence as any).users?.email ?? "(unknown submitter)";
+    evidence.users?.email ?? "(unknown submitter)";
 
-  // Moderation history
-  const { data: events } = await supabase
-    .from("moderation_events")
-    .select("action, note, moderator_id, created_at")
-    .eq("evidence_id", evidenceId)
-    .order("created_at", { ascending: false });
-
-  // Optional company request context
-  let companyName: string | null = null;
-  let companySlug: string | null = null;
-
-  if (evidence.company_request_id) {
-    const { data: companyReq, error: companyErr } = await supabase
-      .from("company_requests")
-      .select("company_name, slug")
-      .eq("id", evidence.company_request_id)
-      .maybeSingle();
-
-    if (!companyErr && companyReq) {
-      companyName = (companyReq as any).company_name ?? null;
-      companySlug = (companyReq as any).slug ?? null;
-    }
-  }
-
-  // Actions
-
+  // Server actions for evidence
   async function handleApprove(formData: FormData) {
     "use server";
+
+    const evidenceId = evidence.id;
 
     if (!isPending) {
       redirect("/moderation");
@@ -119,6 +155,8 @@ export default async function EvidenceReviewPage(props: {
 
   async function handleReject(formData: FormData) {
     "use server";
+
+    const evidenceId = evidence.id;
 
     if (!isPending) {
       redirect("/moderation");
@@ -203,24 +241,6 @@ export default async function EvidenceReviewPage(props: {
           {new Date(evidence.created_at).toLocaleString()}
         </p>
 
-        {companyName && (
-          <p style={{ margin: "8px 0 0", fontSize: 13 }}>
-            <strong>Company:</strong>{" "}
-            {companySlug ? (
-              <a
-                href={`/company/${companySlug}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: "#2563eb" }}
-              >
-                {companyName}
-              </a>
-            ) : (
-              companyName
-            )}
-          </p>
-        )}
-
         {evidence.file_url && (
           <p style={{ marginTop: 8, fontSize: 13 }}>
             <strong>File:</strong>{" "}
@@ -236,56 +256,8 @@ export default async function EvidenceReviewPage(props: {
         )}
       </section>
 
-      {/* Moderation history */}
-      {events && events.length > 0 && (
-        <section
-          style={{
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            padding: 16,
-            marginBottom: 24,
-            background: "#ffffff",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              margin: "0 0 8px",
-            }}
-          >
-            Moderation history
-          </h2>
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: 0,
-              fontSize: 13,
-            }}
-          >
-            {events.map((evt) => (
-              <li
-                key={`${evt.moderator_id}-${evt.created_at}-${evt.action}`}
-                style={{ marginBottom: 6 }}
-              >
-                <strong>{evt.action}</strong> by{" "}
-                <code>{evt.moderator_id}</code> at{" "}
-                {new Date(evt.created_at as any).toLocaleString()}
-                {evt.note && (
-                  <>
-                    {" "}
-                    –{" "}
-                    <span style={{ color: "#4b5563" }}>
-                      {evt.note}
-                    </span>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* Company panel if evidence has company_id */}
+      {evidence.company_id && <CompanyPanel companyId={evidence.company_id} itemId={evidence.id} />}
 
       {/* Self-moderation notice */}
       {isSelfOwned && (
@@ -467,5 +439,421 @@ export default async function EvidenceReviewPage(props: {
         </pre>
       </details>
     </main>
+  );
+}
+
+/* ──────────────────────────────────────────────
+   Company Request Moderation UI
+────────────────────────────────────────────── */
+
+function renderCompanyRequestModeration({
+  companyRequest,
+  moderatorId,
+  errorMessage,
+}: {
+  companyRequest: any;
+  moderatorId: string;
+  errorMessage: string | null;
+}) {
+  const status: string = companyRequest.status ?? "pending";
+  const isPending = status === "pending";
+  const isSelfOwned = companyRequest.user_id === moderatorId;
+  const submitterEmail = companyRequest.users?.email ?? "(unknown submitter)";
+
+  // Server actions for company requests
+  async function handleApproveCompany(formData: FormData) {
+    "use server";
+
+    const requestId = companyRequest.id;
+
+    if (!isPending) {
+      redirect("/moderation");
+    }
+
+    const note = formData.get("note")?.toString() ?? "";
+
+    // Call the approve API
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace("/rest/v1", "") || ""}/api/moderation/company-requests/approve`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: requestId,
+          moderator_note: note || null,
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const error = await res.text();
+      redirect(
+        `/admin/moderation/evidence/${requestId}?error=${encodeURIComponent(error || "Approval failed")}`,
+      );
+    }
+
+    redirect("/moderation");
+  }
+
+  async function handleRejectCompany(formData: FormData) {
+    "use server";
+
+    const requestId = companyRequest.id;
+
+    if (!isPending) {
+      redirect("/moderation");
+    }
+
+    const note = formData.get("note")?.toString() ?? "";
+
+    if (!note.trim()) {
+      redirect(
+        `/admin/moderation/evidence/${requestId}?error=${encodeURIComponent("Rejection reason is required")}`,
+      );
+      return;
+    }
+
+    // Call the reject API
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace("/rest/v1", "") || ""}/api/moderation/company-requests/reject`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: requestId,
+          moderator_note: note,
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const error = await res.text();
+      redirect(
+        `/admin/moderation/evidence/${requestId}?error=${encodeURIComponent(error || "Rejection failed")}`,
+      );
+    }
+
+    redirect("/moderation");
+  }
+
+  return (
+    <main style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
+      <a
+        href="/moderation"
+        style={{
+          display: "inline-block",
+          marginBottom: 12,
+          fontSize: 13,
+          color: "#2563eb",
+        }}
+      >
+        ← Back to moderation queue
+      </a>
+
+      {errorMessage && (
+        <section
+          style={{
+            marginBottom: 16,
+            padding: 10,
+            borderRadius: 6,
+            border: "1px solid #fecaca",
+            background: "#fef2f2",
+            color: "#b91c1c",
+            fontSize: 13,
+          }}
+        >
+          {errorMessage}
+        </section>
+      )}
+
+      <header style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
+          Moderate Company Request #{companyRequest.id}
+        </h1>
+        <p style={{ margin: 0, fontSize: 14, color: "#555" }}>
+          Submitted by <strong>{submitterEmail}</strong>{" "}
+          <span style={{ color: "#9ca3af" }}>({companyRequest.user_id})</span> ·
+          Current status: <strong>{status.toUpperCase()}</strong>
+        </p>
+      </header>
+
+      {/* Summary card */}
+      <section
+        style={{
+          border: "1px solid #e5e7eb",
+          borderRadius: 8,
+          padding: 16,
+          marginBottom: 24,
+          background: "#f9fafb",
+        }}
+      >
+        <p style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 600 }}>
+          {companyRequest.name || "Untitled company"}
+        </p>
+        <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
+          ID: {companyRequest.id} · Created at:{" "}
+          {new Date(companyRequest.created_at).toLocaleString()}
+        </p>
+
+        {companyRequest.country && (
+          <p style={{ margin: "8px 0 0", fontSize: 13 }}>
+            <strong>Country:</strong> {companyRequest.country}
+          </p>
+        )}
+
+        {companyRequest.website && (
+          <p style={{ marginTop: 8, fontSize: 13 }}>
+            <strong>Website:</strong>{" "}
+            <a
+              href={companyRequest.website}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: "#2563eb" }}
+            >
+              {companyRequest.website}
+            </a>
+          </p>
+        )}
+
+        {companyRequest.description && (
+          <p style={{ marginTop: 8, fontSize: 13 }}>
+            <strong>Description:</strong> {companyRequest.description}
+          </p>
+        )}
+      </section>
+
+      {/* Self-moderation notice */}
+      {isSelfOwned && (
+        <section
+          style={{
+            marginBottom: 24,
+            padding: 12,
+            borderRadius: 6,
+            border: "1px solid #fecaca",
+            background: "#fef2f2",
+            color: "#b91c1c",
+            fontSize: 13,
+          }}
+        >
+          This company request was submitted by you. Moderators can never review or
+          change their own submissions.
+        </section>
+      )}
+
+      {/* Already moderated */}
+      {!isPending && !isSelfOwned && (
+        <section
+          style={{
+            marginBottom: 24,
+            padding: 12,
+            borderRadius: 6,
+            border: "1px solid #d4d4d4",
+            background: "#f9fafb",
+            fontSize: 13,
+          }}
+        >
+          This company request has already been{" "}
+            <strong>{status.toLowerCase()}</strong>. No further moderation
+            actions are available here.
+        </section>
+      )}
+
+      {/* Actions */}
+      {isPending && !isSelfOwned && (
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 24,
+            marginBottom: 32,
+          }}
+        >
+          {/* Approve */}
+          <div
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: 8,
+              padding: 16,
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                marginBottom: 8,
+              }}
+            >
+              Approve
+            </h2>
+            <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>
+              Approving will create a new company and mark this request as{" "}
+              <strong>approved</strong>. A confirmation email will be sent to the
+              submitter.
+            </p>
+            <form action={handleApproveCompany} style={{ display: "grid", gap: 8 }}>
+              <label style={{ fontSize: 13 }}>
+                Approval note (optional)
+                <textarea
+                  name="note"
+                  placeholder="(Optional) Short note to include in the approval email"
+                  style={{
+                    width: "100%",
+                    minHeight: 70,
+                    display: "block",
+                    marginTop: 4,
+                  }}
+                />
+              </label>
+              <button
+                type="submit"
+                style={{
+                  marginTop: 4,
+                  padding: "6px 12px",
+                  fontSize: 14,
+                  borderRadius: 4,
+                  border: "none",
+                  background: "#16a34a",
+                  color: "white",
+                  cursor: "pointer",
+                }}
+              >
+                Approve and create company
+              </button>
+            </form>
+          </div>
+
+          {/* Reject */}
+          <div
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: 8,
+              padding: 16,
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                marginBottom: 8,
+              }}
+            >
+              Reject
+            </h2>
+            <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>
+              Rejecting will mark this request as <strong>rejected</strong> and
+              send a rejection email to the submitter. Your note is{" "}
+              <strong>required</strong> and will be included in the email.
+            </p>
+            <form action={handleRejectCompany} style={{ display: "grid", gap: 8 }}>
+              <label style={{ fontSize: 13 }}>
+                Rejection reason (required)
+                <textarea
+                  name="note"
+                  placeholder="Explain briefly why this company request is being rejected. This text will be sent to the submitter."
+                  required
+                  style={{
+                    width: "100%",
+                    minHeight: 90,
+                    display: "block",
+                    marginTop: 4,
+                  }}
+                />
+              </label>
+              <button
+                type="submit"
+                style={{
+                  marginTop: 4,
+                  padding: "6px 12px",
+                  fontSize: 14,
+                  borderRadius: 4,
+                  border: "none",
+                  background: "#dc2626",
+                  color: "white",
+                  cursor: "pointer",
+                }}
+              >
+                Reject and send email
+              </button>
+            </form>
+          </div>
+        </section>
+      )}
+
+      {/* Technical JSON */}
+      <details>
+        <summary style={{ cursor: "pointer", fontSize: 13 }}>
+          Show technical details (raw JSON)
+        </summary>
+        <pre
+          style={{
+            background: "#111",
+            color: "#0f0",
+            padding: 16,
+            overflowX: "auto",
+            marginTop: 8,
+            borderRadius: 4,
+          }}
+        >
+          {JSON.stringify(companyRequest, null, 2)}
+        </pre>
+      </details>
+    </main>
+  );
+}
+
+/* ──────────────────────────────────────────────
+   Company Panel (for evidence with company_id)
+────────────────────────────────────────────── */
+
+async function CompanyPanel({ companyId, itemId }: { companyId: number; itemId: number }) {
+  const supabase = supabaseService();
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id, name, slug")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  if (!company) return null;
+
+  return (
+    <section
+      style={{
+        border: "1px solid #e5e7eb",
+        borderRadius: 8,
+        padding: 16,
+        marginBottom: 24,
+        background: "#ffffff",
+      }}
+    >
+      <h2
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          margin: "0 0 8px",
+        }}
+      >
+        Related Company
+      </h2>
+      <p style={{ fontSize: 13, marginBottom: 8 }}>
+        <strong>Company:</strong>{" "}
+        <a
+          href={`/company/${company.slug}`}
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: "#2563eb" }}
+        >
+          {company.name}
+        </a>
+      </p>
+      <p style={{ fontSize: 13 }}>
+        <a
+          href={`#company-${companyId}`}
+          style={{ color: "#2563eb" }}
+        >
+          View company moderation section below
+        </a>
+      </p>
+    </section>
   );
 }

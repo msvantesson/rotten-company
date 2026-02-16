@@ -59,7 +59,8 @@ export async function assignNextCompanyRequest() {
     redirect("/moderation/company-requests");
   }
 
-  // Prevent double-assignment
+  // Prevent double-assignment of evidence (only block if moderator has assigned evidence)
+  // Allow claiming evidence even when company_request is assigned
   const { data: existingEvidence } = await admin
     .from("evidence")
     .select("id")
@@ -68,17 +69,6 @@ export async function assignNextCompanyRequest() {
     .limit(1);
 
   if (existingEvidence && existingEvidence.length > 0) {
-    redirect("/moderation/company-requests");
-  }
-
-  const { data: existingCompanyReq } = await admin
-    .from("company_requests")
-    .select("id")
-    .eq("status", "pending")
-    .eq("assigned_moderator_id", userId)
-    .limit(1);
-
-  if (existingCompanyReq && existingCompanyReq.length > 0) {
     redirect("/moderation/company-requests");
   }
 
