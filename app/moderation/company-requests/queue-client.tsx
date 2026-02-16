@@ -97,7 +97,7 @@ export default function CompanyRequestsQueue({
   }
 
   const showGetNewButton =
-    debug.isModerator && gate.allowed && !hasAssigned && pendingCompanyRequests > 0;
+    debug.isModerator && !hasAssigned && pendingCompanyRequests > 0;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 space-y-8">

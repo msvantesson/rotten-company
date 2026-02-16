@@ -141,9 +141,11 @@ export default async function EvidenceRequestsModerationPage() {
 
     const hasAssignedEvidence = !!assignedRequest;
 
-    // Workflow change: allow moderators to claim evidence even if they have
-    // an assigned company_request. Only block if they have assigned evidence.
-    canRequestNewCase = gate.allowed && !hasAssignedEvidence;
+    // Moderators can claim items regardless of the participation gate.
+    // The gate is for regular users to ensure they moderate before submitting,
+    // not to prevent moderators from moderating.
+    // Only block if moderator already has assigned evidence.
+    canRequestNewCase = !hasAssignedEvidence;
   }
 
   const debug: DebugInfo = {
