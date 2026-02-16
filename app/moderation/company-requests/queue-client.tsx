@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { assignNextCompanyRequest } from "./actions";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type EvidenceRequestRow = {
@@ -41,7 +40,6 @@ export default function CompanyRequestsQueue({
   pendingCompanyRequests: number; // now "pending evidence requests"
   canRequestNewCase: boolean;
 }) {
-  const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const hasAssigned = !!assignedRequest;
 
@@ -50,6 +48,7 @@ export default function CompanyRequestsQueue({
   const [canRequestLocally, setCanRequestLocally] =
     useState<boolean>(canRequestNewCase);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     setCanRequestLocally(canRequestNewCase);
@@ -57,11 +56,12 @@ export default function CompanyRequestsQueue({
 
   // Client-side handler that calls the new claim API endpoint
   async function handleGetNewCase() {
-    if (!canRequestLocally || isPending) return;
+    if (!canRequestLocally || isLoading) return;
 
     // Immediately prevent further clicks in this session
     setCanRequestLocally(false);
     setErrorMessage(null);
+    setIsLoading(true);
 
     try {
       const response = await fetch("/api/moderation/claim-next", {
@@ -73,6 +73,7 @@ export default function CompanyRequestsQueue({
       if (!result.ok) {
         setErrorMessage(result.error || "Failed to claim item");
         setCanRequestLocally(canRequestNewCase); // Re-enable on error
+        setIsLoading(false);
         return;
       }
 
@@ -88,6 +89,7 @@ export default function CompanyRequestsQueue({
     } catch (err) {
       setErrorMessage("Network error while claiming item");
       setCanRequestLocally(canRequestNewCase); // Re-enable on error
+      setIsLoading(false);
       console.error("[handleGetNewCase] error:", err);
     }
   }
@@ -152,10 +154,10 @@ export default function CompanyRequestsQueue({
               <button
                 type="button"
                 onClick={handleGetNewCase}
-                disabled={!canRequestLocally || isPending}
+                disabled={!canRequestLocally || isLoading}
                 className="rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
               >
-                {isPending ? "Assigning…" : "Get next evidence request"}
+                {isLoading ? "Assigning…" : "Get next evidence request"}
               </button>
             )}
           </div>

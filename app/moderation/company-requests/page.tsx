@@ -1,4 +1,3 @@
-import { supabaseServer } from "@/lib/supabase-server";
 import { getSsrUser } from "@/lib/get-ssr-user";
 import { logDebug } from "@/lib/log";
 import CompanyRequestsQueue from "./queue-client";
@@ -38,8 +37,6 @@ function adminClient() {
 }
 
 export default async function EvidenceRequestsModerationPage() {
-  const supabase = await supabaseServer();
-
   logDebug("moderation-evidence-requests", "Loading");
 
   // Use safe auth helper to avoid 404 on stale sessions
@@ -142,27 +139,7 @@ export default async function EvidenceRequestsModerationPage() {
         ? (existingAssignedEvidence[0] as EvidenceRequestRow)
         : null;
 
-    // Assigned pending COMPANY_REQUEST for this moderator?
-    const { data: existingAssignedCompanyReq, error: assignedCompanyReqErr } =
-      await admin
-        .from("company_requests")
-        .select("id")
-        .eq("status", "pending")
-        .eq("assigned_moderator_id", userId)
-        .limit(1);
-
-    if (assignedCompanyReqErr) {
-      logDebug(
-        "moderation-evidence-requests",
-        "company_requests assigned lookup error",
-        assignedCompanyReqErr,
-      );
-    }
-
     const hasAssignedEvidence = !!assignedRequest;
-    const hasAssignedCompanyRequest =
-      Array.isArray(existingAssignedCompanyReq) &&
-      existingAssignedCompanyReq.length > 0;
 
     // Workflow change: allow moderators to claim evidence even if they have
     // an assigned company_request. Only block if they have assigned evidence.

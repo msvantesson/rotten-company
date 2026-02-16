@@ -14,7 +14,7 @@ import { getSsrUser } from "@/lib/get-ssr-user";
 
 type ClaimRow = { kind: "evidence" | "company_request"; item_id: string };
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
     // Get authenticated user
     const user = await getSsrUser();
