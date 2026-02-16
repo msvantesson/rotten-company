@@ -159,10 +159,10 @@ export default async function Page({
       );
     }
 
-    // Fetch current request to validate
+    // Fetch current request to validate; include country for company creation
     const { data: crFresh, error: crFreshErr } = await service
       .from("company_requests")
-      .select("id, status, name, user_id")
+      .select("id, status, name, user_id, country")
       .eq("id", requestId)
       .maybeSingle();
 
@@ -211,7 +211,7 @@ export default async function Page({
       .from("companies")
       .insert({
         name: crFresh.name,
-        country: crFresh.country,
+        country: crFresh.country ?? null,
         slug,
         industry: null,
       })
@@ -346,14 +346,14 @@ export default async function Page({
       );
     }
 
-    // Fetch current request to validate
-    const { data: crFresh, error: crErr2 } = await service
+    // Fetch current request to validate (include country if needed later)
+    const { data: crFresh2, error: crErr2 } = await service
       .from("company_requests")
-      .select("id, status, name, user_id")
+      .select("id, status, name, user_id, country")
       .eq("id", requestId)
       .maybeSingle();
 
-    if (crErr2 || !crFresh) {
+    if (crErr2 || !crFresh2) {
       redirect(
         `/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent(
           "Company request not found",
@@ -361,7 +361,7 @@ export default async function Page({
       );
     }
 
-    if (crFresh.status !== "pending") {
+    if (crFresh2.status !== "pending") {
       redirect(
         `/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent(
           "Request is not pending",
@@ -411,11 +411,11 @@ export default async function Page({
     // Fetch contributor email
     let contributorEmail: string | null = null;
 
-    if (crFresh.user_id) {
+    if (crFresh2.user_id) {
       const { data: userRow } = await service
         .from("users")
         .select("email")
-        .eq("id", crFresh.user_id)
+        .eq("id", crFresh2.user_id)
         .maybeSingle();
 
       contributorEmail = userRow?.email ?? null;
@@ -428,7 +428,7 @@ export default async function Page({
         subject: "Your company request was rejected",
         body: `Hi,
 
-Your request to add "${crFresh.name}" was rejected.
+Your request to add "${crFresh2.name}" was rejected.
 
 Reason:
 ${note}
@@ -445,7 +445,6 @@ ${note}
       console.warn("[admin/company-requests] revalidatePath failed", e);
     }
 
-    revalidatePath("/moderation/company-requests");
     redirect("/moderation/company-requests");
   }
 
