@@ -18,6 +18,7 @@ function slugify(input: string) {
 
 function normalizeLinkedinUrl(url: string): string {
   // Simple normalization: trim and remove trailing slash
+  // Note: This is intentionally simple - exact URL match required for deduplication
   return url.trim().replace(/\/$/, "");
 }
 
@@ -141,6 +142,7 @@ export async function POST(req: Request) {
         .from("leader_tenures")
         .select("id")
         .eq("company_id", company.id)
+        .eq("role", "ceo")
         .is("ended_at", null)
         .maybeSingle();
 
@@ -209,6 +211,7 @@ export async function POST(req: Request) {
       }
 
       // Create leader tenure
+      // Note: started_at defaults to today's date (UTC) if not provided by user
       const tenureStartedAt = stagedCeo.started_at || new Date().toISOString().split("T")[0];
       
       const { error: tenureErr } = await service

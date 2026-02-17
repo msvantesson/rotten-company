@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate CEO started_at format if provided
+    // Note: This checks format only; invalid dates (e.g., 2026-99-99) are caught by the database
     if (ceoStartedAt && !/^\d{4}-\d{2}-\d{2}$/.test(ceoStartedAt)) {
       return new NextResponse("Invalid CEO start date format (use YYYY-MM-DD)", {
         status: 400,
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
       const ceoPayload = {
         company_request_id: data.id,
         leader_name: ceoName,
+        // Note: Uses UTC date if not provided by user
         started_at: ceoStartedAt || new Date().toISOString().split("T")[0], // Default to today
         ended_at: null,
         role: "ceo",

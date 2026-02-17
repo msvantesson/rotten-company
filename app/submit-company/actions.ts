@@ -78,6 +78,7 @@ export async function submitCompany(formData: FormData) {
       .insert({
         company_request_id: companyRequest.id,
         leader_name: ceoName,
+        // Note: Uses UTC date if not provided by user
         started_at: ceoStartedAt || new Date().toISOString().split("T")[0], // Default to today
         ended_at: null,
         role: "ceo",
