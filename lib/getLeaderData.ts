@@ -88,7 +88,7 @@ export async function getLeaderData(slug: string) {
 
   if (tenures.length > 0) {
     // First try to find an active tenure (ended_at is null)
-    const activeTenures = tenures.filter(t => !t.ended_at);
+    const activeTenures = tenures.filter((t) => !t.ended_at);
     if (activeTenures.length > 0) {
       // Use the most recently started active tenure
       const mostRecent = activeTenures.reduce((latest, t) => 
