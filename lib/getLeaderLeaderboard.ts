@@ -24,7 +24,7 @@ type LeaderLeaderboardRow = {
 
 type LeaderLeaderboardResult = {
   rows: LeaderLeaderboardRow[];
-  jsonld: any;
+  jsonld: Record<string, unknown>;
   debug: {
     type: "leader";
     selectedCountry: string | null;
@@ -69,7 +69,7 @@ export async function getLeaderLeaderboard(
   // 2) For each leader, call getLeaderData(slug) to get tenure-aware score + evidence
   // We'll apply country filter after getting data since we derive company from tenures
   const leaderDetails = await Promise.all(
-    leadersRaw.map(async (l: any) => {
+    leadersRaw.map(async (l: { id: number; name: string; slug: string }) => {
       const slug = l.slug as string;
       const data = await getLeaderData(slug);
 
@@ -105,10 +105,10 @@ export async function getLeaderLeaderboard(
       let tenureYears = 0;
       if (tenures.length > 0) {
         const startMs = Math.min(
-          ...tenures.map((t: any) => new Date(t.started_at).getTime())
+          ...tenures.map((t) => new Date(t.started_at).getTime())
         );
         const endMs = Math.max(
-          ...tenures.map((t: any) =>
+          ...tenures.map((t) =>
             t.ended_at ? new Date(t.ended_at).getTime() : Date.now()
           )
         );

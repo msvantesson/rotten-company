@@ -65,10 +65,15 @@ export async function getLeaderData(slug: string) {
     console.error("Leader tenures error:", tenuresError);
   }
 
-  const tenures: TenureRow[] = (tenuresRaw ?? []).map((t: any) => ({
+  const tenures: TenureRow[] = (tenuresRaw ?? []).map((t: {
+    company_id: number;
+    started_at: string;
+    ended_at: string | null;
+    companies: { name: string; slug: string }[];
+  }) => ({
     company_id: t.company_id,
-    company_name: t.companies?.name ?? null,
-    company_slug: t.companies?.slug ?? null,
+    company_name: t.companies[0]?.name ?? null,
+    company_slug: t.companies[0]?.slug ?? null,
     started_at: t.started_at,
     ended_at: t.ended_at,
   }));

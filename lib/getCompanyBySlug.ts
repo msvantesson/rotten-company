@@ -80,11 +80,11 @@ export async function getCompanyBySlug(
     .eq("company_id", company.id);
 
   const leaders = (leaderTenures ?? [])
-    .map((t: any) => t.leaders)
-    .filter((l: any) => l !== null)
+    .map((t: { leaders: { id: number; name: string }[] }) => t.leaders[0])
+    .filter((l): l is { id: number; name: string } => l !== null && l !== undefined)
     // Deduplicate leaders by id (in case of multiple tenures for same leader)
-    .filter((l: any, idx: number, arr: any[]) => 
-      arr.findIndex((x: any) => x.id === l.id) === idx
+    .filter((l, idx, arr) => 
+      arr.findIndex((x) => x.id === l.id) === idx
     );
 
   //
