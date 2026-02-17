@@ -24,7 +24,7 @@ type LeaderLeaderboardRow = {
 
 type LeaderLeaderboardResult = {
   rows: LeaderLeaderboardRow[];
-  jsonld: any;
+  jsonld: Record<string, unknown>;
   debug: {
     type: "leader";
     selectedCountry: string | null;
@@ -40,21 +40,14 @@ export async function getLeaderLeaderboard(
 
   const supabase = await supabaseServer();
 
-  // 1) Fetch leaders + their primary company (for country filter)
+  // 1) Fetch leaders (without company join - we'll derive primary company from tenures)
   const { data: leadersRaw, error: leadersError } = await supabase
     .from("leaders")
     .select(
       `
       id,
       name,
-      slug,
-      company_id,
-      companies (
-        id,
-        name,
-        country,
-        slug
-      )
+      slug
     `
     )
     .limit(1000); // safety cap
@@ -73,39 +66,35 @@ export async function getLeaderLeaderboard(
     };
   }
 
-  // 2) Apply country filter (if any) based on primary company country
-  const filteredLeaders = leadersRaw.filter((l: any) => {
-    const company = l.companies?.[0] ?? null;
-    const country = company?.country ?? null;
-
-    if (!selectedCountry) return true;
-    if (!country) return false;
-    return country === selectedCountry;
-  });
-
-  if (filteredLeaders.length === 0) {
-    return {
-      rows: [],
-      jsonld: buildEmptyJsonLd(selectedCountry, limit, normalization),
-      debug: {
-        type: "leader",
-        selectedCountry,
-        limit,
-        normalization,
-      },
-    };
-  }
-
-  // 3) For each leader, call getLeaderData(slug) to get tenure-aware score + evidence
+  // 2) For each leader, call getLeaderData(slug) to get tenure-aware score + evidence
+  // We'll apply country filter after getting data since we derive company from tenures
   const leaderDetails = await Promise.all(
-    filteredLeaders.map(async (l: any) => {
+    leadersRaw.map(async (l: { id: number; name: string; slug: string }) => {
       const slug = l.slug as string;
       const data = await getLeaderData(slug);
 
       if (!data) return null;
 
-      const company = l.companies?.[0] ?? null;
-      const country = company?.country ?? null;
+      // Get primary company info from the data (derived from tenures)
+      const primaryCompanyId = data.leader.company_id;
+      
+      // We need to fetch the company's country if filtering by country
+      let country: string | null = null;
+      if (selectedCountry && primaryCompanyId) {
+        const { data: companyData } = await supabase
+          .from("companies")
+          .select("country")
+          .eq("id", primaryCompanyId)
+          .maybeSingle();
+        country = companyData?.country ?? null;
+      }
+
+      // Apply country filter
+      if (selectedCountry) {
+        if (!country || country !== selectedCountry) {
+          return null;
+        }
+      }
 
       const rawScore = data.score?.raw_score ?? 0;
       const finalScore = data.score?.final_score ?? 0;
@@ -116,10 +105,10 @@ export async function getLeaderLeaderboard(
       let tenureYears = 0;
       if (tenures.length > 0) {
         const startMs = Math.min(
-          ...tenures.map((t: any) => new Date(t.started_at).getTime())
+          ...tenures.map((t) => new Date(t.started_at).getTime())
         );
         const endMs = Math.max(
-          ...tenures.map((t: any) =>
+          ...tenures.map((t) =>
             t.ended_at ? new Date(t.ended_at).getTime() : Date.now()
           )
         );
@@ -140,7 +129,7 @@ export async function getLeaderLeaderboard(
         leaderId: data.leader.id,
         name: data.leader.name,
         slug: data.leader.slug,
-        companyName: data.leader.company_name ?? company?.name ?? null,
+        companyName: data.leader.company_name,
         country,
         rawScore,
         finalScore,

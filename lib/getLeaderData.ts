@@ -26,7 +26,7 @@ export async function getLeaderData(slug: string) {
   const supabase = await supabaseServer();
 
   /* -------------------------------------------------
-     1) Leader + company
+     1) Leader basic info
      ------------------------------------------------- */
   const { data: leader, error: leaderError } = await supabase
     .from("leaders")
@@ -34,12 +34,7 @@ export async function getLeaderData(slug: string) {
       id,
       name,
       role,
-      slug,
-      company_id,
-      companies (
-        id,
-        name
-      )
+      slug
     `)
     .eq("slug", slug)
     .maybeSingle();
@@ -48,9 +43,6 @@ export async function getLeaderData(slug: string) {
     console.error("Leader fetch error:", leaderError);
     return null;
   }
-
-  const company = leader.companies?.[0] ?? null;
-  const company_name = company?.name ?? null;
 
   /* -------------------------------------------------
      2) Leader tenures
@@ -73,13 +65,46 @@ export async function getLeaderData(slug: string) {
     console.error("Leader tenures error:", tenuresError);
   }
 
-  const tenures: TenureRow[] = (tenuresRaw ?? []).map((t: any) => ({
+  const tenures: TenureRow[] = (tenuresRaw ?? []).map((t: {
+    company_id: number;
+    started_at: string;
+    ended_at: string | null;
+    companies: { name: string; slug: string }[];
+  }) => ({
     company_id: t.company_id,
-    company_name: t.companies?.name ?? null,
-    company_slug: t.companies?.slug ?? null,
+    company_name: t.companies[0]?.name ?? null,
+    company_slug: t.companies[0]?.slug ?? null,
     started_at: t.started_at,
     ended_at: t.ended_at,
   }));
+
+  /* -------------------------------------------------
+     2.5) Derive primary company from tenures
+     ------------------------------------------------- */
+  // Primary company is the most recent active tenure (ended_at is null),
+  // or the most recently started tenure if none are active
+  let primaryCompanyId: number | null = null;
+  let primaryCompanyName: string | null = null;
+
+  if (tenures.length > 0) {
+    // First try to find an active tenure (ended_at is null)
+    const activeTenures = tenures.filter(t => !t.ended_at);
+    if (activeTenures.length > 0) {
+      // Use the most recently started active tenure
+      const mostRecent = activeTenures.reduce((latest, t) => 
+        new Date(t.started_at).getTime() > new Date(latest.started_at).getTime() ? t : latest
+      );
+      primaryCompanyId = mostRecent.company_id;
+      primaryCompanyName = mostRecent.company_name;
+    } else {
+      // No active tenures, use the most recently started tenure
+      const mostRecent = tenures.reduce((latest, t) => 
+        new Date(t.started_at).getTime() > new Date(latest.started_at).getTime() ? t : latest
+      );
+      primaryCompanyId = mostRecent.company_id;
+      primaryCompanyName = mostRecent.company_name;
+    }
+  }
 
   /* -------------------------------------------------
      3) Inequality metrics
@@ -156,8 +181,8 @@ export async function getLeaderData(slug: string) {
       name: leader.name,
       role: leader.role,
       slug: leader.slug,
-      company_id: leader.company_id,
-      company_name,
+      company_id: primaryCompanyId,
+      company_name: primaryCompanyName,
     },
     tenures,
     score: {

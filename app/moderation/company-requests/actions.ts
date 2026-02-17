@@ -5,13 +5,6 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
 
-/**
- * Temporary fallback: when the claim RPC returns a company_request, don't send
- * the moderator directly to the admin detail page (which may require a valid
- * browser session). Instead redirect back to the queue so the moderator can
- * continue. This prevents moderator UX loops while we fix any auth/session issues.
- */
-
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -103,8 +96,10 @@ export async function assignNextCompanyRequest() {
     redirect(`/admin/moderation/evidence/${row.item_id}`);
   }
 
-  // TEMPORARY FALLBACK:
-  // If it's a company_request, redirect to the queue instead of the admin detail page.
-  // This is safer while debugging auth/session issues in admin pages.
+  if (row.kind === "company_request") {
+    redirect(`/admin/moderation/company-requests/${row.item_id}`);
+  }
+
+  // Fallback if neither type matches
   redirect("/moderation/company-requests");
 }
