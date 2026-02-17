@@ -46,8 +46,9 @@ async function getUserId(): Promise<string | null> {
  * - If 1 pending  → requiredModerations = 1
  * - If >=2 pending → requiredModerations = 2
  *
- * - Count how many moderation_events this user has with
- *   action IN ('approved','rejected').
+ * - Count how many items this user has moderated:
+ *   - moderation_events (evidence) with action IN ('approved','rejected')
+ *   - moderation_actions (company_requests, etc.) with action IN ('approve','reject')
  * - allowed = userModerations >= requiredModerations
  */
 export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
@@ -85,22 +86,36 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
   if (pendingEvidence >= 2) requiredModerations = 2;
 
   // How many items has this user actually moderated?
-  // We treat any moderation_events row with action in ('approved','rejected')
-  // as a completed moderation.
-  const { count: userModerationCount, error: moderationsError } = await admin
+  // Count from both moderation_events (evidence) and moderation_actions (company_requests)
+  // moderation_events: evidence approvals/rejections
+  const { count: evidenceModerationCount, error: evidenceModerationError } = await admin
     .from("moderation_events")
     .select("id", { count: "exact", head: true })
     .eq("moderator_id", userId)
     .in("action", ["approved", "rejected"]);
 
-  if (moderationsError) {
+  if (evidenceModerationError) {
     console.error(
-      "[moderation-guards] user moderation count failed",
-      moderationsError,
+      "[moderation-guards] evidence moderation count failed",
+      evidenceModerationError,
     );
   }
 
-  const userModerations = userModerationCount ?? 0;
+  // moderation_actions: company_request and other approvals/rejections
+  const { count: actionsModerationCount, error: actionsModerationError } = await admin
+    .from("moderation_actions")
+    .select("id", { count: "exact", head: true })
+    .eq("moderator_id", userId)
+    .in("action", ["approve", "reject"]);
+
+  if (actionsModerationError) {
+    console.error(
+      "[moderation-guards] actions moderation count failed",
+      actionsModerationError,
+    );
+  }
+
+  const userModerations = (evidenceModerationCount ?? 0) + (actionsModerationCount ?? 0);
 
   return {
     pendingEvidence,
