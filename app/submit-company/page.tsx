@@ -183,6 +183,71 @@ export default async function SubmitCompanyPage() {
           />
         </div>
 
+        <div style={{ borderTop: "1px solid #ddd", paddingTop: "1.5rem" }}>
+          <h2 style={{ fontSize: "1.25rem", marginBottom: "0.5rem" }}>
+            CEO Information (Optional)
+          </h2>
+          <p style={{ marginBottom: "1rem", color: "#666", fontSize: "0.9rem" }}>
+            You can optionally add information about the company&apos;s CEO.
+          </p>
+
+          <div>
+            <label htmlFor="ceo_name" style={{ display: "block", marginBottom: "0.5rem" }}>
+              CEO Name
+            </label>
+            <input
+              id="ceo_name"
+              name="ceo_name"
+              type="text"
+              placeholder="e.g. John Smith"
+              style={{
+                width: "100%",
+                padding: "0.5rem",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+              }}
+            />
+          </div>
+
+          <div style={{ marginTop: "1rem" }}>
+            <label htmlFor="ceo_linkedin_url" style={{ display: "block", marginBottom: "0.5rem" }}>
+              CEO LinkedIn URL
+            </label>
+            <input
+              id="ceo_linkedin_url"
+              name="ceo_linkedin_url"
+              type="url"
+              placeholder="https://linkedin.com/in/..."
+              style={{
+                width: "100%",
+                padding: "0.5rem",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+              }}
+            />
+          </div>
+
+          <div style={{ marginTop: "1rem" }}>
+            <label htmlFor="ceo_started_at" style={{ display: "block", marginBottom: "0.5rem" }}>
+              CEO Start Date
+            </label>
+            <input
+              id="ceo_started_at"
+              name="ceo_started_at"
+              type="date"
+              style={{
+                width: "100%",
+                padding: "0.5rem",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+              }}
+            />
+            <p style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "#666" }}>
+              Optional. Defaults to today if not specified.
+            </p>
+          </div>
+        </div>
+
         <button
           type="submit"
           style={{

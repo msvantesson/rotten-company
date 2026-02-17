@@ -12,6 +12,9 @@ export async function submitCompany(formData: FormData) {
   const website = (formData.get("website") as string)?.trim() || null;
   const description = (formData.get("description") as string)?.trim();
   const why = (formData.get("why") as string)?.trim();
+  const ceoName = (formData.get("ceo_name") as string)?.trim();
+  const ceoLinkedinUrl = (formData.get("ceo_linkedin_url") as string)?.trim() || null;
+  const ceoStartedAt = (formData.get("ceo_started_at") as string)?.trim() || null;
 
   if (!name || !country || !description || !why) {
     cookieStore.set("submit_company_error", "All required fields must be filled.", {
@@ -45,14 +48,18 @@ export async function submitCompany(formData: FormData) {
 
   if (!user) redirect("/login");
 
-  const { error } = await supabase.from("company_requests").insert({
-    name,
-    country,
-    website,
-    description,
-    why,
-    user_id: user.id,
-  });
+  const { data: companyRequest, error } = await supabase
+    .from("company_requests")
+    .insert({
+      name,
+      country,
+      website,
+      description,
+      why,
+      user_id: user.id,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     console.error("[submitCompany] Supabase insert error:", error.message);
@@ -62,6 +69,25 @@ export async function submitCompany(formData: FormData) {
       maxAge: 5,
     });
     redirect("/submit-company");
+  }
+
+  // Insert CEO staging data if CEO name is provided
+  if (ceoName && companyRequest) {
+    const { error: ceoError } = await supabase
+      .from("company_request_leader_tenures")
+      .insert({
+        company_request_id: companyRequest.id,
+        leader_name: ceoName,
+        started_at: ceoStartedAt || new Date().toISOString().split("T")[0], // Default to today
+        ended_at: null,
+        role: "ceo",
+        linkedin_url: ceoLinkedinUrl,
+      });
+
+    if (ceoError) {
+      console.error("[submitCompany] CEO staging insert error:", ceoError.message);
+      // Note: We don't fail the entire request if CEO staging fails
+    }
   }
 
   redirect("/submit-company/thank-you");

@@ -14,6 +14,9 @@ export default function CompanyRequestClient() {
   const [website, setWebsite] = useState("");
   const [description, setDescription] = useState("");
   const [why, setWhy] = useState("");
+  const [ceoName, setCeoName] = useState("");
+  const [ceoLinkedinUrl, setCeoLinkedinUrl] = useState("");
+  const [ceoStartedAt, setCeoStartedAt] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -37,6 +40,9 @@ export default function CompanyRequestClient() {
         website: website.trim() || null,
         description: description.trim() || null,
         why: why.trim(),
+        ceo_name: ceoName.trim() || null,
+        ceo_linkedin_url: ceoLinkedinUrl.trim() || null,
+        ceo_started_at: ceoStartedAt.trim() || null,
       };
 
       logDebug("company-request-form", "Submitting", body);
@@ -122,6 +128,47 @@ export default function CompanyRequestClient() {
             className="w-full rounded-md border px-3 py-2 text-sm min-h-[120px]"
             required
           />
+        </div>
+
+        <div className="border-t pt-6 space-y-4">
+          <h2 className="text-lg font-medium">CEO Information (Optional)</h2>
+          <p className="text-sm text-neutral-600">
+            You can optionally add information about the company&apos;s CEO.
+          </p>
+
+          <div>
+            <label className="block text-sm font-medium">CEO Name</label>
+            <input
+              value={ceoName}
+              onChange={(e) => setCeoName(e.target.value)}
+              className="w-full rounded-md border px-3 py-2 text-sm"
+              placeholder="e.g. John Smith"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">CEO LinkedIn URL</label>
+            <input
+              type="url"
+              value={ceoLinkedinUrl}
+              onChange={(e) => setCeoLinkedinUrl(e.target.value)}
+              className="w-full rounded-md border px-3 py-2 text-sm"
+              placeholder="https://linkedin.com/in/..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">CEO Start Date</label>
+            <input
+              type="date"
+              value={ceoStartedAt}
+              onChange={(e) => setCeoStartedAt(e.target.value)}
+              className="w-full rounded-md border px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-neutral-500 mt-1">
+              Optional. Defaults to today if not specified.
+            </p>
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

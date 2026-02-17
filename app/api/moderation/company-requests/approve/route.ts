@@ -16,6 +16,11 @@ function slugify(input: string) {
     .slice(0, 80);
 }
 
+function normalizeLinkedinUrl(url: string): string {
+  // Simple normalization: trim and remove trailing slash
+  return url.trim().replace(/\/$/, "");
+}
+
 async function requireModerator(cookieClient: any) {
   const {
     data: { user },
@@ -114,6 +119,116 @@ export async function POST(req: Request) {
       `Failed to create company: ${companyErr?.message ?? "unknown"}`,
       { status: 500 }
     );
+  }
+
+  /* ─────────────────────────────────────────────
+     Materialize staged CEO tenures (if any)
+  ───────────────────────────────────────────── */
+
+  const { data: stagedCeos, error: stagedCeosErr } = await service
+    .from("company_request_leader_tenures")
+    .select("*")
+    .eq("company_request_id", id);
+
+  if (stagedCeosErr) {
+    console.error("[approve] Error fetching staged CEOs:", stagedCeosErr);
+  }
+
+  if (stagedCeos && stagedCeos.length > 0) {
+    for (const stagedCeo of stagedCeos) {
+      // Check for existing active CEO tenure for this company
+      const { data: existingActiveCeo } = await service
+        .from("leader_tenures")
+        .select("id")
+        .eq("company_id", company.id)
+        .is("ended_at", null)
+        .maybeSingle();
+
+      if (existingActiveCeo) {
+        return new NextResponse(
+          "Cannot add CEO: company already has an active CEO tenure. Please end the existing tenure first.",
+          { status: 409 }
+        );
+      }
+
+      // Find or create leader
+      let leaderId: number | null = null;
+
+      // Try to find by LinkedIn URL first (if provided)
+      if (stagedCeo.linkedin_url) {
+        const normalizedUrl = normalizeLinkedinUrl(stagedCeo.linkedin_url);
+        const { data: existingByLinkedIn } = await service
+          .from("leaders")
+          .select("id")
+          .eq("linkedin_url", normalizedUrl)
+          .maybeSingle();
+
+        if (existingByLinkedIn) {
+          leaderId = existingByLinkedIn.id;
+        }
+      }
+
+      // Fall back to slugified name if not found by LinkedIn
+      if (!leaderId) {
+        const leaderSlug = slugify(stagedCeo.leader_name);
+        const { data: existingBySlug } = await service
+          .from("leaders")
+          .select("id")
+          .eq("slug", leaderSlug)
+          .maybeSingle();
+
+        if (existingBySlug) {
+          leaderId = existingBySlug.id;
+        }
+      }
+
+      // Create new leader if not found
+      if (!leaderId) {
+        const leaderSlug = slugify(stagedCeo.leader_name);
+        const { data: newLeader, error: leaderErr } = await service
+          .from("leaders")
+          .insert({
+            name: stagedCeo.leader_name,
+            slug: leaderSlug,
+            role: stagedCeo.role || "ceo",
+            company_id: company.id,
+            linkedin_url: stagedCeo.linkedin_url || null,
+          })
+          .select("id")
+          .single();
+
+        if (leaderErr || !newLeader) {
+          console.error("[approve] Failed to create leader:", leaderErr);
+          return new NextResponse(
+            `Failed to create leader: ${leaderErr?.message ?? "unknown"}`,
+            { status: 500 }
+          );
+        }
+
+        leaderId = newLeader.id;
+      }
+
+      // Create leader tenure
+      const tenureStartedAt = stagedCeo.started_at || new Date().toISOString().split("T")[0];
+      
+      const { error: tenureErr } = await service
+        .from("leader_tenures")
+        .insert({
+          leader_id: leaderId,
+          company_id: company.id,
+          started_at: tenureStartedAt,
+          ended_at: null,
+          role: stagedCeo.role || "ceo",
+        });
+
+      if (tenureErr) {
+        console.error("[approve] Failed to create tenure:", tenureErr);
+        return new NextResponse(
+          `Failed to create leader tenure: ${tenureErr.message}`,
+          { status: 500 }
+        );
+      }
+    }
   }
 
   /* ─────────────────────────────────────────────
