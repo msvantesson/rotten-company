@@ -81,11 +81,15 @@ export default async function UnifiedModerationPage(props: {
   }
 
   // If not numeric or not found as evidence, try as company_request (UUID)
-  const { data: companyRequest } = await service
+  const { data: companyRequest, error: companyRequestError } = await service
     .from("company_requests")
-    .select("*, users ( email )")
+    .select("id, name, country, website, description, status, user_id, created_at, assigned_moderator_id, assigned_at, why")
     .eq("id", rawId)
     .maybeSingle();
+
+  if (companyRequestError) {
+    console.error("[unified-admin] company_request query error:", companyRequestError);
+  }
 
   if (companyRequest) {
     // Render company_request moderation UI
@@ -98,6 +102,7 @@ export default async function UnifiedModerationPage(props: {
   }
 
   // Neither found
+  console.error("[unified-admin] Item not found - rawId:", rawId, "isNumericId:", isNumericId);
   return <div>Item not found</div>;
 }
 
@@ -667,7 +672,17 @@ async function renderCompanyRequestUI({
   const status: string = companyRequest.status ?? "pending";
   const isPending = status === "pending";
   const isSelfOwned = companyRequest.user_id === moderatorId;
-  const submitterEmail = companyRequest.users?.email ?? "(unknown submitter)";
+  
+  // Fetch submitter email if user_id exists
+  let submitterEmail = "(unknown submitter)";
+  if (companyRequest.user_id) {
+    const { data: userRow } = await service
+      .from("users")
+      .select("email")
+      .eq("id", companyRequest.user_id)
+      .maybeSingle();
+    submitterEmail = userRow?.email ?? "(unknown submitter)";
+  }
 
   // Moderation history
   const { data: actions } = await service
