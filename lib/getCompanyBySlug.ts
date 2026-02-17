@@ -69,10 +69,23 @@ export async function getCompanyBySlug(
   //
   // STEP 3 — Load leaders
   //
-  const { data: leaders } = await supabase
-    .from("leaders")
-    .select("id, name")
+  const { data: leaderTenures } = await supabase
+    .from("leader_tenures")
+    .select(`
+      leaders (
+        id,
+        name
+      )
+    `)
     .eq("company_id", company.id);
+
+  const leaders = (leaderTenures ?? [])
+    .map((t: any) => t.leaders)
+    .filter((l: any) => l !== null)
+    // Deduplicate leaders by id (in case of multiple tenures for same leader)
+    .filter((l: any, idx: number, arr: any[]) => 
+      arr.findIndex((x: any) => x.id === l.id) === idx
+    );
 
   //
   // STEP 4 — Load investors

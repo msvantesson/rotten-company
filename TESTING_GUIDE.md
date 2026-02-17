@@ -169,7 +169,6 @@ This document provides step-by-step testing instructions for the CEO staging fea
   -- name: from staging
   -- slug: slugified name
   -- role: "ceo"
-  -- company_id: new company ID
   -- linkedin_url: from staging (if provided)
   ```
 - ✅ Leader tenure created in `leader_tenures` table:
@@ -244,8 +243,8 @@ This document provides step-by-step testing instructions for the CEO staging fea
 INSERT INTO companies (name, slug, country) 
 VALUES ('Existing Company', 'existing-company', 'US');
 
-INSERT INTO leaders (name, slug, role, company_id) 
-VALUES ('Existing CEO', 'existing-ceo', 'ceo', <company_id>);
+INSERT INTO leaders (name, slug, role) 
+VALUES ('Existing CEO', 'existing-ceo', 'ceo');
 
 INSERT INTO leader_tenures (leader_id, company_id, started_at, role) 
 VALUES (<leader_id>, <company_id>, '2020-01-01', 'ceo');

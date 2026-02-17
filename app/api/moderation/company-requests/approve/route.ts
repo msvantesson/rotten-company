@@ -193,7 +193,6 @@ export async function POST(req: Request) {
             name: stagedCeo.leader_name,
             slug: leaderSlug,
             role: stagedCeo.role || "ceo",
-            company_id: company.id,
             linkedin_url: stagedCeo.linkedin_url || null,
           })
           .select("id")
