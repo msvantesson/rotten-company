@@ -232,7 +232,7 @@ async function renderEvidenceUI({
 
     revalidatePath("/moderation");
     revalidatePath("/my/evidence");
-    redirect("/moderation");
+    redirect("/moderation?skipAutoAssign=true");
   }
 
   async function handleReject(formData: FormData) {
@@ -323,7 +323,7 @@ async function renderEvidenceUI({
 
     revalidatePath("/moderation");
     revalidatePath("/my/evidence");
-    redirect("/moderation");
+    redirect("/moderation?skipAutoAssign=true");
   }
 
   return (
@@ -818,7 +818,7 @@ async function renderCompanyRequestUI({
     }
 
     revalidatePath("/moderation");
-    redirect("/moderation");
+    redirect("/moderation?skipAutoAssign=true");
   }
 
   async function handleRejectCompanyRequest(formData: FormData) {
@@ -906,7 +906,7 @@ async function renderCompanyRequestUI({
     }
 
     revalidatePath("/moderation");
-    redirect("/moderation");
+    redirect("/moderation?skipAutoAssign=true");
   }
 
   return (

@@ -18,10 +18,15 @@ type ModerationItem = {
   item_type: "evidence" | "company_request"; // Track which table it's from
 };
 
-export default async function ModerationPage() {
+export default async function ModerationPage(props: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
   const hdrs = await headers();
   const isBuildTime = hdrs.get("x-vercel-id") === null;
   if (isBuildTime) return null;
+
+  // Check if auto-assignment should be skipped (e.g., after approving/rejecting a company request)
+  const skipAutoAssign = props.searchParams?.skipAutoAssign === "true";
 
   // Release assignments older than 8 hours
   await releaseExpiredEvidenceAssignments(60 * 8);
@@ -35,6 +40,8 @@ export default async function ModerationPage() {
     !!user,
     "userId:",
     moderatorId,
+    "skipAutoAssign:",
+    skipAutoAssign,
   );
 
   if (!moderatorId) {
@@ -125,6 +132,7 @@ export default async function ModerationPage() {
   // If the moderator has no assigned items and they haven't yet
   // completed the required moderations, automatically assign them up to
   // (requiredModerations - userModerations) items from unassigned pending evidence OR company_requests.
+  // Skip auto-assignment if explicitly disabled (e.g., after completing a moderation action)
   try {
     const userModerations = gate.userModerations ?? 0;
     const requiredModerations = gate.requiredModerations ?? 0;
@@ -132,7 +140,7 @@ export default async function ModerationPage() {
     const needs = Math.max(0, requiredModerations - userModerations);
     const hasAssigned = assignedItem.length > 0;
 
-    if (!hasAssigned && needs > 0) {
+    if (!skipAutoAssign && !hasAssigned && needs > 0) {
       // Select oldest unassigned pending evidence not submitted by this moderator
       const { data: evidenceCandidates, error: evidenceCandErr } = await service
         .from("evidence")
