@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { assignNextCase } from "./actions";
 
@@ -10,16 +11,26 @@ type GateStatus = {
   allowed: boolean;
 };
 
+type AssignedItem = {
+  kind: "evidence" | "company_request";
+  id: string;
+  title: string;
+  created_at: string;
+  href: string;
+};
+
 type Props = {
   moderatorId: string;
   gate: GateStatus;
   pendingCount: number;
+  assignedItems: AssignedItem[];
 };
 
 export default function ModerationQueueClient({
   moderatorId,
   gate,
   pendingCount,
+  assignedItems,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [noPending, setNoPending] = useState(false);
@@ -75,6 +86,37 @@ export default function ModerationQueueClient({
           </p>
         )}
       </section>
+
+      {/* Currently assigned items */}
+      {assignedItems.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-neutral-700">
+            Currently assigned to you
+          </h2>
+          {assignedItems.map((item) => (
+            <div
+              key={`${item.kind}-${item.id}`}
+              className="rounded-md border bg-white p-4 space-y-2"
+            >
+              <div className="space-y-1">
+                <p className="text-xs text-neutral-500 capitalize">
+                  {item.kind === "company_request" ? "Company request" : "Evidence"}
+                </p>
+                <p className="text-sm font-medium">{item.title}</p>
+                <p className="text-xs text-neutral-500">
+                  Submitted {new Date(item.created_at).toLocaleString()}
+                </p>
+              </div>
+              <Link
+                href={item.href}
+                className="inline-flex items-center rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-900"
+              >
+                Review & moderate
+              </Link>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* No pending cases state */}
       {noPending && (
