@@ -103,13 +103,14 @@ export default async function EvidenceRequestsModerationPage() {
     }
 
     // Pending unassigned COMPANY_REQUESTS
-    const { count: pendingCompanyRequests, error: pendingCompanyErr } = await admin
-      .from("company_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending")
-      .is("assigned_moderator_id", null)
-      // exclude self-submitted; include unknown submitters
-      .or(`user_id.is.null,user_id.neq.${userId}`);
+    const { count: pendingCompanyRequests, error: pendingCompanyErr } =
+      await admin
+        .from("company_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .is("assigned_moderator_id", null)
+        // exclude self-submitted; include unknown submitters
+        .or(`user_id.is.null,user_id.neq.${userId}`);
 
     if (pendingCompanyErr) {
       logDebug(
@@ -147,35 +148,16 @@ export default async function EvidenceRequestsModerationPage() {
         ? (existingAssignedEvidence[0] as EvidenceRequestRow)
         : null;
 
-    // Assigned pending COMPANY_REQUEST for this moderator?
-    const { data: existingAssignedCompanyReq, error: assignedCompanyReqErr } =
-      await admin
-        .from("company_requests")
-        .select("id")
-        .eq("status", "pending")
-        .eq("assigned_moderator_id", userId)
-        .limit(1);
-
-    if (assignedCompanyReqErr) {
-      logDebug(
-        "moderation-evidence-requests",
-        "company_requests assigned lookup error",
-        assignedCompanyReqErr,
-      );
-    }
-
+    // IMPORTANT CHANGE:
+    // Do NOT block requesting a new evidence request just because a company_request
+    // is assigned. Only block if an evidence item is already assigned.
     const hasAssignedEvidence = !!assignedRequest;
-    const hasAssignedCompanyRequest =
-      Array.isArray(existingAssignedCompanyReq) &&
-      existingAssignedCompanyReq.length > 0;
-
-    const hasAnyAssigned = hasAssignedEvidence || hasAssignedCompanyRequest;
 
     // You can only request a new case if:
     // - you are a moderator
     // - the gate is unlocked
-    // - you don't already have an assigned case (either kind)
-    canRequestNewCase = gate.allowed && !hasAnyAssigned;
+    // - you don't already have an assigned EVIDENCE case
+    canRequestNewCase = gate.allowed && !hasAssignedEvidence;
   }
 
   const debug: DebugInfo = {
