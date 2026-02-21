@@ -3,7 +3,16 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { canModerate, getModerationGateStatus } from "@/lib/moderation-guards";
 import { logDebug } from "@/lib/log";
+import { releaseExpiredEvidenceAssignments } from "@/lib/release-expired-evidence";
 import ModerationQueueClient from "./ModerationQueueClient";
+
+type AssignedItem = {
+  kind: "evidence" | "company_request";
+  id: string;
+  title: string;
+  created_at: string;
+  href: string;
+};
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -12,6 +21,9 @@ export default async function ModerationPage() {
   const hdrs = await headers();
   const isBuildTime = hdrs.get("x-vercel-id") === null;
   if (isBuildTime) return null;
+
+  // Release assignments older than 8 hours
+  await releaseExpiredEvidenceAssignments(60 * 8);
 
   const userClient = await supabaseServer();
   const {
@@ -103,6 +115,41 @@ export default async function ModerationPage() {
     pendingCount,
   });
 
+  const [
+    { data: assignedEvidenceRows },
+    { data: assignedCompanyRequestRows },
+  ] = await Promise.all([
+    service
+      .from("evidence")
+      .select("id, title, created_at")
+      .eq("assigned_moderator_id", moderatorId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true }),
+    service
+      .from("company_requests")
+      .select("id, company_name, created_at")
+      .eq("assigned_moderator_id", moderatorId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true }),
+  ]);
+
+  const assignedItems: AssignedItem[] = [
+    ...(assignedEvidenceRows ?? []).map((r) => ({
+      kind: "evidence" as const,
+      id: String(r.id),
+      title: r.title ?? "(untitled)",
+      created_at: r.created_at,
+      href: `/admin/moderation/evidence/${r.id}`,
+    })),
+    ...(assignedCompanyRequestRows ?? []).map((r) => ({
+      kind: "company_request" as const,
+      id: String(r.id),
+      title: r.company_name ?? "(untitled)",
+      created_at: r.created_at,
+      href: `/admin/moderation/company-requests/${r.id}`,
+    })),
+  ];
+
   return (
     <main className="max-w-3xl mx-auto py-8 space-y-8">
       <section>
@@ -112,6 +159,7 @@ export default async function ModerationPage() {
           moderatorId={moderatorId}
           gate={gate}
           pendingCount={pendingCount}
+          assignedItems={assignedItems}
         />
       </section>
     </main>
