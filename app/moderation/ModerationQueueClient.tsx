@@ -57,7 +57,8 @@ export default function ModerationQueueClient({
     });
   }
 
-  const canAssign = !clicked && !isPending && !noPending;
+  const hasAssigned = assignedItems.length > 0;
+  const canAssign = !clicked && !isPending && !noPending && !hasAssigned;
 
   return (
     <section className="space-y-6">
@@ -127,15 +128,24 @@ export default function ModerationQueueClient({
 
       {/* Assign next case button */}
       {!noPending && (
-        <div>
+        <div className="space-y-2">
           <button
             type="button"
             onClick={handleAssignNext}
             disabled={!canAssign}
-            className="inline-flex items-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-50"
+            className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white ${
+              canAssign
+                ? "bg-black hover:bg-neutral-900"
+                : "bg-neutral-400 cursor-not-allowed"
+            }`}
           >
             {isPending ? "Assigning…" : "Assign next case"}
           </button>
+          {hasAssigned && !isPending && (
+            <p className="text-xs text-neutral-500">
+              You already have an assigned case—review it before requesting another.
+            </p>
+          )}
         </div>
       )}
     </section>
