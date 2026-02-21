@@ -1,8 +1,11 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseService } from "@/lib/supabase-service";
 import { supabaseServer } from "@/lib/supabase-server";
+import { canModerate } from "@/lib/moderation-guards";
+import { logDebug } from "@/lib/log";
 
 /**
  * Result type returned by moderation server actions.
@@ -306,4 +309,100 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
   revalidatePath("/moderation");
   revalidatePath("/my/evidence");
   return { ok: true };
+}
+
+type ClaimRow = { kind: "evidence" | "company_request"; item_id: string };
+
+/**
+ * Assign the next moderation case (evidence or company_request) to the
+ * currently signed-in moderator via the claim_next_moderation_item RPC.
+ *
+ * Returns { noPending: true } when no items are available so the client can
+ * show "No pending cases" without a redirect.
+ *
+ * Redirects to the appropriate admin review page when a case is claimed.
+ *
+ * TODO: Remove logDebug calls once stabilized (MODERATION_DEBUG_LOGS).
+ */
+export async function assignNextCase(): Promise<{ noPending: true } | void> {
+  const supabase = await supabaseServer();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  const userId = user?.id ?? null;
+
+  // TODO: remove debug logging once stabilized
+  logDebug("assign-next-case", "SSR auth result", {
+    userPresent: !!user,
+    userId,
+    userError,
+  });
+
+  if (!userId) {
+    redirect(`/login?reason=moderate&message=${encodeURIComponent("You must be signed in to access moderation.")}`);
+  }
+
+  const isModerator = await canModerate(userId);
+
+  // TODO: remove debug logging once stabilized
+  logDebug("assign-next-case", "moderator check", { userId, isModerator });
+
+  if (!isModerator) {
+    redirect("/moderation");
+  }
+
+  const service = supabaseService();
+
+  // Call claim_next_moderation_item RPC
+  const { data, error: rpcError } = await service.rpc(
+    "claim_next_moderation_item",
+    { p_moderator_id: userId },
+  );
+
+  // TODO: remove debug logging once stabilized
+  logDebug("assign-next-case", "claim_next_moderation_item result", {
+    data,
+    rpcError,
+  });
+
+  if (rpcError) {
+    console.error("[assign-next-case] claim RPC error", rpcError);
+    return { noPending: true };
+  }
+
+  const rawRow =
+    Array.isArray(data) && data.length > 0 ? data[0] : null;
+
+  // Validate the returned row has the expected shape before using it
+  const row: ClaimRow | null =
+    rawRow &&
+    typeof rawRow === "object" &&
+    (rawRow.kind === "evidence" || rawRow.kind === "company_request") &&
+    typeof rawRow.item_id === "string"
+      ? (rawRow as ClaimRow)
+      : null;
+
+  // TODO: remove debug logging once stabilized
+  logDebug("assign-next-case", "claimed row", { row });
+
+  if (!row) {
+    // Nothing available — caller will show "No pending cases"
+    return { noPending: true };
+  }
+
+  if (row.kind === "evidence") {
+    // TODO: remove debug logging once stabilized
+    logDebug("assign-next-case", "redirecting to evidence", {
+      id: row.item_id,
+    });
+    redirect(`/admin/moderation/evidence/${row.item_id}`);
+  }
+
+  // TODO: remove debug logging once stabilized
+  logDebug("assign-next-case", "redirecting to company-request", {
+    id: row.item_id,
+  });
+  redirect(`/admin/moderation/company-requests/${row.item_id}`);
 }

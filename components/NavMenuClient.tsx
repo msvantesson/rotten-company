@@ -127,11 +127,11 @@ export default function NavMenuClient({
               </Link>
 
               <Link
-                href="/moderation/company-requests"
+                href="/moderation/evidence"
                 className="block px-3 py-2 hover:bg-gray-100"
                 onClick={() => setOpen(false)}
               >
-                Evidence requests moderation
+                Evidence queue
               </Link>
             </>
           )}
