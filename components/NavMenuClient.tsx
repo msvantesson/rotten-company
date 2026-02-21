@@ -117,23 +117,13 @@ export default function NavMenuClient({
           )}
 
           {isModerator && (
-            <>
-              <Link
-                href="/moderation"
-                className="block px-3 py-2 hover:bg-gray-100"
-                onClick={() => setOpen(false)}
-              >
-                Moderation
-              </Link>
-
-              <Link
-                href="/moderation/evidence"
-                className="block px-3 py-2 hover:bg-gray-100"
-                onClick={() => setOpen(false)}
-              >
-                Evidence queue
-              </Link>
-            </>
+            <Link
+              href="/moderation"
+              className="block px-3 py-2 hover:bg-gray-100"
+              onClick={() => setOpen(false)}
+            >
+              Moderation
+            </Link>
           )}
 
           <form action={logout} onSubmit={() => setOpen(false)}>

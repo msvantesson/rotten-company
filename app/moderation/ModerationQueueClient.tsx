@@ -22,6 +22,7 @@ type AssignedItem = {
 type Props = {
   moderatorId: string;
   gate: GateStatus;
+  totalCount: number;
   pendingCount: number;
   assignedItems: AssignedItem[];
 };
@@ -29,6 +30,7 @@ type Props = {
 export default function ModerationQueueClient({
   moderatorId,
   gate,
+  totalCount,
   pendingCount,
   assignedItems,
 }: Props) {
@@ -41,7 +43,7 @@ export default function ModerationQueueClient({
   useEffect(() => {
     setNoPending(false);
     setClicked(false);
-  }, [pendingCount]);
+  }, [totalCount, pendingCount]);
 
   function handleAssignNext() {
     if (clicked || isPending) return;
@@ -77,10 +79,20 @@ export default function ModerationQueueClient({
           </p>
         )}
 
+        <div className="text-sm text-neutral-700 space-y-1">
+          <p>
+            <span className="font-medium">Total available:</span> {totalCount}
+          </p>
+          <p>
+            <span className="font-medium">Available excluding yours:</span>{" "}
+            {pendingCount}
+          </p>
+        </div>
+
         {/* TODO: remove debug info once stabilized */}
         {process.env.NODE_ENV !== "production" && (
           <p className="text-xs text-neutral-500">
-            Debug: pendingCount={pendingCount}, moderatorId={moderatorId},
+            Debug: totalCount={totalCount}, pendingCount={pendingCount}, moderatorId={moderatorId},
             gate.allowed={String(gate.allowed)}, gate.userModerations=
             {gate.userModerations}/{gate.requiredModerations}
           </p>
