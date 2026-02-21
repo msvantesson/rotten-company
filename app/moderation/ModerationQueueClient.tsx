@@ -77,15 +77,6 @@ export default function ModerationQueueClient({
             pending case below.
           </p>
         )}
-
-        {/* TODO: remove debug info once stabilized */}
-        {process.env.NODE_ENV !== "production" && (
-          <p className="text-xs text-neutral-500">
-            Debug: pendingCount={pendingCount}, moderatorId={moderatorId},
-            gate.allowed={String(gate.allowed)}, gate.userModerations=
-            {gate.userModerations}/{gate.requiredModerations}
-          </p>
-        )}
       </section>
 
       {/* Currently assigned items */}
