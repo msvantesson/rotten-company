@@ -5,13 +5,6 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
 
-/**
- * Temporary fallback: when the claim RPC returns a company_request, don't send
- * the moderator directly to the admin detail page (which may require a valid
- * browser session). Instead redirect back to the queue so the moderator can
- * continue. This prevents moderator UX loops while we fix any auth/session issues.
- */
-
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,7 +52,9 @@ export async function assignNextCompanyRequest() {
     redirect("/moderation/company-requests");
   }
 
-  // Prevent double-assignment
+  // Prevent double-assignment:
+  // Only block if the moderator already has pending evidence assigned.
+  // (Company requests should NOT block claiming evidence requests.)
   const { data: existingEvidence } = await admin
     .from("evidence")
     .select("id")
@@ -68,17 +63,6 @@ export async function assignNextCompanyRequest() {
     .limit(1);
 
   if (existingEvidence && existingEvidence.length > 0) {
-    redirect("/moderation/company-requests");
-  }
-
-  const { data: existingCompanyReq } = await admin
-    .from("company_requests")
-    .select("id")
-    .eq("status", "pending")
-    .eq("assigned_moderator_id", userId)
-    .limit(1);
-
-  if (existingCompanyReq && existingCompanyReq.length > 0) {
     redirect("/moderation/company-requests");
   }
 
@@ -92,7 +76,8 @@ export async function assignNextCompanyRequest() {
     redirect("/moderation/company-requests");
   }
 
-  const row: ClaimRow | null = Array.isArray(data) && data.length > 0 ? data[0] as ClaimRow : null;
+  const row: ClaimRow | null =
+    Array.isArray(data) && data.length > 0 ? (data[0] as ClaimRow) : null;
 
   if (!row) {
     // Nothing available
@@ -103,8 +88,6 @@ export async function assignNextCompanyRequest() {
     redirect(`/admin/moderation/evidence/${row.item_id}`);
   }
 
-  // TEMPORARY FALLBACK:
-  // If it's a company_request, redirect to the queue instead of the admin detail page.
-  // This is safer while debugging auth/session issues in admin pages.
-  redirect("/moderation/company-requests");
+  // If it's a company_request, redirect to the company request admin detail page.
+  redirect(`/admin/moderation/company-requests/${row.item_id}`);
 }
