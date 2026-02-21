@@ -34,17 +34,21 @@ export default function ModerationQueueClient({
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [noPending, setNoPending] = useState(false);
+  const [alreadyAssigned, setAlreadyAssigned] = useState(false);
   // Disable locally after first click to prevent double-submit
   const [clicked, setClicked] = useState(false);
+
+  const hasAssigned = assignedItems.length > 0;
 
   // Reset local state when SSR props change (e.g. navigating back)
   useEffect(() => {
     setNoPending(false);
     setClicked(false);
+    setAlreadyAssigned(false);
   }, [pendingCount]);
 
   function handleAssignNext() {
-    if (clicked || isPending) return;
+    if (clicked || isPending || hasAssigned) return;
     setClicked(true);
 
     startTransition(async () => {
@@ -52,12 +56,15 @@ export default function ModerationQueueClient({
       if (result && "noPending" in result && result.noPending) {
         setNoPending(true);
         setClicked(false);
+      } else if (result && "reason" in result && result.reason === "already_assigned") {
+        setAlreadyAssigned(true);
+        setClicked(false);
       }
       // On redirect the component unmounts so no cleanup needed
     });
   }
 
-  const canAssign = !clicked && !isPending && !noPending;
+  const canAssign = !clicked && !isPending && !noPending && !hasAssigned;
 
   return (
     <section className="space-y-6">
@@ -127,15 +134,20 @@ export default function ModerationQueueClient({
 
       {/* Assign next case button */}
       {!noPending && (
-        <div>
+        <div className="space-y-2">
           <button
             type="button"
             onClick={handleAssignNext}
             disabled={!canAssign}
-            className="inline-flex items-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-50"
+            className="inline-flex items-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPending ? "Assigning…" : "Assign next case"}
           </button>
+          {(hasAssigned || alreadyAssigned) && (
+            <p className="text-xs text-neutral-500">
+              You already have a case assigned. Please review it before requesting a new one.
+            </p>
+          )}
         </div>
       )}
     </section>
