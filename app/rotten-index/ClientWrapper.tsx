@@ -32,7 +32,7 @@ export default function ClientWrapper({
       <label className="text-sm font-medium">
         Country:
         <select
-          className="ml-2 border rounded px-2 py-1"
+          className="ml-2 border rounded px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-600 dark:text-gray-100"
           value={initialCountry ?? ""}
           onChange={(e) =>
             updateParam("country", e.target.value || null)
@@ -50,7 +50,7 @@ export default function ClientWrapper({
       <label className="text-sm font-medium">
         Normalize:
         <select
-          className="ml-2 border rounded px-2 py-1"
+          className="ml-2 border rounded px-2 py-1 bg-white dark:bg-gray-900 dark:border-gray-600 dark:text-gray-100"
           value={normalization}
           onChange={(e) =>
             updateParam("normalization", e.target.value)

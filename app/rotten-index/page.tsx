@@ -145,7 +145,7 @@ export default async function RottenIndexPage({
 
       <JsonLdDebugPanel data={jsonLd} />
 
-      <p className="mt-2 text-sm text-gray-600">
+      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
         Ranked by severity of verified misconduct. Higher scores indicate
         greater documented harm.
       </p>
@@ -153,16 +153,16 @@ export default async function RottenIndexPage({
       {/* FILTER CONTROLS */}
       <form
         method="get"
-        className="mt-6 mb-8 flex flex-wrap items-end gap-4 rounded-lg border bg-gray-50 p-4"
+        className="mt-6 mb-8 flex flex-wrap items-end gap-4 rounded-lg border bg-gray-50 dark:bg-gray-800 dark:border-gray-700 p-4"
       >
         <div className="flex flex-col">
-          <label className="text-xs font-semibold text-gray-600 mb-1">
+          <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
             Entity
           </label>
           <select
             name="type"
             defaultValue={type}
-            className="border rounded px-3 py-2 bg-white"
+            className="border rounded px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-600 dark:text-gray-100"
           >
             <option value="company">Companies</option>
             <option value="leader">Leaders</option>
@@ -171,13 +171,13 @@ export default async function RottenIndexPage({
         </div>
 
         <div className="flex flex-col">
-          <label className="text-xs font-semibold text-gray-600 mb-1">
+          <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
             Country
           </label>
           <select
             name="country"
             defaultValue={selectedCountry ?? ""}
-            className="border rounded px-3 py-2 bg-white"
+            className="border rounded px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-600 dark:text-gray-100"
           >
             <option value="">All countries</option>
             {countryOptions.map((c) => (
@@ -189,13 +189,13 @@ export default async function RottenIndexPage({
         </div>
 
         <div className="flex flex-col">
-          <label className="text-xs font-semibold text-gray-600 mb-1">
+          <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
             Results
           </label>
           <select
             name="limit"
             defaultValue={String(limit)}
-            className="border rounded px-3 py-2 bg-white"
+            className="border rounded px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-600 dark:text-gray-100"
           >
             <option value="10">Top 10</option>
             <option value="25">Top 25</option>
@@ -212,10 +212,10 @@ export default async function RottenIndexPage({
       </form>
 
       {/* TABLE */}
-      <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
+      <div className="overflow-hidden rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm">
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-gray-100 border-b">
-            <tr className="text-left text-gray-600">
+          <thead className="bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-700">
+            <tr className="text-left text-gray-600 dark:text-gray-400">
               <th className="py-2 pr-2 w-12">#</th>
               <th className="py-2 pr-4">Name</th>
               <th className="py-2 pr-4">Country</th>
@@ -226,8 +226,8 @@ export default async function RottenIndexPage({
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={`${type}-${r.id}`} className="border-b hover:bg-gray-50">
-                <td className="py-2 pr-2 text-gray-500">{i + 1}</td>
+              <tr key={`${type}-${r.id}`} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <td className="py-2 pr-2 text-gray-500 dark:text-gray-400">{i + 1}</td>
                 <td className="py-2 pr-4 font-medium">
                   <Link
                     href={`/${type}/${r.slug}`}
@@ -236,10 +236,10 @@ export default async function RottenIndexPage({
                     {r.name}
                   </Link>
                 </td>
-                <td className="py-2 pr-4 text-gray-600">
+                <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
                   {r.country ?? "—"}
                 </td>
-                <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-gray-50">
+                <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-gray-50 dark:bg-gray-800">
                   {r.rotten_score.toFixed(2)}
                 </td>
               </tr>
