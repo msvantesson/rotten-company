@@ -78,12 +78,12 @@ export default async function EvidenceReviewPage(props: {
   if (evidence.company_request_id) {
     const { data: companyReq, error: companyErr } = await supabase
       .from("company_requests")
-      .select("company_name, slug")
+      .select("name, slug")
       .eq("id", evidence.company_request_id)
       .maybeSingle();
 
     if (!companyErr && companyReq) {
-      companyName = (companyReq as any).company_name ?? null;
+      companyName = (companyReq as any).name ?? null;
       companySlug = (companyReq as any).slug ?? null;
     }
   }
