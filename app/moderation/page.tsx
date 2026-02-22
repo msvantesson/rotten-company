@@ -141,7 +141,14 @@ export default async function ModerationPage() {
     pendingCount,
   });
 
-  const assignedItems = await getAssignedModerationItems(moderatorId);
+  let assignedItems: Awaited<ReturnType<typeof getAssignedModerationItems>> = [];
+  let assignedItemsFetchError = false;
+  try {
+    assignedItems = await getAssignedModerationItems(moderatorId);
+  } catch (err) {
+    console.error("[moderation] getAssignedModerationItems failed", err);
+    assignedItemsFetchError = true;
+  }
 
   return (
     <main className="max-w-3xl mx-auto py-8 space-y-8">
@@ -154,6 +161,7 @@ export default async function ModerationPage() {
           totalCount={totalCount}
           pendingCount={pendingCount}
           assignedItems={assignedItems}
+          assignedItemsFetchError={assignedItemsFetchError}
         />
       </section>
     </main>
