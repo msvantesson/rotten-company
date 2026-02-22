@@ -32,7 +32,7 @@ export async function getAssignedModerationItems(
       .order("created_at", { ascending: true }),
     service
       .from("company_requests")
-      .select("id, company_name, created_at")
+      .select("id, name, created_at")
       .eq("assigned_moderator_id", moderatorId)
       .eq("status", "pending")
       .order("created_at", { ascending: true }),
@@ -59,7 +59,7 @@ export async function getAssignedModerationItems(
     ...(assignedCompanyRequestRows || []).map((r) => ({
       kind: "company_request" as const,
       id: String(r.id),
-      title: r.company_name ?? "(untitled)",
+      title: r.name ?? "(untitled)",
       created_at: r.created_at,
       href: `/admin/moderation/company-requests/${r.id}`,
     })),
