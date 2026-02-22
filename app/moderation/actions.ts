@@ -320,11 +320,16 @@ type ClaimRow = { kind: "evidence" | "company_request"; item_id: string };
  * Returns { noPending: true } when no items are available so the client can
  * show "No pending cases" without a redirect.
  *
+ * Returns { ok: false, reason: "already_assigned" } when the moderator already
+ * has one or more pending assigned items, preventing multi-tab double-assignment.
+ *
  * Redirects to the appropriate admin review page when a case is claimed.
  *
  * TODO: Remove logDebug calls once stabilized (MODERATION_DEBUG_LOGS).
  */
-export async function assignNextCase(): Promise<{ noPending: true } | void> {
+export async function assignNextCase(): Promise<
+  { noPending: true } | { ok: false; reason: "already_assigned" } | void
+> {
   const supabase = await supabaseServer();
   const {
     data: { user },
@@ -354,6 +359,34 @@ export async function assignNextCase(): Promise<{ noPending: true } | void> {
   }
 
   const service = supabaseService();
+
+  // Guard: refuse to assign if this moderator already has pending assigned items
+  const [
+    { count: evidenceCount, error: evidenceCountError },
+    { count: requestCount, error: requestCountError },
+  ] = await Promise.all([
+    service
+      .from("evidence")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_moderator_id", userId)
+      .eq("status", "pending"),
+    service
+      .from("company_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_moderator_id", userId)
+      .eq("status", "pending"),
+  ]);
+
+  if (evidenceCountError) {
+    console.error("[assign-next-case] evidenceCount query error", evidenceCountError);
+  }
+  if (requestCountError) {
+    console.error("[assign-next-case] requestCount query error", requestCountError);
+  }
+
+  if ((evidenceCount ?? 0) + (requestCount ?? 0) > 0) {
+    return { ok: false, reason: "already_assigned" };
+  }
 
   // Call claim_next_moderation_item RPC
   const { data, error: rpcError } = await service.rpc(
