@@ -14,7 +14,7 @@ function adminClient() {
 }
 
 /**
- * Releases evidence assignments that are older than maxAgeMinutes.
+ * Releases evidence and company_requests assignments that are older than maxAgeMinutes.
  * Default: 8 hours (480 minutes).
  */
 export async function releaseExpiredEvidenceAssignments(
@@ -26,7 +26,7 @@ export async function releaseExpiredEvidenceAssignments(
     Date.now() - maxAgeMinutes * 60 * 1000,
   ).toISOString();
 
-  const { error } = await admin
+  const { error: evidenceError } = await admin
     .from("evidence")
     .update({
       assigned_moderator_id: null,
@@ -36,10 +36,27 @@ export async function releaseExpiredEvidenceAssignments(
     .not("assigned_moderator_id", "is", null)
     .lt("assigned_at", cutoff);
 
-  if (error) {
+  if (evidenceError) {
     console.error(
-      "[moderation] releaseExpiredEvidenceAssignments failed",
-      error,
+      "[moderation] releaseExpiredEvidenceAssignments (evidence) failed",
+      evidenceError,
+    );
+  }
+
+  const { error: requestError } = await admin
+    .from("company_requests")
+    .update({
+      assigned_moderator_id: null,
+      assigned_at: null,
+    })
+    .eq("status", "pending")
+    .not("assigned_moderator_id", "is", null)
+    .lt("assigned_at", cutoff);
+
+  if (requestError) {
+    console.error(
+      "[moderation] releaseExpiredEvidenceAssignments (company_requests) failed",
+      requestError,
     );
   }
 }
