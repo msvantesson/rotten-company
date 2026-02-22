@@ -25,6 +25,7 @@ type Props = {
   totalCount: number;
   pendingCount: number;
   assignedItems: AssignedItem[];
+  assignedItemsFetchError?: boolean;
 };
 
 export default function ModerationQueueClient({
@@ -33,6 +34,7 @@ export default function ModerationQueueClient({
   totalCount,
   pendingCount,
   assignedItems,
+  assignedItemsFetchError = false,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [noPending, setNoPending] = useState(false);
@@ -40,7 +42,7 @@ export default function ModerationQueueClient({
   // Disable locally after first click to prevent double-submit
   const [clicked, setClicked] = useState(false);
 
-  const hasAssigned = assignedItems.length > 0;
+  const hasAssigned = assignedItems.length > 0 || assignedItemsFetchError;
 
   // Reset local state when SSR props change (e.g. navigating back)
   useEffect(() => {
@@ -146,8 +148,8 @@ export default function ModerationQueueClient({
         </section>
       )}
 
-      {/* Assign next case button */}
-      {!noPending && !hasAssigned && !alreadyAssigned && (
+      {/* Assign next case button — always visible, disabled when not actionable */}
+      {!noPending && (
         <button
           type="button"
           onClick={handleAssignNext}
@@ -160,6 +162,11 @@ export default function ModerationQueueClient({
       {(hasAssigned || alreadyAssigned) && (
         <p className="text-xs text-neutral-500">
           You already have a case assigned. Please review it before requesting a new one.
+        </p>
+      )}
+      {assignedItemsFetchError && process.env.NODE_ENV !== "production" && (
+        <p className="text-xs text-yellow-600">
+          Debug: could not fetch assigned items — assign button disabled as a precaution.
         </p>
       )}
     </section>

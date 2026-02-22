@@ -21,8 +21,8 @@ export async function getAssignedModerationItems(
   const service = supabaseService();
 
   const [
-    { data: assignedEvidenceRows },
-    { data: assignedCompanyRequestRows },
+    { data: assignedEvidenceRows, error: evidenceError },
+    { data: assignedCompanyRequestRows, error: requestError },
   ] = await Promise.all([
     service
       .from("evidence")
@@ -38,15 +38,25 @@ export async function getAssignedModerationItems(
       .order("created_at", { ascending: true }),
   ]);
 
+  if (evidenceError) {
+    console.error("[getAssignedModerationItems] evidence query failed", evidenceError);
+    throw new Error(`Failed to fetch assigned evidence: ${evidenceError.message}`);
+  }
+
+  if (requestError) {
+    console.error("[getAssignedModerationItems] company_requests query failed", requestError);
+    throw new Error(`Failed to fetch assigned company requests: ${requestError.message}`);
+  }
+
   return [
-    ...(assignedEvidenceRows ?? []).map((r) => ({
+    ...(assignedEvidenceRows || []).map((r) => ({
       kind: "evidence" as const,
       id: String(r.id),
       title: r.title ?? "(untitled)",
       created_at: r.created_at,
       href: `/admin/moderation/evidence/${r.id}`,
     })),
-    ...(assignedCompanyRequestRows ?? []).map((r) => ({
+    ...(assignedCompanyRequestRows || []).map((r) => ({
       kind: "company_request" as const,
       id: String(r.id),
       title: r.company_name ?? "(untitled)",

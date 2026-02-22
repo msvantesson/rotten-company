@@ -6,6 +6,7 @@ import { supabaseService } from "@/lib/supabase-service";
 import { supabaseServer } from "@/lib/supabase-server";
 import { canModerate } from "@/lib/moderation-guards";
 import { logDebug } from "@/lib/log";
+import { getAssignedModerationItems } from "@/lib/getAssignedModerationItems";
 
 /**
  * Result type returned by moderation server actions.
@@ -360,31 +361,19 @@ export async function assignNextCase(): Promise<
 
   const service = supabaseService();
 
-  // Guard: refuse to assign if this moderator already has pending assigned items
-  const [
-    { count: evidenceCount, error: evidenceCountError },
-    { count: requestCount, error: requestCountError },
-  ] = await Promise.all([
-    service
-      .from("evidence")
-      .select("id", { count: "exact", head: true })
-      .eq("assigned_moderator_id", userId)
-      .eq("status", "pending"),
-    service
-      .from("company_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("assigned_moderator_id", userId)
-      .eq("status", "pending"),
-  ]);
-
-  if (evidenceCountError) {
-    console.error("[assign-next-case] evidenceCount query error", evidenceCountError);
-  }
-  if (requestCountError) {
-    console.error("[assign-next-case] requestCount query error", requestCountError);
+  // Guard: refuse to assign if this moderator already has pending assigned items.
+  // Use getAssignedModerationItems so the check is identical to /moderation SSR props.
+  let alreadyAssignedCount = 0;
+  try {
+    const assigned = await getAssignedModerationItems(userId);
+    alreadyAssignedCount = assigned.length;
+  } catch (err) {
+    // If we cannot determine assignment status, refuse to assign (safe default).
+    console.error("[assign-next-case] could not check assigned items", err);
+    return { ok: false, reason: "already_assigned" };
   }
 
-  if ((evidenceCount ?? 0) + (requestCount ?? 0) > 0) {
+  if (alreadyAssignedCount > 0) {
     return { ok: false, reason: "already_assigned" };
   }
 
