@@ -3,8 +3,9 @@ import Link from "next/link";
 import { getSsrUser } from "@/lib/get-ssr-user";
 import { supabaseService } from "@/lib/supabase-service";
 import { canModerate, getModerationGateStatus } from "@/lib/moderation-guards";
-import ModerationClient from "./ModerationClient";
+import { logDebug } from "@/lib/log";
 import { releaseExpiredEvidenceAssignments } from "@/lib/release-expired-evidence";
+import ModerationQueueClient from "./ModerationQueueClient";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -56,6 +57,13 @@ export default async function ModerationPage(props: {
   }
 
   const allowedModerator = await canModerate(moderatorId);
+
+  // TODO: remove debug logging once stabilized
+  logDebug("moderation", "moderator check", {
+    userId: moderatorId,
+    allowedModerator,
+  });
+
   if (!allowedModerator) {
     return (
       <main className="max-w-3xl mx-auto py-8 space-y-6">
@@ -288,34 +296,11 @@ export default async function ModerationPage(props: {
           items={assignedItem}
           moderatorId={moderatorId}
           gate={gate}
-          pendingAvailable={pendingCount}
-          canRequestNewCase={canRequestNewCase}
+          pendingCount={pendingCount}
+          assignedItems={assignedItems}
         />
-      </section>
-
-      <hr />
-
-      <section>
-        <h2 className="text-xl font-semibold">
-          Extra: Evidence requests moderation
-        </h2>
-        <p className="text-sm text-neutral-600">
-          After you've worked through the main moderation queue, you can
-          optionally help with extra evidence items in the{" "}
-          <Link
-            href="/moderation/company-requests"
-            className="text-blue-700 hover:underline"
-          >
-            Evidence requests moderation
-          </Link>{" "}
-          view.
-        </p>
-
-        <p className="mt-4 text-xs text-neutral-500">
-          That page shows pending, unassigned evidence submissions as optional
-          extra work. Decisions are still made in the main moderation queue.
-        </p>
       </section>
     </main>
   );
 }
+

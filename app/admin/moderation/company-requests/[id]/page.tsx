@@ -1,16 +1,26 @@
 import Link from "next/link";
-import { redirect, notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { canModerate } from "@/lib/moderation-guards";
 
 /**
- * Admin moderation detail page for a single company_request
+ * Admin moderation detail page for a single company_request.
  *
  * Defensive auth handling + debug panel when row missing.
  * Fixed: server actions use `requestId` (string) instead of closing over `cr`.
+ *
+ * TODO: Remove diagnostic logging (MODERATION_DEBUG) once production routing is verified.
  */
+
+// Temporary debug helper — gated by MODERATION_DEBUG=true env var.
+// TODO: Remove this helper and all dbg() calls once verified in production.
+function dbg(...args: unknown[]) {
+  if (process.env.MODERATION_DEBUG === "true") {
+    console.log("[admin/company-requests]", ...args);
+  }
+}
 
 type RequestRow = {
   id: string;
@@ -31,10 +41,22 @@ type RequestRow = {
 export default async function Page({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }> | { id: string };
 }) {
-  const requestId = params?.id;
-  if (!requestId) return notFound();
+  const resolvedParams = params instanceof Promise ? await params : params;
+  const requestId = resolvedParams?.id;
+
+  dbg("page load", { requestId, path: `/admin/moderation/company-requests/${requestId}` });
+
+  if (!requestId) {
+    dbg("no requestId — returning notFound");
+    return (
+      <main className="max-w-3xl mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Company request not found</h1>
+        <p className="text-sm text-neutral-700">No request ID was provided.</p>
+      </main>
+    );
+  }
 
   // -----------------------
   // Robust SSR auth.getUser
@@ -59,6 +81,8 @@ export default async function Page({
   const moderatorId = user?.id ?? null;
   const moderatorEmail = user?.email ?? null;
 
+  dbg("auth", { moderatorId, moderatorEmail, authError: authError ? String((authError as { message?: string }).message ?? authError) : null });
+
   // Quick moderator check - wrap in try/catch
   let isModerator = false;
   try {
@@ -72,9 +96,16 @@ export default async function Page({
     isModerator = false;
   }
 
+  dbg("moderator check", { isModerator });
+
   // -----------------------
   // Authoritative service fetch
   // -----------------------
+  const hasServiceKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const hasPublicUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+  dbg("env", { hasServiceKey, hasPublicUrl });
+
   const service = supabaseService();
 
   const { data: cr, error: crErr } = await service
@@ -85,8 +116,7 @@ export default async function Page({
     .eq("id", requestId)
     .maybeSingle();
 
-  const hasServiceKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const hasPublicUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  dbg("service query", { found: Boolean(cr), error: crErr ? String(crErr.message ?? crErr) : null });
 
   // If user isn't authenticated / moderator, show explicit UI rather than 404.
   if (!moderatorId) {
@@ -105,7 +135,7 @@ export default async function Page({
 
         <div className="mt-4 text-xs text-neutral-500">
           <p>Server diag: auth error:</p>
-          <pre className="text-xs text-red-600">{authError ? String((authError as any).message ?? authError) : "none"}</pre>
+          <pre className="text-xs text-red-600">{authError ? String((authError as { message?: string }).message ?? authError) : "none"}</pre>
         </div>
       </main>
     );
@@ -199,7 +229,7 @@ export default async function Page({
     const note = formData.get("note")?.toString() ?? "";
     const svc = supabaseService();
 
-    const { data: updated, error: updateErr } = await svc
+    const { error: updateErr } = await svc
       .from("company_requests")
       .update({
         status: "approved",
@@ -229,7 +259,7 @@ export default async function Page({
       redirect(`/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent("Rejection reason required")}`);
     }
     const svc = supabaseService();
-    const { data: updated, error: updateErr } = await svc
+    const { error: updateErr } = await svc
       .from("company_requests")
       .update({
         status: "rejected",
@@ -290,7 +320,6 @@ export default async function Page({
       {isPending && (
         <div className="flex gap-4">
           <form action={approveAction}>
-            <input type="hidden" name="id" value={cr!.id} />
             <div>
               <label className="text-sm block mb-1">Moderator note (optional)</label>
               <input name="note" className="border px-2 py-1 rounded w-full" />
@@ -303,7 +332,6 @@ export default async function Page({
           </form>
 
           <form action={rejectAction}>
-            <input type="hidden" name="id" value={cr!.id} />
             <div>
               <label className="text-sm block mb-1">Rejection reason (required)</label>
               <input name="note" required className="border px-2 py-1 rounded w-full" />

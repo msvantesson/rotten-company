@@ -1,39 +1,14 @@
-import { supabaseServer } from "@/lib/supabase-server";
-import { logDebug } from "@/lib/log";
-import CompanyRequestsQueue from "./queue-client";
-import { createClient } from "@supabase/supabase-js";
-import { getModerationGateStatus } from "@/lib/moderation-guards";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-type EvidenceRequestRow = {
-  id: number;
-  title: string;
-  summary: string | null;
-  status: string;
-  created_at: string;
-  user_id: string | null;
-  company_id: number | null;
-  evidence_type: string | null;
-};
-
-type DebugInfo = {
-  ssrUserPresent: boolean;
-  ssrUserId: string | null;
-  isModerator: boolean;
-};
-
-function adminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    },
-  );
+/**
+ * /moderation/company-requests now redirects to the generic moderation queue.
+ * The generic queue (/moderation) handles both evidence and company-request
+ * assignments via claim_next_moderation_item.
+ */
+export default function CompanyRequestsModerationPage() {
+  redirect("/moderation");
 }
 
 export default async function EvidenceRequestsModerationPage() {
