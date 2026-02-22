@@ -28,9 +28,11 @@ async function fetchGateStatus(): Promise<ModerationGateStatus | null> {
 export default function NavMenuClient({
   email,
   isModerator,
+  moderationHref,
 }: {
   email: string | null;
   isModerator: boolean;
+  moderationHref: string;
 }) {
   const [open, setOpen] = useState(false);
   const [gate, setGate] = useState<ModerationGateStatus | null>(null);
@@ -119,7 +121,7 @@ export default function NavMenuClient({
           {isModerator && (
             <>
               <Link
-                href="/moderation"
+                href={moderationHref}
                 className="block px-3 py-2 hover:bg-gray-100"
                 onClick={() => setOpen(false)}
               >
@@ -127,7 +129,7 @@ export default function NavMenuClient({
               </Link>
 
               <Link
-                href="/moderation/evidence"
+                href="/moderation"
                 className="block px-3 py-2 hover:bg-gray-100"
                 onClick={() => setOpen(false)}
               >

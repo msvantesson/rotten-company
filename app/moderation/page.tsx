@@ -81,35 +81,68 @@ export default async function ModerationPage() {
   });
 
   // Count total pending items (evidence + company_requests) available for assignment
-  const { count: pendingEvidenceCount, error: pendingEvidenceErr } =
-    await service
+  // Two counts: total unassigned, and unassigned excluding submitted by this moderator
+  const [
+    { count: totalEvidenceCount, error: totalEvidenceErr },
+    { count: pendingEvidenceCount, error: pendingEvidenceErr },
+  ] = await Promise.all([
+    service
+      .from("evidence")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .is("assigned_moderator_id", null),
+    service
       .from("evidence")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending")
       .is("assigned_moderator_id", null)
-      .or(`user_id.is.null,user_id.neq.${moderatorId}`);
+      .or(`user_id.is.null,user_id.neq.${moderatorId}`),
+  ]);
+
+  if (totalEvidenceErr) {
+    console.error("[moderation] total evidence count failed", totalEvidenceErr);
+  }
 
   if (pendingEvidenceErr) {
     console.error("[moderation] pending evidence count failed", pendingEvidenceErr);
   }
 
-  const { count: pendingCompanyRequestsCount, error: pendingCompanyErr } =
-    await service
+  const [
+    { count: totalCompanyRequestsCount, error: totalCompanyErr },
+    { count: pendingCompanyRequestsCount, error: pendingCompanyErr },
+  ] = await Promise.all([
+    service
+      .from("company_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .is("assigned_moderator_id", null),
+    service
       .from("company_requests")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending")
       .is("assigned_moderator_id", null)
-      .or(`user_id.is.null,user_id.neq.${moderatorId}`);
+      .or(`user_id.is.null,user_id.neq.${moderatorId}`),
+  ]);
+
+  if (totalCompanyErr) {
+    console.error("[moderation] total company_requests count failed", totalCompanyErr);
+  }
 
   if (pendingCompanyErr) {
     console.error("[moderation] pending company_requests count failed", pendingCompanyErr);
   }
+
+  const totalCount =
+    (totalEvidenceCount ?? 0) + (totalCompanyRequestsCount ?? 0);
 
   const pendingCount =
     (pendingEvidenceCount ?? 0) + (pendingCompanyRequestsCount ?? 0);
 
   // TODO: remove debug logging once stabilized
   logDebug("moderation", "pending counts", {
+    totalEvidenceCount,
+    totalCompanyRequestsCount,
+    totalCount,
     pendingEvidenceCount,
     pendingCompanyRequestsCount,
     pendingCount,
@@ -158,6 +191,7 @@ export default async function ModerationPage() {
         <ModerationQueueClient
           moderatorId={moderatorId}
           gate={gate}
+          totalCount={totalCount}
           pendingCount={pendingCount}
           assignedItems={assignedItems}
         />
