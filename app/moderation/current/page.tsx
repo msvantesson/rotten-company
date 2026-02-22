@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
-import { supabaseService } from "@/lib/supabase-service";
 import { canModerate } from "@/lib/moderation-guards";
+import { getAssignedModerationItems } from "@/lib/getAssignedModerationItems";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -33,33 +33,15 @@ export default async function ModerationCurrentPage() {
     redirect("/moderation");
   }
 
-  const service = supabaseService();
+  const assignedItems = await getAssignedModerationItems(userId);
+  const assignedEvidence = assignedItems.find((i) => i.kind === "evidence");
+  const assignedRequest = assignedItems.find((i) => i.kind === "company_request");
 
-  const [{ data: assignedEvidence }, { data: assignedRequest }] =
-    await Promise.all([
-      service
-        .from("evidence")
-        .select("id")
-        .eq("assigned_moderator_id", userId)
-        .eq("status", "pending")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-      service
-        .from("company_requests")
-        .select("id")
-        .eq("assigned_moderator_id", userId)
-        .eq("status", "pending")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-  if (assignedEvidence?.id) {
+  if (assignedEvidence) {
     redirect(`/admin/moderation/evidence/${assignedEvidence.id}`);
   }
 
-  if (assignedRequest?.id) {
+  if (assignedRequest) {
     redirect(`/admin/moderation/company-requests/${assignedRequest.id}`);
   }
 
