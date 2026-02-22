@@ -94,18 +94,18 @@ export default function NavMenuClient({
   }
 
   return (
-    <div className="relative flex items-center" ref={menuRef}>
+    <div className="relative flex items-center max-w-[70vw] sm:max-w-none" ref={menuRef}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 text-sm font-medium hover:underline"
+        className="flex items-center gap-2 text-sm font-medium hover:underline min-w-0"
       >
-        <span>{email}</span>
-        <span className="text-xs">&#9662;</span>
+        <span className="truncate">{email}</span>
+        <span className="text-xs shrink-0">&#9662;</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-56 rounded-md border bg-white shadow-lg z-50 text-sm">
+        <div className="absolute right-0 top-full mt-2 w-[min(22rem,calc(100vw-1.5rem))] sm:w-56 rounded-md border bg-white shadow-lg z-50 text-sm overflow-hidden">
           <div className="px-3 py-2 border-b text-xs text-gray-500 break-all">
             Signed in as
             <br />
