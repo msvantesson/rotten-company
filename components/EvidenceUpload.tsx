@@ -1,24 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
-interface EvidenceUploadProps {
+type EvidenceUploadProps = {
   entityId: number;
   entityType: "company" | "leader" | "manager" | "owner";
-}
+};
+
+const MAX_IMAGE_SIZE = 3 * 1024 * 1024; // 3MB
+const MAX_PDF_SIZE = 8 * 1024 * 1024; // 8MB
 
 function sanitizeFileName(name: string) {
-  return name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9.\-_]/g, "-")
-    .toLowerCase();
+  return name.replace(/[^\w.\-]+/g, "_");
 }
-
-const MAX_IMAGE_SIZE = 3 * 1024 * 1024;
-const MAX_PDF_SIZE = 8 * 1024 * 1024;
 
 export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadProps) {
   const router = useRouter();
@@ -26,15 +22,18 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
+
   const [file, setFile] = useState<File | null>(null);
   const [evidenceType, setEvidenceType] = useState<"misconduct" | "remediation">(
-    "misconduct",
+    "misconduct"
   );
 
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
 
   const [severity, setSeverity] = useState<number>(3);
+
+  const [confirmPolicy, setConfirmPolicy] = useState(false);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,9 +43,11 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       const { data, error } = await supabase
         .from("categories")
         .select("id, name")
-        .order("name");
+        .order("id", { ascending: true });
 
-      if (!error && data) setCategories(data);
+      if (!error && data) {
+        setCategories(data as any);
+      }
     }
     loadCategories();
   }, [supabase]);
@@ -54,7 +55,13 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
   const handleSubmit = async () => {
     setError("");
 
-    if (!title) return setError("Title is required.");
+    if (!title.trim()) return setError("Title is required.");
+    if (!summary.trim()) return setError("Summary is required.");
+    if (!confirmPolicy)
+      return setError(
+        "Please confirm the policy about naming only leaders/managers."
+      );
+
     if (!file) return setError("Please attach a file.");
     if (!categoryId) return setError("Please select a category.");
 
@@ -81,8 +88,8 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
 
       const form = new FormData();
       form.append("file", file, sanitizeFileName(file.name));
-      form.append("title", title);
-      form.append("summary", summary);
+      form.append("title", title.trim());
+      form.append("summary", summary.trim());
       form.append("entityType", entityType);
       form.append("entityId", String(entityId));
       form.append("category", String(categoryId));
@@ -115,12 +122,49 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Submit Evidence</h2>
 
+      {/* Policy box */}
+      <div className="rounded-md border bg-gray-50 p-4 text-sm text-gray-700 space-y-2">
+        <div className="font-medium">Before you submit</div>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>
+            <strong>Do not name regular employees.</strong> Only name{" "}
+            <strong>leaders</strong> and <strong>managers</strong>.
+          </li>
+          <li>
+            If you mention a leader/manager, include a{" "}
+            <strong>public link</strong> (company website profile or{" "}
+            <strong>LinkedIn</strong>) in the summary.
+          </li>
+          <li>
+            Remove personal data (addresses, phone numbers, private emails) from
+            uploads when possible.
+          </li>
+        </ul>
+
+        <label className="flex items-start gap-2 mt-3">
+          <input
+            type="checkbox"
+            checked={confirmPolicy}
+            onChange={(e) => setConfirmPolicy(e.target.checked)}
+            disabled={loading}
+            className="mt-1"
+          />
+          <span>
+            I confirm I will only name leaders/managers and will include public
+            links where relevant.
+          </span>
+        </label>
+      </div>
+
       <div className="space-y-1">
         <label className="block text-sm font-medium">Evidence Type</label>
         <select
           value={evidenceType}
-          onChange={(e) => setEvidenceType(e.target.value as "misconduct" | "remediation")}
+          onChange={(e) =>
+            setEvidenceType(e.target.value as "misconduct" | "remediation")
+          }
           className="border p-2 rounded w-full"
+          disabled={loading}
         >
           <option value="misconduct">Misconduct</option>
           <option value="remediation">Remediation</option>
@@ -128,25 +172,31 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       </div>
 
       <div className="space-y-1">
-        <label className="block text-sm font-medium">Title</label>
+        <label className="block text-sm font-medium">Title *</label>
         <input
           type="text"
           className="border p-2 rounded w-full"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           disabled={loading}
+          placeholder="Short headline (e.g. “Retaliation after reporting safety issue”)"
         />
       </div>
 
       <div className="space-y-1">
-        <label className="block text-sm font-medium">Summary (optional)</label>
+        <label className="block text-sm font-medium">Summary *</label>
         <textarea
           className="border p-2 rounded w-full text-sm"
-          rows={4}
+          rows={5}
           value={summary}
           onChange={(e) => setSummary(e.target.value)}
           disabled={loading}
+          placeholder="Describe what happened, when, where, who (leaders/managers only), and add links (website/LinkedIn) when naming leadership."
         />
+        <p className="text-xs text-gray-600">
+          Tip: Include dates/approximate timeframe, location, and public links for any
+          named leader/manager.
+        </p>
       </div>
 
       <div className="space-y-1">
