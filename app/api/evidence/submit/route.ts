@@ -1,29 +1,15 @@
-// app/api/evidence/submit/route.ts
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 
-function safeHeaderKeys(headers: Headers) {
-  try {
-    return Array.from(headers.keys());
-  } catch {
-    return [];
-  }
+function now() {
+  return Date.now();
 }
 
 function getStorageHost() {
-  const supabaseUrl = process.env.SUPABASE_URL ?? "";
-  try {
-    const u = new URL(supabaseUrl);
-    return u.host;
-  } catch {
-    return process.env.SUPABASE_PROJECT_REF
-      ? `${process.env.SUPABASE_PROJECT_REF}.supabase.co`
-      : "erkxyvwblgstoedlbxfa.supabase.co";
-  }
-}
-
-function now() {
-  return Date.now();
+  // Keeps existing behavior (works on hosted + local)
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  if (!url) return "localhost:54321";
+  return url.replace(/^https?:\/\//, "");
 }
 
 export async function POST(req: Request) {
@@ -50,35 +36,86 @@ export async function POST(req: Request) {
     }
   }
 
-  const { entityType, entityId, title, category } = fields;
+  const { entityType, entityId, title, summary, category } = fields;
 
-  if (!entityType || !entityId || !title) {
+  // ---- REQUIRED FIELDS (server-side) ----
+  if (!entityType || !entityId || !title || !category || !summary) {
     return NextResponse.json(
-      { error: "Missing required fields" },
-      { status: 400 }
+      {
+        error:
+          "Missing required fields. Required: entityType, entityId, title, summary, category.",
+        requestId,
+      },
+      { status: 400 },
+    );
+  }
+
+  if (!String(title).trim()) {
+    return NextResponse.json(
+      { error: "Title is required.", requestId },
+      { status: 400 },
+    );
+  }
+
+  if (!String(summary).trim()) {
+    return NextResponse.json(
+      { error: "Summary is required.", requestId },
+      { status: 400 },
+    );
+  }
+
+  // Optional: basic sanity check to encourage links when naming individuals.
+  // (Not a perfect "employee name" detector, but it nudges behavior and reduces abuse.)
+  const summaryText = String(summary);
+  const mentionsLinkedIn = /linkedin\.com/i.test(summaryText);
+  const mentionsHttp = /https?:\/\//i.test(summaryText);
+  const mentionsPersonHint = /\b(CEO|CFO|CTO|COO|VP|Vice President|Director|Manager|Head of)\b/i.test(
+    summaryText,
+  );
+
+  if (mentionsPersonHint && !(mentionsLinkedIn || mentionsHttp)) {
+    return NextResponse.json(
+      {
+        error:
+          "If you name a leader/manager in the summary, please include a public link (LinkedIn or company webpage).",
+        requestId,
+      },
+      { status: 400 },
     );
   }
 
   const supabase = await supabaseServer();
 
   // AUTH
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { data, error: authError } = await supabase.auth.getUser();
+  if (authError || !data?.user) {
+    return NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 });
   }
-
   const userId = data.user.id;
 
-  // CATEGORY
-  let categoryId = 1;
-  const { data: cat } = await supabase
+  // CATEGORY (validate existence)
+  const catIdNum = Number(category);
+  if (!Number.isFinite(catIdNum)) {
+    return NextResponse.json(
+      { error: "Invalid category.", requestId },
+      { status: 400 },
+    );
+  }
+
+  const { data: cat, error: catErr } = await supabase
     .from("categories")
     .select("id")
-    .eq("id", Number(category))
+    .eq("id", catIdNum)
     .maybeSingle();
-  if (cat?.id) categoryId = cat.id;
 
-  // FILE UPLOAD
+  if (catErr || !cat?.id) {
+    return NextResponse.json(
+      { error: "Unknown category.", requestId },
+      { status: 400 },
+    );
+  }
+
+  // FILE UPLOAD (still optional here because UI enforces it; keep API tolerant)
   let fileUrl: string | null = null;
 
   if (file) {
@@ -95,8 +132,8 @@ export async function POST(req: Request) {
 
     if (uploadError) {
       return NextResponse.json(
-        { error: "File upload failed" },
-        { status: 500 }
+        { error: "File upload failed", requestId },
+        { status: 500 },
       );
     }
 
@@ -111,18 +148,33 @@ export async function POST(req: Request) {
       {
         entity_type: entityType,
         entity_id: Number(entityId),
-        title,
-        category: categoryId,
+        title: String(title).trim(),
+        summary: String(summary).trim(),
+        // Keep using `category` integer column (matches existing code)
+        category: cat.id,
         user_id: userId,
         file_url: fileUrl,
+        // Optional: persist file metadata if available
+        file_type: file?.type ?? null,
+        file_size: file?.size ?? null,
       },
     ])
-    .select()
+    .select("id")
     .single();
 
   if (insertError) {
-    return NextResponse.json({ error: "Insert failed" }, { status: 500 });
+    console.error("[evidence-submit] insert failed", { requestId, insertError });
+    return NextResponse.json(
+      { error: "Failed to submit evidence", requestId },
+      { status: 500 },
+    );
   }
 
-  return NextResponse.json({ ok: true, id: inserted.id });
+  return NextResponse.json(
+    {
+      id: inserted.id,
+      requestId,
+    },
+    { status: 200 },
+  );
 }
