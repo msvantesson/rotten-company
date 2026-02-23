@@ -9,8 +9,8 @@ type ManagerRow = {
 };
 
 export async function getEvidenceWithManagers(companyId: number) {
-  // Load evidence rows for a company and join managers if present.
-  // Include weight-related fields used by EvidenceList/EvidenceListGrouped.
+  // Prefer the canonical linkage (entity_type/entity_id) and only show approved evidence.
+  // Keep a fallback for older rows that might use company_id.
   const { data: evidenceRows, error: evidenceError } = await supabase
     .from("evidence")
     .select(
@@ -23,15 +23,17 @@ export async function getEvidenceWithManagers(companyId: number) {
         file_size,
         evidence_type,
         created_at,
+        category,
         category_id,
-        category ( name ),
-        user_id,
-        entity_type,
-        entity_id,
         severity,
+        severity_suggested,
         recency_weight,
         file_weight,
         total_weight,
+        user_id,
+        entity_type,
+        entity_id,
+        company_id,
         managers (
           id,
           name,
@@ -39,7 +41,9 @@ export async function getEvidenceWithManagers(companyId: number) {
         )
       `
     )
-    .eq("company_id", companyId)
+    .eq("status", "approved")
+    // OR clause: evidence linked via entity_* OR legacy company_id
+    .or(`and(entity_type.eq.company,entity_id.eq.${companyId}),company_id.eq.${companyId}`)
     .order("created_at", { ascending: false });
 
   if (evidenceError) {
@@ -52,22 +56,6 @@ export async function getEvidenceWithManagers(companyId: number) {
 
   return (evidenceRows ?? []).map((row: any) => {
     const managers: ManagerRow[] = row.managers ?? [];
-
-    // EvidenceList expects `manager` (singular) in addition to whatever else you carry.
-    // If there are multiple managers, pick the first for display.
-    const manager =
-      managers.length > 0
-        ? {
-            id: managers[0].id,
-            name: managers[0].name,
-            role: managers[0].role,
-          }
-        : null;
-
-    return {
-      ...row,
-      managers,
-      manager,
-    };
+    return { ...row, managers };
   });
 }
