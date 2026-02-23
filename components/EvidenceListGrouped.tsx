@@ -65,14 +65,26 @@ function WeightBoxes({ weight }: { weight: number }) {
   );
 }
 
+function SummaryBlock({ summary }: { summary?: string }) {
+  const text = summary?.trim() ?? "";
+  return (
+    <div className="text-sm text-gray-700">
+      <div className="text-xs font-medium text-gray-500 mb-1">Summary</div>
+      {text.length > 0 ? (
+        <p className="whitespace-pre-wrap">{text}</p>
+      ) : (
+        <p className="italic text-gray-400">(No summary provided)</p>
+      )}
+    </div>
+  );
+}
+
 export default function EvidenceListGrouped({ evidence }: Props) {
   if (!evidence || evidence.length === 0) {
     return <p>No approved evidence found.</p>;
   }
 
-  //
   // GROUP EVIDENCE BY CATEGORY
-  //
   const grouped = evidence.reduce((acc, item) => {
     const catId = item.category_id ?? 0;
     if (!acc[catId]) {
@@ -85,9 +97,7 @@ export default function EvidenceListGrouped({ evidence }: Props) {
     return acc;
   }, {} as Record<number, { categoryName: string; items: EvidenceItem[] }>);
 
-  //
   // SORT CATEGORIES ALPHABETICALLY
-  //
   const sortedCategories = Object.entries(grouped).sort((a, b) =>
     a[1].categoryName.localeCompare(b[1].categoryName)
   );
@@ -158,7 +168,8 @@ export default function EvidenceListGrouped({ evidence }: Props) {
                   <h3 className="font-semibold text-lg text-gray-900">
                     {item.title}
                   </h3>
-                  <p className="text-sm text-gray-700">{item.summary}</p>
+
+                  <SummaryBlock summary={item.summary} />
 
                   {/* Manager Info */}
                   {item.manager && (
@@ -171,7 +182,7 @@ export default function EvidenceListGrouped({ evidence }: Props) {
 
                   {/* Compact Weight Meter */}
                   <div className="mt-2">
-                    <div className="text-xs text-gray-600 mb-1">
+                    <div className="text-xs font-medium text-gray-500 mb-1">
                       Evidence Weight
                     </div>
                     <WeightBoxes weight={weight} />
