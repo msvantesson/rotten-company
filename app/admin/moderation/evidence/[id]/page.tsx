@@ -1,6 +1,9 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
-import { approveEvidence, rejectEvidence } from "@/app/moderation/actions";
+import {
+  approveEvidence,
+  rejectEvidence,
+} from "@/app/admin/moderation/evidence/actions";
 
 type ParamsShape = { id: string };
 
@@ -141,64 +144,6 @@ export default async function EvidenceReviewPage(props: {
       : null) ??
     (typeof evidence.severity === "number" ? evidence.severity : null);
 
-  // Actions
-  async function handleApprove(formData: FormData) {
-    "use server";
-
-    if (!isPending) {
-      redirect("/moderation");
-    }
-
-    const note = formData.get("note")?.toString() ?? "";
-
-    const fd = new FormData();
-    fd.set("evidence_id", String(evidenceId));
-    fd.set("note", note);
-
-    const res = await approveEvidence(fd);
-    if (res?.error) {
-      redirect(
-        `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
-          res.error,
-        )}`,
-      );
-    }
-
-    redirect("/moderation");
-  }
-
-  async function handleReject(formData: FormData) {
-    "use server";
-
-    if (!isPending) {
-      redirect("/moderation");
-    }
-
-    const note = formData.get("note")?.toString() ?? "";
-    if (!note.trim()) {
-      redirect(
-        `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
-          "Rejection reason is required.",
-        )}`,
-      );
-    }
-
-    const fd = new FormData();
-    fd.set("evidence_id", String(evidenceId));
-    fd.set("note", note);
-
-    const res = await rejectEvidence(fd);
-    if (res?.error) {
-      redirect(
-        `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
-          res.error,
-        )}`,
-      );
-    }
-
-    redirect("/moderation");
-  }
-
   return (
     <main
       style={{
@@ -209,7 +154,7 @@ export default async function EvidenceReviewPage(props: {
       }}
     >
       <a
-        href="/moderation"
+        href="/admin/moderation/evidence"
         style={{
           display: "inline-block",
           marginBottom: 12,
@@ -445,7 +390,7 @@ export default async function EvidenceReviewPage(props: {
           </p>
 
           <form
-            action={handleApprove}
+            action={approveEvidence}
             style={{
               display: "flex",
               flexDirection: "column",
@@ -453,6 +398,12 @@ export default async function EvidenceReviewPage(props: {
               flex: 1,
             }}
           >
+            <input
+              type="hidden"
+              name="evidenceId"
+              value={String(evidenceId)}
+            />
+
             <label style={{ fontSize: 13 }}>
               Approval note (optional)
               <textarea
@@ -513,7 +464,7 @@ export default async function EvidenceReviewPage(props: {
           </p>
 
           <form
-            action={handleReject}
+            action={rejectEvidence}
             style={{
               display: "flex",
               flexDirection: "column",
@@ -521,6 +472,12 @@ export default async function EvidenceReviewPage(props: {
               flex: 1,
             }}
           >
+            <input
+              type="hidden"
+              name="evidenceId"
+              value={String(evidenceId)}
+            />
+
             <label style={{ fontSize: 13 }}>
               Rejection reason (required)
               <textarea
