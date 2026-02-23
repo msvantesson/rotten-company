@@ -269,7 +269,9 @@ export default async function EvidenceReviewPage(props: {
               Evidence Type
             </div>
             <div style={{ fontSize: 14, color: "#111827" }}>
-              {evidence.evidence_type ? String(evidence.evidence_type) : "(not set)"}
+              {evidence.evidence_type
+                ? String(evidence.evidence_type)
+                : "(not set)"}
             </div>
           </div>
 
@@ -376,8 +378,12 @@ export default async function EvidenceReviewPage(props: {
                     color: "#6b7280",
                   }}
                 >
-                  <div>{companyCountry ? `Country: ${companyCountry}` : ""}</div>
-                  <div>{companyIndustry ? `Industry: ${companyIndustry}` : ""}</div>
+                  <div>
+                    {companyCountry ? `Country: ${companyCountry}` : ""}
+                  </div>
+                  <div>
+                    {companyIndustry ? `Industry: ${companyIndustry}` : ""}
+                  </div>
                 </div>
               )}
             </div>
@@ -433,14 +439,19 @@ export default async function EvidenceReviewPage(props: {
             Approve
           </h2>
           <p style={{ margin: "0 0 12px", fontSize: 13, color: "#555" }}>
-            Approving will mark this evidence as <strong>approved</strong> and send
-            a confirmation email to the submitter. Any note you add will be
+            Approving will mark this evidence as <strong>approved</strong> and
+            send a confirmation email to the submitter. Any note you add will be
             included in the email and stored in the moderation log.
           </p>
 
           <form
             action={handleApprove}
-            style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              flex: 1,
+            }}
           >
             <label style={{ fontSize: 13 }}>
               Approval note (optional)
@@ -495,15 +506,20 @@ export default async function EvidenceReviewPage(props: {
             Reject
           </h2>
           <p style={{ margin: "0 0 12px", fontSize: 13, color: "#555" }}>
-            Rejecting will mark this evidence as <strong>rejected</strong> and send
-            a rejection email to the submitter. Your note is{" "}
-            <strong>required</strong> and will be included in the email and moderation
-            log.
+            Rejecting will mark this evidence as <strong>rejected</strong> and
+            send a rejection email to the submitter. Your note is{" "}
+            <strong>required</strong> and will be included in the email and
+            moderation log.
           </p>
 
           <form
             action={handleReject}
-            style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              flex: 1,
+            }}
           >
             <label style={{ fontSize: 13 }}>
               Rejection reason (required)
@@ -573,7 +589,9 @@ export default async function EvidenceReviewPage(props: {
                 }}
               >
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <strong style={{ textTransform: "uppercase" }}>{evt.action}</strong>
+                  <strong style={{ textTransform: "uppercase" }}>
+                    {evt.action}
+                  </strong>
                   <span style={{ color: "#6b7280" }}>
                     {new Date(evt.created_at).toLocaleString()}
                   </span>
@@ -582,7 +600,9 @@ export default async function EvidenceReviewPage(props: {
                   </span>
                 </div>
                 {evt.note ? (
-                  <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>{evt.note}</div>
+                  <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
+                    {evt.note}
+                  </div>
                 ) : null}
               </li>
             ))}
