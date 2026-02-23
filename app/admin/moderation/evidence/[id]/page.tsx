@@ -282,12 +282,24 @@ export default async function EvidenceReviewPage(props: {
             <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
               Summary
             </div>
+
             <div
               style={{
+                marginTop: 6,
+                padding: 12,
+                borderRadius: 8,
+                border: "1px solid #e5e7eb",
+                background: "#ffffff",
                 fontSize: 14,
                 color: "#111827",
                 whiteSpace: "pre-wrap",
                 lineHeight: 1.5,
+                maxHeight: 220,
+                overflow: "auto",
+
+                // IMPORTANT: prevent long unbroken strings from stretching layout
+                overflowWrap: "anywhere",
+                wordBreak: "break-word",
               }}
             >
               {evidence.summary && String(evidence.summary).trim().length > 0
