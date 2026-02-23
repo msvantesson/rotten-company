@@ -32,6 +32,39 @@ type Props = {
   evidence: EvidenceItem[];
 };
 
+const SEGMENTS = 5;
+const MAX_WEIGHT = 150; // tune this to your typical total_weight scale
+
+function WeightBoxes({ weight }: { weight: number }) {
+  const clamped = Math.max(0, Math.min(weight, MAX_WEIGHT));
+  const filled = Math.round((clamped / MAX_WEIGHT) * SEGMENTS);
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex gap-1">
+        {Array.from({ length: SEGMENTS }).map((_, i) => {
+          const isFilled = i < filled;
+          return (
+            <div
+              key={i}
+              className={[
+                "h-3 w-6 rounded-sm border",
+                isFilled
+                  ? "bg-red-600 border-red-700"
+                  : "bg-gray-100 border-gray-300",
+              ].join(" ")}
+              title={`${weight.toFixed(2)} / ${MAX_WEIGHT}`}
+            />
+          );
+        })}
+      </div>
+      <div className="text-xs text-gray-600 tabular-nums">
+        {weight.toFixed(2)}
+      </div>
+    </div>
+  );
+}
+
 export default function EvidenceListGrouped({ evidence }: Props) {
   if (!evidence || evidence.length === 0) {
     return <p>No approved evidence found.</p>;
@@ -45,7 +78,7 @@ export default function EvidenceListGrouped({ evidence }: Props) {
     if (!acc[catId]) {
       acc[catId] = {
         categoryName: item.category?.name ?? "Uncategorized",
-        items: [],
+        items: [] as EvidenceItem[],
       };
     }
     acc[catId].items.push(item);
@@ -136,17 +169,12 @@ export default function EvidenceListGrouped({ evidence }: Props) {
                     </p>
                   )}
 
-                  {/* Weight Meter */}
+                  {/* Compact Weight Meter */}
                   <div className="mt-2">
                     <div className="text-xs text-gray-600 mb-1">
-                      Evidence Weight: {weight.toFixed(2)}
+                      Evidence Weight
                     </div>
-                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-red-600 transition-all duration-500"
-                        style={{ width: `${Math.min(weight, 100)}%` }}
-                      />
-                    </div>
+                    <WeightBoxes weight={weight} />
                   </div>
 
                   {/* Metadata */}
