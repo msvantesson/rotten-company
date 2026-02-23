@@ -329,7 +329,8 @@ export default async function EvidenceReviewPage(props: {
                 Category
               </div>
               <div style={{ fontSize: 14, color: "#111827" }}>
-                {categoryName ?? (categoryId ? `Category #${categoryId}` : "(not set)")}
+                {categoryName ??
+                  (categoryId ? `Category #${categoryId}` : "(not set)")}
               </div>
             </div>
 
@@ -495,8 +496,9 @@ export default async function EvidenceReviewPage(props: {
           </h2>
           <p style={{ margin: "0 0 12px", fontSize: 13, color: "#555" }}>
             Rejecting will mark this evidence as <strong>rejected</strong> and send
-            a rejection email to the submitter. Your note is <strong>required</strong>{" "}
-            and will be included in the email and moderation log.
+            a rejection email to the submitter. Your note is{" "}
+            <strong>required</strong> and will be included in the email and moderation
+            log.
           </p>
 
           <form
@@ -587,26 +589,6 @@ export default async function EvidenceReviewPage(props: {
           </ul>
         </section>
       )}
-
-      {/* Technical details */}
-      <details>
-        <summary style={{ cursor: "pointer" }}>
-          Show technical details (raw JSON)
-        </summary>
-        <pre
-          style={{
-            marginTop: 12,
-            padding: 12,
-            borderRadius: 8,
-            background: "#111827",
-            color: "#e5e7eb",
-            overflowX: "auto",
-            fontSize: 12,
-          }}
-        >
-          {JSON.stringify(evidence, null, 2)}
-        </pre>
-      </details>
     </main>
   );
 }
