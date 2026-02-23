@@ -199,7 +199,14 @@ export default async function EvidenceReviewPage(props: {
   }
 
   return (
-    <main style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px" }}>
+    <main
+      style={{
+        maxWidth: 960,
+        margin: "0 auto",
+        padding: "24px 16px",
+        overflowX: "hidden",
+      }}
+    >
       <a
         href="/moderation"
         style={{
@@ -294,8 +301,9 @@ export default async function EvidenceReviewPage(props: {
                 color: "#111827",
                 whiteSpace: "pre-wrap",
                 lineHeight: 1.5,
-                maxHeight: 220,
+                maxHeight: 260,
                 overflow: "auto",
+                maxWidth: "100%",
 
                 // IMPORTANT: prevent long unbroken strings from stretching layout
                 overflowWrap: "anywhere",
@@ -308,11 +316,11 @@ export default async function EvidenceReviewPage(props: {
             </div>
           </div>
 
-          {/* Category / Severity */}
+          {/* Category / Severity (responsive) */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
               gap: 12,
               alignItems: "start",
             }}
@@ -337,7 +345,7 @@ export default async function EvidenceReviewPage(props: {
             </div>
           </div>
 
-          {/* Company */}
+          {/* Company (responsive row for country/industry) */}
           {(companyName || companySlug || companyCountry || companyIndustry) && (
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
@@ -359,10 +367,18 @@ export default async function EvidenceReviewPage(props: {
               </div>
 
               {(companyCountry || companyIndustry) && (
-                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
-                  {companyCountry ? `Country: ${companyCountry}` : null}
-                  {companyCountry && companyIndustry ? " · " : null}
-                  {companyIndustry ? `Industry: ${companyIndustry}` : null}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: 8,
+                    marginTop: 6,
+                    fontSize: 13,
+                    color: "#6b7280",
+                  }}
+                >
+                  <div>{companyCountry ? `Country: ${companyCountry}` : ""}</div>
+                  <div>{companyIndustry ? `Industry: ${companyIndustry}` : ""}</div>
                 </div>
               )}
             </div>
@@ -391,11 +407,11 @@ export default async function EvidenceReviewPage(props: {
         </div>
       </section>
 
-      {/* Approve/Reject actions */}
+      {/* Approve/Reject actions (responsive) */}
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
           gap: 16,
           marginBottom: 24,
         }}
