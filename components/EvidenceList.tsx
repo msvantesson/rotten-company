@@ -33,7 +33,7 @@ type Props = {
 };
 
 const SEGMENTS = 5;
-const MAX_WEIGHT = 150; // tune this to your scale
+const MAX_WEIGHT = 150; // tune this to your typical total_weight scale
 
 function WeightBoxes({ weight }: { weight: number }) {
   const clamped = Math.max(0, Math.min(weight, MAX_WEIGHT));
@@ -61,6 +61,20 @@ function WeightBoxes({ weight }: { weight: number }) {
       <div className="text-xs text-gray-600 tabular-nums">
         {weight.toFixed(2)}
       </div>
+    </div>
+  );
+}
+
+function SummaryBlock({ summary }: { summary?: string }) {
+  const text = summary?.trim() ?? "";
+  return (
+    <div className="text-sm text-gray-700">
+      <div className="text-xs font-medium text-gray-500 mb-1">Summary</div>
+      {text.length > 0 ? (
+        <p className="whitespace-pre-wrap">{text}</p>
+      ) : (
+        <p className="italic text-gray-400">(No summary provided)</p>
+      )}
     </div>
   );
 }
@@ -117,7 +131,8 @@ export default function EvidenceList({ evidence }: Props) {
                   <h3 className="font-semibold text-lg text-gray-900">
                     {item.title}
                   </h3>
-                  <p className="text-sm text-gray-700">{item.summary}</p>
+
+                  <SummaryBlock summary={item.summary} />
 
                   {item.manager && (
                     <p className="text-sm text-gray-600 mt-1">
@@ -129,7 +144,7 @@ export default function EvidenceList({ evidence }: Props) {
 
                   {/* Compact Weight Meter */}
                   <div className="mt-2">
-                    <div className="text-xs text-gray-600 mb-1">
+                    <div className="text-xs font-medium text-gray-500 mb-1">
                       Evidence Weight
                     </div>
                     <WeightBoxes weight={weight} />
