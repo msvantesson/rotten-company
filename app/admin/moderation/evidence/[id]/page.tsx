@@ -1,5 +1,4 @@
 import { supabaseServer } from "@/lib/supabase-server";
-import { redirect } from "next/navigation";
 import {
   approveEvidence,
   rejectEvidence,
@@ -154,7 +153,7 @@ export default async function EvidenceReviewPage(props: {
       }}
     >
       <a
-        href="/admin/moderation/evidence"
+        href="/moderation/current"
         style={{
           display: "inline-block",
           marginBottom: 12,
@@ -398,11 +397,7 @@ export default async function EvidenceReviewPage(props: {
               flex: 1,
             }}
           >
-            <input
-              type="hidden"
-              name="evidenceId"
-              value={String(evidenceId)}
-            />
+            <input type="hidden" name="evidenceId" value={String(evidenceId)} />
 
             <label style={{ fontSize: 13 }}>
               Approval note (optional)
@@ -472,11 +467,7 @@ export default async function EvidenceReviewPage(props: {
               flex: 1,
             }}
           >
-            <input
-              type="hidden"
-              name="evidenceId"
-              value={String(evidenceId)}
-            />
+            <input type="hidden" name="evidenceId" value={String(evidenceId)} />
 
             <label style={{ fontSize: 13 }}>
               Rejection reason (required)
