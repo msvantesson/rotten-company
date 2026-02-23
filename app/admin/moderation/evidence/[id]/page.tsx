@@ -61,8 +61,7 @@ export default async function EvidenceReviewPage(props: {
   const status: string = evidence.status ?? "pending";
   const isPending = status === "pending";
   const isSelfOwned = evidence.user_id === moderatorId;
-  const submitterEmail =
-    (evidence as any).users?.email ?? "(unknown submitter)";
+  const submitterEmail = (evidence as any).users?.email ?? "(unknown submitter)";
 
   // Moderation history
   const { data: events } = await supabase
@@ -71,25 +70,77 @@ export default async function EvidenceReviewPage(props: {
     .eq("evidence_id", evidenceId)
     .order("created_at", { ascending: false });
 
-  // Optional company request context
+  // Company context (either a company request or an approved company)
   let companyName: string | null = null;
   let companySlug: string | null = null;
+  let companyCountry: string | null = null;
+  let companyIndustry: string | null = null;
 
+  // 1) Company request context (if evidence was submitted against a requested company)
   if (evidence.company_request_id) {
     const { data: companyReq, error: companyErr } = await supabase
       .from("company_requests")
-      .select("name, slug")
+      // If your table doesn't have country/industry, remove them here.
+      .select("name, slug, country, industry")
       .eq("id", evidence.company_request_id)
       .maybeSingle();
 
     if (!companyErr && companyReq) {
       companyName = (companyReq as any).name ?? null;
       companySlug = (companyReq as any).slug ?? null;
+      companyCountry = (companyReq as any).country ?? null;
+      companyIndustry = (companyReq as any).industry ?? null;
     }
   }
 
-  // Actions
+  // 2) Approved company context (if evidence is linked to a real company)
+  if (!companyName) {
+    const linkedCompanyId =
+      (evidence.entity_type === "company" ? evidence.entity_id : null) ??
+      evidence.company_id ??
+      null;
 
+    if (linkedCompanyId) {
+      const { data: c, error: cErr } = await supabase
+        .from("companies")
+        .select("name, slug, country, industry")
+        .eq("id", linkedCompanyId)
+        .maybeSingle();
+
+      if (!cErr && c) {
+        companyName = (c as any).name ?? null;
+        companySlug = (c as any).slug ?? null;
+        companyCountry = (c as any).country ?? null;
+        companyIndustry = (c as any).industry ?? null;
+      }
+    }
+  }
+
+  // Category label (optional nicety)
+  let categoryName: string | null = null;
+  const categoryId =
+    typeof evidence.category_id === "number"
+      ? evidence.category_id
+      : typeof evidence.category === "number"
+        ? evidence.category
+        : null;
+
+  if (categoryId) {
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("name")
+      .eq("id", categoryId)
+      .maybeSingle();
+
+    categoryName = (cat as any)?.name ?? null;
+  }
+
+  const severityValue =
+    (typeof evidence.severity_suggested === "number"
+      ? evidence.severity_suggested
+      : null) ?? (typeof evidence.severity === "number" ? evidence.severity : null);
+
+  // Actions
   async function handleApprove(formData: FormData) {
     "use server";
 
@@ -101,16 +152,14 @@ export default async function EvidenceReviewPage(props: {
 
     const fd = new FormData();
     fd.set("evidence_id", String(evidenceId));
-    fd.set("moderator_id", moderatorId);
-    fd.set("moderator_note", note || "approved via admin detail page");
+    fd.set("note", note);
 
-    const result = await approveEvidence(fd);
-
-    if (!result.ok) {
+    const res = await approveEvidence(fd);
+    if (res?.error) {
       redirect(
         `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
-          result.error ?? "Unknown error",
-        )}`,
+          res.error
+        )}`
       );
     }
 
@@ -125,19 +174,24 @@ export default async function EvidenceReviewPage(props: {
     }
 
     const note = formData.get("note")?.toString() ?? "";
+    if (!note.trim()) {
+      redirect(
+        `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
+          "Rejection reason is required."
+        )}`
+      );
+    }
 
     const fd = new FormData();
     fd.set("evidence_id", String(evidenceId));
-    fd.set("moderator_id", moderatorId);
-    fd.set("moderator_note", note);
+    fd.set("note", note);
 
-    const result = await rejectEvidence(fd);
-
-    if (!result.ok) {
+    const res = await rejectEvidence(fd);
+    if (res?.error) {
       redirect(
         `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
-          result.error ?? "Unknown error",
-        )}`,
+          res.error
+        )}`
       );
     }
 
@@ -145,7 +199,7 @@ export default async function EvidenceReviewPage(props: {
   }
 
   return (
-    <main style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
+    <main style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px" }}>
       <a
         href="/moderation"
         style={{
@@ -180,8 +234,13 @@ export default async function EvidenceReviewPage(props: {
         </h1>
         <p style={{ margin: 0, fontSize: 14, color: "#555" }}>
           Submitted by <strong>{submitterEmail}</strong>{" "}
-          <span style={{ color: "#9ca3af" }}>({evidence.user_id})</span> ·
-          Current status: <strong>{status.toUpperCase()}</strong>
+          <span style={{ color: "#9ca3af" }}>({evidence.user_id})</span> · Current
+          status: <strong>{status.toUpperCase()}</strong>
+          {isSelfOwned ? (
+            <span style={{ marginLeft: 8, color: "#b45309" }}>
+              (Warning: you are the submitter)
+            </span>
+          ) : null}
         </p>
       </header>
 
@@ -195,45 +254,245 @@ export default async function EvidenceReviewPage(props: {
           background: "#f9fafb",
         }}
       >
-        <p style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 600 }}>
-          {evidence.title || "Untitled evidence"}
-        </p>
-        <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
-          ID: {evidence.id} · Created at:{" "}
-          {new Date(evidence.created_at).toLocaleString()}
-        </p>
+        <div style={{ display: "grid", gap: 10 }}>
+          {/* Evidence type */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+              Evidence Type
+            </div>
+            <div style={{ fontSize: 14, color: "#111827" }}>
+              {evidence.evidence_type
+                ? String(evidence.evidence_type)
+                : "(not set)"}
+            </div>
+          </div>
 
-        {companyName && (
-          <p style={{ margin: "8px 0 0", fontSize: 13 }}>
-            <strong>Company:</strong>{" "}
-            {companySlug ? (
+          {/* Title */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+              Title
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "#111827" }}>
+              {evidence.title || "Untitled evidence"}
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+              Summary
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                color: "#111827",
+                whiteSpace: "pre-wrap",
+                lineHeight: 1.5,
+              }}
+            >
+              {evidence.summary && String(evidence.summary).trim().length > 0
+                ? evidence.summary
+                : "(No summary provided)"}
+            </div>
+          </div>
+
+          {/* Category / Severity */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 12,
+              alignItems: "start",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+                Category
+              </div>
+              <div style={{ fontSize: 14, color: "#111827" }}>
+                {categoryName ??
+                  (categoryId ? `Category #${categoryId}` : "(not set)")}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+                Severity (1 = low, 5 = severe)
+              </div>
+              <div style={{ fontSize: 14, color: "#111827" }}>
+                {severityValue ?? "(not set)"}
+              </div>
+            </div>
+          </div>
+
+          {/* Company */}
+          {(companyName || companySlug || companyCountry || companyIndustry) && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+                Company
+              </div>
+              <div style={{ fontSize: 14, color: "#111827" }}>
+                {companySlug ? (
+                  <a
+                    href={`/company/${companySlug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: "#2563eb" }}
+                  >
+                    {companyName ?? companySlug}
+                  </a>
+                ) : (
+                  companyName ?? "(unknown)"
+                )}
+              </div>
+
+              {(companyCountry || companyIndustry) && (
+                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+                  {companyCountry ? `Country: ${companyCountry}` : null}
+                  {companyCountry && companyIndustry ? " · " : null}
+                  {companyIndustry ? `Industry: ${companyIndustry}` : null}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Metadata */}
+          <div style={{ fontSize: 13, color: "#6b7280" }}>
+            ID: {evidence.id} · Created at:{" "}
+            {new Date(evidence.created_at).toLocaleString()}
+          </div>
+
+          {/* File */}
+          {evidence.file_url && (
+            <div style={{ fontSize: 13 }}>
+              <strong>File:</strong>{" "}
               <a
-                href={`/company/${companySlug}`}
+                href={evidence.file_url}
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: "#2563eb" }}
               >
-                {companyName}
+                View uploaded file
               </a>
-            ) : (
-              companyName
-            )}
-          </p>
-        )}
+            </div>
+          )}
+        </div>
+      </section>
 
-        {evidence.file_url && (
-          <p style={{ marginTop: 8, fontSize: 13 }}>
-            <strong>File:</strong>{" "}
-            <a
-              href={evidence.file_url}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "#2563eb" }}
-            >
-              View uploaded file
-            </a>
+      {/* Approve/Reject actions */}
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
+          marginBottom: 24,
+        }}
+      >
+        <div
+          style={{
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: 16,
+            background: "#ffffff",
+            opacity: !isPending ? 0.6 : 1,
+          }}
+        >
+          <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 6px" }}>
+            Approve
+          </h2>
+          <p style={{ margin: "0 0 12px", fontSize: 13, color: "#555" }}>
+            Approving will mark this evidence as <strong>approved</strong> and
+            send a confirmation email to the submitter. Any note you add will be
+            included in the email and stored in the moderation log.
           </p>
-        )}
+
+          <form action={handleApprove} style={{ display: "grid", gap: 8 }}>
+            <label style={{ fontSize: 13 }}>
+              Approval note (optional)
+              <textarea
+                name="note"
+                placeholder="(Optional) Short note to include in the approval email"
+                style={{
+                  width: "100%",
+                  minHeight: 70,
+                  display: "block",
+                  marginTop: 4,
+                }}
+                disabled={!isPending}
+              />
+            </label>
+            <button
+              type="submit"
+              style={{
+                marginTop: 4,
+                padding: "10px 12px",
+                fontSize: 14,
+                borderRadius: 6,
+                border: "none",
+                background: "#16a34a",
+                color: "white",
+                cursor: isPending ? "pointer" : "not-allowed",
+              }}
+              disabled={!isPending}
+            >
+              Approve and send email
+            </button>
+          </form>
+        </div>
+
+        <div
+          style={{
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: 16,
+            background: "#ffffff",
+            opacity: !isPending ? 0.6 : 1,
+          }}
+        >
+          <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 6px" }}>
+            Reject
+          </h2>
+          <p style={{ margin: "0 0 12px", fontSize: 13, color: "#555" }}>
+            Rejecting will mark this evidence as <strong>rejected</strong> and
+            send a rejection email to the submitter. Your note is{" "}
+            <strong>required</strong> and will be included in the email and
+            moderation log.
+          </p>
+
+          <form action={handleReject} style={{ display: "grid", gap: 8 }}>
+            <label style={{ fontSize: 13 }}>
+              Rejection reason (required)
+              <textarea
+                name="note"
+                placeholder="Explain briefly why this evidence is being rejected. This text will be sent to the submitter."
+                required
+                style={{
+                  width: "100%",
+                  minHeight: 90,
+                  display: "block",
+                  marginTop: 4,
+                }}
+                disabled={!isPending}
+              />
+            </label>
+            <button
+              type="submit"
+              style={{
+                marginTop: 4,
+                padding: "10px 12px",
+                fontSize: 14,
+                borderRadius: 6,
+                border: "none",
+                background: "#dc2626",
+                color: "white",
+                cursor: isPending ? "pointer" : "not-allowed",
+              }}
+              disabled={!isPending}
+            >
+              Reject and send email
+            </button>
+          </form>
+        </div>
       </section>
 
       {/* Moderation history */}
@@ -247,13 +506,7 @@ export default async function EvidenceReviewPage(props: {
             background: "#ffffff",
           }}
         >
-          <h2
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              margin: "0 0 8px",
-            }}
-          >
+          <h2 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 8px" }}>
             Moderation history
           </h2>
           <ul
@@ -266,201 +519,48 @@ export default async function EvidenceReviewPage(props: {
           >
             {events.map((evt) => (
               <li
-                key={`${evt.moderator_id}-${evt.created_at}-${evt.action}`}
-                style={{ marginBottom: 6 }}
+                key={`${evt.created_at}-${evt.action}-${evt.moderator_id}`}
+                style={{
+                  padding: "10px 0",
+                  borderTop: "1px solid #f3f4f6",
+                }}
               >
-                <strong>{evt.action}</strong> by{" "}
-                <code>{evt.moderator_id}</code> at{" "}
-                {new Date(evt.created_at as any).toLocaleString()}
-                {evt.note && (
-                  <>
-                    {" "}
-                    –{" "}
-                    <span style={{ color: "#4b5563" }}>
-                      {evt.note}
-                    </span>
-                  </>
-                )}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <strong style={{ textTransform: "uppercase" }}>
+                    {evt.action}
+                  </strong>
+                  <span style={{ color: "#6b7280" }}>
+                    {new Date(evt.created_at).toLocaleString()}
+                  </span>
+                  <span style={{ color: "#9ca3af" }}>
+                    moderator: {evt.moderator_id}
+                  </span>
+                </div>
+                {evt.note ? (
+                  <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
+                    {evt.note}
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      {/* Self-moderation notice */}
-      {isSelfOwned && (
-        <section
-          style={{
-            marginBottom: 24,
-            padding: 12,
-            borderRadius: 6,
-            border: "1px solid #fecaca",
-            background: "#fef2f2",
-            color: "#b91c1c",
-            fontSize: 13,
-          }}
-        >
-          This evidence was submitted by you. Moderators can never review or
-          change their own submissions. Because this item is already{" "}
-          <strong>{status.toLowerCase()}</strong>, its moderation decision
-          cannot be changed here.
-        </section>
-      )}
-
-      {/* Already moderated (for non‑self‑owned items) */}
-      {!isPending && !isSelfOwned && (
-        <section
-          style={{
-            marginBottom: 24,
-            padding: 12,
-            borderRadius: 6,
-            border: "1px solid #d4d4d4",
-            background: "#f9fafb",
-            fontSize: 13,
-          }}
-        >
-          This evidence has already been{" "}
-            <strong>{status.toLowerCase()}</strong>. No further moderation
-            actions are available here.
-        </section>
-      )}
-
-      {/* Actions */}
-      {isPending && !isSelfOwned && (
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 24,
-            marginBottom: 32,
-          }}
-        >
-          {/* Approve */}
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 8,
-              padding: 16,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 16,
-                fontWeight: 600,
-                marginBottom: 8,
-              }}
-            >
-              Approve
-            </h2>
-            <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>
-              Approving will mark this evidence as{" "}
-              <strong>approved</strong> and send a confirmation email to the
-              submitter. Any note you add will be included in the email and
-              stored in the moderation log.
-            </p>
-            <form action={handleApprove} style={{ display: "grid", gap: 8 }}>
-              <label style={{ fontSize: 13 }}>
-                Approval note (optional)
-                <textarea
-                  name="note"
-                  placeholder="(Optional) Short note to include in the approval email"
-                  style={{
-                    width: "100%",
-                    minHeight: 70,
-                    display: "block",
-                    marginTop: 4,
-                  }}
-                />
-              </label>
-              <button
-                type="submit"
-                style={{
-                  marginTop: 4,
-                  padding: "6px 12px",
-                  fontSize: 14,
-                  borderRadius: 4,
-                  border: "none",
-                  background: "#16a34a",
-                  color: "white",
-                  cursor: "pointer",
-                }}
-              >
-                Approve and send email
-              </button>
-            </form>
-          </div>
-
-          {/* Reject */}
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 8,
-              padding: 16,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 16,
-                fontWeight: 600,
-                marginBottom: 8,
-              }}
-            >
-              Reject
-            </h2>
-            <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>
-              Rejecting will mark this evidence as <strong>rejected</strong> and
-              send a rejection email to the submitter. Your note is{" "}
-              <strong>required</strong> and will be included in the email and
-              moderation log.
-            </p>
-            <form action={handleReject} style={{ display: "grid", gap: 8 }}>
-              <label style={{ fontSize: 13 }}>
-                Rejection reason (required)
-                <textarea
-                  name="note"
-                  placeholder="Explain briefly why this evidence is being rejected. This text will be sent to the submitter."
-                  required
-                  style={{
-                    width: "100%",
-                    minHeight: 90,
-                    display: "block",
-                    marginTop: 4,
-                  }}
-                />
-              </label>
-              <button
-                type="submit"
-                style={{
-                  marginTop: 4,
-                  padding: "6px 12px",
-                  fontSize: 14,
-                  borderRadius: 4,
-                  border: "none",
-                  background: "#dc2626",
-                  color: "white",
-                  cursor: "pointer",
-                }}
-              >
-                Reject and send email
-              </button>
-            </form>
-          </div>
-        </section>
-      )}
-
-      {/* Technical JSON */}
+      {/* Technical details */}
       <details>
-        <summary style={{ cursor: "pointer", fontSize: 13 }}>
+        <summary style={{ cursor: "pointer" }}>
           Show technical details (raw JSON)
         </summary>
         <pre
           style={{
-            background: "#111",
-            color: "#0f0",
-            padding: 16,
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 8,
+            background: "#111827",
+            color: "#e5e7eb",
             overflowX: "auto",
-            marginTop: 8,
-            borderRadius: 4,
+            fontSize: 12,
           }}
         >
           {JSON.stringify(evidence, null, 2)}
