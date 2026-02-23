@@ -38,7 +38,8 @@ export async function approveEvidence(formData: FormData) {
     source: "ui",
   });
 
-  redirect("/admin/moderation/evidence");
+  // Redirect somewhere that exists in prod
+  redirect("/moderation/current");
 }
 
 export async function rejectEvidence(formData: FormData) {
@@ -61,5 +62,6 @@ export async function rejectEvidence(formData: FormData) {
     source: "ui",
   });
 
-  redirect("/admin/moderation/evidence");
+  // Redirect somewhere that exists in prod
+  redirect("/moderation/current");
 }
