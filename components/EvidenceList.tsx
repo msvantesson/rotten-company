@@ -32,14 +32,44 @@ type Props = {
   evidence: EvidenceItem[];
 };
 
+const SEGMENTS = 5;
+const MAX_WEIGHT = 150; // tune this to your scale
+
+function WeightBoxes({ weight }: { weight: number }) {
+  const clamped = Math.max(0, Math.min(weight, MAX_WEIGHT));
+  const filled = Math.round((clamped / MAX_WEIGHT) * SEGMENTS);
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex gap-1">
+        {Array.from({ length: SEGMENTS }).map((_, i) => {
+          const isFilled = i < filled;
+          return (
+            <div
+              key={i}
+              className={[
+                "h-3 w-6 rounded-sm border",
+                isFilled
+                  ? "bg-red-600 border-red-700"
+                  : "bg-gray-100 border-gray-300",
+              ].join(" ")}
+              title={`${weight.toFixed(2)} / ${MAX_WEIGHT}`}
+            />
+          );
+        })}
+      </div>
+      <div className="text-xs text-gray-600 tabular-nums">
+        {weight.toFixed(2)}
+      </div>
+    </div>
+  );
+}
+
 export default function EvidenceList({ evidence }: Props) {
   if (!evidence || evidence.length === 0) {
     return <p>No approved evidence found.</p>;
   }
 
-  //
-  // GROUP EVIDENCE BY CATEGORY
-  //
   const grouped = evidence.reduce((acc, item) => {
     const catId = item.category_id ?? 0;
     if (!acc[catId]) {
@@ -52,9 +82,6 @@ export default function EvidenceList({ evidence }: Props) {
     return acc;
   }, {} as Record<number, { categoryName: string; items: EvidenceItem[] }>);
 
-  //
-  // SORT CATEGORIES ALPHABETICALLY
-  //
   const sortedCategories = Object.entries(grouped).sort((a, b) =>
     a[1].categoryName.localeCompare(b[1].categoryName)
   );
@@ -63,7 +90,6 @@ export default function EvidenceList({ evidence }: Props) {
     <div className="space-y-10">
       {sortedCategories.map(([catId, group]) => (
         <div key={catId} className="space-y-4">
-          {/* CATEGORY HEADER */}
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">
               {group.categoryName}
@@ -73,61 +99,26 @@ export default function EvidenceList({ evidence }: Props) {
             </span>
           </div>
 
-          {/* CATEGORY EVIDENCE LIST */}
           <div className="space-y-6">
             {group.items.map((item) => {
               const weight = item.total_weight ?? 0;
-
-              const jsonLd = {
-                "@context": "https://schema.org",
-                "@type": "CreativeWork",
-                identifier: item.id,
-                headline: item.title,
-                description: item.summary,
-                contentUrl: item.file_url,
-                encodingFormat: item.file_type,
-                fileSize: item.file_size,
-                evidenceType: item.evidence_type,
-                severity: item.severity,
-                recencyWeight: item.recency_weight,
-                fileWeight: item.file_weight,
-                totalWeight: item.total_weight,
-                category: item.category?.name,
-                manager: item.manager
-                  ? {
-                      name: item.manager.name,
-                      reportCount: item.manager.report_count,
-                    }
-                  : undefined,
-              };
 
               return (
                 <div
                   key={item.id}
                   className="border p-4 rounded-md bg-white shadow-sm space-y-3"
                 >
-                  {/* JSON-LD */}
-                  <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{
-                      __html: JSON.stringify(jsonLd, null, 2),
-                    }}
-                  />
-
-                  {/* Evidence Type Badge */}
                   {item.evidence_type && (
                     <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-gray-200 text-gray-700 uppercase">
                       {item.evidence_type}
                     </span>
                   )}
 
-                  {/* Title + Summary */}
                   <h3 className="font-semibold text-lg text-gray-900">
                     {item.title}
                   </h3>
                   <p className="text-sm text-gray-700">{item.summary}</p>
 
-                  {/* Manager Info */}
                   {item.manager && (
                     <p className="text-sm text-gray-600 mt-1">
                       Reported manager: {item.manager.name}
@@ -136,20 +127,14 @@ export default function EvidenceList({ evidence }: Props) {
                     </p>
                   )}
 
-                  {/* Weight Meter */}
+                  {/* Compact Weight Meter */}
                   <div className="mt-2">
                     <div className="text-xs text-gray-600 mb-1">
-                      Evidence Weight: {weight.toFixed(2)}
+                      Evidence Weight
                     </div>
-                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-red-600 transition-all duration-500"
-                        style={{ width: `${Math.min(weight, 100)}%` }}
-                      />
-                    </div>
+                    <WeightBoxes weight={weight} />
                   </div>
 
-                  {/* Metadata */}
                   <div className="text-xs text-gray-500 space-y-1 mt-2">
                     {item.severity !== undefined && (
                       <div>Severity: {item.severity}</div>
@@ -162,7 +147,6 @@ export default function EvidenceList({ evidence }: Props) {
                     )}
                   </div>
 
-                  {/* File Preview */}
                   {item.file_url && item.file_type && (
                     <div className="mt-3">
                       {item.file_type.startsWith("image") && (
