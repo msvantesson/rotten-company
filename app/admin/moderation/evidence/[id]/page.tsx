@@ -138,7 +138,8 @@ export default async function EvidenceReviewPage(props: {
   const severityValue =
     (typeof evidence.severity_suggested === "number"
       ? evidence.severity_suggested
-      : null) ?? (typeof evidence.severity === "number" ? evidence.severity : null);
+      : null) ??
+    (typeof evidence.severity === "number" ? evidence.severity : null);
 
   // Actions
   async function handleApprove(formData: FormData) {
@@ -158,8 +159,8 @@ export default async function EvidenceReviewPage(props: {
     if (res?.error) {
       redirect(
         `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
-          res.error
-        )}`
+          res.error,
+        )}`,
       );
     }
 
@@ -177,8 +178,8 @@ export default async function EvidenceReviewPage(props: {
     if (!note.trim()) {
       redirect(
         `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
-          "Rejection reason is required."
-        )}`
+          "Rejection reason is required.",
+        )}`,
       );
     }
 
@@ -190,8 +191,8 @@ export default async function EvidenceReviewPage(props: {
     if (res?.error) {
       redirect(
         `/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent(
-          res.error
-        )}`
+          res.error,
+        )}`,
       );
     }
 
@@ -268,9 +269,7 @@ export default async function EvidenceReviewPage(props: {
               Evidence Type
             </div>
             <div style={{ fontSize: 14, color: "#111827" }}>
-              {evidence.evidence_type
-                ? String(evidence.evidence_type)
-                : "(not set)"}
+              {evidence.evidence_type ? String(evidence.evidence_type) : "(not set)"}
             </div>
           </div>
 
@@ -305,7 +304,7 @@ export default async function EvidenceReviewPage(props: {
                 overflow: "auto",
                 maxWidth: "100%",
 
-                // IMPORTANT: prevent long unbroken strings from stretching layout
+                // prevent long unbroken strings from stretching layout
                 overflowWrap: "anywhere",
                 wordBreak: "break-word",
               }}
@@ -330,8 +329,7 @@ export default async function EvidenceReviewPage(props: {
                 Category
               </div>
               <div style={{ fontSize: 14, color: "#111827" }}>
-                {categoryName ??
-                  (categoryId ? `Category #${categoryId}` : "(not set)")}
+                {categoryName ?? (categoryId ? `Category #${categoryId}` : "(not set)")}
               </div>
             </div>
 
@@ -345,7 +343,7 @@ export default async function EvidenceReviewPage(props: {
             </div>
           </div>
 
-          {/* Company (responsive row for country/industry) */}
+          {/* Company */}
           {(companyName || companySlug || companyCountry || companyIndustry) && (
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
@@ -407,7 +405,7 @@ export default async function EvidenceReviewPage(props: {
         </div>
       </section>
 
-      {/* Approve/Reject actions (responsive) */}
+      {/* Approve/Reject actions (responsive + aligned buttons) */}
       <section
         style={{
           display: "grid",
@@ -416,6 +414,7 @@ export default async function EvidenceReviewPage(props: {
           marginBottom: 24,
         }}
       >
+        {/* Approve */}
         <div
           style={{
             border: "1px solid #e5e7eb",
@@ -423,18 +422,25 @@ export default async function EvidenceReviewPage(props: {
             padding: 16,
             background: "#ffffff",
             opacity: !isPending ? 0.6 : 1,
+
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 340,
           }}
         >
           <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 6px" }}>
             Approve
           </h2>
           <p style={{ margin: "0 0 12px", fontSize: 13, color: "#555" }}>
-            Approving will mark this evidence as <strong>approved</strong> and
-            send a confirmation email to the submitter. Any note you add will be
+            Approving will mark this evidence as <strong>approved</strong> and send
+            a confirmation email to the submitter. Any note you add will be
             included in the email and stored in the moderation log.
           </p>
 
-          <form action={handleApprove} style={{ display: "grid", gap: 8 }}>
+          <form
+            action={handleApprove}
+            style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}
+          >
             <label style={{ fontSize: 13 }}>
               Approval note (optional)
               <textarea
@@ -449,10 +455,11 @@ export default async function EvidenceReviewPage(props: {
                 disabled={!isPending}
               />
             </label>
+
             <button
               type="submit"
               style={{
-                marginTop: 4,
+                marginTop: "auto",
                 padding: "10px 12px",
                 fontSize: 14,
                 borderRadius: 6,
@@ -460,6 +467,7 @@ export default async function EvidenceReviewPage(props: {
                 background: "#16a34a",
                 color: "white",
                 cursor: isPending ? "pointer" : "not-allowed",
+                width: "100%",
               }}
               disabled={!isPending}
             >
@@ -468,6 +476,7 @@ export default async function EvidenceReviewPage(props: {
           </form>
         </div>
 
+        {/* Reject */}
         <div
           style={{
             border: "1px solid #e5e7eb",
@@ -475,19 +484,25 @@ export default async function EvidenceReviewPage(props: {
             padding: 16,
             background: "#ffffff",
             opacity: !isPending ? 0.6 : 1,
+
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 340,
           }}
         >
           <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 6px" }}>
             Reject
           </h2>
           <p style={{ margin: "0 0 12px", fontSize: 13, color: "#555" }}>
-            Rejecting will mark this evidence as <strong>rejected</strong> and
-            send a rejection email to the submitter. Your note is{" "}
-            <strong>required</strong> and will be included in the email and
-            moderation log.
+            Rejecting will mark this evidence as <strong>rejected</strong> and send
+            a rejection email to the submitter. Your note is <strong>required</strong>{" "}
+            and will be included in the email and moderation log.
           </p>
 
-          <form action={handleReject} style={{ display: "grid", gap: 8 }}>
+          <form
+            action={handleReject}
+            style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}
+          >
             <label style={{ fontSize: 13 }}>
               Rejection reason (required)
               <textarea
@@ -503,10 +518,11 @@ export default async function EvidenceReviewPage(props: {
                 disabled={!isPending}
               />
             </label>
+
             <button
               type="submit"
               style={{
-                marginTop: 4,
+                marginTop: "auto",
                 padding: "10px 12px",
                 fontSize: 14,
                 borderRadius: 6,
@@ -514,6 +530,7 @@ export default async function EvidenceReviewPage(props: {
                 background: "#dc2626",
                 color: "white",
                 cursor: isPending ? "pointer" : "not-allowed",
+                width: "100%",
               }}
               disabled={!isPending}
             >
@@ -554,9 +571,7 @@ export default async function EvidenceReviewPage(props: {
                 }}
               >
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <strong style={{ textTransform: "uppercase" }}>
-                    {evt.action}
-                  </strong>
+                  <strong style={{ textTransform: "uppercase" }}>{evt.action}</strong>
                   <span style={{ color: "#6b7280" }}>
                     {new Date(evt.created_at).toLocaleString()}
                   </span>
@@ -565,9 +580,7 @@ export default async function EvidenceReviewPage(props: {
                   </span>
                 </div>
                 {evt.note ? (
-                  <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
-                    {evt.note}
-                  </div>
+                  <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>{evt.note}</div>
                 ) : null}
               </li>
             ))}
