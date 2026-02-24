@@ -5,8 +5,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export async function signupWithPassword(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  const email = (formData.get("email") as string | null)?.trim();
+  const password = formData.get("password") as string | null;
+
+  if (!email || !password) {
+    redirect("/signup?error=missing_fields");
+  }
 
   const store = await cookies();
 
@@ -25,7 +29,7 @@ export async function signupWithPassword(formData: FormData) {
           store.delete({ name, ...options });
         },
       },
-    }
+    },
   );
 
   const { error } = await supabase.auth.signUp({
@@ -36,10 +40,11 @@ export async function signupWithPassword(formData: FormData) {
   if (error) {
     store.set("signup_error", error.message, {
       path: "/signup",
-      maxAge: 5,
+      maxAge: 10,
     });
     redirect("/signup");
   }
 
-  redirect("/role-debug");
+  // User must confirm email → show friendly "check your inbox" page
+  redirect(`/signup/confirm?email=${encodeURIComponent(email)}`);
 }
