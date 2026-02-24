@@ -9,8 +9,8 @@ export const fetchCache = "force-no-store";
  * /moderation/current — server-side redirect to the moderator's currently
  * assigned item.
  *
- * - Assigned evidence        → /admin/moderation/evidence/<id>
- * - Assigned company request → /admin/moderation/company-requests/<id>
+ * - Assigned evidence        → /moderation/evidence/<id>
+ * - Assigned company request → /moderation/company-requests/<id>
  * - Nothing assigned         → /moderation (Evidence queue)
  */
 export default async function ModerationCurrentPage() {
@@ -32,11 +32,11 @@ export default async function ModerationCurrentPage() {
   const assignedRequest = assignedItems.find((i) => i.kind === "company_request");
 
   if (assignedEvidence) {
-    redirect(`/admin/moderation/evidence/${assignedEvidence.id}`);
+    redirect(assignedEvidence.href);
   }
 
   if (assignedRequest) {
-    redirect(`/admin/moderation/company-requests/${assignedRequest.id}`);
+    redirect(assignedRequest.href);
   }
 
   redirect("/moderation");

@@ -54,14 +54,14 @@ export async function getAssignedModerationItems(
       id: String(r.id),
       title: r.title ?? "(untitled)",
       created_at: r.created_at,
-      href: `/admin/moderation/evidence/${r.id}`,
+      href: `/moderation/evidence/${r.id}`,
     })),
     ...(assignedCompanyRequestRows || []).map((r) => ({
       kind: "company_request" as const,
       id: String(r.id),
       title: r.name ?? "(untitled)",
       created_at: r.created_at,
-      href: `/admin/moderation/company-requests/${r.id}`,
+      href: `/moderation/company-requests/${r.id}`,
     })),
   ];
 }

@@ -405,12 +405,12 @@ export async function assignNextCase(): Promise<
     logDebug("assign-next-case", "redirecting to evidence", {
       id: row.item_id,
     });
-    redirect(`/admin/moderation/evidence/${row.item_id}`);
+    redirect(`/moderation/evidence/${row.item_id}`);
   }
 
   // TODO: remove debug logging once stabilized
   logDebug("assign-next-case", "redirecting to company-request", {
     id: row.item_id,
   });
-  redirect(`/admin/moderation/company-requests/${row.item_id}`);
+  redirect(`/moderation/company-requests/${row.item_id}`);
 }
