@@ -13,11 +13,25 @@ export async function submitCompany(formData: FormData) {
   const description = (formData.get("description") as string)?.trim();
   const why = (formData.get("why") as string)?.trim();
 
+  const peOwned = formData.get("pe_owned") === "true";
+  const peOwnerId = (formData.get("pe_owner_id") as string)?.trim() || null;
+  const peOwnershipStart = (formData.get("pe_ownership_start") as string)?.trim() || null;
+  const peOwnershipEnd = (formData.get("pe_ownership_end") as string)?.trim() || null;
+
   if (!name || !country || !description || !why) {
     cookieStore.set("submit_company_error", "All required fields must be filled.", {
       path: "/submit-company",
       maxAge: 5,
     });
+    redirect("/submit-company");
+  }
+
+  if (peOwned && (!peOwnerId || !peOwnershipStart)) {
+    cookieStore.set(
+      "submit_company_error",
+      "Private Equity owner and ownership start date are required when 'Owned by Private Equity' is checked.",
+      { path: "/submit-company", maxAge: 5 }
+    );
     redirect("/submit-company");
   }
 
@@ -45,23 +59,48 @@ export async function submitCompany(formData: FormData) {
 
   if (!user) redirect("/login");
 
-  const { error } = await supabase.from("company_requests").insert({
-    name,
-    country,
-    website,
-    description,
-    why,
-    user_id: user.id,
-  });
+  const { data: requestData, error } = await supabase
+    .from("company_requests")
+    .insert({
+      name,
+      country,
+      website,
+      description,
+      why,
+      user_id: user.id,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    console.error("[submitCompany] Supabase insert error:", error.message);
+  if (error || !requestData) {
+    console.error("[submitCompany] Supabase insert error:", error?.message);
 
     cookieStore.set("submit_company_error", "Failed to submit company for review.", {
       path: "/submit-company",
       maxAge: 5,
     });
     redirect("/submit-company");
+  }
+
+  if (peOwned && peOwnerId && peOwnershipStart) {
+    const peOwnerIdInt = parseInt(peOwnerId, 10);
+    if (isNaN(peOwnerIdInt)) {
+      cookieStore.set("submit_company_error", "Invalid PE owner ID format.", {
+        path: "/submit-company",
+        maxAge: 5,
+      });
+      redirect("/submit-company");
+    }
+    const { error: peError } = await supabase.from("company_request_pe_owners").insert({
+      company_request_id: requestData.id,
+      pe_owner_id: peOwnerIdInt,
+      ownership_start: peOwnershipStart,
+      ownership_end: peOwnershipEnd || null,
+    });
+
+    if (peError) {
+      console.error("[submitCompany] PE owner insert error:", peError.message);
+    }
   }
 
   redirect("/submit-company/thank-you");

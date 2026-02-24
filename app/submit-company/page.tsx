@@ -2,6 +2,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { submitCompany } from "./actions";
 import { cookies } from "next/headers";
+import PrivateEquitySection from "@/components/PrivateEquitySection";
 
 const COUNTRIES = [
   "Austria",
@@ -182,6 +183,8 @@ export default async function SubmitCompanyPage() {
             }}
           />
         </div>
+
+        <PrivateEquitySection />
 
         <button
           type="submit"
