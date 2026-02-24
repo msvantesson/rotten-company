@@ -125,13 +125,22 @@ export async function approveCompanyRequest(formData: FormData) {
   const service = supabaseService();
 
   // Fetch and validate assignment (include name, country, approved_company_id for company creation)
-  const { data: cr } = await service
+  const { data: cr, error: crError } = await service
     .from("company_requests")
     .select("id, name, country, status, assigned_moderator_id, user_id, approved_company_id")
     .eq("id", requestId)
     .maybeSingle();
 
-  if (!cr || cr.status !== "pending") {
+  if (crError) {
+    console.error("[approveCompanyRequest] failed to fetch request", requestId, crError.message);
+    redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("Failed to load request.")}`);
+  }
+
+  if (!cr) {
+    redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("Request not found.")}`);
+  }
+
+  if (cr.status !== "pending") {
     redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("This request is no longer pending.")}`);
   }
 
@@ -223,13 +232,22 @@ export async function rejectCompanyRequest(formData: FormData) {
   const service = supabaseService();
 
   // Fetch and validate assignment
-  const { data: cr } = await service
+  const { data: cr, error: crError } = await service
     .from("company_requests")
     .select("id, status, assigned_moderator_id, user_id")
     .eq("id", requestId)
     .maybeSingle();
 
-  if (!cr || cr.status !== "pending") {
+  if (crError) {
+    console.error("[rejectCompanyRequest] failed to fetch request", requestId, crError.message);
+    redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("Failed to load request.")}`);
+  }
+
+  if (!cr) {
+    redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("Request not found.")}`);
+  }
+
+  if (cr.status !== "pending") {
     redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("This request is no longer pending.")}`);
   }
 
