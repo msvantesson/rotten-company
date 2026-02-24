@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
   const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("id, name, country, website, description, status, user_id")
+    .select("id, name, country, website, description, status, user_id, approved_company_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -81,39 +81,62 @@ export async function POST(req: Request) {
   }
 
   /* ─────────────────────────────────────────────
-     Create company (slug‑safe)
+     Create company (slug‑safe, idempotent)
   ───────────────────────────────────────────── */
 
-  const baseSlug = slugify(cr.name);
-  let slug = baseSlug || `company-${id.slice(0, 8)}`;
+  let companyId: number | null = cr.approved_company_id ?? null;
+  let companySlug: string = "";
 
-  for (let i = 0; i < 10; i++) {
-    const { data: existing } = await service
+  if (!cr.approved_company_id) {
+    const baseSlug = slugify(cr.name);
+    let slug = baseSlug || `company-${id.slice(0, 8)}`;
+
+    for (let i = 0; i < 10; i++) {
+      const { data: existing } = await service
+        .from("companies")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (!existing) break;
+      slug = `${baseSlug}-${i + 2}`;
+    }
+
+    const { data: company, error: companyErr } = await service
       .from("companies")
-      .select("id")
-      .eq("slug", slug)
+      .insert({
+        name: cr.name,
+        country: cr.country,
+        slug,
+        industry: null,
+      })
+      .select("id, slug")
+      .single();
+
+    if (companyErr || !company) {
+      return new NextResponse(
+        `Failed to create company: ${companyErr?.message ?? "unknown"}`,
+        { status: 500 }
+      );
+    }
+
+    companyId = company.id;
+    companySlug = company.slug;
+  } else {
+    const { data: existingCompany, error: lookupErr } = await service
+      .from("companies")
+      .select("slug")
+      .eq("id", cr.approved_company_id)
       .maybeSingle();
 
-    if (!existing) break;
-    slug = `${baseSlug}-${i + 2}`;
-  }
+    if (lookupErr || !existingCompany) {
+      return new NextResponse(
+        `Failed to look up existing company: ${lookupErr?.message ?? "not found"}`,
+        { status: 500 }
+      );
+    }
 
-  const { data: company, error: companyErr } = await service
-    .from("companies")
-    .insert({
-      name: cr.name,
-      country: cr.country,
-      slug,
-      industry: null,
-    })
-    .select("id, slug")
-    .single();
-
-  if (companyErr || !company) {
-    return new NextResponse(
-      `Failed to create company: ${companyErr?.message ?? "unknown"}`,
-      { status: 500 }
-    );
+    companySlug = existingCompany.slug;
   }
 
   /* ─────────────────────────────────────────────
@@ -127,6 +150,7 @@ export async function POST(req: Request) {
       moderator_id: guard.userId,
       decision_reason: moderator_note,
       moderated_at: new Date().toISOString(),
+      ...(companyId !== null ? { approved_company_id: companyId } : {}),
     })
     .eq("id", id)
     .eq("status", "pending")
@@ -196,7 +220,7 @@ export async function POST(req: Request) {
 
 Your request to add "${cr.name}" has been approved and is now live on Rotten Company.
 
-Slug: ${company.slug}
+Slug: ${companySlug}
 
 — Rotten Company`,
       metadata: { requestId: id, action: "approve" },
@@ -210,7 +234,7 @@ Slug: ${company.slug}
 
   return NextResponse.json({
     ok: true,
-    company_id: company.id,
-    slug: company.slug,
+    company_id: companyId,
+    slug: companySlug,
   });
 }

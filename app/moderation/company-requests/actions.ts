@@ -94,8 +94,19 @@ export async function assignNextCompanyRequest() {
   redirect(`/moderation/company-requests/${row.item_id}`);
 }
 
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
 /**
  * Approve a company request assigned to the currently signed-in user.
+ * Also creates a row in public.companies if one doesn't already exist.
  */
 export async function approveCompanyRequest(formData: FormData) {
   const supabase = await supabaseServer();
@@ -113,10 +124,10 @@ export async function approveCompanyRequest(formData: FormData) {
 
   const service = supabaseService();
 
-  // Fetch and validate assignment
+  // Fetch and validate assignment (include name, country, approved_company_id for company creation)
   const { data: cr } = await service
     .from("company_requests")
-    .select("id, status, assigned_moderator_id, user_id")
+    .select("id, name, country, status, assigned_moderator_id, user_id, approved_company_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -128,6 +139,42 @@ export async function approveCompanyRequest(formData: FormData) {
     redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("This item is not assigned to you.")}`);
   }
 
+  // Create company in public.companies (idempotent: skip if already created)
+  let approvedCompanyId: number | null = cr.approved_company_id ?? null;
+
+  if (!approvedCompanyId) {
+    const baseSlug = slugify(cr.name) || `company-${requestId.slice(0, 8)}`;
+    let slug = baseSlug;
+
+    for (let i = 0; i < 10; i++) {
+      const { data: existing } = await service
+        .from("companies")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (!existing) break;
+      slug = `${baseSlug}-${i + 2}`;
+    }
+
+    const { data: company, error: companyInsertErr } = await service
+      .from("companies")
+      .insert({
+        name: cr.name,
+        country: cr.country ?? null,
+        slug,
+        industry: null,
+      })
+      .select("id")
+      .single();
+
+    if (companyInsertErr) {
+      console.error("[approveCompanyRequest] failed to create company:", companyInsertErr.message);
+    } else if (company) {
+      approvedCompanyId = company.id;
+    }
+  }
+
   await service
     .from("company_requests")
     .update({
@@ -135,6 +182,7 @@ export async function approveCompanyRequest(formData: FormData) {
       moderator_id: userId,
       decision_reason: note || null,
       moderated_at: new Date().toISOString(),
+      ...(approvedCompanyId ? { approved_company_id: approvedCompanyId } : {}),
     })
     .eq("id", requestId)
     .eq("status", "pending");
