@@ -1,6 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { createBrowserClient } from "@supabase/ssr";
+
+function supabaseBrowser() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+}
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -18,17 +26,18 @@ export default function ForgotPasswordPage() {
 
     setStatus("loading");
 
-    const res = await fetch("/api/auth/request-password-reset", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: cleanEmail }),
+    const supabase = supabaseBrowser();
+    const redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo,
     });
 
     setStatus("idle");
 
-    if (!res.ok) {
-      const text = await res.text();
-      setError(text || "Request failed.");
+    // Don’t reveal whether the email exists:
+    if (error) {
+      setError("Request failed. Please try again.");
       return;
     }
 
