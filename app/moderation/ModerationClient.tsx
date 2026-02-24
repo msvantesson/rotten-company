@@ -82,7 +82,7 @@ export default function ModerationClient({
 
           <div className="pt-2">
             <Link
-              href={`/admin/moderation/evidence/${current.id}`}
+              href={`/moderation/evidence/${current.id}`}
               className="inline-flex items-center rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-900"
             >
               View evidence &amp; moderate
