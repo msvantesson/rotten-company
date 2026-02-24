@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
-import { canModerate } from "@/lib/moderation-guards";
 import { getAssignedModerationItems } from "@/lib/getAssignedModerationItems";
 
 export const dynamic = "force-dynamic";
@@ -26,11 +25,6 @@ export default async function ModerationCurrentPage() {
     redirect(
       `/login?reason=moderate&message=${encodeURIComponent("You must be signed in to access moderation.")}`,
     );
-  }
-
-  const isModerator = await canModerate(userId);
-  if (!isModerator) {
-    redirect("/moderation");
   }
 
   const assignedItems = await getAssignedModerationItems(userId);

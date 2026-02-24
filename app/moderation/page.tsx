@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
-import { canModerate, getModerationGateStatus } from "@/lib/moderation-guards";
+import { getModerationGateStatus } from "@/lib/moderation-guards";
 import { logDebug } from "@/lib/log";
 import { releaseExpiredEvidenceAssignments } from "@/lib/release-expired-evidence";
 import { getAssignedModerationItems } from "@/lib/getAssignedModerationItems";
@@ -39,25 +39,6 @@ export default async function ModerationPage() {
         <section>
           <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
           <p>You must be logged in to access moderation.</p>
-        </section>
-      </main>
-    );
-  }
-
-  const allowedModerator = await canModerate(moderatorId);
-
-  // TODO: remove debug logging once stabilized
-  logDebug("moderation", "moderator check", {
-    userId: moderatorId,
-    allowedModerator,
-  });
-
-  if (!allowedModerator) {
-    return (
-      <main className="max-w-3xl mx-auto py-8 space-y-6">
-        <section>
-          <h1 className="text-2xl font-bold mb-4">Moderation queue</h1>
-          <p>You do not have moderator access.</p>
         </section>
       </main>
     );
