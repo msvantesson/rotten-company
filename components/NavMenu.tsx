@@ -9,7 +9,12 @@ export default async function NavMenu() {
     error,
   } = await supabase.auth.getUser();
 
-  if (error) {
+  // Treat missing session as normal (anonymous visitor, Vercel screenshot bot, etc.)
+  const isMissingSession =
+    (error as any)?.name === "AuthSessionMissingError" ||
+    (error as any)?.__isAuthError === true;
+
+  if (error && !isMissingSession) {
     console.error("[NavMenu] supabaseServer.auth.getUser error", error);
   }
 
