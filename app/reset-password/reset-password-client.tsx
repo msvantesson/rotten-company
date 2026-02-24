@@ -1,28 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { createBrowserClient } from "@supabase/ssr";
+
+function supabaseBrowser() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+}
 
 export default function ResetPasswordClient() {
-  const searchParams = useSearchParams();
   const router = useRouter();
-
-  const token = searchParams.get("token") || "";
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  if (!token) {
-    return (
-      <main className="mx-auto max-w-md p-6">
-        <h1 className="text-xl font-semibold mb-4">Reset password</h1>
-        <p className="text-red-600 text-sm">Missing or invalid token.</p>
-      </main>
-    );
-  }
 
   async function submit() {
     setError(null);
@@ -39,17 +35,13 @@ export default function ResetPasswordClient() {
 
     setLoading(true);
 
-    const res = await fetch("/api/auth/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, new_password: password }),
-    });
+    const supabase = supabaseBrowser();
+    const { error } = await supabase.auth.updateUser({ password });
 
     setLoading(false);
 
-    if (!res.ok) {
-      const text = await res.text();
-      setError(text || "Password reset failed.");
+    if (error) {
+      setError("Password reset failed. Please use the reset link again.");
       return;
     }
 
@@ -57,7 +49,7 @@ export default function ResetPasswordClient() {
 
     setTimeout(() => {
       router.push("/login");
-    }, 1500);
+    }, 1200);
   }
 
   return (
@@ -80,6 +72,7 @@ export default function ResetPasswordClient() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
+              autoComplete="new-password"
             />
           </div>
 
@@ -93,6 +86,7 @@ export default function ResetPasswordClient() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               disabled={loading}
+              autoComplete="new-password"
             />
           </div>
 
