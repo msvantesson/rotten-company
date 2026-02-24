@@ -16,6 +16,18 @@ export async function resubmitEvidence(formData: FormData) {
     throw new Error("Invalid request");
   }
 
+  // Ensure user exists in "users" table (prevents FK violation on evidence insert)
+  await supabase.from("users").upsert(
+    {
+      id: user.id,
+      email: user.email,
+      name: user.user_metadata?.full_name ?? null,
+      avatar_url: user.user_metadata?.avatar_url ?? null,
+      moderation_credits: 0,
+    },
+    { onConflict: "id" },
+  );
+
   const { data: previous } = await supabase
     .from("evidence")
     .select("*")

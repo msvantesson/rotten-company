@@ -18,6 +18,18 @@ export async function submitEvidence(formData: FormData) {
 
   if (!user) redirect("/login");
 
+  // Ensure user exists in "users" table (prevents FK violation on evidence insert)
+  await supabase.from("users").upsert(
+    {
+      id: user.id,
+      email: user.email,
+      name: user.user_metadata?.full_name ?? null,
+      avatar_url: user.user_metadata?.avatar_url ?? null,
+      moderation_credits: 0,
+    },
+    { onConflict: "id" },
+  );
+
   const { error } = await supabase.from("evidence").insert({
     company_id,
     user_id: user.id,

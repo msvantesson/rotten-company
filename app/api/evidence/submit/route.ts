@@ -93,6 +93,26 @@ export async function POST(req: Request) {
   }
   const userId = data.user.id;
 
+  // Ensure user exists in "users" table (prevents FK violation on evidence insert)
+  const { error: upsertError } = await supabase.from("users").upsert(
+    {
+      id: userId,
+      email: data.user.email,
+      name: data.user.user_metadata?.full_name ?? null,
+      avatar_url: data.user.user_metadata?.avatar_url ?? null,
+      moderation_credits: 0,
+    },
+    { onConflict: "id" },
+  );
+
+  if (upsertError) {
+    console.error("[evidence-submit] user upsert failed", { requestId, upsertError });
+    return NextResponse.json(
+      { error: "User upsert failed", requestId },
+      { status: 500 },
+    );
+  }
+
   // CATEGORY (validate existence)
   const catIdNum = Number(category);
   if (!Number.isFinite(catIdNum)) {

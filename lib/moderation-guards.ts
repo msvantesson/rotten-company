@@ -41,10 +41,10 @@ async function getUserId(): Promise<string | null> {
  * Users must moderate before they can submit companies or evaluations.
  *
  * Logic:
- * - Count all pending evidence.
- * - If 0 pending  → requiredModerations = 0
- * - If 1 pending  → requiredModerations = 1
- * - If >=2 pending → requiredModerations = 2
+ * - Count all unassigned pending evidence items (status='pending' AND assigned_moderator_id IS NULL).
+ * - pendingEvidence == 0 → gate is open (userModerations treated as 2, allowed = true)
+ * - pendingEvidence == 1 → requiredModerations = 1
+ * - pendingEvidence >= 2 → requiredModerations = 2
  *
  * - Count how many moderation_events this user has with
  *   action IN ('approved','rejected').
@@ -64,11 +64,12 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 
   const admin = adminClient();
 
-  // How many pending evidence items exist?
+  // How many unassigned pending evidence items exist?
   const { count: pendingCount, error: pendingError } = await admin
     .from("evidence")
     .select("id", { count: "exact", head: true })
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .is("assigned_moderator_id", null);
 
   if (pendingError) {
     console.error(
@@ -79,10 +80,19 @@ export async function getModerationGateStatus(): Promise<ModerationGateStatus> {
 
   const pendingEvidence = pendingCount ?? 0;
 
-  // Determine how many moderations are required.
-  let requiredModerations = 0;
-  if (pendingEvidence === 1) requiredModerations = 1;
-  if (pendingEvidence >= 2) requiredModerations = 2;
+  // Determine how many moderations are required (capped at 2).
+  const requiredModerations = Math.min(2, pendingEvidence);
+
+  // When there are no claimable items, treat the user as having completed all
+  // required moderations so the gate is open.
+  if (pendingEvidence === 0) {
+    return {
+      pendingEvidence: 0,
+      requiredModerations: 0,
+      userModerations: 2,
+      allowed: true,
+    };
+  }
 
   // How many items has this user actually moderated?
   // We treat any moderation_events row with action in ('approved','rejected')

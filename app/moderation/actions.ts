@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseService } from "@/lib/supabase-service";
 import { supabaseServer } from "@/lib/supabase-server";
-import { canModerate } from "@/lib/moderation-guards";
 import { logDebug } from "@/lib/log";
 import { getAssignedModerationItems } from "@/lib/getAssignedModerationItems";
 
@@ -17,25 +16,14 @@ export type ActionResult = {
 };
 
 /**
- * Validate a moderator ID coming from formData.
- * Ensures the ID is a real moderator in the database.
+ * Get the authenticated user ID from the session.
+ * Server-authoritative: never trust client-sent userId.
  */
-async function validateModeratorId(raw: string | null): Promise<string | null> {
-  if (!raw) return null;
-
-  const supabase = supabaseService();
-  const { data, error } = await supabase
-    .from("moderators")
-    .select("user_id")
-    .eq("user_id", raw)
-    .maybeSingle();
-
-  if (error || !data) {
-    console.error("[moderation] validateModeratorId failed", { raw, error });
-    return null;
-  }
-
-  return data.user_id;
+async function getAuthenticatedUserId(): Promise<string | null> {
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return data.user.id;
 }
 
 /**
@@ -90,32 +78,31 @@ async function enqueueNotification(
 }
 
 /**
- * Fetch the owner (submitter) of a piece of evidence.
- * Used to enforce that moderators cannot act on their own submissions.
- *
- * IMPORTANT:
- * Historical/synthetic evidence rows may have user_id = NULL.
- * In that case we cannot enforce "no self-moderation" by owner id.
+ * Fetch user_id and assigned_moderator_id for an evidence item.
+ * Used to enforce self-moderation and assignment rules in a single round-trip.
  */
-async function fetchEvidenceOwnerId(
+async function fetchEvidenceMeta(
   supabase: ReturnType<typeof supabaseService>,
   evidenceId: number,
-): Promise<string | null> {
+): Promise<{ userId: string | null; assignedModeratorId: string | null }> {
   const { data, error } = await supabase
     .from("evidence")
-    .select("user_id")
+    .select("user_id, assigned_moderator_id")
     .eq("id", evidenceId)
     .maybeSingle();
 
   if (error || !data) {
-    console.error("[moderation] fetchEvidenceOwnerId failed", {
+    console.error("[moderation] fetchEvidenceMeta failed", {
       evidenceId,
       error,
     });
-    return null;
+    return { userId: null, assignedModeratorId: null };
   }
 
-  return data.user_id ?? null;
+  return {
+    userId: data.user_id ?? null,
+    assignedModeratorId: data.assigned_moderator_id ?? null,
+  };
 }
 
 /**
@@ -155,7 +142,6 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
   const supabase = supabaseService();
 
   const evidenceIdRaw = formData.get("evidence_id")?.toString() ?? null;
-  const moderatorIdRaw = formData.get("moderator_id")?.toString() ?? null;
   const moderatorNote = formData.get("moderator_note")?.toString() ?? "";
 
   const evidenceId = evidenceIdRaw ? Number(evidenceIdRaw) : NaN;
@@ -163,18 +149,23 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
     return { ok: false, error: "Invalid evidence ID" };
   }
 
-  const moderatorId = await validateModeratorId(moderatorIdRaw);
+  // Server-authoritative: get moderator ID from the authenticated session
+  const moderatorId = await getAuthenticatedUserId();
   if (!moderatorId) {
-    return { ok: false, error: "Invalid moderator" };
+    return { ok: false, error: "Not authenticated" };
   }
 
   // Enforce "cannot moderate own evidence" (only when owner is known)
-  const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
+  // and that only the assigned moderator can approve — both in a single query.
+  const { userId: ownerId, assignedModeratorId } = await fetchEvidenceMeta(supabase, evidenceId);
   if (ownerId && ownerId === moderatorId) {
     return {
       ok: false,
       error: "Moderators cannot approve their own submissions.",
     };
+  }
+  if (assignedModeratorId && assignedModeratorId !== moderatorId) {
+    return { ok: false, error: "This item is assigned to a different moderator." };
   }
 
   // Update evidence status
@@ -236,7 +227,6 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
   const supabase = supabaseService();
 
   const evidenceIdRaw = formData.get("evidence_id")?.toString() ?? null;
-  const moderatorIdRaw = formData.get("moderator_id")?.toString() ?? null;
   const moderatorNote = formData.get("moderator_note")?.toString() ?? "";
 
   const evidenceId = evidenceIdRaw ? Number(evidenceIdRaw) : NaN;
@@ -244,18 +234,23 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
     return { ok: false, error: "Invalid evidence ID" };
   }
 
-  const moderatorId = await validateModeratorId(moderatorIdRaw);
+  // Server-authoritative: get moderator ID from the authenticated session
+  const moderatorId = await getAuthenticatedUserId();
   if (!moderatorId) {
-    return { ok: false, error: "Invalid moderator" };
+    return { ok: false, error: "Not authenticated" };
   }
 
   // Enforce "cannot moderate own evidence" (only when owner is known)
-  const ownerId = await fetchEvidenceOwnerId(supabase, evidenceId);
+  // and that only the assigned moderator can reject — both in a single query.
+  const { userId: ownerId, assignedModeratorId } = await fetchEvidenceMeta(supabase, evidenceId);
   if (ownerId && ownerId === moderatorId) {
     return {
       ok: false,
       error: "Moderators cannot reject their own submissions.",
     };
+  }
+  if (assignedModeratorId && assignedModeratorId !== moderatorId) {
+    return { ok: false, error: "This item is assigned to a different moderator." };
   }
 
   if (!moderatorNote.trim()) {
@@ -348,15 +343,6 @@ export async function assignNextCase(): Promise<
 
   if (!userId) {
     redirect(`/login?reason=moderate&message=${encodeURIComponent("You must be signed in to access moderation.")}`);
-  }
-
-  const isModerator = await canModerate(userId);
-
-  // TODO: remove debug logging once stabilized
-  logDebug("assign-next-case", "moderator check", { userId, isModerator });
-
-  if (!isModerator) {
-    redirect("/moderation");
   }
 
   const service = supabaseService();

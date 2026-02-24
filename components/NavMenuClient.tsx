@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/logout/actions";
-import { getModerationGateStatus } from "@/lib/moderation-guards";
 
 type ModerationGateStatus = {
   pendingEvidence: number;
@@ -27,11 +26,11 @@ async function fetchGateStatus(): Promise<ModerationGateStatus | null> {
 
 export default function NavMenuClient({
   email,
-  isModerator,
+  isLoggedIn,
   moderationHref,
 }: {
   email: string | null;
-  isModerator: boolean;
+  isLoggedIn: boolean;
   moderationHref: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -40,13 +39,13 @@ export default function NavMenuClient({
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!email || !isModerator) {
+    if (!email || !isLoggedIn) {
       setGate(null);
       return;
     }
 
     void fetchGateStatus().then(setGate);
-  }, [email, pathname, isModerator]);
+  }, [email, pathname, isLoggedIn]);
 
   useEffect(() => {
     if (!open) return;
@@ -81,7 +80,7 @@ export default function NavMenuClient({
   const hasMetRequirement = gate?.allowed ?? false;
 
   let moderationLine: string | null = null;
-  if (gate && isModerator) {
+  if (gate && isLoggedIn) {
     if (!hasRequirement) {
       moderationLine = "No pending cases – you’re all caught up.";
     } else if (moderated === 0) {
@@ -112,13 +111,13 @@ export default function NavMenuClient({
             <span className="font-medium text-gray-900 dark:text-gray-100">{email}</span>
           </div>
 
-          {isModerator && moderationLine && (
+          {isLoggedIn && moderationLine && (
             <div className="px-3 py-3 sm:py-2 border-b border-gray-200 text-xs text-gray-600 dark:text-gray-300 dark:border-gray-700 leading-snug">
               {moderationLine}
             </div>
           )}
 
-          {isModerator && (
+          {isLoggedIn && (
             <>
               <Link
                 href={moderationHref}

@@ -29,15 +29,6 @@ export default async function EvidenceReviewPage(props: {
 
   const moderatorId = auth.user.id;
 
-  // Ensure user is a moderator
-  const { data: isModerator } = await supabase
-    .from("moderators")
-    .select("user_id")
-    .eq("user_id", moderatorId)
-    .maybeSingle();
-
-  if (!isModerator) return null;
-
   // ID parsing
   const evidenceId = parseInt(resolvedParams.id, 10);
   if (Number.isNaN(evidenceId) || evidenceId <= 0) {
