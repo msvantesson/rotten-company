@@ -108,7 +108,9 @@ export default function NavMenuClient({
           <div className="px-3 py-3 sm:py-2 border-b border-gray-200 text-xs text-gray-500 dark:text-gray-400 dark:border-gray-700 break-all">
             Signed in as
             <br />
-            <span className="font-medium text-gray-900 dark:text-gray-100">{email}</span>
+            <span className="font-medium text-gray-900 dark:text-gray-100">
+              {email}
+            </span>
           </div>
 
           {isLoggedIn && moderationLine && (
