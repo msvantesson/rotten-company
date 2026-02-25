@@ -150,7 +150,9 @@ export default async function RottenIndexPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <JsonLdDebugPanel data={jsonLd} />
+      {process.env.NODE_ENV !== "production" && (
+        <JsonLdDebugPanel data={jsonLd} />
+      )}
 
       <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
         Ranked by severity of verified misconduct. Higher scores indicate
@@ -224,10 +226,7 @@ export default async function RottenIndexPage({
 
       {/* TABLE */}
       <div className="overflow-hidden rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm">
-        <table
-          id="rotten-index-table"
-          className="w-full border-collapse text-sm"
-        >
+        <table id="rotten-index-table" className="w-full border-collapse text-sm">
           <thead className="bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-700">
             <tr className="text-left text-gray-600 dark:text-gray-400">
               <th className="py-2 pr-2 w-12">#</th>
