@@ -13,6 +13,7 @@ export async function submitCompany(formData: FormData) {
   const description = (formData.get("description") as string)?.trim();
   const why = (formData.get("why") as string)?.trim();
 
+  const isPrivateEquity = formData.get("is_private_equity") === "true";
   const peOwned = formData.get("pe_owned") === "true";
   const peOwnerId = (formData.get("pe_owner_id") as string)?.trim() || null;
   const peOwnershipStart = (formData.get("pe_ownership_start") as string)?.trim() || null;
@@ -23,6 +24,15 @@ export async function submitCompany(formData: FormData) {
       path: "/submit-company",
       maxAge: 5,
     });
+    redirect("/submit-company");
+  }
+
+  if (isPrivateEquity && peOwned) {
+    cookieStore.set(
+      "submit_company_error",
+      "A company cannot be both a Private Equity firm and owned by Private Equity.",
+      { path: "/submit-company", maxAge: 5 }
+    );
     redirect("/submit-company");
   }
 
@@ -68,6 +78,7 @@ export async function submitCompany(formData: FormData) {
       description,
       why,
       user_id: user.id,
+      is_private_equity: isPrivateEquity,
     })
     .select("id")
     .single();
