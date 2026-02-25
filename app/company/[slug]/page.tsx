@@ -15,7 +15,8 @@ import { getRottenFlavor } from "@/lib/flavor-engine";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
-const SHOW_DEBUG = process.env.NODE_ENV !== "production" || process.env.SHOW_DEBUG === "1";
+const SHOW_DEBUG =
+  process.env.NODE_ENV !== "production" || process.env.SHOW_DEBUG === "1";
 
 // --- Category icons ---
 const CATEGORY_ICON_MAP: Record<number, string> = {
@@ -85,13 +86,17 @@ export default async function CompanyPage({ params }: { params: Params }) {
             <p>{JSON.stringify(companyError, null, 2)}</p>
             {fallbackError && (
               <>
-                <p className="font-bold mt-2 mb-1">[DEBUG] Fallback select(&apos;*&apos;) error:</p>
+                <p className="font-bold mt-2 mb-1">
+                  [DEBUG] Fallback select(&apos;*&apos;) error:
+                </p>
                 <p>{JSON.stringify(fallbackError, null, 2)}</p>
               </>
             )}
             {fallbackCompany && (
               <>
-                <p className="font-bold mt-2 mb-1">[DEBUG] Fallback select(&apos;*&apos;) result:</p>
+                <p className="font-bold mt-2 mb-1">
+                  [DEBUG] Fallback select(&apos;*&apos;) result:
+                </p>
                 <p>{JSON.stringify(fallbackCompany, null, 2)}</p>
               </>
             )}
@@ -384,11 +389,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
         <section className="mt-8">
           <h2 className="text-lg font-semibold">Rotten Score Breakdown</h2>
           <div className="mt-4">
-            <CategoryBreakdown
-              company={company}
-              breakdown={breakdownWithFlavor}
-              evidence={evidence}
-            />
+            <CategoryBreakdown company={company} breakdown={breakdownWithFlavor} evidence={evidence} />
           </div>
         </section>
 
@@ -404,7 +405,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
                 Submit Evidence
               </a>
             ) : (
-              <a href="/login" className="inline-block px-4 py-2 bg-gray-700 text-white rounded">
+              <a
+                href="/login"
+                className="inline-block px-4 py-2 bg-gray-700 text-white rounded"
+              >
                 Sign in to submit evidence
               </a>
             )}
