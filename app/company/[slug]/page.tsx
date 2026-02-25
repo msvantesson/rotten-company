@@ -43,12 +43,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   const supabase = await supabaseServer();
 
-  // 1) Core company fetch — include country + description so they can be displayed.
-  // NOTE: `public.companies` does NOT have a `website` column (per your schema), so do not select it.
+  // 1) Core company fetch — include country, website, description so they can be displayed
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select(
-      "id, name, slug, industry, size_employees, rotten_score, country, description",
+      "id, name, slug, industry, size_employees, rotten_score, country, website, description",
     )
     .eq("slug", rawSlug)
     .maybeSingle();
@@ -320,9 +319,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
       {/* Debug panels: only show in development or when SHOW_DEBUG env flag is set */}
       {SHOW_DEBUG && (
-        <JsonLdDebugPanel
-          data={jsonLd ?? { error: "JSON-LD generation failed" }}
-        />
+        <JsonLdDebugPanel data={jsonLd ?? { error: "JSON-LD generation failed" }} />
       )}
 
       <div className="max-w-3xl mx-auto py-8 px-4">
@@ -350,7 +347,21 @@ export default async function CompanyPage({ params }: { params: Params }) {
               <strong>Country (Headquarters):</strong>{" "}
               {company.country ? company.country : "Unknown"}
             </p>
-
+            <p>
+              <strong>Website:</strong>{" "}
+              {company.website ? (
+                <a
+                  href={company.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-700 hover:underline"
+                >
+                  {company.website}
+                </a>
+              ) : (
+                "—"
+              )}
+            </p>
             {company.description && (
               <p className="mt-2 text-sm text-gray-700">{company.description}</p>
             )}
