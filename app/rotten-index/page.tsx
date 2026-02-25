@@ -5,6 +5,7 @@ export const fetchCache = "force-no-store";
 import { headers } from "next/headers";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import Link from "next/link";
+import ExportCsvButton from "./ExportCsvButton";
 
 type IndexType = "company" | "leader" | "owner";
 
@@ -136,6 +137,12 @@ export default async function RottenIndexPage({
 
   const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
 
+  const safeCountry = (selectedCountry ?? "all-countries")
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9\-]/g, "");
+  const fileName = `rotten-index_${type}_${safeCountry}_top${limit}.csv`;
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <script
@@ -203,17 +210,24 @@ export default async function RottenIndexPage({
           </select>
         </div>
 
-        <button
-          type="submit"
-          className="ml-auto rounded bg-black px-5 py-2 text-white font-semibold hover:bg-gray-800"
-        >
-          Apply
-        </button>
+        {/* Right aligned actions */}
+        <div className="ml-auto flex items-center gap-3">
+          <ExportCsvButton tableId="rotten-index-table" filename={fileName} />
+          <button
+            type="submit"
+            className="rounded bg-black px-5 py-2 text-white font-semibold hover:bg-gray-800"
+          >
+            Apply
+          </button>
+        </div>
       </form>
 
       {/* TABLE */}
       <div className="overflow-hidden rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm">
-        <table className="w-full border-collapse text-sm">
+        <table
+          id="rotten-index-table"
+          className="w-full border-collapse text-sm"
+        >
           <thead className="bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-700">
             <tr className="text-left text-gray-600 dark:text-gray-400">
               <th className="py-2 pr-2 w-12">#</th>
