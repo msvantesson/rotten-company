@@ -43,8 +43,8 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   const supabase = await supabaseServer();
 
-  // 1) Core company fetch — include country + description so they can be displayed
-  // NOTE: `companies` table does NOT have a `website` column (per schema), so do not select it.
+  // 1) Core company fetch — include country + description so they can be displayed.
+  // NOTE: `public.companies` does NOT have a `website` column (per your schema), so do not select it.
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select(
@@ -320,7 +320,9 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
       {/* Debug panels: only show in development or when SHOW_DEBUG env flag is set */}
       {SHOW_DEBUG && (
-        <JsonLdDebugPanel data={jsonLd ?? { error: "JSON-LD generation failed" }} />
+        <JsonLdDebugPanel
+          data={jsonLd ?? { error: "JSON-LD generation failed" }}
+        />
       )}
 
       <div className="max-w-3xl mx-auto py-8 px-4">
@@ -348,6 +350,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
               <strong>Country (Headquarters):</strong>{" "}
               {company.country ? company.country : "Unknown"}
             </p>
+
             {company.description && (
               <p className="mt-2 text-sm text-gray-700">{company.description}</p>
             )}
