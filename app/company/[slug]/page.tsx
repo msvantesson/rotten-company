@@ -13,6 +13,10 @@ import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 import { getRottenFlavor } from "@/lib/flavor-engine";
 
+// --- Toggle debug UI in non-production or when explicit env flag is set ---
+// Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
+const SHOW_DEBUG = process.env.NODE_ENV !== "production" || process.env.SHOW_DEBUG === "1";
+
 // --- Category icons ---
 const CATEGORY_ICON_MAP: Record<number, string> = {
   1: "💼",
@@ -49,9 +53,9 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   if (!company) {
     return (
-      <div style={{ padding: "2rem" }}>
-        <h1>No company found</h1>
-        <p>
+      <div className="max-w-3xl mx-auto py-16 px-4">
+        <h1 className="text-2xl font-semibold">No company found</h1>
+        <p className="mt-2 text-sm text-gray-600">
           <strong>Slug</strong>: {rawSlug || "null"}
         </p>
       </div>
@@ -101,7 +105,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
       .maybeSingle();
 
     if (scoreError) {
-      console.error("Error loading company_rotten_score for company:", company.id, scoreError);
+      console.error(
+        "Error loading company_rotten_score for company:",
+        company.id,
+        scoreError
+      );
     }
 
     liveRottenScore = scoreRow?.rotten_score ?? null;
@@ -183,7 +191,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
       .eq("company_id", company.id);
 
     if (ownershipError) {
-      console.error("Error loading ownership_signals_summary for company:", company.id, ownershipError);
+      console.error(
+        "Error loading ownership_signals_summary for company:",
+        company.id,
+        ownershipError
+      );
     }
 
     ownershipSignals = ownershipSignalsData ?? [];
@@ -202,7 +214,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
       .maybeSingle();
 
     if (destructionError) {
-      console.error("Error loading company_destruction_lever for company:", company.id, destructionError);
+      console.error(
+        "Error loading company_destruction_lever for company:",
+        company.id,
+        destructionError
+      );
     }
 
     destructionLever = destructionLeverData ?? null;
@@ -237,116 +253,101 @@ export default async function CompanyPage({ params }: { params: Params }) {
         />
       )}
 
-      <JsonLdDebugPanel data={jsonLd ?? { error: "JSON-LD generation failed" }} />
+      {/* Debug panels: only show in development or when SHOW_DEBUG env flag is set */}
+      {SHOW_DEBUG && (
+        <JsonLdDebugPanel data={jsonLd ?? { error: "JSON-LD generation failed" }} />
+      )}
 
-      <div style={{ padding: "2rem" }}>
-        <h1>{company.name}</h1>
+      <div className="max-w-3xl mx-auto py-8 px-4">
+        <header className="space-y-3">
+          <h1 className="text-3xl font-semibold">{company.name}</h1>
 
-        {/* 🔥 Flavor-driven company identity */}
-        <div
-          className="text-sm font-semibold"
-          style={{ color: flavor.color }}
-        >
-          {flavor.macroTier}
-        </div>
+          <div className="flex items-center gap-3">
+            <span
+              className="text-sm font-semibold px-2 py-1 rounded"
+              style={{ color: flavor.color }}
+            >
+              {flavor.macroTier}
+            </span>
+            <p className="text-sm italic text-gray-600">{flavor.microFlavor}</p>
+          </div>
 
-        <p className="text-sm italic text-gray-600">
-          {flavor.microFlavor}
-        </p>
+          <div className="text-sm text-gray-700">
+            <p>
+              <strong>Industry:</strong> {company.industry ?? "Unknown"}
+            </p>
+            <p>
+              <strong>Employees:</strong> {company.size_employees ?? "Unknown"}
+            </p>
+          </div>
 
-        <p>
-          <strong>Industry:</strong> {company.industry ?? "Unknown"}
-        </p>
-        <p>
-          <strong>Employees:</strong> {company.size_employees ?? "Unknown"}
-        </p>
+          <div className="mt-6 mb-8">
+            <RottenScoreMeter score={liveRottenScore ?? 0} />
+          </div>
+        </header>
 
-        <div style={{ marginTop: "1.5rem", marginBottom: "2rem" }}>
-          <RottenScoreMeter score={liveRottenScore ?? 0} />
-        </div>
+        <section className="mt-6">
+          <h2 className="text-xl font-semibold">Rate this company</h2>
 
-        <h2 style={{ marginTop: "2rem" }}>Rate this company</h2>
-        {categories && categories.length > 0 ? (
-          <div style={{ marginBottom: "2rem" }}>
-            {categories.map((cat) => (
-              <div
-                key={cat.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "8px 0",
-                  borderBottom: "1px solid #eee",
-                }}
+          {categories && categories.length > 0 ? (
+            <div className="mt-4 divide-y">
+              {categories.map((cat) => (
+                <div key={cat.id} className="flex items-center justify-between py-3">
+                  <span>
+                    {getCategoryIcon(cat.id)} {cat.name}
+                  </span>
+                  <RatingStars
+                    companySlug={company.slug}
+                    categorySlug={cat.slug}
+                    initialScore={userRatings[cat.id] ?? null}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-gray-600">No categories configured yet.</p>
+          )}
+        </section>
+
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold">Rotten Score Breakdown</h2>
+          <div className="mt-4">
+            <CategoryBreakdown
+              company={company}
+              breakdown={breakdownWithFlavor}
+              evidence={evidence}
+            />
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold">Approved Evidence</h2>
+
+          <div className="mt-4">
+            {user ? (
+              <a
+                href={`/company/${company.slug}/submit-evidence`}
+                className="inline-block px-4 py-2 bg-black text-white rounded"
               >
-                <span>
-                  {getCategoryIcon(cat.id)} {cat.name}
-                </span>
-                <RatingStars
-                  companySlug={company.slug}
-                  categorySlug={cat.slug}
-                  initialScore={userRatings[cat.id] ?? null}
-                />
-              </div>
-            ))}
+                Submit Evidence
+              </a>
+            ) : (
+              <a href="/login" className="inline-block px-4 py-2 bg-gray-700 text-white rounded">
+                Sign in to submit evidence
+              </a>
+            )}
           </div>
-        ) : (
-          <p>No categories configured yet.</p>
-        )}
 
-        <h2 style={{ marginTop: "2rem" }}>Rotten Score Breakdown</h2>
-
-        <div style={{ marginBottom: "2rem" }}>
-          <CategoryBreakdown
-            company={company}
-            breakdown={breakdownWithFlavor}
-            evidence={evidence}
-          />
-        </div>
-
-        <h2>Approved Evidence</h2>
-
-        {user ? (
-          <div style={{ margin: "1rem 0" }}>
-            <a
-              href={`/company/${company.slug}/submit-evidence`}
-              style={{
-                display: "inline-block",
-                padding: "0.5rem 1rem",
-                backgroundColor: "black",
-                color: "white",
-                borderRadius: "4px",
-                textDecoration: "none",
-              }}
-            >
-              Submit Evidence
-            </a>
+          <div className="mt-6">
+            <EvidenceList evidence={evidence} />
           </div>
-        ) : (
-          <div style={{ margin: "1rem 0" }}>
-            <a
-              href="/login"
-              style={{
-                display: "inline-block",
-                padding: "0.5rem 1rem",
-                backgroundColor: "#444",
-                color: "white",
-                borderRadius: "4px",
-                textDecoration: "none",
-              }}
-            >
-              Sign in to submit evidence
-            </a>
+        </section>
+
+        {/* Score debug panel only for dev / SHOW_DEBUG */}
+        {user && SHOW_DEBUG && (
+          <div className="mt-8">
+            <ScoreDebugPanel score={liveRottenScore} breakdown={breakdownWithFlavor} />
           </div>
-        )}
-
-        <EvidenceList evidence={evidence} />
-
-        {user && (
-          <ScoreDebugPanel
-            score={liveRottenScore}
-            breakdown={breakdownWithFlavor}
-          />
         )}
       </div>
     </>
