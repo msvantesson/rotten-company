@@ -53,7 +53,54 @@ export default async function CompanyPage({ params }: { params: Params }) {
     console.error("Error loading company:", rawSlug, companyError);
   }
 
+  // If no company found and a DB error occurred, attempt a fallback select('*') for the same slug
+  // (only when SHOW_DEBUG is enabled — does not affect the production experience)
+  let fallbackCompany: any = null;
+  let fallbackError: any = null;
+  if (!company && companyError && SHOW_DEBUG) {
+    const { data: fbData, error: fbError } = await supabase
+      .from("companies")
+      .select("*")
+      .eq("slug", rawSlug)
+      .maybeSingle();
+    fallbackCompany = fbData ?? null;
+    fallbackError = fbError ?? null;
+    if (fallbackError) {
+      console.error("Fallback select('*') also failed:", rawSlug, fallbackError);
+    }
+  }
+
   if (!company) {
+    // When SHOW_DEBUG is enabled and there was a DB error, surface the error details to the maintainer
+    if (SHOW_DEBUG && (companyError || fallbackError)) {
+      return (
+        <div className="max-w-3xl mx-auto py-16 px-4">
+          <h1 className="text-2xl font-semibold">No company found</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            <strong>Slug</strong>: {rawSlug || "null"}
+          </p>
+          {/* Debug error panel — only rendered when SHOW_DEBUG is enabled */}
+          <div className="mt-4 p-4 bg-red-50 border border-red-300 rounded text-xs text-red-800 font-mono whitespace-pre-wrap">
+            <p className="font-bold mb-1">[DEBUG] Company query error:</p>
+            <p>{JSON.stringify(companyError, null, 2)}</p>
+            {fallbackError && (
+              <>
+                <p className="font-bold mt-2 mb-1">[DEBUG] Fallback select(&apos;*&apos;) error:</p>
+                <p>{JSON.stringify(fallbackError, null, 2)}</p>
+              </>
+            )}
+            {fallbackCompany && (
+              <>
+                <p className="font-bold mt-2 mb-1">[DEBUG] Fallback select(&apos;*&apos;) result:</p>
+                <p>{JSON.stringify(fallbackCompany, null, 2)}</p>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Default: keep the 'No company found' state as before
     return (
       <div className="max-w-3xl mx-auto py-16 px-4">
         <h1 className="text-2xl font-semibold">No company found</h1>
