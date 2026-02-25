@@ -226,13 +226,15 @@ export default async function RottenIndexPage({
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={`${type}-${r.id}`} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                <td className="py-2 pr-2 text-gray-500 dark:text-gray-400">{i + 1}</td>
+              <tr
+                key={`${type}-${r.id}`}
+                className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <td className="py-2 pr-2 text-gray-500 dark:text-gray-400">
+                  {i + 1}
+                </td>
                 <td className="py-2 pr-4 font-medium">
-                  <Link
-                    href={`/${type}/${r.slug}`}
-                    className="hover:underline"
-                  >
+                  <Link href={`/${type}/${r.slug}`} className="hover:underline">
                     {r.name}
                   </Link>
                 </td>
