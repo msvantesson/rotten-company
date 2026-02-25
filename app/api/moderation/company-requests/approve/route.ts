@@ -109,6 +109,10 @@ export async function POST(req: Request) {
         country: cr.country,
         slug,
         industry: null,
+
+        // NEW: copy submitted fields into the canonical companies row (only on creation)
+        website: cr.website ?? null,
+        description: cr.description ?? null,
       })
       .select("id, slug")
       .single();
@@ -141,7 +145,7 @@ export async function POST(req: Request) {
 
   /* ─────────────────────────────────────────────
      Update request (belt‑and‑suspenders)
-  ───────────────────────────────────────────── */
+  ───────────────────────────���───────────────── */
 
   const { data: updated, error: updateErr } = await service
     .from("company_requests")
@@ -157,42 +161,37 @@ export async function POST(req: Request) {
     .select("id");
 
   if (updateErr) {
-    return new NextResponse(
-      `Failed to update request: ${updateErr.message}`,
-      { status: 500 }
-    );
+    return new NextResponse(`Failed to update request: ${updateErr.message}`, {
+      status: 500,
+    });
   }
 
   if (!updated || updated.length === 0) {
-    return new NextResponse(
-      "Request update blocked or already processed",
-      { status: 409 }
-    );
+    return new NextResponse("Request update blocked or already processed", {
+      status: 409,
+    });
   }
 
   /* ─────────────────────────────────────────────
      Moderation log
   ───────────────────────────────────────────── */
 
-  const { error: logErr } = await service
-    .from("moderation_actions")
-    .insert({
-      moderator_id: guard.userId,
-      target_type: "company_request",
-      target_id: id,
-      action: "approve",
-      moderator_note: moderator_note ?? "Approved",
-      source: "ui",
-    });
+  const { error: logErr } = await service.from("moderation_actions").insert({
+    moderator_id: guard.userId,
+    target_type: "company_request",
+    target_id: id,
+    action: "approve",
+    moderator_note: moderator_note ?? "Approved",
+    source: "ui",
+  });
 
   if (logErr) {
-    return new NextResponse(
-      `Failed to log action: ${logErr.message}`,
-      { status: 500 }
-    );
+    return new NextResponse(`Failed to log action: ${logErr.message}`, {
+      status: 500,
+    });
   }
 
-  /* ─────────────────────────────────────────────
+  /* ──────────────────��──────────────────────────
      Fetch contributor email
   ───────────────────────────────────────────── */
 
