@@ -37,15 +37,18 @@ type Params = Promise<{ slug: string }> | { slug: string };
 
 export default async function CompanyPage({ params }: { params: Params }) {
   const resolvedParams = (await params) as { slug?: string } | undefined;
-  const rawSlug = resolvedParams?.slug ? decodeURIComponent(resolvedParams.slug) : "";
+  const rawSlug = resolvedParams?.slug
+    ? decodeURIComponent(resolvedParams.slug)
+    : "";
 
   const supabase = await supabaseServer();
 
-  // 1) Core company fetch — include country, website, description so they can be displayed
+  // 1) Core company fetch — include country + description so they can be displayed
+  // NOTE: `companies` table does NOT have a `website` column (per schema), so do not select it.
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select(
-      "id, name, slug, industry, size_employees, rotten_score, country, website, description"
+      "id, name, slug, industry, size_employees, rotten_score, country, description",
     )
     .eq("slug", rawSlug)
     .maybeSingle();
@@ -131,7 +134,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     const { data: mergedBreakdown, error: breakdownError } = await supabase
       .from("company_category_full_breakdown")
       .select(
-        "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score"
+        "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score",
       )
       .eq("company_id", company.id);
 
@@ -139,13 +142,17 @@ export default async function CompanyPage({ params }: { params: Params }) {
       console.error(
         "Error loading company_category_full_breakdown for company:",
         company.id,
-        breakdownError
+        breakdownError,
       );
     }
 
     breakdownWithFlavor = mergedBreakdown ?? [];
   } catch (e) {
-    console.error("Unexpected error building breakdown for company:", company.id, e);
+    console.error(
+      "Unexpected error building breakdown for company:",
+      company.id,
+      e,
+    );
     breakdownWithFlavor = [];
   }
 
@@ -162,13 +169,17 @@ export default async function CompanyPage({ params }: { params: Params }) {
       console.error(
         "Error loading company_rotten_score for company:",
         company.id,
-        scoreError
+        scoreError,
       );
     }
 
     liveRottenScore = scoreRow?.rotten_score ?? null;
   } catch (e) {
-    console.error("Unexpected error loading Rotten Score for company:", company.id, e);
+    console.error(
+      "Unexpected error loading Rotten Score for company:",
+      company.id,
+      e,
+    );
     liveRottenScore = null;
   }
 
@@ -248,7 +259,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
       console.error(
         "Error loading ownership_signals_summary for company:",
         company.id,
-        ownershipError
+        ownershipError,
       );
     }
 
@@ -271,7 +282,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
       console.error(
         "Error loading company_destruction_lever for company:",
         company.id,
-        destructionError
+        destructionError,
       );
     }
 
@@ -337,22 +348,6 @@ export default async function CompanyPage({ params }: { params: Params }) {
               <strong>Country (Headquarters):</strong>{" "}
               {company.country ? company.country : "Unknown"}
             </p>
-            <p>
-              <strong>Website:</strong>{" "}
-              {company.website ? (
-                // ensure valid-looking href (prefers raw value; if missing protocol, href still works in browsers)
-                <a
-                  href={company.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-700 hover:underline"
-                >
-                  {company.website}
-                </a>
-              ) : (
-                "—"
-              )}
-            </p>
             {company.description && (
               <p className="mt-2 text-sm text-gray-700">{company.description}</p>
             )}
@@ -369,7 +364,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
           {categories && categories.length > 0 ? (
             <div className="mt-4 divide-y">
               {categories.map((cat) => (
-                <div key={cat.id} className="flex items-center justify-between py-3">
+                <div
+                  key={cat.id}
+                  className="flex items-center justify-between py-3"
+                >
                   <span>
                     {getCategoryIcon(cat.id)} {cat.name}
                   </span>
@@ -382,14 +380,20 @@ export default async function CompanyPage({ params }: { params: Params }) {
               ))}
             </div>
           ) : (
-            <p className="mt-4 text-sm text-gray-600">No categories configured yet.</p>
+            <p className="mt-4 text-sm text-gray-600">
+              No categories configured yet.
+            </p>
           )}
         </section>
 
         <section className="mt-8">
           <h2 className="text-lg font-semibold">Rotten Score Breakdown</h2>
           <div className="mt-4">
-            <CategoryBreakdown company={company} breakdown={breakdownWithFlavor} evidence={evidence} />
+            <CategoryBreakdown
+              company={company}
+              breakdown={breakdownWithFlavor}
+              evidence={evidence}
+            />
           </div>
         </section>
 
@@ -422,7 +426,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
         {/* Score debug panel only for dev / SHOW_DEBUG */}
         {user && SHOW_DEBUG && (
           <div className="mt-8">
-            <ScoreDebugPanel score={liveRottenScore} breakdown={breakdownWithFlavor} />
+            <ScoreDebugPanel
+              score={liveRottenScore}
+              breakdown={breakdownWithFlavor}
+            />
           </div>
         )}
       </div>
