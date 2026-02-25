@@ -40,10 +40,12 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   const supabase = await supabaseServer();
 
-  // 1) Core company fetch
+  // 1) Core company fetch — include country, website, description so they can be displayed
   const { data: company, error: companyError } = await supabase
     .from("companies")
-    .select("id, name, slug, industry, size_employees, rotten_score")
+    .select(
+      "id, name, slug, industry, size_employees, rotten_score, country, website, description"
+    )
     .eq("slug", rawSlug)
     .maybeSingle();
 
@@ -272,13 +274,36 @@ export default async function CompanyPage({ params }: { params: Params }) {
             <p className="text-sm italic text-gray-600">{flavor.microFlavor}</p>
           </div>
 
-          <div className="text-sm text-gray-700">
+          <div className="text-sm text-gray-700 space-y-1">
             <p>
               <strong>Industry:</strong> {company.industry ?? "Unknown"}
             </p>
             <p>
               <strong>Employees:</strong> {company.size_employees ?? "Unknown"}
             </p>
+            <p>
+              <strong>Country (Headquarters):</strong>{" "}
+              {company.country ? company.country : "Unknown"}
+            </p>
+            <p>
+              <strong>Website:</strong>{" "}
+              {company.website ? (
+                // ensure valid-looking href (prefers raw value; if missing protocol, href still works in browsers)
+                <a
+                  href={company.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-700 hover:underline"
+                >
+                  {company.website}
+                </a>
+              ) : (
+                "—"
+              )}
+            </p>
+            {company.description && (
+              <p className="mt-2 text-sm text-gray-700">{company.description}</p>
+            )}
           </div>
 
           <div className="mt-6 mb-8">
