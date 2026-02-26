@@ -92,6 +92,13 @@ export default async function CategoryPage({ params }: { params: any }) {
       />
 
       <main style={{ padding: 24 }}>
+        <a
+          href="/categories"
+          style={{ display: "inline-block", marginBottom: 16, fontSize: 14, color: "#2563eb", textDecoration: "none" }}
+        >
+          ← Back to categories
+        </a>
+
         <header>
           <h1>{category.name}</h1>
           <p style={{ opacity: 0.8 }}>{categoryFlavor}</p>
