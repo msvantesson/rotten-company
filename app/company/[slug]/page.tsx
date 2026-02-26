@@ -12,6 +12,7 @@ import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 import { getRottenFlavor } from "@/lib/flavor-engine";
+import CategoryInfoPopover from "@/components/CategoryInfoPopover";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -186,11 +187,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
   const flavor = getRottenFlavor(liveRottenScore ?? company.rotten_score ?? 0);
 
   // Categories
-  let categories: { id: number; slug: string; name: string }[] = [];
+  let categories: { id: number; slug: string; name: string; description: string | null }[] = [];
   try {
     const { data: categoriesData, error: categoriesError } = await supabase
       .from("categories")
-      .select("id, slug, name")
+      .select("id, slug, name, description")
       .order("id", { ascending: true });
 
     if (categoriesError) {
@@ -374,6 +375,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
         <section className="mt-6">
           <h2 className="text-xl font-semibold">Rate this company</h2>
+          <p className="mt-1 text-sm text-gray-500">1 = low harm · 5 = severe harm</p>
 
           {categories && categories.length > 0 ? (
             <div className="mt-4 divide-y">
@@ -382,8 +384,13 @@ export default async function CompanyPage({ params }: { params: Params }) {
                   key={cat.id}
                   className="flex items-center justify-between py-3"
                 >
-                  <span>
+                  <span className="flex items-center">
                     {getCategoryIcon(cat.id)} {cat.name}
+                    <CategoryInfoPopover
+                      categoryName={cat.name}
+                      categorySlug={cat.slug}
+                      description={cat.description ?? null}
+                    />
                   </span>
                   <RatingStars
                     companySlug={company.slug}
