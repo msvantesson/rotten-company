@@ -1,4 +1,3 @@
-// app/categories/page.tsx
 'use client'
 
 import { supabase } from '@/app/lib/supabaseClient'
@@ -19,12 +18,21 @@ export default function CategoriesPage() {
 
       if (error) {
         console.error('Supabase error:', error)
+
+        const msg = (error as any)?.message ?? ''
+        if (msg.includes('refresh_token_not_found') || msg.includes('Invalid Refresh Token')) {
+          // Clear broken auth state and let the page still work as anonymous.
+          await supabase.auth.signOut()
+        }
+
         setError(error.message)
       } else {
         setCategories(data ?? [])
       }
+
       setLoading(false)
     }
+
     fetchCategories()
   }, [])
 
@@ -49,7 +57,6 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      {/* JSON-LD for the full category list */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -61,7 +68,6 @@ export default function CategoriesPage() {
 
       <ul>
         {categories.map((cat) => {
-          // JSON-LD for each individual category
           const jsonLdCategory = {
             "@context": "https://schema.org",
             "@type": "CategoryCode",
@@ -73,21 +79,16 @@ export default function CategoriesPage() {
 
           return (
             <li key={cat.id} className="mb-4">
-              {/* JSON-LD for this category */}
               <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
                   __html: JSON.stringify(jsonLdCategory, null, 2),
                 }}
               />
-
               <Link href={`/category/${cat.slug}`} className="text-blue-600 underline">
                 {cat.name}
               </Link>
-
-              {cat.description && (
-                <p className="text-sm text-gray-700">{cat.description}</p>
-              )}
+              {cat.description && <p className="text-sm text-gray-700">{cat.description}</p>}
             </li>
           )
         })}
