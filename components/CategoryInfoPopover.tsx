@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { getCategoryHelp } from "@/lib/category-help";
 
 type CategoryInfoPopoverProps = {
   categoryName: string;
@@ -13,6 +14,7 @@ export default function CategoryInfoPopover({
   categorySlug,
   description,
 }: CategoryInfoPopoverProps) {
+  const help = getCategoryHelp(categorySlug);
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -67,7 +69,14 @@ export default function CategoryInfoPopover({
           {categoryName}
         </h3>
 
-        {description ? (
+        {help ? (
+          <>
+            <p className="text-sm text-gray-700">{help.definition}</p>
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Examples:</span> {help.examples}
+            </p>
+          </>
+        ) : description ? (
           <p className="text-sm text-gray-700">{description}</p>
         ) : (
           <p className="text-sm text-gray-500 italic">No description available.</p>

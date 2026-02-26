@@ -4,6 +4,7 @@ export const fetchCache = "force-no-store";
 
 import React from "react";
 import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
+import { getCategoryHelp } from "@/lib/category-help";
 
 // --- Category flavor taxonomy ---
 const CATEGORY_FLAVORS: Record<number, string> = {
@@ -43,6 +44,7 @@ export default async function CategoryPage({ params }: { params: any }) {
   }
 
   const categoryFlavor = getCategoryFlavor(category.id);
+  const categoryHelp = getCategoryHelp(category.slug);
 
   // 2. Fetch approved evidence for this category
   const evidence = await fetchApprovedEvidence("category", category.id);
@@ -102,8 +104,17 @@ export default async function CategoryPage({ params }: { params: any }) {
         <header>
           <h1>{category.name}</h1>
           <p style={{ opacity: 0.8 }}>{categoryFlavor}</p>
-          {category.description && (
-            <p style={{ marginTop: 8 }}>{category.description}</p>
+          {categoryHelp ? (
+            <div style={{ marginTop: 8 }}>
+              <p style={{ marginBottom: 4 }}>{categoryHelp.definition}</p>
+              <p style={{ fontSize: 14, color: "#4b5563" }}>
+                <strong>Examples:</strong> {categoryHelp.examples}
+              </p>
+            </div>
+          ) : (
+            category.description && (
+              <p style={{ marginTop: 8 }}>{category.description}</p>
+            )
           )}
         </header>
 
