@@ -3,8 +3,10 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import React from "react";
+import Link from "next/link";
 import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
 import { getCategoryHelp } from "@/lib/category-help";
+import BackLink from "@/components/BackLink";
 
 // --- Category flavor taxonomy ---
 const CATEGORY_FLAVORS: Record<number, string> = {
@@ -94,16 +96,13 @@ export default async function CategoryPage({ params }: { params: any }) {
       />
 
       <main style={{ padding: 24 }}>
-        <a
-          href="/categories"
-          style={{ display: "inline-block", marginBottom: 16, fontSize: 14, color: "#2563eb", textDecoration: "none" }}
-        >
-          ← Back to categories
-        </a>
+        {/* Back to where user came from (history), fallback to /categories */}
+        <BackLink fallbackHref="/categories">← Back</BackLink>
 
         <header>
           <h1>{category.name}</h1>
           <p style={{ opacity: 0.8 }}>{categoryFlavor}</p>
+
           {categoryHelp ? (
             <div style={{ marginTop: 8 }}>
               <p style={{ marginBottom: 4 }}>{categoryHelp.definition}</p>
@@ -112,9 +111,7 @@ export default async function CategoryPage({ params }: { params: any }) {
               </p>
             </div>
           ) : (
-            category.description && (
-              <p style={{ marginTop: 8 }}>{category.description}</p>
-            )
+            category.description && <p style={{ marginTop: 8 }}>{category.description}</p>
           )}
         </header>
 
@@ -127,12 +124,12 @@ export default async function CategoryPage({ params }: { params: any }) {
             <ul>
               {evidence.map((item: any) => (
                 <li key={item.id} style={{ marginBottom: 8 }}>
-                  <a
+                  <Link
                     href={`/evidence/${item.id}`}
                     style={{ textDecoration: "none", fontWeight: 600 }}
                   >
                     {item.title}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
