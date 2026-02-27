@@ -94,6 +94,47 @@ export async function assignNextCompanyRequest() {
   redirect(`/moderation/company-requests/${row.item_id}`);
 }
 
+/**
+ * Enqueue an email notification in notification_jobs for a company request decision.
+ * No-ops gracefully if user_id is missing or the user has no email.
+ */
+async function enqueueCompanyRequestNotification(
+  service: ReturnType<typeof supabaseService>,
+  userId: string | null,
+  subject: string,
+  body: string,
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  if (!userId) {
+    console.warn("[enqueueCompanyRequestNotification] no user_id, skipping notification");
+    return;
+  }
+
+  const { data: userRow } = await service
+    .from("users")
+    .select("email")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const email = userRow?.email ?? null;
+  if (!email) {
+    console.warn(`[enqueueCompanyRequestNotification] no email for user ${userId}, skipping notification`);
+    return;
+  }
+
+  const { error } = await service.from("notification_jobs").insert({
+    recipient_email: email,
+    subject,
+    body,
+    metadata,
+    status: "pending",
+  });
+
+  if (error) {
+    console.warn("[enqueueCompanyRequestNotification] failed to enqueue notification:", error.message);
+  }
+}
+
 function slugify(input: string): string {
   return input
     .toLowerCase()
@@ -150,6 +191,7 @@ export async function approveCompanyRequest(formData: FormData) {
 
   // Create company in public.companies (idempotent: skip if already created)
   let approvedCompanyId: number | null = cr.approved_company_id ?? null;
+  let companySlug = "";
 
   if (!approvedCompanyId) {
     const baseSlug = slugify(cr.name) || `company-${requestId.slice(0, 8)}`;
@@ -174,14 +216,22 @@ export async function approveCompanyRequest(formData: FormData) {
         slug,
         industry: null,
       })
-      .select("id")
+      .select("id, slug")
       .single();
 
     if (companyInsertErr) {
       console.error("[approveCompanyRequest] failed to create company:", companyInsertErr.message);
     } else if (company) {
       approvedCompanyId = company.id;
+      companySlug = company.slug;
     }
+  } else {
+    const { data: existingCompany } = await service
+      .from("companies")
+      .select("slug")
+      .eq("id", approvedCompanyId)
+      .maybeSingle();
+    companySlug = existingCompany?.slug ?? "";
   }
 
   await service
@@ -204,6 +254,21 @@ export async function approveCompanyRequest(formData: FormData) {
     moderator_note: note || null,
     source: "ui",
   });
+
+  await enqueueCompanyRequestNotification(
+    service,
+    cr.user_id ?? null,
+    "Your company request was approved",
+    [
+      "Hi,",
+      "",
+      `Your request to add "${cr.name}" has been approved and is now live on Rotten Company.`,
+      ...(companySlug ? ["", `Slug: ${companySlug}`] : []),
+      "",
+      "— Rotten Company",
+    ].join("\n"),
+    { requestId, action: "approve" },
+  );
 
   revalidatePath("/moderation");
   redirect("/moderation");
@@ -234,7 +299,7 @@ export async function rejectCompanyRequest(formData: FormData) {
   // Fetch and validate assignment
   const { data: cr, error: crError } = await service
     .from("company_requests")
-    .select("id, status, assigned_moderator_id, user_id")
+    .select("id, name, status, assigned_moderator_id, user_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -274,6 +339,23 @@ export async function rejectCompanyRequest(formData: FormData) {
     moderator_note: note,
     source: "ui",
   });
+
+  await enqueueCompanyRequestNotification(
+    service,
+    cr.user_id ?? null,
+    "Your company request was rejected",
+    [
+      "Hi,",
+      "",
+      `Your request to add "${cr.name}" was rejected.`,
+      "",
+      "Reason:",
+      note,
+      "",
+      "— Rotten Company",
+    ].join("\n"),
+    { requestId, action: "reject" },
+  );
 
   revalidatePath("/moderation");
   redirect("/moderation");

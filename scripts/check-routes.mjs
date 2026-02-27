@@ -101,6 +101,31 @@ if (!existsSync(communityEvidencePage)) {
   }
 }
 
+// 4. Verify that the community company-request server actions enqueue notification_jobs
+//    in both the approve and reject paths, so email notifications are never silently dropped.
+const companyRequestActionsFile = "app/moderation/company-requests/actions.ts";
+if (!existsSync(companyRequestActionsFile)) {
+  console.error(`FAIL: company-requests actions file missing: ${companyRequestActionsFile}`);
+  failed = true;
+} else {
+  const src = readFileSync(companyRequestActionsFile, "utf8");
+
+  // Count occurrences of notification_jobs — expect at least 2 (one per action).
+  const notifMatches = (src.match(/notification_jobs/g) || []).length;
+  if (notifMatches < 2) {
+    console.error(
+      `FAIL: ${companyRequestActionsFile} must contain notification_jobs inserts in both ` +
+        `approveCompanyRequest and rejectCompanyRequest ` +
+        `(found ${notifMatches} occurrence(s), expected at least 2)`,
+    );
+    failed = true;
+  } else {
+    console.log(
+      `OK:   ${companyRequestActionsFile} contains ${notifMatches} notification_jobs reference(s)`,
+    );
+  }
+}
+
 if (failed) {
   console.error("\nRoute check FAILED. See errors above.");
   process.exit(1);
