@@ -55,7 +55,7 @@ export default async function HomePage() {
           misconduct and systemic harm.
         </p>
 
-        <div className="flex gap-6 pt-2">
+        <div className="flex flex-wrap items-center gap-4 pt-2">
           <Link href="/rotten-index" className="text-blue-700 font-medium hover:underline">
             Explore the Rotten Index →
           </Link>
@@ -76,7 +76,7 @@ export default async function HomePage() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b text-left text-sm text-gray-600">
-              <th className="py-2 pr-4">#</th>
+              <th className="py-2 pr-4 w-10">#</th>
               <th className="py-2 pr-4">Company</th>
               <th className="py-2 pr-4">Industry</th>
               <th className="py-2 pr-4">Country</th>
@@ -86,19 +86,16 @@ export default async function HomePage() {
           <tbody>
             {topCompanies.map((company, index) => (
               <tr key={company.id} className="border-b hover:bg-gray-50">
-                <td colSpan={5}>
-                  <Link
-                    href={`/company/${company.slug}`}
-                    className="grid grid-cols-[40px_1fr_1fr_1fr_120px] items-center py-2 px-1"
-                  >
-                    <span className="text-sm text-gray-500">{index + 1}</span>
-                    <span className="font-medium text-blue-700">{company.name}</span>
-                    <span className="text-sm text-gray-600">{company.industry ?? "—"}</span>
-                    <span className="text-sm text-gray-600">{company.country ?? "—"}</span>
-                    <span className="text-right font-mono">
-                      {company.rotten_score.toFixed(2)}
-                    </span>
+                <td className="py-2 pr-4 text-sm text-gray-500">{index + 1}</td>
+                <td className="py-2 pr-4 font-medium text-blue-700">
+                  <Link href={`/company/${company.slug}`} className="hover:underline">
+                    {company.name}
                   </Link>
+                </td>
+                <td className="py-2 pr-4 text-sm text-gray-600">{company.industry ?? "—"}</td>
+                <td className="py-2 pr-4 text-sm text-gray-600">{company.country ?? "—"}</td>
+                <td className="py-2 text-right font-mono tabular-nums">
+                  {company.rotten_score.toFixed(2)}
                 </td>
               </tr>
             ))}
