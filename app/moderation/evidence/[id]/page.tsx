@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
-import { approveEvidence, rejectEvidence } from "@/app/admin/moderation/evidence/actions";
+import { approveEvidence, rejectEvidence } from "@/app/moderation/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +122,30 @@ export default async function CommunityEvidenceReviewPage(props: {
   }
 
   const isSelfOwned = evidence.user_id === moderatorId;
+
+  // Wrapper actions: call community moderation actions and redirect with error
+  // message on failure so the already-present error banner can display it.
+  async function handleApprove(formData: FormData) {
+    "use server";
+    const result = await approveEvidence(formData);
+    if (!result.ok) {
+      redirect(
+        `/moderation/evidence/${resolvedParams.id}?error=${encodeURIComponent(result.error ?? "Approval failed")}`,
+      );
+    }
+    redirect("/moderation");
+  }
+
+  async function handleReject(formData: FormData) {
+    "use server";
+    const result = await rejectEvidence(formData);
+    if (!result.ok) {
+      redirect(
+        `/moderation/evidence/${resolvedParams.id}?error=${encodeURIComponent(result.error ?? "Rejection failed")}`,
+      );
+    }
+    redirect("/moderation");
+  }
 
   // Optional company context
   let companyName: string | null = null;
@@ -288,12 +313,12 @@ export default async function CommunityEvidenceReviewPage(props: {
           <p className="text-sm text-neutral-600">
             Mark as <strong>approved</strong>. The submitter will be notified.
           </p>
-          <form action={approveEvidence} className="flex flex-col gap-2 flex-1">
-            <input type="hidden" name="evidenceId" value={String(evidenceId)} />
+          <form action={handleApprove} className="flex flex-col gap-2 flex-1">
+            <input type="hidden" name="evidence_id" value={String(evidenceId)} />
             <label className="text-sm">
               Note (optional)
               <textarea
-                name="note"
+                name="moderator_note"
                 placeholder="Optional note for the submitter"
                 className="mt-1 w-full rounded border px-2 py-1 text-sm min-h-[60px]"
               />
@@ -313,12 +338,12 @@ export default async function CommunityEvidenceReviewPage(props: {
           <p className="text-sm text-neutral-600">
             Mark as <strong>rejected</strong>. A reason is required.
           </p>
-          <form action={rejectEvidence} className="flex flex-col gap-2 flex-1">
-            <input type="hidden" name="evidenceId" value={String(evidenceId)} />
+          <form action={handleReject} className="flex flex-col gap-2 flex-1">
+            <input type="hidden" name="evidence_id" value={String(evidenceId)} />
             <label className="text-sm">
               Rejection reason (required)
               <textarea
-                name="note"
+                name="moderator_note"
                 placeholder="Explain why this evidence is being rejected"
                 required
                 className="mt-1 w-full rounded border px-2 py-1 text-sm min-h-[70px]"
