@@ -34,6 +34,31 @@ const COUNTRIES = [
   "Sweden",
 ];
 
+const INDUSTRIES = [
+  "Software & IT",
+  "Finance & Insurance",
+  "Healthcare & Life Sciences",
+  "Manufacturing & Industrial",
+  "Retail & E-commerce",
+  "Consumer Goods & Services",
+  "Transportation & Logistics",
+  "Energy & Utilities",
+  "Media, Marketing & Entertainment",
+  "Education & Public Sector",
+  "Other",
+];
+
+const EMPLOYEE_RANGES = [
+  "0–50",
+  "51–200",
+  "201–500",
+  "501–1,000",
+  "1,001–5,000",
+  "5,001–10,000",
+  "10,000+",
+  "Unknown",
+];
+
 export default async function SubmitCompanyPage() {
   const cookieStore = await cookies();
   const supabase = await supabaseServer();
@@ -144,6 +169,56 @@ export default async function SubmitCompanyPage() {
               borderRadius: "4px",
             }}
           />
+        </div>
+
+        <div>
+          <label htmlFor="industry" style={{ display: "block", marginBottom: "0.5rem" }}>
+            Industry
+          </label>
+          <select
+            id="industry"
+            name="industry"
+            defaultValue=""
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              backgroundColor: "white",
+            }}
+          >
+            <option value="">Select industry</option>
+            {INDUSTRIES.map((ind) => (
+              <option key={ind} value={ind}>
+                {ind}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="size_employees" style={{ display: "block", marginBottom: "0.5rem" }}>
+            Number of Employees
+          </label>
+          <select
+            id="size_employees"
+            name="size_employees"
+            defaultValue=""
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              backgroundColor: "white",
+            }}
+          >
+            <option value="">Select range</option>
+            {EMPLOYEE_RANGES.map((range) => (
+              <option key={range} value={range}>
+                {range}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>

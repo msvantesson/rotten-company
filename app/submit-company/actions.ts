@@ -10,6 +10,8 @@ export async function submitCompany(formData: FormData) {
   const name = (formData.get("name") as string)?.trim();
   const country = (formData.get("country") as string)?.trim();
   const website = (formData.get("website") as string)?.trim() || null;
+  const industry = (formData.get("industry") as string)?.trim() || null;
+  const sizeEmployees = (formData.get("size_employees") as string)?.trim() || null;
   const description = (formData.get("description") as string)?.trim();
   const why = (formData.get("why") as string)?.trim();
 
@@ -75,6 +77,8 @@ export async function submitCompany(formData: FormData) {
       name,
       country,
       website,
+      industry,
+      size_employees: sizeEmployees,
       description,
       why,
       user_id: user.id,
