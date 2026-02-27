@@ -15,6 +15,20 @@ export async function submitCompany(formData: FormData) {
   const description = (formData.get("description") as string)?.trim();
   const why = (formData.get("why") as string)?.trim();
 
+  const employeeRangeMap: Record<string, number> = {
+    "0–50": 0,
+    "51–200": 51,
+    "201–500": 201,
+    "501–1,000": 501,
+    "1,001–5,000": 1001,
+    "5,001–10,000": 5001,
+    "10,000+": 10000,
+  };
+  const sizeEmployeesMin =
+    sizeEmployees !== null && sizeEmployees in employeeRangeMap
+      ? employeeRangeMap[sizeEmployees]
+      : null;
+
   const isPrivateEquity = formData.get("is_private_equity") === "true";
   const peOwned = formData.get("pe_owned") === "true";
   const peOwnerId = (formData.get("pe_owner_id") as string)?.trim() || null;
@@ -79,6 +93,7 @@ export async function submitCompany(formData: FormData) {
       website,
       industry,
       size_employees: sizeEmployees,
+      size_employees_min: sizeEmployeesMin,
       description,
       why,
       user_id: user.id,
