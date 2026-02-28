@@ -9,9 +9,10 @@ export const fetchCache = "force-no-store";
  * /moderation/current — server-side redirect to the moderator's currently
  * assigned item.
  *
- * - Assigned evidence        → /moderation/evidence/<id>
- * - Assigned company request → /moderation/company-requests/<id>
- * - Nothing assigned         → /moderation (Evidence queue)
+ * - Assigned evidence              → /moderation/evidence/<id>
+ * - Assigned company request       → /moderation/company-requests/<id>
+ * - Assigned leader tenure request → /moderation/leader-tenure-requests/<id>
+ * - Nothing assigned               → /moderation (queue)
  */
 export default async function ModerationCurrentPage() {
   const userClient = await supabaseServer();
