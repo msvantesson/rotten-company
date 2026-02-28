@@ -40,7 +40,7 @@ export async function getLeaderLeaderboard(
 
   const supabase = await supabaseServer();
 
-  // 1) Fetch leaders + their primary company (for country filter)
+  // 1) Fetch leaders (basic fields only - companies are joined via leader_tenures)
   const { data: leadersRaw, error: leadersError } = await supabase
     .from("leaders")
     .select(
@@ -48,13 +48,7 @@ export async function getLeaderLeaderboard(
       id,
       name,
       slug,
-      company_id,
-      companies (
-        id,
-        name,
-        country,
-        slug
-      )
+      country
     `
     )
     .limit(1000); // safety cap
@@ -73,10 +67,9 @@ export async function getLeaderLeaderboard(
     };
   }
 
-  // 2) Apply country filter (if any) based on primary company country
+  // 2) Apply country filter (if any) based on leader country field
   const filteredLeaders = leadersRaw.filter((l: any) => {
-    const company = l.companies?.[0] ?? null;
-    const country = company?.country ?? null;
+    const country = l.country ?? null;
 
     if (!selectedCountry) return true;
     if (!country) return false;
@@ -104,8 +97,7 @@ export async function getLeaderLeaderboard(
 
       if (!data) return null;
 
-      const company = l.companies?.[0] ?? null;
-      const country = company?.country ?? null;
+      const country = (l as any).country ?? null;
 
       const rawScore = data.score?.raw_score ?? 0;
       const finalScore = data.score?.final_score ?? 0;
@@ -140,7 +132,7 @@ export async function getLeaderLeaderboard(
         leaderId: data.leader.id,
         name: data.leader.name,
         slug: data.leader.slug,
-        companyName: data.leader.company_name ?? company?.name ?? null,
+        companyName: data.leader.company_name ?? null,
         country,
         rawScore,
         finalScore,

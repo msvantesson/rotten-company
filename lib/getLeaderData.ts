@@ -35,11 +35,9 @@ export async function getLeaderData(slug: string) {
       name,
       role,
       slug,
-      company_id,
-      companies (
-        id,
-        name
-      )
+      rotten_score,
+      country,
+      linkedin_url
     `)
     .eq("slug", slug)
     .maybeSingle();
@@ -48,9 +46,6 @@ export async function getLeaderData(slug: string) {
     console.error("Leader fetch error:", leaderError);
     return null;
   }
-
-  const company = leader.companies?.[0] ?? null;
-  const company_name = company?.name ?? null;
 
   /* -------------------------------------------------
      2) Leader tenures
@@ -80,6 +75,10 @@ export async function getLeaderData(slug: string) {
     started_at: t.started_at,
     ended_at: t.ended_at,
   }));
+
+  // Derive primary company from active tenure (ended_at is null) or most recent tenure
+  const activeTenure = tenures.find((t) => !t.ended_at) ?? tenures[tenures.length - 1] ?? null;
+  const company_name = activeTenure?.company_name ?? null;
 
   /* -------------------------------------------------
      3) Inequality metrics
@@ -156,7 +155,6 @@ export async function getLeaderData(slug: string) {
       name: leader.name,
       role: leader.role,
       slug: leader.slug,
-      company_id: leader.company_id,
       company_name,
     },
     tenures,
