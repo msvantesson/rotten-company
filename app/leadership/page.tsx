@@ -1,8 +1,7 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { supabaseServer } from "@/lib/supabase-server";
-import { supabaseService } from "@/lib/supabase-service";
+import { getModerationGateStatus } from "@/lib/moderation-guards";
 import { headers } from "next/headers";
 import Link from "next/link";
 import LeadershipStartTenureForm from "@/components/LeadershipStartTenureForm";
@@ -121,34 +120,12 @@ export default async function LeadershipPage({
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9\-]/g, "");
   const fileName = `rotten-index_leader_${safeCountry}_top${limit}.csv`;
-  const supabase = await supabaseServer();
-  const service = supabaseService();
 
-  // Auth check
-  let userId: string | null = null;
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    userId = user?.id ?? null;
-  } catch (e) {
-    console.error("[LeadershipPage] auth error:", e);
-  }
-
-  // Check moderator status
-  let isModerator = false;
-  if (userId) {
-    try {
-      const { data: modRow } = await service
-        .from("moderators")
-        .select("user_id")
-        .eq("user_id", userId)
-        .maybeSingle();
-      isModerator = !!modRow;
-    } catch (e) {
-      console.error("[LeadershipPage] moderator check error:", e);
-    }
-  }
+  // Use the same moderation gate as /api/moderation/gate-status and the
+  // moderation queue so that all "allowed" users see the Actions column and
+  // Moderator Controls section consistently.
+  const gateStatus = await getModerationGateStatus();
+  const isModerator = gateStatus.allowed;
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-12 space-y-16">
