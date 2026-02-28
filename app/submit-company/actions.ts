@@ -4,6 +4,19 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+function employeeRangeToMin(label: string | null): number | null {
+  switch (label) {
+    case "0–50": return 0;
+    case "51–200": return 51;
+    case "201–500": return 201;
+    case "501–1,000": return 501;
+    case "1,001–5,000": return 1001;
+    case "5,001–10,000": return 5001;
+    case "10,000+": return 10000;
+    default: return null;
+  }
+}
+
 export async function submitCompany(formData: FormData) {
   const cookieStore = await cookies();
 
@@ -12,6 +25,9 @@ export async function submitCompany(formData: FormData) {
   const website = (formData.get("website") as string)?.trim() || null;
   const description = (formData.get("description") as string)?.trim();
   const why = (formData.get("why") as string)?.trim();
+  const industry = (formData.get("industry") as string)?.trim() || null;
+  const sizeEmployees = (formData.get("size_employees") as string)?.trim() || null;
+  const sizeEmployeesMin = employeeRangeToMin(sizeEmployees);
 
   const isPrivateEquity = formData.get("is_private_equity") === "true";
   const peOwned = formData.get("pe_owned") === "true";
@@ -79,6 +95,9 @@ export async function submitCompany(formData: FormData) {
       why,
       user_id: user.id,
       is_private_equity: isPrivateEquity,
+      industry,
+      size_employees: sizeEmployees,
+      size_employees_min: sizeEmployeesMin,
     })
     .select("id")
     .single();

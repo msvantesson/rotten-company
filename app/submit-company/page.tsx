@@ -184,6 +184,71 @@ export default async function SubmitCompanyPage() {
           />
         </div>
 
+        <div>
+          <label htmlFor="industry" style={{ display: "block", marginBottom: "0.5rem" }}>
+            Industry (optional)
+          </label>
+          <select
+            id="industry"
+            name="industry"
+            defaultValue=""
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              backgroundColor: "white",
+            }}
+          >
+            <option value="">Select industry</option>
+            <option value="Agriculture">Agriculture</option>
+            <option value="Automotive">Automotive</option>
+            <option value="Construction">Construction</option>
+            <option value="Education">Education</option>
+            <option value="Energy">Energy</option>
+            <option value="Finance">Finance</option>
+            <option value="Food & Beverage">Food &amp; Beverage</option>
+            <option value="Healthcare">Healthcare</option>
+            <option value="Hospitality">Hospitality</option>
+            <option value="IT & Software">IT &amp; Software</option>
+            <option value="Logistics">Logistics</option>
+            <option value="Manufacturing">Manufacturing</option>
+            <option value="Media">Media</option>
+            <option value="Pharmaceutical">Pharmaceutical</option>
+            <option value="Real Estate">Real Estate</option>
+            <option value="Retail">Retail</option>
+            <option value="Telecommunications">Telecommunications</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="size_employees" style={{ display: "block", marginBottom: "0.5rem" }}>
+            Number of Employees (optional)
+          </label>
+          <select
+            id="size_employees"
+            name="size_employees"
+            defaultValue=""
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              backgroundColor: "white",
+            }}
+          >
+            <option value="">Select range</option>
+            <option value="0–50">0–50</option>
+            <option value="51–200">51–200</option>
+            <option value="201–500">201–500</option>
+            <option value="501–1,000">501–1,000</option>
+            <option value="1,001–5,000">1,001–5,000</option>
+            <option value="5,001–10,000">5,001–10,000</option>
+            <option value="10,000+">10,000+</option>
+          </select>
+        </div>
+
         <PrivateEquitySection />
 
         <button
