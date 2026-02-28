@@ -7,7 +7,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-type IndexType = "company" | "leader" | "owner";
+type IndexType = "company" | "leader";
 
 function getSearchParam(url: URL, key: string): string | null {
   const value = url.searchParams.get(key);
@@ -19,7 +19,9 @@ function getSearchParam(url: URL, key: string): string | null {
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const type = (getSearchParam(url, "type") as IndexType) || "company";
+    const rawType = getSearchParam(url, "type");
+    const type: IndexType =
+      rawType === "leader" ? "leader" : "company";
     const limit = Number(getSearchParam(url, "limit") || "10");
     const country = getSearchParam(url, "country");
 
@@ -36,7 +38,7 @@ export async function GET(req: Request) {
       if (country) query.eq("country", country);
 
     // ⚠️ LEADERS — unchanged for now
-    } else if (type === "leader") {
+    } else {
       query = supabase
         .from("leaders")
         .select("id, name, slug, country, rotten_score")
@@ -44,17 +46,6 @@ export async function GET(req: Request) {
         .limit(limit);
 
       if (country) query.eq("country", country);
-
-    // ⚠️ OWNERS — unchanged for now
-    } else if (type === "owner") {
-      query = supabase
-        .from("owners_investors")
-        .select("id, name, slug, rotten_score")
-        .order("rotten_score", { ascending: false })
-        .limit(limit);
-
-    } else {
-      return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
 
     const { data, error } = await query;

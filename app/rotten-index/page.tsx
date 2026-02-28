@@ -7,7 +7,7 @@ import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import Link from "next/link";
 import ExportCsvButton from "./ExportCsvButton";
 
-type IndexType = "company" | "leader" | "owner";
+type IndexType = "company" | "leader";
 
 type IndexedRow = {
   id: number;
@@ -39,8 +39,7 @@ function buildIndexJsonLd(
 ) {
   const baseUrl = "https://rotten-company.com";
   const entityType = type === "leader" ? "Person" : "Organization";
-  const path =
-    type === "leader" ? "leader" : type === "owner" ? "owner" : "company";
+  const path = type === "leader" ? "leader" : "company";
 
   return {
     "@context": "https://schema.org",
@@ -48,8 +47,6 @@ function buildIndexJsonLd(
     name:
       type === "leader"
         ? "Leaders under whose watch the most corporate damage occurred"
-        : type === "owner"
-        ? "Owners behind the most destructive portfolio patterns"
         : "Global Rotten Index",
     itemListOrder: "Descending",
     numberOfItems: rows.length,
@@ -77,7 +74,9 @@ export default async function RottenIndexPage({
   searchParams?: SearchParams | Promise<SearchParams>;
 }) {
   const sp = await Promise.resolve(searchParams ?? {});
-  const type = (getFirstString(sp.type) as IndexType) ?? "company";
+  const rawType = getFirstString(sp.type);
+  const type: IndexType =
+    rawType === "leader" ? "leader" : "company";
   const limit = Number(getFirstString(sp.limit) ?? 10);
   const selectedCountry = getFirstString(sp.country);
 
@@ -175,7 +174,6 @@ export default async function RottenIndexPage({
           >
             <option value="company">Companies</option>
             <option value="leader">Leaders</option>
-            <option value="owner">Owners</option>
           </select>
         </div>
 
