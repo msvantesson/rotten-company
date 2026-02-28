@@ -369,6 +369,8 @@ export default async function CompanyPage({ params }: { params: Params }) {
             )}
           </div>
 
+          <CeoSection companyId={company.id} userId={user?.id ?? null} />
+
           <div className="mt-6 mb-8">
             <RottenScoreMeter score={liveRottenScore ?? 0} />
           </div>
@@ -446,7 +448,6 @@ export default async function CompanyPage({ params }: { params: Params }) {
         </section>
 
         {/* CEO section — defensive: does not block page render on failure */}
-        <CeoSection companyId={company.id} userId={user?.id ?? null} />
 
         {/* Score debug panel only for dev / SHOW_DEBUG */}
         {user && SHOW_DEBUG && (
