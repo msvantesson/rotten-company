@@ -3,6 +3,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { EMPLOYEE_RANGES } from "./constants";
 
 export async function submitCompany(formData: FormData) {
   const cookieStore = await cookies();
@@ -12,6 +13,12 @@ export async function submitCompany(formData: FormData) {
   const website = (formData.get("website") as string)?.trim() || null;
   const description = (formData.get("description") as string)?.trim();
   const why = (formData.get("why") as string)?.trim();
+
+  const industry = (formData.get("industry") as string)?.trim() || null;
+  const employeeRange = (formData.get("employee_range") as string)?.trim() || null;
+
+  const rangeEntry = EMPLOYEE_RANGES.find((r) => r.label === employeeRange);
+  const employeeRangeMin = rangeEntry ? rangeEntry.min : null;
 
   const isPrivateEquity = formData.get("is_private_equity") === "true";
   const peOwned = formData.get("pe_owned") === "true";
@@ -79,6 +86,9 @@ export async function submitCompany(formData: FormData) {
       why,
       user_id: user.id,
       is_private_equity: isPrivateEquity,
+      industry: industry ?? undefined,
+      size_employees: employeeRange ?? undefined,
+      size_employees_min: employeeRangeMin ?? undefined,
     })
     .select("id")
     .single();
