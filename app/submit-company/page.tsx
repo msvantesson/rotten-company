@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { submitCompany } from "./actions";
 import { cookies } from "next/headers";
 import PrivateEquitySection from "@/components/PrivateEquitySection";
+import { INDUSTRIES, EMPLOYEE_RANGES } from "./constants";
 
 const COUNTRIES = [
   "Austria",
@@ -144,6 +145,56 @@ export default async function SubmitCompanyPage() {
               borderRadius: "4px",
             }}
           />
+        </div>
+
+        <div>
+          <label htmlFor="industry" style={{ display: "block", marginBottom: "0.5rem" }}>
+            Industry (optional)
+          </label>
+          <select
+            id="industry"
+            name="industry"
+            defaultValue=""
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              backgroundColor: "white",
+            }}
+          >
+            <option value="">Select industry</option>
+            {INDUSTRIES.map((ind) => (
+              <option key={ind} value={ind}>
+                {ind}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="employee_range" style={{ display: "block", marginBottom: "0.5rem" }}>
+            Number of employees (optional)
+          </label>
+          <select
+            id="employee_range"
+            name="employee_range"
+            defaultValue=""
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              backgroundColor: "white",
+            }}
+          >
+            <option value="">Select range</option>
+            {EMPLOYEE_RANGES.map((r) => (
+              <option key={r.label} value={r.label}>
+                {r.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
