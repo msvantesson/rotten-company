@@ -15,7 +15,25 @@ type IndexedRow = {
   slug: string;
   country?: string | null;
   rotten_score: number;
+  // leader tenure fields (present when type === "leader")
+  leader_id?: number;
+  company_name?: string | null;
+  company_slug?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
 };
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
@@ -109,16 +127,22 @@ export default async function RottenIndexPage({
         slug: r.slug,
         country: r.country ?? null,
         rotten_score: Number(r.rotten_score) || 0,
+        leader_id: r.leader_id ?? undefined,
+        company_name: r.company_name ?? null,
+        company_slug: r.company_slug ?? null,
+        started_at: r.started_at ?? null,
+        ended_at: r.ended_at ?? null,
       }))
     : [];
 
-  rows = rows
-    .filter((r) => typeof r.rotten_score === "number")
-    .sort((a, b) => b.rotten_score - a.rotten_score)
-    .slice(0, limit);
+  rows = rows.filter((r) => typeof r.rotten_score === "number");
+  if (type === "company") {
+    rows = rows.sort((a, b) => b.rotten_score - a.rotten_score);
+  }
+  rows = rows.slice(0, limit);
 
   const countryRes = await fetch(
-    `${baseUrl}/api/rotten-index?type=company&limit=1000`,
+    `${baseUrl}/api/rotten-index?type=${type}&limit=1000`,
     { cache: "no-store" }
   );
 
@@ -226,37 +250,94 @@ export default async function RottenIndexPage({
       <div className="overflow-hidden rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm">
         <table id="rotten-index-table" className="w-full border-collapse text-sm">
           <thead className="bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-700">
-            <tr className="text-left text-gray-600 dark:text-gray-400">
-              <th className="py-2 pr-2 w-12">#</th>
-              <th className="py-2 pr-4">Name</th>
-              <th className="py-2 pr-4">Country</th>
-              <th className="py-2 px-4 text-center font-mono tabular-nums w-24">
-                Rotten Score
-              </th>
-            </tr>
+            {type === "leader" ? (
+              <tr className="text-left text-gray-600 dark:text-gray-400">
+                <th className="py-2 pr-2 w-12">#</th>
+                <th className="py-2 pr-4">CEO Name</th>
+                <th className="py-2 pr-4">Company</th>
+                <th className="py-2 pr-4">Country</th>
+                <th className="py-2 pr-4">Started</th>
+                <th className="py-2 pr-4">Ended</th>
+                <th className="py-2 px-4 text-center font-mono tabular-nums w-24">
+                  Rotten Score
+                </th>
+              </tr>
+            ) : (
+              <tr className="text-left text-gray-600 dark:text-gray-400">
+                <th className="py-2 pr-2 w-12">#</th>
+                <th className="py-2 pr-4">Name</th>
+                <th className="py-2 pr-4">Country</th>
+                <th className="py-2 px-4 text-center font-mono tabular-nums w-24">
+                  Rotten Score
+                </th>
+              </tr>
+            )}
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr
-                key={`${type}-${r.id}`}
-                className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <td className="py-2 pr-2 text-gray-500 dark:text-gray-400">
-                  {i + 1}
-                </td>
-                <td className="py-2 pr-4 font-medium">
-                  <Link href={`/${type}/${r.slug}`} className="hover:underline">
-                    {r.name}
-                  </Link>
-                </td>
-                <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
-                  {r.country ?? "—"}
-                </td>
-                <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-gray-50 dark:bg-gray-800">
-                  {r.rotten_score.toFixed(2)}
-                </td>
-              </tr>
-            ))}
+            {rows.map((r, i) =>
+              type === "leader" ? (
+                <tr
+                  key={`leader-${r.id}`}
+                  className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  <td className="py-2 pr-2 text-gray-500 dark:text-gray-400">
+                    {i + 1}
+                  </td>
+                  <td className="py-2 pr-4 font-medium">
+                    <Link href={`/leader/${r.slug}`} className="hover:underline">
+                      {r.name}
+                    </Link>
+                  </td>
+                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                    {r.company_slug ? (
+                      <Link href={`/company/${r.company_slug}`} className="hover:underline">
+                        {r.company_name ?? "—"}
+                      </Link>
+                    ) : (
+                      r.company_name ?? "—"
+                    )}
+                  </td>
+                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                    {r.country ?? "—"}
+                  </td>
+                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                    {formatDate(r.started_at)}
+                  </td>
+                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                    {r.ended_at ? (
+                      formatDate(r.ended_at)
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                        Current
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-gray-50 dark:bg-gray-800">
+                    {r.rotten_score.toFixed(2)}
+                  </td>
+                </tr>
+              ) : (
+                <tr
+                  key={`company-${r.id}`}
+                  className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  <td className="py-2 pr-2 text-gray-500 dark:text-gray-400">
+                    {i + 1}
+                  </td>
+                  <td className="py-2 pr-4 font-medium">
+                    <Link href={`/${type}/${r.slug}`} className="hover:underline">
+                      {r.name}
+                    </Link>
+                  </td>
+                  <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                    {r.country ?? "—"}
+                  </td>
+                  <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-gray-50 dark:bg-gray-800">
+                    {r.rotten_score.toFixed(2)}
+                  </td>
+                </tr>
+              )
+            )}
           </tbody>
         </table>
       </div>
