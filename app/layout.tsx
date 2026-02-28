@@ -34,6 +34,15 @@ export default function RootLayout({
               Rotten Company
             </Link>
 
+            <nav className="hidden sm:flex items-center gap-4 text-sm font-medium">
+              <Link href="/rotten-index" className="hover:underline text-gray-700">
+                Rotten Index
+              </Link>
+              <Link href="/leadership" className="hover:underline text-gray-700">
+                Leadership
+              </Link>
+            </nav>
+
             <NavMenu />
           </div>
         </header>

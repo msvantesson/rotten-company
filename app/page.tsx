@@ -60,6 +60,10 @@ export default async function HomePage() {
             Explore the Rotten Index →
           </Link>
 
+          <Link href="/leadership" className="text-blue-700 font-medium hover:underline">
+            Leadership Accountability →
+          </Link>
+
           <Link href="/rotten-score" className="text-blue-700 font-medium hover:underline">
             How Rotten Score works →
           </Link>
