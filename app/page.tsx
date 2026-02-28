@@ -60,6 +60,10 @@ export default async function HomePage() {
             Explore the Rotten Index →
           </Link>
 
+          <Link href="/rotten-score" className="text-blue-700 font-medium hover:underline">
+            How Rotten Score works →
+          </Link>
+
           <Link
             href={submitEvidenceHref}
             className="inline-flex items-center justify-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
