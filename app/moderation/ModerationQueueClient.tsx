@@ -12,7 +12,7 @@ type GateStatus = {
 };
 
 type AssignedItem = {
-  kind: "evidence" | "company_request";
+  kind: "evidence" | "company_request" | "leader_tenure_request";
   id: string;
   title: string;
   created_at: string;
@@ -123,7 +123,11 @@ export default function ModerationQueueClient({
             >
               <div className="space-y-1">
                 <p className="text-xs text-neutral-500 capitalize">
-                  {item.kind === "company_request" ? "Company request" : "Evidence"}
+                  {item.kind === "company_request"
+                    ? "Company request"
+                    : item.kind === "leader_tenure_request"
+                      ? "CEO tenure request"
+                      : "Evidence"}
                 </p>
                 <p className="text-sm font-medium">{item.title}</p>
                 <p className="text-xs text-neutral-500">

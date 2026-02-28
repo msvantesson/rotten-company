@@ -13,6 +13,7 @@ import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 import { getRottenFlavor } from "@/lib/flavor-engine";
 import CategoryInfoPopover from "@/components/CategoryInfoPopover";
+import CeoSection from "@/components/CeoSection";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -443,6 +444,9 @@ export default async function CompanyPage({ params }: { params: Params }) {
             <EvidenceList evidence={evidence} />
           </div>
         </section>
+
+        {/* CEO section — defensive: does not block page render on failure */}
+        <CeoSection companyId={company.id} userId={user?.id ?? null} />
 
         {/* Score debug panel only for dev / SHOW_DEBUG */}
         {user && SHOW_DEBUG && (
