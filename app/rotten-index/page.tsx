@@ -17,6 +17,7 @@ type IndexedRow = {
   rotten_score: number;
   // leader tenure fields (present when type === "leader")
   leader_id?: number;
+  tenure_id?: number | null;
   company_name?: string | null;
   company_slug?: string | null;
   started_at?: string | null;
@@ -128,6 +129,7 @@ export default async function RottenIndexPage({
         country: r.country ?? null,
         rotten_score: Number(r.rotten_score) || 0,
         leader_id: r.leader_id ?? undefined,
+        tenure_id: r.tenure_id ?? null,
         company_name: r.company_name ?? null,
         company_slug: r.company_slug ?? null,
         started_at: r.started_at ?? null,
@@ -306,10 +308,12 @@ export default async function RottenIndexPage({
                   <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
                     {r.ended_at ? (
                       formatDate(r.ended_at)
-                    ) : (
+                    ) : r.started_at ? (
                       <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
                         Current
                       </span>
+                    ) : (
+                      "—"
                     )}
                   </td>
                   <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-gray-50 dark:bg-gray-800">

@@ -43,6 +43,7 @@ type IndexedRow = {
   country?: string | null;
   rotten_score: number;
   leader_id?: number;
+  tenure_id?: number | null;
   company_name?: string | null;
   company_slug?: string | null;
   started_at?: string | null;
@@ -88,6 +89,7 @@ export default async function LeadershipPage({
                 country: r.country ?? null,
                 rotten_score: Number(r.rotten_score) || 0,
                 leader_id: r.leader_id ?? undefined,
+                tenure_id: r.tenure_id ?? null,
                 company_name: r.company_name ?? null,
                 company_slug: r.company_slug ?? null,
                 started_at: r.started_at ?? null,
@@ -251,7 +253,7 @@ export default async function LeadershipPage({
                 </tr>
               ) : (
                 indexRows.map((r, i) => {
-                  const isCurrent = !r.ended_at;
+                  const isCurrent = r.started_at != null && !r.ended_at;
                   return (
                     <tr
                       key={r.id}
@@ -292,9 +294,9 @@ export default async function LeadershipPage({
                       </td>
                       {isModerator && (
                         <td className="py-2 pl-4">
-                          {isCurrent && (
+                          {isCurrent && r.tenure_id != null && (
                             <LeadershipEndTenureButton
-                              tenureId={r.id}
+                              tenureId={r.tenure_id}
                               leaderName={r.name}
                             />
                           )}
