@@ -64,11 +64,11 @@ export async function GET(req: Request) {
       const leaderIds = leaders.map((l: any) => l.id);
       const { data: tenuresData } = await supabase
         .from("leader_tenures")
-        .select("id, leader_id, started_at, ended_at, role, companies(id, name, slug)")
+        .select("id, leader_id, started_at, ended_at, companies(id, name, slug)")
         .in("leader_id", leaderIds);
 
       // For each leader, pick the best tenure:
-      // Priority: active (ended_at IS NULL) > past; within same activity: role='ceo' > other; then most recent started_at
+      // Priority: active (ended_at IS NULL) > past; then most recent started_at
       const tenureMap = new Map<number, any>();
       for (const tenure of tenuresData ?? []) {
         const existing = tenureMap.get(tenure.leader_id);
@@ -83,15 +83,8 @@ export async function GET(req: Request) {
           continue;
         }
         if (!tActive && eActive) continue;
-        const tCeo = tenure.role === "ceo";
-        const eCeo = existing.role === "ceo";
-        if (tCeo && !eCeo) {
-          tenureMap.set(tenure.leader_id, tenure);
-          continue;
-        }
-        if (!tCeo && eCeo) continue;
-        const tTime = tenure.started_at ? new Date(tenure.started_at).getTime() : 0;
-        const eTime = existing.started_at ? new Date(existing.started_at).getTime() : 0;
+        const tTime = new Date(tenure.started_at).getTime();
+        const eTime = new Date(existing.started_at).getTime();
         if (tTime > eTime) tenureMap.set(tenure.leader_id, tenure);
       }
 
