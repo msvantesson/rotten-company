@@ -37,45 +37,80 @@ export async function GET(req: Request) {
 
       if (country) query.eq("country", country);
 
-    // LEADERS — query leader_tenures (CEO role) joined with leaders + companies
+    // LEADERS — query all leaders (base), enrich with optional best CEO tenure
     } else {
-      let tenureQuery = supabase
-        .from("leader_tenures")
-        .select(
-          "id, leader_id, started_at, ended_at, leaders!inner(id, name, slug, country, rotten_score), companies(id, name, slug, country)"
-        )
-        .eq("role", "ceo");
+      let leadersQuery = supabase
+        .from("leaders")
+        .select("id, name, slug, country, rotten_score")
+        .order("rotten_score", { ascending: false })
+        .limit(limit);
 
-      if (country) tenureQuery = tenureQuery.filter("leaders.country", "eq", country);
+      if (country) leadersQuery = leadersQuery.eq("country", country);
 
-      const { data: tenureData, error: tenureError } = await tenureQuery;
+      const { data: leadersData, error: leadersError } = await leadersQuery;
 
-      if (tenureError) {
-        console.error("Supabase error:", tenureError);
-        return NextResponse.json({ error: tenureError.message }, { status: 500 });
+      if (leadersError) {
+        console.error("Supabase error:", leadersError);
+        return NextResponse.json({ error: leadersError.message }, { status: 500 });
       }
 
-      // Sort: current (ended_at IS NULL) first, then started_at DESC
-      const sorted = (tenureData ?? []).sort((a: any, b: any) => {
-        const aCurrent = !a.ended_at;
-        const bCurrent = !b.ended_at;
-        if (aCurrent && !bCurrent) return -1;
-        if (!aCurrent && bCurrent) return 1;
-        return new Date(b.started_at).getTime() - new Date(a.started_at).getTime();
-      });
+      const leaders = leadersData ?? [];
 
-      const rows = sorted.slice(0, limit).map((r: any) => ({
-        id: r.id,
-        leader_id: r.leader_id,
-        name: r.leaders?.name ?? "Unknown",
-        slug: r.leaders?.slug ?? "",
-        country: r.leaders?.country ?? r.companies?.country ?? null,
-        rotten_score: Number(r.leaders?.rotten_score) || 0,
-        company_name: r.companies?.name ?? null,
-        company_slug: r.companies?.slug ?? null,
-        started_at: r.started_at ?? null,
-        ended_at: r.ended_at ?? null,
-      }));
+      if (leaders.length === 0) {
+        return NextResponse.json({ rows: [] }, { status: 200 });
+      }
+
+      // Fetch all tenures for these leaders
+      const leaderIds = leaders.map((l: any) => l.id);
+      const { data: tenuresData } = await supabase
+        .from("leader_tenures")
+        .select("id, leader_id, started_at, ended_at, role, companies(id, name, slug)")
+        .in("leader_id", leaderIds);
+
+      // For each leader, pick the best tenure:
+      // Priority: active (ended_at IS NULL) > past; within same activity: role='ceo' > other; then most recent started_at
+      const tenureMap = new Map<number, any>();
+      for (const tenure of tenuresData ?? []) {
+        const existing = tenureMap.get(tenure.leader_id);
+        if (!existing) {
+          tenureMap.set(tenure.leader_id, tenure);
+          continue;
+        }
+        const tActive = !tenure.ended_at;
+        const eActive = !existing.ended_at;
+        if (tActive && !eActive) {
+          tenureMap.set(tenure.leader_id, tenure);
+          continue;
+        }
+        if (!tActive && eActive) continue;
+        const tCeo = tenure.role === "ceo";
+        const eCeo = existing.role === "ceo";
+        if (tCeo && !eCeo) {
+          tenureMap.set(tenure.leader_id, tenure);
+          continue;
+        }
+        if (!tCeo && eCeo) continue;
+        const tTime = tenure.started_at ? new Date(tenure.started_at).getTime() : 0;
+        const eTime = existing.started_at ? new Date(existing.started_at).getTime() : 0;
+        if (tTime > eTime) tenureMap.set(tenure.leader_id, tenure);
+      }
+
+      const rows = leaders.map((l: any) => {
+        const tenure = tenureMap.get(l.id);
+        const company = tenure?.companies as any;
+        return {
+          id: l.id,
+          name: l.name,
+          slug: l.slug,
+          country: l.country ?? null,
+          rotten_score: Number(l.rotten_score) || 0,
+          tenure_id: tenure?.id ?? null,
+          company_name: company?.name ?? null,
+          company_slug: company?.slug ?? null,
+          started_at: tenure?.started_at ?? null,
+          ended_at: tenure?.ended_at ?? null,
+        };
+      });
 
       return NextResponse.json({ rows }, { status: 200 });
     }
