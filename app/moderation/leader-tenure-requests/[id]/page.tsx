@@ -129,6 +129,20 @@ export default async function LeaderTenureRequestReviewPage(props: {
     targetTenure = (tenure as unknown as TargetTenure) ?? null;
   }
 
+  // Check for active CEO tenure when this is an open-ended 'add' request
+  type ActiveCeoTenure = { id: number; started_at: string };
+  let activeCeoTenure: ActiveCeoTenure | null = null;
+  if (req.request_type === "add" && !req.ended_at && req.company_id) {
+    const { data: active } = await service
+      .from("leader_tenures")
+      .select("id, started_at")
+      .eq("company_id", req.company_id)
+      .eq("role", "ceo")
+      .is("ended_at", null)
+      .maybeSingle();
+    activeCeoTenure = active as ActiveCeoTenure | null;
+  }
+
   // Fetch company name for context
   let companyName: string | null = null;
   let companySlug: string | null = null;
@@ -244,6 +258,14 @@ export default async function LeaderTenureRequestReviewPage(props: {
         )}
       </section>
 
+      {activeCeoTenure && (
+        <section className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          <strong>Approval blocked:</strong> There is already an active CEO tenure for this
+          company (tenure ID {activeCeoTenure.id}, started {activeCeoTenure.started_at}). End the
+          current tenure before approving this request.
+        </section>
+      )}
+
       {/* Moderation actions */}
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Approve */}
@@ -264,7 +286,8 @@ export default async function LeaderTenureRequestReviewPage(props: {
             </label>
             <button
               type="submit"
-              className="mt-auto rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+              disabled={!!activeCeoTenure}
+              className="mt-auto rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Approve
             </button>
