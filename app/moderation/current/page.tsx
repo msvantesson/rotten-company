@@ -30,6 +30,7 @@ export default async function ModerationCurrentPage() {
   const assignedItems = await getAssignedModerationItems(userId);
   const assignedEvidence = assignedItems.find((i) => i.kind === "evidence");
   const assignedRequest = assignedItems.find((i) => i.kind === "company_request");
+  const assignedLeaderTenureRequest = assignedItems.find((i) => i.kind === "leader_tenure_request");
 
   if (assignedEvidence) {
     redirect(assignedEvidence.href);
@@ -37,6 +38,10 @@ export default async function ModerationCurrentPage() {
 
   if (assignedRequest) {
     redirect(assignedRequest.href);
+  }
+
+  if (assignedLeaderTenureRequest) {
+    redirect(assignedLeaderTenureRequest.href);
   }
 
   redirect("/moderation");

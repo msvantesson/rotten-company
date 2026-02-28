@@ -6,6 +6,7 @@ import { logDebug } from "@/lib/log";
 import { releaseExpiredEvidenceAssignments } from "@/lib/release-expired-evidence";
 import { getAssignedModerationItems } from "@/lib/getAssignedModerationItems";
 import ModerationQueueClient from "./ModerationQueueClient";
+import LeaderTenureRequestsQueueSection from "./LeaderTenureRequestsQueueSection";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -106,6 +107,24 @@ export default async function ModerationPage() {
     console.error("[moderation] pending company_requests count failed", pendingCompanyErr);
   }
 
+  // CEO tenure requests count (non-fatal if table doesn't exist)
+  let pendingLeaderTenureRequestsCount = 0;
+  try {
+    const { count, error: ltrErr } = await service
+      .from("leader_tenure_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .is("assigned_moderator_id", null)
+      .or(`user_id.is.null,user_id.neq.${moderatorId}`);
+    if (ltrErr) {
+      console.error("[moderation] leader_tenure_requests count failed", ltrErr);
+    } else {
+      pendingLeaderTenureRequestsCount = count ?? 0;
+    }
+  } catch (e) {
+    console.error("[moderation] leader_tenure_requests count unexpected error", e);
+  }
+
   const totalCount =
     (totalEvidenceCount ?? 0) + (totalCompanyRequestsCount ?? 0);
 
@@ -120,6 +139,7 @@ export default async function ModerationPage() {
     pendingEvidenceCount,
     pendingCompanyRequestsCount,
     pendingCount,
+    pendingLeaderTenureRequestsCount,
   });
 
   let assignedItems: Awaited<ReturnType<typeof getAssignedModerationItems>> = [];
@@ -145,6 +165,11 @@ export default async function ModerationPage() {
           assignedItemsFetchError={assignedItemsFetchError}
         />
       </section>
+
+      <LeaderTenureRequestsQueueSection
+        pendingCount={pendingLeaderTenureRequestsCount}
+        hasAssignedItem={assignedItems.some((i) => i.kind === "leader_tenure_request")}
+      />
     </main>
   );
 }

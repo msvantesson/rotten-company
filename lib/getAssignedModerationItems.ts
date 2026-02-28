@@ -1,7 +1,7 @@
 import { supabaseService } from "@/lib/supabase-service";
 
 export type AssignedModerationItem = {
-  kind: "evidence" | "company_request";
+  kind: "evidence" | "company_request" | "leader_tenure_request";
   id: string;
   title: string;
   created_at: string;
@@ -23,6 +23,7 @@ export async function getAssignedModerationItems(
   const [
     { data: assignedEvidenceRows, error: evidenceError },
     { data: assignedCompanyRequestRows, error: requestError },
+    { data: assignedLeaderTenureRequestRows, error: leaderTenureRequestError },
   ] = await Promise.all([
     service
       .from("evidence")
@@ -36,6 +37,12 @@ export async function getAssignedModerationItems(
       .eq("assigned_moderator_id", moderatorId)
       .eq("status", "pending")
       .order("created_at", { ascending: true }),
+    service
+      .from("leader_tenure_requests")
+      .select("id, leader_name, request_type, created_at")
+      .eq("assigned_moderator_id", moderatorId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true }),
   ]);
 
   if (evidenceError) {
@@ -46,6 +53,11 @@ export async function getAssignedModerationItems(
   if (requestError) {
     console.error("[getAssignedModerationItems] company_requests query failed", requestError);
     throw new Error(`Failed to fetch assigned company requests: ${requestError.message}`);
+  }
+
+  if (leaderTenureRequestError) {
+    // Non-fatal: table may not exist in older environments
+    console.warn("[getAssignedModerationItems] leader_tenure_requests query failed (non-fatal):", leaderTenureRequestError.message);
   }
 
   return [
@@ -62,6 +74,15 @@ export async function getAssignedModerationItems(
       title: r.name ?? "(untitled)",
       created_at: r.created_at,
       href: `/moderation/company-requests/${r.id}`,
+    })),
+    ...(assignedLeaderTenureRequestRows || []).map((r: { id: number | string; leader_name: string | null; request_type: string; created_at: string }) => ({
+      kind: "leader_tenure_request" as const,
+      id: String(r.id),
+      title: r.leader_name
+        ? `CEO tenure request: ${r.leader_name}`
+        : `CEO tenure request (${r.request_type})`,
+      created_at: r.created_at,
+      href: `/moderation/leader-tenure-requests/${r.id}`,
     })),
   ];
 }
