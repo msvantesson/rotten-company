@@ -3,6 +3,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { EMPLOYEE_RANGES } from "./constants";
 
 function employeeRangeToMin(label: string | null): number | null {
   switch (label) {
@@ -28,6 +29,12 @@ export async function submitCompany(formData: FormData) {
   const industry = (formData.get("industry") as string)?.trim() || null;
   const sizeEmployees = (formData.get("size_employees") as string)?.trim() || null;
   const sizeEmployeesMin = employeeRangeToMin(sizeEmployees);
+
+  const industry = (formData.get("industry") as string)?.trim() || null;
+  const employeeRange = (formData.get("employee_range") as string)?.trim() || null;
+
+  const rangeEntry = EMPLOYEE_RANGES.find((r) => r.label === employeeRange);
+  const employeeRangeMin = rangeEntry ? rangeEntry.min : null;
 
   const isPrivateEquity = formData.get("is_private_equity") === "true";
   const peOwned = formData.get("pe_owned") === "true";
@@ -95,9 +102,9 @@ export async function submitCompany(formData: FormData) {
       why,
       user_id: user.id,
       is_private_equity: isPrivateEquity,
-      industry,
-      size_employees: sizeEmployees,
-      size_employees_min: sizeEmployeesMin,
+      industry: industry ?? undefined,
+      size_employees: employeeRange ?? undefined,
+      size_employees_min: employeeRangeMin ?? undefined,
     })
     .select("id")
     .single();
