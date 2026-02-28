@@ -307,7 +307,7 @@ export async function rejectEvidence(formData: FormData): Promise<ActionResult> 
   return { ok: true };
 }
 
-type ClaimRow = { kind: "evidence" | "company_request"; item_id: string };
+type ClaimRow = { kind: "evidence" | "company_request" | "leader_tenure_request"; item_id: string };
 
 /**
  * Assign the next moderation case (evidence or company_request) to the
@@ -387,7 +387,7 @@ export async function assignNextCase(): Promise<
   const row: ClaimRow | null =
     rawRow &&
     typeof rawRow === "object" &&
-    (rawRow.kind === "evidence" || rawRow.kind === "company_request") &&
+    (rawRow.kind === "evidence" || rawRow.kind === "company_request" || rawRow.kind === "leader_tenure_request") &&
     typeof rawRow.item_id === "string"
       ? (rawRow as ClaimRow)
       : null;
@@ -406,6 +406,14 @@ export async function assignNextCase(): Promise<
       id: row.item_id,
     });
     redirect(`/moderation/evidence/${row.item_id}`);
+  }
+
+  if (row.kind === "leader_tenure_request") {
+    // TODO: remove debug logging once stabilized
+    logDebug("assign-next-case", "redirecting to leader-tenure-request", {
+      id: row.item_id,
+    });
+    redirect(`/moderation/leader-tenure-requests/${row.item_id}`);
   }
 
   // TODO: remove debug logging once stabilized
