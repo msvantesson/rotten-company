@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
+import { getModerationGateStatus } from "@/lib/moderation-guards";
 
 async function getAuthenticatedUserId(): Promise<string | null> {
   const supabase = await supabaseServer();
@@ -74,14 +75,13 @@ export async function assignNextLeaderTenureRequest() {
 
   const service = supabaseService();
 
-  // Verify moderator
-  const { data: modRow } = await service
-    .from("moderators")
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!modRow) {
+  // Gate check (Rule A): user must have completed required moderations
+  const gate = await getModerationGateStatus();
+  if (!gate.allowed) {
+    console.warn("[assignNextLeaderTenureRequest] authorization failed", {
+      userId,
+      allowed: gate.allowed,
+    });
     redirect("/moderation");
   }
 
