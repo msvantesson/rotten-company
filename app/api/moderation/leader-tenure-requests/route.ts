@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
+import { getModerationGateStatus } from "@/lib/moderation-guards";
 
 export async function POST(req: NextRequest) {
   // Auth check
@@ -12,17 +13,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  // Moderator check (only moderators may create CEO tenure requests)
-  const service = supabaseService();
-  const { data: modRow } = await service
-    .from("moderators")
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!modRow) {
+  // Gate check (Rule A): user must have completed required moderations
+  const gate = await getModerationGateStatus();
+  if (!gate.allowed) {
+    console.warn("[leader-tenure-requests POST] authorization failed", {
+      userId,
+      allowed: gate.allowed,
+    });
     return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   }
+
+  const service = supabaseService();
 
   let body: Record<string, string>;
   try {
