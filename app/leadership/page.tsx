@@ -133,21 +133,20 @@ export default async function LeadershipPage({
       <section className="space-y-6">
         <h1 className="text-4xl font-bold">Leadership Accountability</h1>
 
-        <p className="text-xl text-gray-700 max-w-3xl">
-          CEO‑to‑worker pay ratios have risen dramatically since the 1950s. Today&apos;s CEOs earn
-          hundreds of times what their median employees make — a gap that has grown far faster than
-          company performance, productivity, or worker wages.
-        </p>
-
-        <p className="text-lg text-gray-600 max-w-3xl">
-          This disconnect raises a fundamental question: are these leaders truly worth their obscene
-          compensation, or has corporate governance simply lost touch with the people who do the
-          actual work? This page tracks CEOs behind the companies — current and past — so you can
-          judge for yourself.
-        </p>
+        <div className="space-y-2 max-w-3xl">
+          <p className="text-xl text-muted-foreground">
+            Tracking CEO tenures and pay ratios across the companies in our index.
+          </p>
+          <p className="text-base text-muted-foreground">
+            CEO‑to‑worker pay ratios have risen dramatically since the 1950s. Today&apos;s CEOs earn
+            hundreds of times what their median employees make — a gap that has grown far faster than
+            company performance, productivity, or worker wages. This page tracks CEOs behind the
+            companies — current and past — so you can judge for yourself.
+          </p>
+        </div>
 
         <div className="flex flex-wrap items-center gap-4 pt-2">
-          <Link href="/" className="text-blue-700 font-medium hover:underline">
+          <Link href="/" className="text-accent font-medium hover:underline">
             ← Back to companies
           </Link>
         </div>
@@ -159,16 +158,16 @@ export default async function LeadershipPage({
 
         <form
           method="get"
-          className="flex flex-wrap items-end gap-4 rounded-lg border bg-gray-50 dark:bg-gray-800 dark:border-gray-700 p-4"
+          className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-surface-2 p-4"
         >
           <div className="flex flex-col">
-            <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+            <label className="text-xs font-semibold text-muted-foreground mb-1">
               Country
             </label>
             <select
               name="country"
               defaultValue={selectedCountry ?? ""}
-              className="border rounded px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-600 dark:text-gray-100"
+              className="border border-border rounded px-3 py-2 bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="">All countries</option>
               {countryOptions.map((c) => (
@@ -180,13 +179,13 @@ export default async function LeadershipPage({
           </div>
 
           <div className="flex flex-col">
-            <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+            <label className="text-xs font-semibold text-muted-foreground mb-1">
               Results
             </label>
             <select
               name="limit"
               defaultValue={String(limit)}
-              className="border rounded px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-600 dark:text-gray-100"
+              className="border border-border rounded px-3 py-2 bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="10">Top 10</option>
               <option value="25">Top 25</option>
@@ -198,18 +197,18 @@ export default async function LeadershipPage({
             <ExportCsvButton tableId="leader-index-table" filename={fileName} />
             <button
               type="submit"
-              className="rounded bg-black px-5 py-2 text-white font-semibold hover:bg-gray-800"
+              className="inline-flex items-center justify-center rounded-md bg-foreground px-5 py-2 text-sm font-semibold text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Apply
             </button>
           </div>
         </form>
 
-        <div className="overflow-hidden rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm">
+        <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-sm">
           <table id="leader-index-table" className="w-full border-collapse text-sm">
-            <thead className="bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-700">
-              <tr className="text-left text-gray-600 dark:text-gray-400">
-                <th scope="col" className="py-2 pr-2 w-12">#</th>
+            <thead className="bg-muted border-b border-border">
+              <tr className="text-left text-muted-foreground">
+                <th scope="col" className="py-2 pr-2 pl-3 w-12">#</th>
                 <th scope="col" className="py-2 pr-4">CEO Name</th>
                 <th scope="col" className="py-2 pr-4">Company</th>
                 <th scope="col" className="py-2 pr-4">Country</th>
@@ -224,7 +223,7 @@ export default async function LeadershipPage({
             <tbody>
               {indexRows.length === 0 ? (
                 <tr>
-                  <td colSpan={isModerator ? 8 : 7} className="py-4 text-center text-gray-500 text-sm">
+                  <td colSpan={isModerator ? 8 : 7} className="py-4 text-center text-muted-foreground text-sm">
                     No CEO records found.
                   </td>
                 </tr>
@@ -234,30 +233,30 @@ export default async function LeadershipPage({
                   return (
                     <tr
                       key={r.id}
-                      className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className="border-b border-border hover:bg-muted last:border-0"
                     >
-                      <td className="py-2 pr-2 text-gray-500 dark:text-gray-400">{i + 1}</td>
+                      <td className="py-2 pr-2 pl-3 text-muted-foreground">{i + 1}</td>
                       <td className="py-2 pr-4 font-medium">
-                        <Link href={`/leader/${r.slug}`} className="text-blue-700 hover:underline">
+                        <Link href={`/leader/${r.slug}`} className="text-accent hover:underline">
                           {r.name}
                         </Link>
                       </td>
-                      <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                      <td className="py-2 pr-4 text-muted-foreground">
                         {r.company_slug ? (
-                          <Link href={`/company/${r.company_slug}`} className="text-blue-700 hover:underline">
+                          <Link href={`/company/${r.company_slug}`} className="text-accent hover:underline">
                             {r.company_name ?? "—"}
                           </Link>
                         ) : (
                           r.company_name ?? "—"
                         )}
                       </td>
-                      <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                      <td className="py-2 pr-4 text-muted-foreground">
                         {r.country ?? "—"}
                       </td>
-                      <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                      <td className="py-2 pr-4 text-muted-foreground">
                         {formatDate(r.started_at)}
                       </td>
-                      <td className="py-2 pr-4 text-gray-600 dark:text-gray-400">
+                      <td className="py-2 pr-4 text-muted-foreground">
                         {isCurrent ? (
                           <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
                             Current
@@ -266,7 +265,7 @@ export default async function LeadershipPage({
                           formatDate(r.ended_at)
                         )}
                       </td>
-                      <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-gray-50 dark:bg-gray-800">
+                      <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-muted">
                         {r.rotten_score.toFixed(2)}
                       </td>
                       {isModerator && (
@@ -291,8 +290,13 @@ export default async function LeadershipPage({
       {/* MODERATOR: Propose new CEO tenure */}
       {isModerator && (
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold">Moderator Controls</h2>
-          <LeadershipStartTenureForm />
+          <h2 className="text-2xl font-semibold">Moderator Controls</h2>
+          <p className="text-sm text-muted-foreground">
+            Propose a new CEO tenure to be reviewed in the moderation queue.
+          </p>
+          <div className="rounded-lg border border-border bg-surface-2 p-6">
+            <LeadershipStartTenureForm />
+          </div>
         </section>
       )}
     </main>
