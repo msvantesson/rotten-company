@@ -49,7 +49,7 @@ export default function ExportCsvButton({
       type="button"
       className={
         className ??
-        "rounded border border-gray-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:hover:bg-gray-800"
+        "inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       }
       onClick={() => {
         const table = document.getElementById(tableId) as HTMLTableElement | null;
