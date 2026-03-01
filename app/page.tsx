@@ -45,7 +45,6 @@ export default async function HomePage() {
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-12 space-y-20">
-
       {/* HERO */}
       <section className="space-y-6">
         <h1 className="text-4xl font-bold">Rotten Company</h1>
@@ -103,14 +102,16 @@ export default async function HomePage() {
               you witnessed.
             </p>
           </div>
+
           <div className="rounded-lg border border-border bg-surface-2 p-5 space-y-2">
             <div className="text-2xl font-bold text-muted-foreground">2</div>
-            <h3 className="font-semibold">Expert Moderation</h3>
+            <h3 className="font-semibold">A Joint Community Effort</h3>
             <p className="text-sm text-muted-foreground">
-              Each submission is reviewed by moderators to verify its authenticity, context, and
-              relevance before it is accepted.
+              Rotten Company is maintained together by the community. Submissions are reviewed by
+              other users against simple guidelines before acceptance.
             </p>
           </div>
+
           <div className="rounded-lg border border-border bg-surface-2 p-5 space-y-2">
             <div className="text-2xl font-bold text-muted-foreground">3</div>
             <h3 className="font-semibold">Score Impact</h3>
