@@ -134,7 +134,7 @@ export function CategoryBreakdown({
                   .map((ev) => (
                     <div
                       key={ev.id}
-                      className="border rounded-md p-3 bg-white shadow-sm"
+                      className="border border-border rounded-md p-3 bg-surface shadow-sm"
                     >
                       <div className="font-medium">{ev.title}</div>
 

@@ -175,9 +175,9 @@ export default async function EvidenceReviewPage(props: {
         <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
           Moderate Evidence #{evidence.id}
         </h1>
-        <p style={{ margin: 0, fontSize: 14, color: "#555" }}>
+        <p style={{ margin: 0, fontSize: 14, color: "var(--muted-foreground)" }}>
           Submitted by <strong>{submitterEmail}</strong>{" "}
-          <span style={{ color: "#9ca3af" }}>({evidence.user_id})</span> · Current
+          <span style={{ color: "var(--muted-foreground)" }}>({evidence.user_id})</span> · Current
           status: <strong>{status.toUpperCase()}</strong>
           {isSelfOwned ? (
             <span style={{ marginLeft: 8, color: "#b45309" }}>
@@ -190,20 +190,20 @@ export default async function EvidenceReviewPage(props: {
       {/* Summary card */}
       <section
         style={{
-          border: "1px solid #e5e7eb",
+          border: "1px solid var(--border)",
           borderRadius: 8,
           padding: 16,
           marginBottom: 24,
-          background: "#f9fafb",
+          background: "var(--surface-2)",
         }}
       >
         <div style={{ display: "grid", gap: 10 }}>
           {/* Evidence type */}
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>
               Evidence Type
             </div>
-            <div style={{ fontSize: 14, color: "#111827" }}>
+            <div style={{ fontSize: 14, color: "var(--foreground)" }}>
               {evidence.evidence_type
                 ? String(evidence.evidence_type)
                 : "(not set)"}
@@ -212,17 +212,17 @@ export default async function EvidenceReviewPage(props: {
 
           {/* Title */}
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>
               Title
             </div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "#111827" }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--foreground)" }}>
               {evidence.title || "Untitled evidence"}
             </div>
           </div>
 
           {/* Summary */}
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>
               Summary
             </div>
 
@@ -231,10 +231,10 @@ export default async function EvidenceReviewPage(props: {
                 marginTop: 6,
                 padding: 12,
                 borderRadius: 8,
-                border: "1px solid #e5e7eb",
-                background: "#ffffff",
+                border: "1px solid var(--border)",
+                background: "var(--surface)",
                 fontSize: 14,
-                color: "#111827",
+                color: "var(--foreground)",
                 whiteSpace: "pre-wrap",
                 lineHeight: 1.5,
                 maxHeight: 260,
@@ -262,20 +262,20 @@ export default async function EvidenceReviewPage(props: {
             }}
           >
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>
                 Category
               </div>
-              <div style={{ fontSize: 14, color: "#111827" }}>
+              <div style={{ fontSize: 14, color: "var(--foreground)" }}>
                 {categoryName ??
                   (categoryId ? `Category #${categoryId}` : "(not set)")}
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>
                 Severity (1 = low, 5 = severe)
               </div>
-              <div style={{ fontSize: 14, color: "#111827" }}>
+              <div style={{ fontSize: 14, color: "var(--foreground)" }}>
                 {severityValue ?? "(not set)"}
               </div>
             </div>
@@ -284,10 +284,10 @@ export default async function EvidenceReviewPage(props: {
           {/* Company */}
           {(companyName || companySlug || companyCountry || companyIndustry) && (
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>
                 Company
               </div>
-              <div style={{ fontSize: 14, color: "#111827" }}>
+              <div style={{ fontSize: 14, color: "var(--foreground)" }}>
                 {companySlug ? (
                   <a
                     href={`/company/${companySlug}`}
@@ -310,7 +310,7 @@ export default async function EvidenceReviewPage(props: {
                     gap: 8,
                     marginTop: 6,
                     fontSize: 13,
-                    color: "#6b7280",
+                    color: "var(--muted-foreground)",
                   }}
                 >
                   <div>
@@ -325,7 +325,7 @@ export default async function EvidenceReviewPage(props: {
           )}
 
           {/* Metadata */}
-          <div style={{ fontSize: 13, color: "#6b7280" }}>
+          <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
             ID: {evidence.id} · Created at:{" "}
             {new Date(evidence.created_at).toLocaleString()}
           </div>
@@ -359,10 +359,10 @@ export default async function EvidenceReviewPage(props: {
         {/* Approve */}
         <div
           style={{
-            border: "1px solid #e5e7eb",
+            border: "1px solid var(--border)",
             borderRadius: 8,
             padding: 16,
-            background: "#ffffff",
+            background: "var(--surface)",
             opacity: !isPending ? 0.6 : 1,
 
             display: "flex",
@@ -373,7 +373,7 @@ export default async function EvidenceReviewPage(props: {
           <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 6px" }}>
             Approve
           </h2>
-          <p style={{ margin: "0 0 12px", fontSize: 13, color: "#555" }}>
+          <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--muted-foreground)" }}>
             Approving will mark this evidence as <strong>approved</strong> and
             send a confirmation email to the submitter. Any note you add will be
             included in the email and stored in the moderation log.
@@ -428,10 +428,10 @@ export default async function EvidenceReviewPage(props: {
         {/* Reject */}
         <div
           style={{
-            border: "1px solid #e5e7eb",
+            border: "1px solid var(--border)",
             borderRadius: 8,
             padding: 16,
-            background: "#ffffff",
+            background: "var(--surface)",
             opacity: !isPending ? 0.6 : 1,
 
             display: "flex",
@@ -442,7 +442,7 @@ export default async function EvidenceReviewPage(props: {
           <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 6px" }}>
             Reject
           </h2>
-          <p style={{ margin: "0 0 12px", fontSize: 13, color: "#555" }}>
+          <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--muted-foreground)" }}>
             Rejecting will mark this evidence as <strong>rejected</strong> and
             send a rejection email to the submitter. Your note is{" "}
             <strong>required</strong> and will be included in the email and
@@ -501,11 +501,11 @@ export default async function EvidenceReviewPage(props: {
       {events && events.length > 0 && (
         <section
           style={{
-            border: "1px solid #e5e7eb",
+            border: "1px solid var(--border)",
             borderRadius: 8,
             padding: 16,
             marginBottom: 24,
-            background: "#ffffff",
+            background: "var(--surface)",
           }}
         >
           <h2 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 8px" }}>
@@ -524,17 +524,17 @@ export default async function EvidenceReviewPage(props: {
                 key={`${evt.created_at}-${evt.action}-${evt.moderator_id}`}
                 style={{
                   padding: "10px 0",
-                  borderTop: "1px solid #f3f4f6",
+                  borderTop: "1px solid var(--border)",
                 }}
               >
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <strong style={{ textTransform: "uppercase" }}>
                     {evt.action}
                   </strong>
-                  <span style={{ color: "#6b7280" }}>
+                  <span style={{ color: "var(--muted-foreground)" }}>
                     {new Date(evt.created_at).toLocaleString()}
                   </span>
-                  <span style={{ color: "#9ca3af" }}>
+                  <span style={{ color: "var(--muted-foreground)" }}>
                     moderator: {evt.moderator_id}
                   </span>
                 </div>

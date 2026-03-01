@@ -104,17 +104,17 @@ export default function NavMenuClient({
       </button>
 
       {open && (
-        <div className="absolute top-full mt-2 left-0 right-0 mx-2 sm:left-auto sm:right-0 sm:mx-0 sm:w-56 rounded-md border border-gray-200 bg-white text-gray-900 shadow-lg z-50 text-base sm:text-sm max-h-[70vh] overflow-auto dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700">
-          <div className="px-3 py-3 sm:py-2 border-b border-gray-200 text-xs text-gray-500 dark:text-gray-400 dark:border-gray-700 break-all">
+        <div className="absolute top-full mt-2 left-0 right-0 mx-2 sm:left-auto sm:right-0 sm:mx-0 sm:w-56 rounded-md border border-border bg-surface text-foreground shadow-lg z-50 text-base sm:text-sm max-h-[70vh] overflow-auto">
+          <div className="px-3 py-3 sm:py-2 border-b border-border text-xs text-muted-foreground break-all">
             Signed in as
             <br />
-            <span className="font-medium text-gray-900 dark:text-gray-100">
+            <span className="font-medium text-foreground">
               {email}
             </span>
           </div>
 
           {isLoggedIn && moderationLine && (
-            <div className="px-3 py-3 sm:py-2 border-b border-gray-200 text-xs text-gray-600 dark:text-gray-300 dark:border-gray-700 leading-snug">
+            <div className="px-3 py-3 sm:py-2 border-b border-border text-xs text-muted-foreground leading-snug">
               {moderationLine}
             </div>
           )}
@@ -123,7 +123,7 @@ export default function NavMenuClient({
             <>
               <Link
                 href="/submit-evidence"
-                className="block px-3 py-3 sm:py-2 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="block px-3 py-3 sm:py-2 text-foreground hover:bg-muted"
                 onClick={() => setOpen(false)}
               >
                 Submit Evidence
@@ -131,7 +131,7 @@ export default function NavMenuClient({
 
               <Link
                 href={moderationHref}
-                className="block px-3 py-3 sm:py-2 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="block px-3 py-3 sm:py-2 text-foreground hover:bg-muted"
                 onClick={() => setOpen(false)}
               >
                 Moderation
@@ -139,7 +139,7 @@ export default function NavMenuClient({
 
               <Link
                 href="/moderation"
-                className="block px-3 py-3 sm:py-2 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="block px-3 py-3 sm:py-2 text-foreground hover:bg-muted"
                 onClick={() => setOpen(false)}
               >
                 Evidence queue
@@ -150,7 +150,7 @@ export default function NavMenuClient({
           <form action={logout} onSubmit={() => setOpen(false)}>
             <button
               type="submit"
-              className="w-full text-left block px-3 py-3 sm:py-2 text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="w-full text-left block px-3 py-3 sm:py-2 text-red-600 hover:bg-muted"
             >
               Log out
             </button>

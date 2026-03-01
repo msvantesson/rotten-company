@@ -13,11 +13,11 @@ export default async function SignupConfirmPage({
       : null;
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-xl bg-white border rounded-xl shadow-sm p-8 space-y-4">
+    <main className="min-h-screen flex items-center justify-center bg-muted px-4">
+      <div className="w-full max-w-xl bg-surface border border-border rounded-xl shadow-sm p-8 space-y-4">
         <h1 className="text-2xl font-bold">Confirm your email</h1>
 
-        <p className="text-gray-700">
+        <p className="text-foreground">
           We’ve sent a confirmation link to{` `}
           {email ? (
             <strong className="break-words">{email}</strong>
@@ -27,7 +27,7 @@ export default async function SignupConfirmPage({
           .
         </p>
 
-        <p className="text-gray-700">
+        <p className="text-foreground">
           Please open the email and click <strong>Confirm your mail</strong> to
           activate your account.
         </p>
@@ -42,13 +42,13 @@ export default async function SignupConfirmPage({
 
           <Link
             href="/signup"
-            className="inline-flex justify-center border px-4 py-2 rounded font-medium hover:bg-gray-50 transition"
+            className="inline-flex justify-center border border-border px-4 py-2 rounded font-medium hover:bg-muted transition"
           >
             Use a different email
           </Link>
         </div>
 
-        <p className="text-xs text-gray-500 pt-2">
+        <p className="text-xs text-muted-foreground pt-2">
           Didn’t receive anything? Check spam/junk. If it still doesn’t arrive,
           try signing up again later.
         </p>

@@ -151,7 +151,7 @@ export default function EvidenceClientWrapper({
 
   if (loading) {
     return (
-      <div className="p-6 text-sm text-gray-600">
+      <div className="p-6 text-sm text-muted-foreground">
         Loading evidence…
       </div>
     );
@@ -173,7 +173,7 @@ export default function EvidenceClientWrapper({
         <h1 className="text-2xl font-semibold">
           {evidence.title || "Untitled evidence"}
         </h1>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           Uploaded on{" "}
           {new Date(evidence.created_at).toLocaleString(undefined, {
             dateStyle: "medium",
@@ -183,9 +183,9 @@ export default function EvidenceClientWrapper({
       </header>
 
       {evidence.summary && (
-        <section className="rounded-md border bg-gray-50 p-4 text-sm">
+        <section className="rounded-md border border-border bg-surface-2 p-4 text-sm">
           <h2 className="font-medium mb-1">Summary</h2>
-          <p className="text-gray-800 whitespace-pre-wrap">
+          <p className="text-foreground whitespace-pre-wrap">
             {evidence.summary}
           </p>
         </section>
@@ -205,19 +205,19 @@ export default function EvidenceClientWrapper({
         </section>
       )}
 
-      <section className="flex flex-wrap gap-3 items-center text-xs text-gray-600">
+      <section className="flex flex-wrap gap-3 items-center text-xs text-muted-foreground">
         {evidence.entity_type && evidence.entity_id && (
           <button
             type="button"
             onClick={() => router.push(startOverHref)}
-            className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-gray-50"
+            className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs hover:bg-muted"
           >
             Start a new upload for this entity
           </button>
         )}
 
         {isOwner && (
-          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs">
+          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs">
             You uploaded this evidence
           </span>
         )}
@@ -281,7 +281,7 @@ export default function EvidenceClientWrapper({
       )}
 
       {!isModerator && moderation && moderation.status !== "approved" && (
-        <section className="rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
+        <section className="rounded-md border border-border bg-surface-2 p-3 text-xs text-foreground">
           This evidence is still under review by moderators.
         </section>
       )}

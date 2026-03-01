@@ -73,7 +73,7 @@ export default function ModerationQueueClient({
   return (
     <section className="space-y-6">
       {/* Gate status info */}
-      <section className="rounded-md border bg-white p-4 space-y-3 text-sm">
+      <section className="rounded-md border border-border bg-surface p-4 space-y-3 text-sm">
         {!gate.allowed ? (
           <p className="text-neutral-700">
             To unlock all moderation features, please moderate{" "}
@@ -119,7 +119,7 @@ export default function ModerationQueueClient({
           {assignedItems.map((item) => (
             <div
               key={`${item.kind}-${item.id}`}
-              className="rounded-md border bg-white p-4 space-y-2"
+              className="rounded-md border border-border bg-surface p-4 space-y-2"
             >
               <div className="space-y-1">
                 <p className="text-xs text-neutral-500 capitalize">

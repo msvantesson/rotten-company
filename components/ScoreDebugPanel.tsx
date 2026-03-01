@@ -35,14 +35,14 @@ export function ScoreDebugPanel({
         <div className="mt-3 space-y-3">
           <div>
             <div className="font-semibold">Overall Rotten Score</div>
-            <pre className="mt-1 bg-white border border-neutral-200 rounded p-2 overflow-x-auto">
+            <pre className="mt-1 bg-surface border border-border rounded p-2 overflow-x-auto">
               {JSON.stringify({ score }, null, 2)}
             </pre>
           </div>
 
           <div>
             <div className="font-semibold">Category Breakdown</div>
-            <pre className="mt-1 bg-white border border-neutral-200 rounded p-2 overflow-x-auto max-h-64">
+            <pre className="mt-1 bg-surface border border-border rounded p-2 overflow-x-auto max-h-64">
               {JSON.stringify(breakdown, null, 2)}
             </pre>
           </div>

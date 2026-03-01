@@ -78,7 +78,7 @@ export default function CompanyRequestsQueue({
         </p>
       </header>
 
-      <section className="rounded-md border bg-white p-4 space-y-2">
+      <section className="rounded-md border border-border bg-surface p-4 space-y-2">
         <p className="text-sm font-medium">Debug</p>
         <p className="text-xs text-neutral-600">
           SSR user present: {String(debug.ssrUserPresent)}
@@ -126,7 +126,7 @@ export default function CompanyRequestsQueue({
           </div>
 
           {hasAssigned && assignedRequest && (
-            <div className="rounded-md border bg-white p-4 space-y-2 text-sm">
+            <div className="rounded-md border border-border bg-surface p-4 space-y-2 text-sm">
               <p className="text-xs uppercase tracking-wide text-neutral-500">
                 Assigned evidence
               </p>

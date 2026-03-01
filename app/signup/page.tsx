@@ -5,18 +5,18 @@ import FormSubmitButton from "@/components/FormSubmitButton";
 
 export default function SignupPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 bg-white border rounded-xl shadow-sm p-8">
+    <div className="min-h-screen flex items-center justify-center bg-muted px-4">
+      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 bg-surface border border-border rounded-xl shadow-sm p-8">
         {/* Left: Context */}
         <div className="flex flex-col justify-center">
           <h1 className="text-3xl font-bold mb-4">Join Rotten Company</h1>
 
-          <p className="text-gray-700 mb-4">
+          <p className="text-muted-foreground mb-4">
             Rotten Company is an evidence‑based accountability platform
             documenting corporate misconduct and systemic harm.
           </p>
 
-          <p className="text-gray-600 text-sm">
+          <p className="text-muted-foreground text-sm">
             Creating an account allows you to submit evidence, participate in
             moderation, and help keep the platform credible and transparent.
           </p>
@@ -32,7 +32,7 @@ export default function SignupPage() {
               name="email"
               placeholder="Email address"
               required
-              className="border p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+              className="border border-border bg-surface text-foreground p-3 rounded focus:outline-none focus:ring-2 focus:ring-ring"
               autoComplete="email"
             />
 
@@ -41,7 +41,7 @@ export default function SignupPage() {
               name="password"
               placeholder="Password"
               required
-              className="border p-3 rounded focus:outline-none focus:ring-2 focus:ring-black"
+              className="border border-border bg-surface text-foreground p-3 rounded focus:outline-none focus:ring-2 focus:ring-ring"
               autoComplete="new-password"
             />
 
@@ -52,7 +52,7 @@ export default function SignupPage() {
             />
           </form>
 
-          <p className="text-xs text-gray-500 mt-4">
+          <p className="text-xs text-muted-foreground mt-4">
             By signing up, you agree to participate in moderation when requested
             and to submit evidence responsibly.
           </p>

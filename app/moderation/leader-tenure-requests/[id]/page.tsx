@@ -177,7 +177,7 @@ export default async function LeaderTenureRequestReviewPage(props: {
       </header>
 
       {/* Request details */}
-      <section className="rounded-md border bg-white p-4 space-y-3">
+      <section className="rounded-md border border-border bg-surface p-4 space-y-3">
         {companyName && (
           <div>
             <p className="text-xs font-semibold text-neutral-500">Company</p>
@@ -269,7 +269,7 @@ export default async function LeaderTenureRequestReviewPage(props: {
       {/* Moderation actions */}
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Approve */}
-        <div className="rounded-md border bg-white p-4 flex flex-col gap-3">
+        <div className="rounded-md border border-border bg-surface p-4 flex flex-col gap-3">
           <h2 className="text-base font-semibold">Approve</h2>
           <p className="text-sm text-neutral-600">
             Mark this CEO tenure request as <strong>approved</strong>.
@@ -295,7 +295,7 @@ export default async function LeaderTenureRequestReviewPage(props: {
         </div>
 
         {/* Reject */}
-        <div className="rounded-md border bg-white p-4 flex flex-col gap-3">
+        <div className="rounded-md border border-border bg-surface p-4 flex flex-col gap-3">
           <h2 className="text-base font-semibold">Reject</h2>
           <p className="text-sm text-neutral-600">
             Mark this CEO tenure request as <strong>rejected</strong>. A reason is required.

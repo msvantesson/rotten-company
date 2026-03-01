@@ -115,7 +115,7 @@ export default async function SubmitCompanyPage() {
               padding: "0.5rem",
               border: "1px solid #ccc",
               borderRadius: "4px",
-              backgroundColor: "white",
+              backgroundColor: "var(--surface)",
             }}
           >
             <option value="" disabled>
@@ -160,7 +160,7 @@ export default async function SubmitCompanyPage() {
               padding: "0.5rem",
               border: "1px solid #ccc",
               borderRadius: "4px",
-              backgroundColor: "white",
+              backgroundColor: "var(--surface)",
             }}
           >
             <option value="">Select industry</option>
@@ -185,7 +185,7 @@ export default async function SubmitCompanyPage() {
               padding: "0.5rem",
               border: "1px solid #ccc",
               borderRadius: "4px",
-              backgroundColor: "white",
+              backgroundColor: "var(--surface)",
             }}
           >
             <option value="">Select range</option>
