@@ -46,7 +46,7 @@ export default function RottenIndexClient({
   return (
     <section className="mb-6">
       <div className="flex items-center gap-4 mb-6">
-        <label htmlFor="country" className="text-gray-600 dark:text-gray-400">
+        <label htmlFor="country" className="text-muted-foreground">
           Country:
         </label>
 
@@ -62,7 +62,7 @@ export default function RottenIndexClient({
 
             fetchList(v);
           }}
-          className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 dark:text-gray-100"
+          className="border border-border rounded px-2 py-1 text-sm bg-surface text-foreground"
         >
           <option value="">All countries</option>
           {initialOptions.map((opt) => (
@@ -73,21 +73,21 @@ export default function RottenIndexClient({
         </select>
       </div>
 
-      {loading && <p className="text-gray-600 dark:text-gray-400">Loading…</p>}
+      {loading && <p className="text-muted-foreground">Loading…</p>}
 
       {!loading && companies && companies.length === 0 && (
-        <p className="text-gray-600 dark:text-gray-400">No companies found.</p>
+        <p className="text-muted-foreground">No companies found.</p>
       )}
 
       {!loading && companies && companies.length > 0 && (
-        <ol className="divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <ol className="divide-y divide-border border border-border rounded-lg">
           {companies.map((c, i) => (
             <li key={c.id} className="flex items-center justify-between px-4 py-3">
               <div>
                 <Link href={`/company/${c.slug}`} className="text-lg font-semibold hover:underline">
                   {c.name}
                 </Link>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-sm text-muted-foreground">
                   {c.industry || "Unknown industry"}
                   {c.country ? ` · ${c.country}` : ""}
                 </div>
@@ -95,7 +95,7 @@ export default function RottenIndexClient({
 
               <div className="text-right">
                 <div className="text-xl font-bold">{c.rotten_score.toFixed(1)}</div>
-                <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Rotten Score</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Rotten Score</div>
               </div>
             </li>
           ))}

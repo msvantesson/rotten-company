@@ -51,14 +51,14 @@ function WeightBoxes({ weight }: { weight: number }) {
                 "h-3 w-6 rounded-sm border",
                 isFilled
                   ? "bg-red-600 border-red-700"
-                  : "bg-gray-100 border-gray-300",
+                  : "bg-muted border-border",
               ].join(" ")}
               title={`${weight.toFixed(2)} / ${MAX_WEIGHT}`}
             />
           );
         })}
       </div>
-      <div className="text-xs text-gray-600 tabular-nums">
+      <div className="text-xs text-muted-foreground tabular-nums">
         {weight.toFixed(2)}
       </div>
     </div>
@@ -68,12 +68,12 @@ function WeightBoxes({ weight }: { weight: number }) {
 function SummaryBlock({ summary }: { summary?: string }) {
   const text = summary?.trim() ?? "";
   return (
-    <div className="text-sm text-gray-700">
-      <div className="text-xs font-medium text-gray-500 mb-1">Summary</div>
+    <div className="text-sm text-foreground">
+      <div className="text-xs font-medium text-muted-foreground mb-1">Summary</div>
       {text.length > 0 ? (
         <p className="whitespace-pre-wrap">{text}</p>
       ) : (
-        <p className="italic text-gray-400">(No summary provided)</p>
+        <p className="italic text-muted-foreground">(No summary provided)</p>
       )}
     </div>
   );
@@ -105,10 +105,10 @@ export default function EvidenceList({ evidence }: Props) {
       {sortedCategories.map(([catId, group]) => (
         <div key={catId} className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-foreground">
               {group.categoryName}
             </h2>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-muted-foreground">
               {group.items.length} item{group.items.length !== 1 ? "s" : ""}
             </span>
           </div>
@@ -120,22 +120,22 @@ export default function EvidenceList({ evidence }: Props) {
               return (
                 <div
                   key={item.id}
-                  className="border p-4 rounded-md bg-white shadow-sm space-y-3"
+                  className="border border-border p-4 rounded-md bg-surface shadow-sm space-y-3"
                 >
                   {item.evidence_type && (
-                    <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-gray-200 text-gray-700 uppercase">
+                    <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-muted text-muted-foreground uppercase">
                       {item.evidence_type}
                     </span>
                   )}
 
-                  <h3 className="font-semibold text-lg text-gray-900">
+                  <h3 className="font-semibold text-lg text-foreground">
                     {item.title}
                   </h3>
 
                   <SummaryBlock summary={item.summary} />
 
                   {item.manager && (
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       Reported manager: {item.manager.name}
                       {typeof item.manager.report_count === "number" &&
                         ` (${item.manager.report_count} reports)`}
@@ -144,13 +144,13 @@ export default function EvidenceList({ evidence }: Props) {
 
                   {/* Compact Weight Meter */}
                   <div className="mt-2">
-                    <div className="text-xs font-medium text-gray-500 mb-1">
+                    <div className="text-xs font-medium text-muted-foreground mb-1">
                       Evidence Weight
                     </div>
                     <WeightBoxes weight={weight} />
                   </div>
 
-                  <div className="text-xs text-gray-500 space-y-1 mt-2">
+                  <div className="text-xs text-muted-foreground space-y-1 mt-2">
                     {item.severity !== undefined && (
                       <div>Severity: {item.severity}</div>
                     )}

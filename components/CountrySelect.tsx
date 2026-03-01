@@ -21,7 +21,7 @@ export default function CountrySelect({
       name="country"
       value={value}
       onChange={(e) => setValue(e.target.value)}
-      className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+      className="border border-border rounded px-2 py-1 text-sm bg-surface text-foreground"
     >
       <option value="">All countries</option>
       {options.map((opt) => (

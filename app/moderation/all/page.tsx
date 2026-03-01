@@ -108,7 +108,7 @@ export default async function ModerationAllPage() {
 
       <div className="overflow-x-auto border rounded">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-100 text-left">
+          <thead className="bg-muted text-left">
             <tr>
               <th className="px-3 py-2">ID</th>
               <th className="px-3 py-2">Title</th>
@@ -135,7 +135,7 @@ export default async function ModerationAllPage() {
               <tr>
                 <td
                   colSpan={5}
-                  className="px-3 py-6 text-center text-gray-500"
+                  className="px-3 py-6 text-center text-muted-foreground"
                 >
                   No evidence found.
                 </td>

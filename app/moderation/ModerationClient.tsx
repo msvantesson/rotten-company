@@ -37,7 +37,7 @@ export default function ModerationClient({
   return (
     <section className="space-y-6">
       {/* Info box explaining the flow */}
-      <section className="rounded-md border bg-white p-4 space-y-3 text-sm">
+      <section className="rounded-md border border-border bg-surface p-4 space-y-3 text-sm">
         {!gate.allowed ? (
           <p className="text-neutral-700">
             Before helping with extra evidence requests, please moderate{" "}
@@ -69,7 +69,7 @@ export default function ModerationClient({
 
       {/* Assigned evidence card with link to full moderation UI */}
       {hasAssigned && current && (
-        <section className="rounded-md border bg-white p-4 space-y-3">
+        <section className="rounded-md border border-border bg-surface p-4 space-y-3">
           <div className="space-y-1">
             <p className="text-xs text-neutral-500">
               Item 1 of 1 • Assigned to you ({moderatorId})

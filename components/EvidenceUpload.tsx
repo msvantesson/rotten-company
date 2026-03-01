@@ -123,7 +123,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       <h2 className="text-lg font-semibold">Submit Evidence</h2>
 
       {/* Policy box */}
-      <div className="rounded-md border bg-gray-50 p-4 text-sm text-gray-700 space-y-2">
+      <div className="rounded-md border border-border bg-surface-2 p-4 text-sm text-foreground space-y-2">
         <div className="font-medium">Before you submit</div>
         <ul className="list-disc pl-5 space-y-1">
           <li>
@@ -193,7 +193,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
           disabled={loading}
           placeholder="Describe what happened, when, where, who (leaders/managers only), and add links (website/LinkedIn) when naming leadership."
         />
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-muted-foreground">
           Tip: Include dates/approximate timeframe, location, and public links for any
           named leader/manager.
         </p>
@@ -230,7 +230,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
           onChange={(e) => setSeverity(Number(e.target.value))}
           disabled={loading}
         />
-        <p className="text-xs text-gray-600">Selected: {severity}</p>
+        <p className="text-xs text-muted-foreground">Selected: {severity}</p>
       </div>
 
       <div className="space-y-1">

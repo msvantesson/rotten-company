@@ -168,7 +168,7 @@ export default async function Page({
 
         <h1 className="text-2xl font-bold">Company request diagnostics</h1>
 
-        <section className="rounded-md border bg-white p-4">
+        <section className="rounded-md border border-border bg-surface p-4">
           <p className="text-sm text-neutral-700">Server-rendered debug info</p>
 
           <dl className="mt-3 space-y-2 text-sm">
@@ -298,7 +298,7 @@ export default async function Page({
         </p>
       </header>
 
-      <div className="rounded-md border bg-white p-4 mb-4">
+      <div className="rounded-md border border-border bg-surface p-4 mb-4">
         <h2 className="font-semibold text-lg">{cr!.name}</h2>
         <p className="text-sm text-neutral-600">
           ID: {cr!.id} · Created at: {new Date(cr!.created_at).toLocaleString()}

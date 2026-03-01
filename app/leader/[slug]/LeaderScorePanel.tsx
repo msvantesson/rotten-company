@@ -64,10 +64,10 @@ function BreakdownItem({ label, value, tooltip }: {
   tooltip?: string;
 }) {
   return (
-    <div className="p-4 border rounded-lg bg-gray-50">
-      <p className="text-gray-600">{label}</p>
+    <div className="p-4 border border-border rounded-lg bg-surface-2">
+      <p className="text-muted-foreground">{label}</p>
       <p className="text-xl font-bold">{value}</p>
-      {tooltip && <p className="text-xs text-gray-400 mt-1">{tooltip}</p>}
+      {tooltip && <p className="text-xs text-muted-foreground mt-1">{tooltip}</p>}
     </div>
   );
 }

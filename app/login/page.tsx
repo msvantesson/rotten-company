@@ -4,7 +4,7 @@ import { loginWithPassword } from "./actions";
 
 export default function LoginPage() {
   return (
-    <div className="max-w-md mx-auto mt-20 p-6 border rounded-lg bg-white shadow">
+    <div className="max-w-md mx-auto mt-20 p-6 border border-border rounded-lg bg-surface shadow">
       <h1 className="text-2xl font-bold mb-6">Log in</h1>
 
       <form action={loginWithPassword} className="flex flex-col gap-4">
@@ -13,7 +13,7 @@ export default function LoginPage() {
           name="email"
           placeholder="Email"
           required
-          className="border p-2 rounded"
+          className="border border-border bg-surface text-foreground p-2 rounded"
         />
 
         <input
@@ -21,7 +21,7 @@ export default function LoginPage() {
           name="password"
           placeholder="Password"
           required
-          className="border p-2 rounded"
+          className="border border-border bg-surface text-foreground p-2 rounded"
         />
 
         <button

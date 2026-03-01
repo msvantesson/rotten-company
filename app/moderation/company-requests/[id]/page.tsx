@@ -129,7 +129,7 @@ export default async function CommunityCompanyRequestReviewPage(props: {
       </header>
 
       {/* Company request details */}
-      <section className="rounded-md border bg-white p-4 space-y-3">
+      <section className="rounded-md border border-border bg-surface p-4 space-y-3">
         <div>
           <p className="text-xs font-semibold text-neutral-500">Company Name</p>
           <p className="text-base font-medium text-neutral-900">{cr.name}</p>
@@ -167,7 +167,7 @@ export default async function CommunityCompanyRequestReviewPage(props: {
       {/* Moderation actions */}
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Approve */}
-        <div className="rounded-md border bg-white p-4 flex flex-col gap-3">
+        <div className="rounded-md border border-border bg-surface p-4 flex flex-col gap-3">
           <h2 className="text-base font-semibold">Approve</h2>
           <p className="text-sm text-neutral-600">
             Mark this company request as <strong>approved</strong>.
@@ -192,7 +192,7 @@ export default async function CommunityCompanyRequestReviewPage(props: {
         </div>
 
         {/* Reject */}
-        <div className="rounded-md border bg-white p-4 flex flex-col gap-3">
+        <div className="rounded-md border border-border bg-surface p-4 flex flex-col gap-3">
           <h2 className="text-base font-semibold">Reject</h2>
           <p className="text-sm text-neutral-600">
             Mark this company request as <strong>rejected</strong>. A reason is required.

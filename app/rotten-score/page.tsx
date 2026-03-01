@@ -107,7 +107,7 @@ export default function RottenScorePage() {
         </ol>
 
         {/* Worked example */}
-        <div className="border rounded-lg p-6 bg-gray-50 space-y-4">
+        <div className="border border-border rounded-lg p-6 bg-surface-2 space-y-4">
           <h3 className="text-lg font-semibold">
             Worked example — AcmeCorp (fictional)
           </h3>
@@ -179,7 +179,7 @@ export default function RottenScorePage() {
       {/* ── Complex / full methodology (collapsed) ── */}
       <section>
         <details className="border rounded-lg">
-          <summary className="cursor-pointer px-6 py-4 text-lg font-semibold select-none hover:bg-gray-50">
+          <summary className="cursor-pointer px-6 py-4 text-lg font-semibold select-none hover:bg-muted">
             Full methodology &amp; current weights
           </summary>
 
