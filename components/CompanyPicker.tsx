@@ -147,12 +147,7 @@ export default function CompanyPicker({ fieldName = "pe_owner_id", onChange }: P
             onFocus={() => {
               if (results.length > 0) setOpen(true);
             }}
-            style={{
-              width: "100%",
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-            }}
+            className="block w-full border border-border rounded px-3 py-2 bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-autocomplete="list"
             aria-controls="pe-company-results"
             aria-expanded={open}
@@ -160,8 +155,8 @@ export default function CompanyPicker({ fieldName = "pe_owner_id", onChange }: P
           />
 
           <div className="mt-2">
-            {loading && <p style={{ fontSize: "0.8rem", color: "#666" }}>Searching…</p>}
-            {searchError && <p style={{ fontSize: "0.8rem", color: "#b30000" }}>{searchError}</p>}
+            {loading && <p className="text-xs text-muted-foreground">Searching…</p>}
+            {searchError && <p className="text-xs text-red-600">{searchError}</p>}
           </div>
 
           {open && results.length > 0 && (
@@ -169,21 +164,7 @@ export default function CompanyPicker({ fieldName = "pe_owner_id", onChange }: P
               id="pe-company-results"
               role="listbox"
               ref={listRef}
-              style={{
-                position: "absolute",
-                zIndex: 20,
-                marginTop: "4px",
-                width: "100%",
-                maxHeight: "16rem",
-                overflowY: "auto",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                backgroundColor: "white",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                listStyle: "none",
-                padding: 0,
-                margin: 0,
-              }}
+              className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded border border-border bg-surface shadow list-none p-0 m-0"
             >
               {results.map((c, idx) => {
                 const isHighlighted = idx === highlightIndex;
@@ -197,14 +178,10 @@ export default function CompanyPicker({ fieldName = "pe_owner_id", onChange }: P
                       chooseCompany(c);
                     }}
                     onMouseEnter={() => setHighlightIndex(idx)}
-                    style={{
-                      padding: "0.5rem 0.75rem",
-                      cursor: "pointer",
-                      backgroundColor: isHighlighted ? "#f5f5f5" : "transparent",
-                    }}
+                    className={`px-3 py-2 cursor-pointer ${isHighlighted ? "bg-muted" : ""}`}
                   >
-                    <div style={{ fontWeight: 500 }}>{c.name}</div>
-                    {c.slug ? <div style={{ fontSize: "0.75rem", color: "#666" }}>{c.slug}</div> : null}
+                    <div className="font-medium text-sm">{c.name}</div>
+                    {c.slug ? <div className="text-xs text-muted-foreground">{c.slug}</div> : null}
                   </li>
                 );
               })}
@@ -212,24 +189,10 @@ export default function CompanyPicker({ fieldName = "pe_owner_id", onChange }: P
           )}
 
           {open && !loading && results.length === 0 && (
-            <div
-              style={{
-                position: "absolute",
-                zIndex: 20,
-                marginTop: "4px",
-                width: "100%",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                backgroundColor: "white",
-                padding: "0.75rem",
-                fontSize: "0.875rem",
-                color: "#555",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-              }}
-            >
+            <div className="absolute z-20 mt-1 w-full rounded border border-border bg-surface p-3 text-sm text-muted-foreground shadow">
               No matching companies found.
-              <div style={{ marginTop: "0.5rem" }}>
-                <a href="/submit-company" style={{ color: "#2563eb", textDecoration: "underline" }}>
+              <div className="mt-2">
+                <a href="/submit-company" className="text-accent underline">
                   Request a new company
                 </a>
               </div>
@@ -239,34 +202,24 @@ export default function CompanyPicker({ fieldName = "pe_owner_id", onChange }: P
       )}
 
       {selectedCompany && (
-        <div
-          style={{
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            padding: "0.75rem",
-            backgroundColor: "white",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+        <div className="rounded border border-border p-3 bg-surface flex justify-between items-center">
           <div>
-            <div style={{ fontSize: "0.8rem", color: "#666" }}>Selected company</div>
-            <div style={{ fontWeight: 500 }}>{selectedCompany.name}</div>
+            <div className="text-xs text-muted-foreground">Selected company</div>
+            <div className="font-medium text-sm">{selectedCompany.name}</div>
           </div>
           <button
             type="button"
             onClick={clearSelection}
-            style={{ fontSize: "0.875rem", color: "#2563eb", textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }}
+            className="text-sm text-accent underline bg-transparent border-none cursor-pointer"
           >
             Change
           </button>
         </div>
       )}
 
-      <p style={{ fontSize: "0.75rem", color: "#666", marginTop: "0.5rem" }}>
+      <p className="text-xs text-muted-foreground mt-2">
         Only approved companies are listed. If the company is missing,{" "}
-        <a href="/submit-company" style={{ color: "#2563eb", textDecoration: "underline" }}>
+        <a href="/submit-company" className="text-accent underline">
           request a new company
         </a>
         .

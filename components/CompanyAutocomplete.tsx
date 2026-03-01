@@ -164,7 +164,7 @@ export default function CompanyAutocomplete() {
                 id="company-results"
                 role="listbox"
                 ref={listRef}
-                className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded border bg-white shadow"
+                className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded border border-border bg-surface shadow"
               >
                 {results.map((c, idx) => {
                   const isHighlighted = idx === highlightIndex;
@@ -178,10 +178,10 @@ export default function CompanyAutocomplete() {
                         chooseCompany(c);
                       }}
                       onMouseEnter={() => setHighlightIndex(idx)}
-                      className={`px-3 py-2 cursor-pointer ${isHighlighted ? "bg-neutral-100" : ""}`}
+                      className={`px-3 py-2 cursor-pointer ${isHighlighted ? "bg-muted" : ""}`}
                     >
                       <div className="font-medium">{c.name}</div>
-                      {c.slug ? <div className="text-xs text-neutral-500">{c.slug}</div> : null}
+                      {c.slug ? <div className="text-xs text-muted-foreground">{c.slug}</div> : null}
                     </li>
                   );
                 })}
@@ -189,10 +189,10 @@ export default function CompanyAutocomplete() {
             )}
 
             {open && !loading && results.length === 0 && (
-              <div className="absolute z-20 mt-1 w-full rounded border bg-white p-3 text-sm text-neutral-600 shadow">
+              <div className="absolute z-20 mt-1 w-full rounded border border-border bg-surface p-3 text-sm text-muted-foreground shadow">
                 No matching companies found.
                 <div className="mt-2">
-                  <a href="/submit-company" className="text-blue-600 underline">
+                  <a href="/submit-company" className="text-accent underline">
                     Request a new company
                   </a>
                 </div>
@@ -202,14 +202,14 @@ export default function CompanyAutocomplete() {
         )}
 
         {selectedCompany && (
-          <div className="rounded-md border p-3 bg-white">
+          <div className="rounded-md border border-border p-3 bg-surface">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-neutral-500">Selected company</div>
+                <div className="text-sm text-muted-foreground">Selected company</div>
                 <div className="font-medium">{selectedCompany.name}</div>
               </div>
               <div>
-                <button type="button" onClick={clearSelection} className="text-sm text-blue-600 underline">
+                <button type="button" onClick={clearSelection} className="text-sm text-accent underline">
                   Change
                 </button>
               </div>
@@ -217,9 +217,9 @@ export default function CompanyAutocomplete() {
           </div>
         )}
 
-        <p className="text-xs text-neutral-500 mt-2">
+        <p className="text-xs text-muted-foreground mt-2">
           Only approved companies are listed. If the company is missing,{" "}
-          <a href="/submit-company" className="underline text-blue-600">request a new company</a>.
+          <a href="/submit-company" className="underline text-accent">request a new company</a>.
         </p>
       </div>
 
