@@ -35,7 +35,13 @@ export default function RatingStars({
       const data = await res.json();
 
       if (!res.ok) {
-        setMessage(data.error || "Something went wrong");
+        const isUnauthenticated =
+          res.status === 401 || data.error === "Failed to load user";
+        setMessage(
+          isUnauthenticated
+            ? "Please register or log in to rate companies."
+            : data.error || "Something went wrong"
+        );
       } else {
         setSelected(score);
         setMessage("Rating saved");
