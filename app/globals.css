@@ -39,11 +39,11 @@ html {
     --surface: #111111;
     --surface-2: #1a1a1a;
     --muted: #1f1f1f;
-    --muted-foreground: #9ca3af;
+    --muted-foreground: #b0b5bf;
     --border: #2d2d2d;
-    --accent: #3b82f6;
+    --accent: #60a5fa;
     --accent-foreground: #ffffff;
-    --ring: #3b82f6;
+    --ring: #60a5fa;
   }
 }
 
