@@ -59,25 +59,27 @@ export default async function HomePage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-start gap-4 pt-2">
-          <div className="flex flex-col gap-1.5">
-            <Link
-              href={submitEvidenceHref}
-              className="inline-flex items-center justify-center rounded-md bg-foreground px-5 py-2.5 text-sm font-semibold text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Submit Evidence
-            </Link>
-            <p className="text-xs text-muted-foreground">
-              Requires an account&nbsp;·&nbsp;Takes ~2 minutes&nbsp;·&nbsp;Upload PDF or image
-            </p>
-          </div>
+        <div className="rounded-lg border border-border bg-surface-2 p-4">
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Link
+                href={submitEvidenceHref}
+                className="inline-flex items-center justify-center rounded-md bg-foreground px-5 py-2.5 text-sm font-semibold text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Submit Evidence
+              </Link>
+              <p className="text-xs text-muted-foreground">
+                Requires an account&nbsp;·&nbsp;Takes ~2 minutes&nbsp;·&nbsp;Upload PDF or image
+              </p>
+            </div>
 
-          <Link
-            href="/rotten-index"
-            className="inline-flex items-center justify-center rounded-md border border-border px-5 py-2.5 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Explore the Rotten Index →
-          </Link>
+            <Link
+              href="/rotten-index"
+              className="inline-flex items-center justify-center rounded-md border border-border px-5 py-2.5 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Explore the Rotten Index →
+            </Link>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
@@ -164,19 +166,22 @@ export default async function HomePage() {
         </p>
 
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full min-w-[480px] border-collapse text-sm">
             <thead className="bg-muted border-b border-border">
               <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-4 pl-3 w-10">#</th>
-                <th className="py-2 pr-4">Company</th>
-                <th className="py-2 pr-4 hidden sm:table-cell">Industry</th>
-                <th className="py-2 pr-4 hidden sm:table-cell">Country</th>
-                <th className="py-2 pr-3 text-right">Rotten Score</th>
+                <th className="py-2 pr-4 pl-3 w-10 whitespace-nowrap">#</th>
+                <th className="py-2 pr-4 whitespace-nowrap">Company</th>
+                <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Industry</th>
+                <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Country</th>
+                <th className="py-2 pr-3 text-right whitespace-nowrap">Rotten Score</th>
               </tr>
             </thead>
             <tbody>
               {topCompanies.map((company, index) => (
-                <tr key={company.id} className="border-b border-border hover:bg-muted last:border-0">
+                <tr
+                  key={company.id}
+                  className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
+                >
                   <td className="py-2 pr-4 pl-3 text-muted-foreground">{index + 1}</td>
                   <td className="py-2 pr-4 font-medium text-accent">
                     <Link href={`/company/${company.slug}`} className="hover:underline">
