@@ -121,6 +121,30 @@ export default function NavMenuClient({
 
           {isLoggedIn && (
             <>
+              <div className="sm:hidden border-b border-border">
+                <Link
+                  href="/rotten-index"
+                  className="block px-3 py-3 text-foreground hover:bg-muted"
+                  onClick={() => setOpen(false)}
+                >
+                  Rotten Index
+                </Link>
+                <Link
+                  href="/rotten-score"
+                  className="block px-3 py-3 text-foreground hover:bg-muted"
+                  onClick={() => setOpen(false)}
+                >
+                  Rotten Score
+                </Link>
+                <Link
+                  href="/leadership"
+                  className="block px-3 py-3 text-foreground hover:bg-muted"
+                  onClick={() => setOpen(false)}
+                >
+                  Leadership
+                </Link>
+              </div>
+
               <Link
                 href="/submit-evidence"
                 className="block px-3 py-3 sm:py-2 text-foreground hover:bg-muted"

@@ -38,12 +38,39 @@ export default function RootLayout({
               <Link href="/rotten-index" className="hover:underline text-muted-foreground hover:text-foreground">
                 Rotten Index
               </Link>
+              <Link href="/submit-evidence" className="hover:underline text-muted-foreground hover:text-foreground">
+                Submit Evidence
+              </Link>
+              <Link href="/rotten-score" className="hover:underline text-muted-foreground hover:text-foreground">
+                Rotten Score
+              </Link>
               <Link href="/leadership" className="hover:underline text-muted-foreground hover:text-foreground">
                 Leadership
+              </Link>
+              <Link href="/login" className="hover:underline text-muted-foreground hover:text-foreground">
+                Log in
               </Link>
             </nav>
 
             <NavMenu />
+
+            <nav className="sm:hidden w-full flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium border-t border-border pt-2">
+              <Link href="/rotten-index" className="hover:underline text-muted-foreground hover:text-foreground">
+                Rotten Index
+              </Link>
+              <Link href="/submit-evidence" className="hover:underline text-muted-foreground hover:text-foreground">
+                Submit Evidence
+              </Link>
+              <Link href="/rotten-score" className="hover:underline text-muted-foreground hover:text-foreground">
+                Rotten Score
+              </Link>
+              <Link href="/leadership" className="hover:underline text-muted-foreground hover:text-foreground">
+                Leadership
+              </Link>
+              <Link href="/login" className="hover:underline text-muted-foreground hover:text-foreground">
+                Log in
+              </Link>
+            </nav>
           </div>
         </header>
 
