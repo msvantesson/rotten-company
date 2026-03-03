@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     if (type === "company") {
       query = supabase
         .from("global_rotten_index")
-        .select("id, name, slug, country, rotten_score")
+        .select("id, name, slug, country, rotten_score, industry, approved_evidence_count")
         .order("rotten_score", { ascending: false })
         .limit(limit);
 
@@ -121,6 +121,8 @@ export async function GET(req: Request) {
       slug: r.slug,
       country: r.country ?? null,
       rotten_score: Number(r.rotten_score),
+      industry: r.industry ?? null,
+      approved_evidence_count: Number(r.approved_evidence_count) || 0,
     }));
 
     return NextResponse.json({ rows }, { status: 200 });
