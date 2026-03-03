@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import Link from "next/link";
 import ExportCsvButton from "./ExportCsvButton";
+import CompanyCardList from "./CompanyCardList";
 
 type IndexType = "company" | "leader";
 
@@ -224,90 +225,92 @@ export default async function RottenIndexPage({
       {/* FILTER CONTROLS */}
       <form
         method="get"
-        className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-surface-2 p-4"
+        className="rounded-lg border border-border bg-surface-2 p-4 space-y-4"
       >
-        <div className="flex flex-col">
-          <label className="text-xs font-semibold text-muted-foreground mb-1">
-            Entity
-          </label>
-          <select
-            name="type"
-            defaultValue={type}
-            className="border border-border rounded-md px-3 py-2 bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="company">Companies</option>
-            <option value="leader">Leaders</option>
-          </select>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold text-muted-foreground mb-1">
+              Entity
+            </label>
+            <select
+              name="type"
+              defaultValue={type}
+              className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="company">Companies</option>
+              <option value="leader">Leaders</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold text-muted-foreground mb-1">
+              Country
+            </label>
+            <select
+              name="country"
+              defaultValue={selectedCountry ?? ""}
+              className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">All countries</option>
+              {countryOptions.map((c) => (
+                <option key={c} value={c}>
+                  {formatCountry(c)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold text-muted-foreground mb-1">
+              Results
+            </label>
+            <select
+              name="limit"
+              defaultValue={String(limit)}
+              className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="10">Top 10</option>
+              <option value="25">Top 25</option>
+              <option value="50">Top 50</option>
+            </select>
+          </div>
+
+          {type === "company" && (
+            <>
+              <div className="flex flex-col col-span-2 sm:col-span-1">
+                <label className="text-xs font-semibold text-muted-foreground mb-1">
+                  Search
+                </label>
+                <input
+                  type="search"
+                  name="q"
+                  defaultValue={q ?? ""}
+                  placeholder="Name, industry, country…"
+                  className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-xs font-semibold text-muted-foreground mb-1">
+                  Sort by
+                </label>
+                <select
+                  name="sort"
+                  defaultValue={sort}
+                  className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="rotten_score">Rotten Score</option>
+                  <option value="approved_evidence_count">Evidence Count</option>
+                  <option value="name">Name</option>
+                  <option value="industry">Industry</option>
+                </select>
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="flex flex-col">
-          <label className="text-xs font-semibold text-muted-foreground mb-1">
-            Country
-          </label>
-          <select
-            name="country"
-            defaultValue={selectedCountry ?? ""}
-            className="border border-border rounded-md px-3 py-2 bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="">All countries</option>
-            {countryOptions.map((c) => (
-              <option key={c} value={c}>
-                {formatCountry(c)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col">
-          <label className="text-xs font-semibold text-muted-foreground mb-1">
-            Results
-          </label>
-          <select
-            name="limit"
-            defaultValue={String(limit)}
-            className="border border-border rounded-md px-3 py-2 bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="10">Top 10</option>
-            <option value="25">Top 25</option>
-            <option value="50">Top 50</option>
-          </select>
-        </div>
-
-        {type === "company" && (
-          <>
-            <div className="flex flex-col">
-              <label className="text-xs font-semibold text-muted-foreground mb-1">
-                Search
-              </label>
-              <input
-                type="search"
-                name="q"
-                defaultValue={q ?? ""}
-                placeholder="Name, industry, country…"
-                className="border border-border rounded-md px-3 py-2 bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
-
-            <div className="flex flex-col">
-              <label className="text-xs font-semibold text-muted-foreground mb-1">
-                Sort by
-              </label>
-              <select
-                name="sort"
-                defaultValue={sort}
-                className="border border-border rounded-md px-3 py-2 bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="rotten_score">Rotten Score</option>
-                <option value="approved_evidence_count">Evidence Count</option>
-                <option value="name">Name</option>
-                <option value="industry">Industry</option>
-              </select>
-            </div>
-          </>
-        )}
-
-        {/* Right aligned actions */}
-        <div className="ml-auto flex items-center gap-3">
+        {/* Actions row */}
+        <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
           <ExportCsvButton tableId="rotten-index-table" filename={fileName} />
           <button
             type="submit"
@@ -318,30 +321,37 @@ export default async function RottenIndexPage({
         </div>
       </form>
 
-      {/* TABLE */}
-      <div className="overflow-x-auto rounded-lg border border-border">
+      {/* MOBILE CARD LIST (company view only, shown on small screens) */}
+      {type === "company" && (
+        <div className="md:hidden">
+          <CompanyCardList rows={rows} />
+        </div>
+      )}
+
+      {/* TABLE (always on desktop; always shown for leader view) */}
+      <div className={`overflow-x-auto rounded-lg border border-border${type === "company" ? " hidden md:block" : ""}`}>
         <table id="rotten-index-table" className="w-full border-collapse text-sm">
           <thead className="bg-muted border-b border-border">
             {type === "leader" ? (
-              <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-2 pl-3 w-12">#</th>
-                <th className="py-2 pr-4">CEO Name</th>
-                <th className="py-2 pr-4">Company</th>
-                <th className="py-2 pr-4">Country</th>
-                <th className="py-2 pr-4">Started</th>
-                <th className="py-2 pr-4">Ended</th>
-                <th className="py-2 pr-3 text-right">
+              <tr className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <th className="py-3 pr-2 pl-4 w-12">#</th>
+                <th className="py-3 pr-4">CEO Name</th>
+                <th className="py-3 pr-4">Company</th>
+                <th className="py-3 pr-4">Country</th>
+                <th className="py-3 pr-4">Started</th>
+                <th className="py-3 pr-4">Ended</th>
+                <th className="py-3 pr-4 text-right">
                   Rotten Score
                 </th>
               </tr>
             ) : (
-              <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-2 pl-3 w-12">#</th>
-                <th className="py-2 pr-4">Name</th>
-                <th className="py-2 pr-4">Country</th>
-                <th className="py-2 pr-4">Industry</th>
-                <th className="py-2 pr-4 text-right">Evidence</th>
-                <th className="py-2 pr-3 text-right">
+              <tr className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <th className="py-3 pr-2 pl-4 w-12">#</th>
+                <th className="py-3 pr-4">Name</th>
+                <th className="py-3 pr-4">Country</th>
+                <th className="py-3 pr-4">Industry</th>
+                <th className="py-3 pr-4 text-right">Evidence</th>
+                <th className="py-3 pr-4 text-right">
                   Rotten Score
                 </th>
               </tr>
@@ -352,17 +362,17 @@ export default async function RottenIndexPage({
               type === "leader" ? (
                 <tr
                   key={`leader-${r.id}`}
-                  className="border-b border-border hover:bg-muted last:border-0"
+                  className="border-b border-border hover:bg-muted last:border-0 transition-colors"
                 >
-                  <td className="py-2 pr-2 pl-3 text-muted-foreground">
+                  <td className="py-3 pr-2 pl-4 text-muted-foreground">
                     {i + 1}
                   </td>
-                  <td className="py-2 pr-4 font-medium">
+                  <td className="py-3 pr-4 font-medium">
                     <Link href={`/leader/${r.slug}`} className="text-accent hover:underline">
                       {r.name}
                     </Link>
                   </td>
-                  <td className="py-2 pr-4 text-muted-foreground">
+                  <td className="py-3 pr-4 text-muted-foreground">
                     {r.company_slug ? (
                       <Link href={`/company/${r.company_slug}`} className="text-accent hover:underline">
                         {r.company_name ?? "—"}
@@ -371,13 +381,13 @@ export default async function RottenIndexPage({
                       r.company_name ?? "—"
                     )}
                   </td>
-                  <td className="py-2 pr-4 text-muted-foreground">
+                  <td className="py-3 pr-4 text-muted-foreground">
                     {r.country ?? "—"}
                   </td>
-                  <td className="py-2 pr-4 text-muted-foreground">
+                  <td className="py-3 pr-4 text-muted-foreground">
                     {formatDate(r.started_at)}
                   </td>
-                  <td className="py-2 pr-4 text-muted-foreground">
+                  <td className="py-3 pr-4 text-muted-foreground">
                     {r.ended_at ? (
                       formatDate(r.ended_at)
                     ) : r.started_at ? (
@@ -388,33 +398,33 @@ export default async function RottenIndexPage({
                       "—"
                     )}
                   </td>
-                  <td className="py-2 pr-3 text-right font-mono tabular-nums">
+                  <td className="py-3 pr-4 text-right font-mono tabular-nums">
                     {r.rotten_score.toFixed(2)}
                   </td>
                 </tr>
               ) : (
                 <tr
                   key={`company-${r.id}`}
-                  className="border-b border-border hover:bg-muted last:border-0"
+                  className="border-b border-border hover:bg-muted last:border-0 transition-colors"
                 >
-                  <td className="py-2 pr-2 pl-3 text-muted-foreground">
+                  <td className="py-3 pr-2 pl-4 text-muted-foreground">
                     {i + 1}
                   </td>
-                  <td className="py-2 pr-4 font-medium">
+                  <td className="py-3 pr-4 font-medium">
                     <Link href={`/${type}/${r.slug}`} className="text-accent hover:underline">
                       {r.name}
                     </Link>
                   </td>
-                  <td className="py-2 pr-4 text-muted-foreground">
+                  <td className="py-3 pr-4 text-muted-foreground">
                     {r.country ?? "—"}
                   </td>
-                  <td className="py-2 pr-4 text-muted-foreground">
+                  <td className="py-3 pr-4 text-muted-foreground">
                     {r.industry ?? "—"}
                   </td>
-                  <td className="py-2 pr-4 text-right font-mono tabular-nums text-muted-foreground">
+                  <td className="py-3 pr-4 text-right font-mono tabular-nums text-muted-foreground">
                     {r.approved_evidence_count ?? 0}
                   </td>
-                  <td className="py-2 pr-3 text-right font-mono tabular-nums">
+                  <td className="py-3 pr-4 text-right font-mono tabular-nums">
                     {r.rotten_score.toFixed(2)}
                   </td>
                 </tr>
