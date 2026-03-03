@@ -25,17 +25,45 @@ export async function GET(req: Request) {
     const limit = Number(getSearchParam(url, "limit") || "10");
     const country = getSearchParam(url, "country");
 
+    const VALID_SORT_FIELDS: Record<string, "asc" | "desc"> = {
+      rotten_score: "desc",
+      approved_evidence_count: "desc",
+      name: "asc",
+      industry: "asc",
+    };
+
     let query;
 
     // ✅ COMPANIES — use the VIEW
     if (type === "company") {
+      const q = getSearchParam(url, "q");
+      const rawSort = getSearchParam(url, "sort") ?? "rotten_score";
+      const rawDir = getSearchParam(url, "dir");
+      const sortField = rawSort in VALID_SORT_FIELDS ? rawSort : "rotten_score";
+      const defaultDir = VALID_SORT_FIELDS[sortField];
+      const ascending =
+        rawDir === "asc" || rawDir === "desc"
+          ? rawDir === "asc"
+          : defaultDir === "asc";
+
       query = supabase
         .from("global_rotten_index")
         .select("id, name, slug, country, rotten_score, industry, approved_evidence_count")
-        .order("rotten_score", { ascending: false })
+        .order(sortField, { ascending, nullsFirst: false })
         .limit(limit);
 
-      if (country) query.eq("country", country);
+      if (country) query = query.eq("country", country);
+      if (q) {
+        // Escape backslashes first, then LIKE wildcards (% _) so they match literally,
+        // and strip characters that could inject PostgREST filter conditions (, ( )).
+        const safeQ = q
+          .replace(/\\/g, "\\\\")
+          .replace(/[%_]/g, "\\$&")
+          .replace(/[(),]/g, "");
+        query = query.or(
+          `name.ilike.%${safeQ}%,industry.ilike.%${safeQ}%,country.ilike.%${safeQ}%`
+        );
+      }
 
     // LEADERS — query all leaders (base), enrich with optional best CEO tenure
     } else {
