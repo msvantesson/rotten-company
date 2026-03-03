@@ -15,6 +15,9 @@ type IndexedRow = {
   slug: string;
   country?: string | null;
   rotten_score: number;
+  // company-only fields
+  industry?: string | null;
+  approved_evidence_count?: number;
   // leader tenure fields (present when type === "leader")
   leader_id?: number;
   tenure_id?: number | null;
@@ -22,6 +25,21 @@ type IndexedRow = {
   company_slug?: string | null;
   started_at?: string | null;
   ended_at?: string | null;
+};
+
+const COMPANY_SORT_FIELDS = [
+  "rotten_score",
+  "approved_evidence_count",
+  "name",
+  "industry",
+] as const;
+type CompanySortField = (typeof COMPANY_SORT_FIELDS)[number];
+
+const DEFAULT_SORT_DIRS: Record<CompanySortField, "asc" | "desc"> = {
+  rotten_score: "desc",
+  approved_evidence_count: "desc",
+  name: "asc",
+  industry: "asc",
 };
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -98,11 +116,28 @@ export default async function RottenIndexPage({
     rawType === "leader" ? "leader" : "company";
   const limit = Number(getFirstString(sp.limit) ?? 10);
   const selectedCountry = getFirstString(sp.country);
+  const q = getFirstString(sp.q);
+  const rawSort = getFirstString(sp.sort) ?? "rotten_score";
+  const rawDir = getFirstString(sp.dir);
+  const sort: CompanySortField = (
+    COMPANY_SORT_FIELDS as readonly string[]
+  ).includes(rawSort)
+    ? (rawSort as CompanySortField)
+    : "rotten_score";
+  const dir: "asc" | "desc" =
+    rawDir === "asc" || rawDir === "desc"
+      ? rawDir
+      : DEFAULT_SORT_DIRS[sort];
 
   const qs = new URLSearchParams();
   qs.set("type", type);
   qs.set("limit", String(limit));
   if (selectedCountry) qs.set("country", selectedCountry);
+  if (q) qs.set("q", q);
+  if (type === "company") {
+    qs.set("sort", sort);
+    qs.set("dir", dir);
+  }
 
   const h = await headers();
   const host = h.get("host");
@@ -128,6 +163,8 @@ export default async function RottenIndexPage({
         slug: r.slug,
         country: r.country ?? null,
         rotten_score: Number(r.rotten_score) || 0,
+        industry: r.industry ?? null,
+        approved_evidence_count: Number(r.approved_evidence_count) || 0,
         leader_id: r.leader_id ?? undefined,
         tenure_id: r.tenure_id ?? null,
         company_name: r.company_name ?? null,
@@ -138,9 +175,6 @@ export default async function RottenIndexPage({
     : [];
 
   rows = rows.filter((r) => typeof r.rotten_score === "number");
-  if (type === "company") {
-    rows = rows.sort((a, b) => b.rotten_score - a.rotten_score);
-  }
   rows = rows.slice(0, limit);
 
   const countryRes = await fetch(
@@ -239,6 +273,39 @@ export default async function RottenIndexPage({
           </select>
         </div>
 
+        {type === "company" && (
+          <>
+            <div className="flex flex-col">
+              <label className="text-xs font-semibold text-muted-foreground mb-1">
+                Search
+              </label>
+              <input
+                type="search"
+                name="q"
+                defaultValue={q ?? ""}
+                placeholder="Name, industry, country…"
+                className="border border-border rounded-md px-3 py-2 bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-xs font-semibold text-muted-foreground mb-1">
+                Sort by
+              </label>
+              <select
+                name="sort"
+                defaultValue={sort}
+                className="border border-border rounded-md px-3 py-2 bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="rotten_score">Rotten Score</option>
+                <option value="approved_evidence_count">Evidence Count</option>
+                <option value="name">Name</option>
+                <option value="industry">Industry</option>
+              </select>
+            </div>
+          </>
+        )}
+
         {/* Right aligned actions */}
         <div className="ml-auto flex items-center gap-3">
           <ExportCsvButton tableId="rotten-index-table" filename={fileName} />
@@ -272,6 +339,8 @@ export default async function RottenIndexPage({
                 <th className="py-2 pr-2 pl-3 w-12">#</th>
                 <th className="py-2 pr-4">Name</th>
                 <th className="py-2 pr-4">Country</th>
+                <th className="py-2 pr-4">Industry</th>
+                <th className="py-2 pr-4 text-right">Evidence</th>
                 <th className="py-2 pr-3 text-right">
                   Rotten Score
                 </th>
@@ -338,6 +407,12 @@ export default async function RottenIndexPage({
                   </td>
                   <td className="py-2 pr-4 text-muted-foreground">
                     {r.country ?? "—"}
+                  </td>
+                  <td className="py-2 pr-4 text-muted-foreground">
+                    {r.industry ?? "—"}
+                  </td>
+                  <td className="py-2 pr-4 text-right font-mono tabular-nums text-muted-foreground">
+                    {r.approved_evidence_count ?? 0}
                   </td>
                   <td className="py-2 pr-3 text-right font-mono tabular-nums">
                     {r.rotten_score.toFixed(2)}
