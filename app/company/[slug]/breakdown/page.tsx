@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
+import CompanyTabs from "@/components/CompanyTabs";
 
 export default async function BreakdownPage({
   params,
@@ -65,10 +66,13 @@ export default async function BreakdownPage({
 
   // 4) Render
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1 className="text-2xl font-bold" style={{ marginBottom: "1rem" }}>
-        {company.name} – Rotten Score Breakdown
-      </h1>
+    <div className="max-w-3xl mx-auto py-8 px-4">
+      <header>
+        <h1 className="text-2xl font-bold mb-4">
+          {company.name} – Rotten Score Breakdown
+        </h1>
+        <CompanyTabs slug={company.slug} />
+      </header>
 
       <CategoryBreakdown
         company={company}
