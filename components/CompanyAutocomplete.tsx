@@ -192,7 +192,10 @@ export default function CompanyAutocomplete() {
               <div className="absolute z-20 mt-1 w-full rounded border border-border bg-surface p-3 text-sm text-muted-foreground shadow">
                 No matching companies found.
                 <div className="mt-2">
-                  <a href="/submit-company" className="text-accent underline">
+                  <a
+                    href={query.trim() ? `/submit-company?name=${encodeURIComponent(query.trim())}` : "/submit-company"}
+                    className="text-accent underline"
+                  >
                     Request a new company
                   </a>
                 </div>

@@ -8,9 +8,10 @@ import { COUNTRIES } from "./countries";
 type Props = {
   userEmail: string;
   error?: string;
+  prefillName?: string;
 };
 
-export default function SubmitCompanyForm({ userEmail, error }: Props) {
+export default function SubmitCompanyForm({ userEmail, error, prefillName }: Props) {
   return (
     <div
       style={{
@@ -56,6 +57,7 @@ export default function SubmitCompanyForm({ userEmail, error }: Props) {
             type="text"
             required
             placeholder="e.g. Carlsberg"
+            defaultValue={prefillName}
             style={{
               width: "100%",
               padding: "0.5rem",
