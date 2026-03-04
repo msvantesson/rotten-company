@@ -49,9 +49,7 @@ function WeightBoxes({ weight }: { weight: number }) {
               key={i}
               className={[
                 "h-3 w-6 rounded-sm border",
-                isFilled
-                  ? "bg-red-600 border-red-700"
-                  : "bg-muted border-border",
+                isFilled ? "bg-red-600 border-red-700" : "bg-muted border-border",
               ].join(" ")}
               title={`${weight.toFixed(2)} / ${MAX_WEIGHT}`}
             />
@@ -75,6 +73,70 @@ function SummaryBlock({ summary }: { summary?: string }) {
       ) : (
         <p className="italic text-muted-foreground">(No summary provided)</p>
       )}
+    </div>
+  );
+}
+
+function FilePreview({ item }: { item: EvidenceItem }) {
+  if (!item.file_url || !item.file_type) return null;
+
+  const href = item.file_url;
+
+  // Image: show thumbnail, but make it a link so it doesn't look like a broken/odd embedded image.
+  if (item.file_type.startsWith("image")) {
+    return (
+      <div className="mt-3">
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group block"
+          title="Open evidence in a new tab"
+        >
+          <div className="relative">
+            <img
+              src={href}
+              alt={item.title}
+              className="max-w-full h-auto rounded-md border border-border shadow-sm group-hover:shadow transition-shadow"
+              loading="lazy"
+            />
+            <div className="pointer-events-none absolute inset-0 rounded-md ring-1 ring-transparent group-hover:ring-blue-500/30" />
+          </div>
+          <div className="mt-2 text-xs text-blue-700 underline underline-offset-2 opacity-90 group-hover:opacity-100">
+            Open image →
+          </div>
+        </a>
+      </div>
+    );
+  }
+
+  // PDF: show a normal link button.
+  if (item.file_type === "application/pdf") {
+    return (
+      <div className="mt-3">
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-surface hover:bg-muted text-sm"
+        >
+          View PDF →
+        </a>
+      </div>
+    );
+  }
+
+  // Other file types: provide a generic link.
+  return (
+    <div className="mt-3">
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm text-blue-700 hover:underline"
+      >
+        Open attachment →
+      </a>
     </div>
   );
 }
@@ -128,9 +190,7 @@ export default function EvidenceList({ evidence }: Props) {
                     </span>
                   )}
 
-                  <h3 className="font-semibold text-lg text-foreground">
-                    {item.title}
-                  </h3>
+                  <h3 className="font-semibold text-lg text-foreground">{item.title}</h3>
 
                   <SummaryBlock summary={item.summary} />
 
@@ -151,9 +211,7 @@ export default function EvidenceList({ evidence }: Props) {
                   </div>
 
                   <div className="text-xs text-muted-foreground space-y-1 mt-2">
-                    {item.severity !== undefined && (
-                      <div>Severity: {item.severity}</div>
-                    )}
+                    {item.severity !== undefined && <div>Severity: {item.severity}</div>}
                     {item.recency_weight !== undefined && (
                       <div>Recency Weight: {item.recency_weight}</div>
                     )}
@@ -162,28 +220,7 @@ export default function EvidenceList({ evidence }: Props) {
                     )}
                   </div>
 
-                  {item.file_url && item.file_type && (
-                    <div className="mt-3">
-                      {item.file_type.startsWith("image") && (
-                        <img
-                          src={item.file_url}
-                          alt={item.title}
-                          className="max-w-full h-auto rounded-md border"
-                        />
-                      )}
-
-                      {item.file_type === "application/pdf" && (
-                        <a
-                          href={item.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block mt-2 text-blue-600 underline"
-                        >
-                          View PDF
-                        </a>
-                      )}
-                    </div>
-                  )}
+                  <FilePreview item={item} />
                 </div>
               );
             })}
