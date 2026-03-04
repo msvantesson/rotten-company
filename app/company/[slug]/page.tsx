@@ -14,6 +14,8 @@ import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 import { getRottenFlavor } from "@/lib/flavor-engine";
 import CategoryInfoPopover from "@/components/CategoryInfoPopover";
 import CeoSection from "@/components/CeoSection";
+import CompanyTabs from "@/components/CompanyTabs";
+import Link from "next/link";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -374,6 +376,8 @@ export default async function CompanyPage({ params }: { params: Params }) {
           <div className="mt-6 mb-8">
             <RottenScoreMeter score={liveRottenScore ?? 0} />
           </div>
+
+          <CompanyTabs slug={company.slug} />
         </header>
 
         <section className="mt-6">
@@ -443,7 +447,22 @@ export default async function CompanyPage({ params }: { params: Params }) {
           </div>
 
           <div className="mt-6">
-            <EvidenceList evidence={evidence} />
+            <EvidenceList evidence={evidence.slice(0, 5)} />
+          </div>
+
+          {evidence.length > 5 && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Showing 5 of {evidence.length} items.
+            </p>
+          )}
+
+          <div className="mt-4">
+            <Link
+              href={`/company/${company.slug}/evidence`}
+              className="text-sm text-blue-700 hover:underline"
+            >
+              View all evidence →
+            </Link>
           </div>
         </section>
 
