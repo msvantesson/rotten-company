@@ -8,7 +8,7 @@ type CategoryBreakdownJsonLd = {
   rating_count: number;
   avg_rating_score: number | null;
   evidence_count: number;
-  evidence_score: number | null;
+  severity_score: number | null;
   final_score: number;
 };
 
@@ -95,7 +95,7 @@ export function buildCompanyJsonLd({
         ratingCount: c.rating_count,
         avgRatingScore: c.avg_rating_score,
         evidenceCount: c.evidence_count,
-        evidenceScore: c.evidence_score,
+        severityScore: c.severity_score,
         finalScore: c.final_score,
       },
     })),
