@@ -135,7 +135,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     const { data: mergedBreakdown, error: breakdownError } = await supabase
       .from("company_category_full_breakdown")
       .select(
-        "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score",
+        "category_id, category_name, rating_count, avg_rating_score, evidence_count, severity_score, final_score",
       )
       .eq("company_id", company.id);
 

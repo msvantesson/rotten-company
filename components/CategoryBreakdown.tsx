@@ -8,7 +8,7 @@ type BreakdownItem = {
   rating_count: number;
   avg_rating_score: number | null;
   evidence_count: number;
-  evidence_score: number | null;
+  severity_score: number | null;
   final_score: number;
 };
 
@@ -114,9 +114,9 @@ export function CategoryBreakdown({
                 <span>Ratings: {item.rating_count}</span>
 
                 <span>
-                  Evidence Score:{" "}
-                  {item.evidence_score !== null
-                    ? item.evidence_score.toFixed(2)
+                  Severity Score:{" "}
+                  {item.severity_score !== null
+                    ? item.severity_score.toFixed(2)
                     : "—"}
                 </span>
 
