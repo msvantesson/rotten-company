@@ -6,6 +6,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import EvidenceList from "@/components/EvidenceList";
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
+import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
@@ -130,7 +131,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     evidence = [];
   }
 
-  // Category breakdown (still used for JSON-LD and debug panel)
+  // Category breakdown
   let breakdownWithFlavor: any[] = [];
   try {
     const { data: mergedBreakdown, error: breakdownError } = await supabase
@@ -419,23 +420,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
         <section className="mt-8">
           <h2 className="text-lg font-semibold">Approved Evidence</h2>
 
-          <div className="mt-4">
-            {user ? (
-              <a
-                href={`/company/${company.slug}/submit-evidence`}
-                className="inline-block px-4 py-2 bg-black text-white rounded"
-              >
-                Submit Evidence
-              </a>
-            ) : (
-              <a
-                href="/login"
-                className="inline-block px-4 py-2 bg-gray-700 text-white rounded"
-              >
-                Sign in to submit evidence
-              </a>
-            )}
-          </div>
+          {/* Submit Evidence button REMOVED from here. Now in the tab bar. */}
 
           <div className="mt-6">
             <EvidenceList evidence={evidence.slice(0, 5)} />
