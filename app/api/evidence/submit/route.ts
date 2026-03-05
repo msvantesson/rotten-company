@@ -170,8 +170,7 @@ export async function POST(req: Request) {
         entity_id: Number(entityId),
         title: String(title).trim(),
         summary: String(summary).trim(),
-        // Keep using `category` integer column (matches existing code)
-        category: cat.id,
+        category_id: cat.id,
         user_id: userId,
         file_url: fileUrl,
         // Optional: persist file metadata if available
