@@ -67,7 +67,9 @@ function SummaryBlock({ summary }: { summary?: string }) {
   const text = summary?.trim() ?? "";
   return (
     <div className="text-sm text-foreground">
-      <div className="text-xs font-medium text-muted-foreground mb-1">Summary</div>
+      <div className="text-xs font-medium text-muted-foreground mb-1">
+        Summary
+      </div>
       {text.length > 0 ? (
         <p className="whitespace-pre-wrap">{text}</p>
       ) : (
@@ -82,7 +84,7 @@ function FilePreview({ item }: { item: EvidenceItem }) {
 
   const href = item.file_url;
 
-  // Image: show thumbnail, but make it a link so it doesn't look like a broken/odd embedded image.
+  // Image: do NOT show inline preview; only show a link
   if (item.file_type.startsWith("image")) {
     return (
       <div className="mt-3">
@@ -90,21 +92,9 @@ function FilePreview({ item }: { item: EvidenceItem }) {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="group block"
-          title="Open evidence in a new tab"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-surface hover:bg-muted text-sm"
         >
-          <div className="relative">
-            <img
-              src={href}
-              alt={item.title}
-              className="max-w-full h-auto rounded-md border border-border shadow-sm group-hover:shadow transition-shadow"
-              loading="lazy"
-            />
-            <div className="pointer-events-none absolute inset-0 rounded-md ring-1 ring-transparent group-hover:ring-blue-500/30" />
-          </div>
-          <div className="mt-2 text-xs text-blue-700 underline underline-offset-2 opacity-90 group-hover:opacity-100">
-            Open image →
-          </div>
+          Open image →
         </a>
       </div>
     );
@@ -159,7 +149,7 @@ export default function EvidenceList({ evidence }: Props) {
   }, {} as Record<number, { categoryName: string; items: EvidenceItem[] }>);
 
   const sortedCategories = Object.entries(grouped).sort((a, b) =>
-    a[1].categoryName.localeCompare(b[1].categoryName)
+    a[1].categoryName.localeCompare(b[1].categoryName),
   );
 
   return (
@@ -190,7 +180,9 @@ export default function EvidenceList({ evidence }: Props) {
                     </span>
                   )}
 
-                  <h3 className="font-semibold text-lg text-foreground">{item.title}</h3>
+                  <h3 className="font-semibold text-lg text-foreground">
+                    {item.title}
+                  </h3>
 
                   <SummaryBlock summary={item.summary} />
 
@@ -211,7 +203,9 @@ export default function EvidenceList({ evidence }: Props) {
                   </div>
 
                   <div className="text-xs text-muted-foreground space-y-1 mt-2">
-                    {item.severity !== undefined && <div>Severity: {item.severity}</div>}
+                    {item.severity !== undefined && (
+                      <div>Severity: {item.severity}</div>
+                    )}
                     {item.recency_weight !== undefined && (
                       <div>Recency Weight: {item.recency_weight}</div>
                     )}
