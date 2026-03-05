@@ -10,7 +10,7 @@
  *   - View: company_category_full_breakdown
  *       final_score = COALESCE(avg_rating, 0) × severity_score × base_weight
  *       severity_score = low_count×1 + medium_count×3 + high_count×6
- *   - View: company_rotten_score
+ *   - View: company_rotten_score_v2
  *       category_score = round(avg(final_score across all categories), 2)
  *       rotten_score   = category_score + COALESCE(manager_rollup, 0) × 2
  *

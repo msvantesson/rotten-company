@@ -16,7 +16,7 @@ export default async function HomePage() {
     : "/login?reason=submit-evidence&message=You'll need an account to submit evidence.";
 
   const { data: scoreRows } = await supabase
-    .from("company_rotten_score")
+    .from("company_rotten_score_v2")
     .select("company_id, rotten_score")
     .order("rotten_score", { ascending: false })
     .limit(10);
