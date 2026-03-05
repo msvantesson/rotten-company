@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase-server";
+import { supabaseRoute } from "@/lib/supabase-route";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -9,16 +9,14 @@ export async function GET(req: Request) {
   const safeNext = next.startsWith("/") ? next : "/";
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login?error=missing_code", url));
+    return NextResponse.redirect(new URL(safeNext, url));
   }
 
-  const supabase = await supabaseServer();
+  const supabase = await supabaseRoute();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    return NextResponse.redirect(
-      new URL("/login?error=auth_callback_failed", url),
-    );
+    return NextResponse.redirect(new URL("/login", url));
   }
 
   return NextResponse.redirect(new URL(safeNext, url));
