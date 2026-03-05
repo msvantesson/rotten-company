@@ -3,6 +3,7 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { supabaseServer } from "@/lib/supabase-server";
+import EvidenceList from "@/components/EvidenceList";
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
@@ -14,6 +15,7 @@ import { getRottenFlavor } from "@/lib/flavor-engine";
 import CategoryInfoPopover from "@/components/CategoryInfoPopover";
 import CeoSection from "@/components/CeoSection";
 import CompanyTabs from "@/components/CompanyTabs";
+import Link from "next/link";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -120,7 +122,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     );
   }
 
-  // Evidence (still loaded for breakdown + other uses; keep for now)
+  // Evidence
   let evidence: any[] = [];
   try {
     evidence = (await getEvidenceWithManagers(company.id)) ?? [];
@@ -326,12 +328,17 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
       {/* Debug panels: only show in development or when SHOW_DEBUG env flag is set */}
       {SHOW_DEBUG && (
-        <JsonLdDebugPanel data={jsonLd ?? { error: "JSON-LD generation failed" }} />
+        <JsonLdDebugPanel
+          data={jsonLd ?? { error: "JSON-LD generation failed" }}
+        />
       )}
 
       <div className="max-w-3xl mx-auto py-8 px-4">
         <header className="space-y-3">
           <h1 className="text-3xl font-semibold">{company.name}</h1>
+
+          {/* Option B: tabs directly under company name */}
+          <CompanyTabs slug={company.slug} />
 
           <div className="flex items-center gap-3">
             <span
@@ -379,13 +386,13 @@ export default async function CompanyPage({ params }: { params: Params }) {
           <div className="mt-6 mb-8">
             <RottenScoreMeter score={liveRottenScore ?? 0} />
           </div>
-
-          <CompanyTabs slug={company.slug} />
         </header>
 
         <section className="mt-6">
           <h2 className="text-xl font-semibold">Rate this company</h2>
-          <p className="mt-1 text-sm text-gray-500">1 = low harm · 5 = severe harm</p>
+          <p className="mt-1 text-sm text-gray-500">
+            1 = low harm · 5 = severe harm
+          </p>
 
           {categories && categories.length > 0 ? (
             <div className="mt-4 divide-y">
@@ -411,11 +418,65 @@ export default async function CompanyPage({ params }: { params: Params }) {
               ))}
             </div>
           ) : (
-            <p className="mt-4 text-sm text-gray-600">No categories configured yet.</p>
+            <p className="mt-4 text-sm text-gray-600">
+              No categories configured yet.
+            </p>
           )}
         </section>
 
-        {/* Evidence preview REMOVED: evidence should only be visible in the Evidence tab/page */}
+        {/* Rotten Score Breakdown */}
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold">Rotten Score Breakdown</h2>
+          <div className="mt-4">
+            <CategoryBreakdown
+              company={company}
+              breakdown={breakdownWithFlavor}
+              evidence={evidence}
+            />
+          </div>
+        </section>
+
+        {/* Approved Evidence */}
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold">Approved Evidence</h2>
+
+          <div className="mt-4">
+            {user ? (
+              <a
+                href={`/company/${company.slug}/submit-evidence`}
+                className="inline-block px-4 py-2 bg-black text-white rounded"
+              >
+                Submit Evidence
+              </a>
+            ) : (
+              <a
+                href="/login"
+                className="inline-block px-4 py-2 bg-gray-700 text-white rounded"
+              >
+                Sign in to submit evidence
+              </a>
+            )}
+          </div>
+
+          <div className="mt-6">
+            <EvidenceList evidence={evidence.slice(0, 5)} />
+          </div>
+
+          {evidence.length > 5 && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Showing 5 of {evidence.length} items.
+            </p>
+          )}
+
+          <div className="mt-4">
+            <Link
+              href={`/company/${company.slug}/evidence`}
+              className="text-sm text-blue-700 hover:underline"
+            >
+              View all evidence →
+            </Link>
+          </div>
+        </section>
 
         {/* Score debug panel only for dev / SHOW_DEBUG */}
         {user && SHOW_DEBUG && (
