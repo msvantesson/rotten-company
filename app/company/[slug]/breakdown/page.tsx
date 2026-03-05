@@ -68,13 +68,14 @@ export default async function BreakdownPage({
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
       <header>
-        <h1 className="text-2xl font-bold mb-4">
-          {company.name} – Rotten Score Breakdown
-        </h1>
+        <h1 className="text-3xl font-semibold">{company.name}</h1>
         <CompanyTabs slug={company.slug} />
       </header>
 
-      <CategoryBreakdown company={company} breakdown={breakdown} evidence={evidence} />
+      <section>
+        <h2 className="text-xl font-semibold mb-4">Rotten Score Breakdown</h2>
+        <CategoryBreakdown company={company} breakdown={breakdown} evidence={evidence} />
+      </section>
     </div>
   );
 }

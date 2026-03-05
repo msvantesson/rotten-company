@@ -3,7 +3,6 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import EvidenceList from "@/components/EvidenceList";
@@ -45,23 +44,6 @@ export default async function EvidencePage({
     evidence = [];
   }
 
-  let user: { id: string } | null = null;
-  try {
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError) {
-      console.error("Error loading auth user:", authError);
-    }
-
-    user = authUser ?? null;
-  } catch (e) {
-    console.error("Unexpected error loading auth user:", e);
-    user = null;
-  }
-
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
       <header>
@@ -71,24 +53,6 @@ export default async function EvidencePage({
 
       <section>
         <h2 className="text-lg font-semibold">Approved Evidence</h2>
-
-        <div className="mt-4">
-          {user ? (
-            <Link
-              href={`/company/${company.slug}/submit-evidence`}
-              className="inline-block px-4 py-2 bg-black text-white rounded"
-            >
-              Submit Evidence
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="inline-block px-4 py-2 bg-gray-700 text-white rounded"
-            >
-              Sign in to submit evidence
-            </Link>
-          )}
-        </div>
 
         <div className="mt-6">
           <EvidenceList evidence={evidence} />
