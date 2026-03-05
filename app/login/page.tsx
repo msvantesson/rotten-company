@@ -1,36 +1,12 @@
-// /app/login/page.tsx
+import Link from 'next/link';
 
-import { loginWithPassword } from "./actions";
-
-export default function LoginPage() {
-  return (
-    <div className="max-w-md mx-auto mt-20 p-6 border border-border rounded-lg bg-surface shadow">
-      <h1 className="text-2xl font-bold mb-6">Log in</h1>
-
-      <form action={loginWithPassword} className="flex flex-col gap-4">
-        <input
-          type="email"
-          name="email"
-          placeholder="Email"
-          required
-          className="border border-border bg-surface text-foreground p-2 rounded"
-        />
-
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          required
-          className="border border-border bg-surface text-foreground p-2 rounded"
-        />
-
-        <button
-          type="submit"
-          className="bg-black text-white p-2 rounded hover:bg-gray-800"
-        >
-          Log in
-        </button>
-      </form>
-    </div>
-  );
+function LoginPage() {
+    return (
+        <div>
+            <h1>Login</h1>
+            <Link href="/forgot-password">Forgot password?</Link>
+        </div>
+    );
 }
+
+export default LoginPage;
