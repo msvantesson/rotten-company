@@ -41,7 +41,7 @@ export default async function BreakdownPage({
     const { data, error } = await supabase
       .from("company_category_breakdown")
       .select(
-        "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score"
+        "category_id, category_name, rating_count, avg_rating_score, evidence_count, evidence_score, final_score",
       )
       .eq("company_id", company.id);
 
@@ -74,11 +74,7 @@ export default async function BreakdownPage({
         <CompanyTabs slug={company.slug} />
       </header>
 
-      <CategoryBreakdown
-        company={company}
-        breakdown={breakdown}
-        evidence={evidence}
-      />
+      <CategoryBreakdown company={company} breakdown={breakdown} evidence={evidence} />
     </div>
   );
 }
