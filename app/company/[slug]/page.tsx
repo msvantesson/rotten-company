@@ -5,7 +5,6 @@ export const fetchCache = "force-no-store";
 import { supabaseServer } from "@/lib/supabase-server";
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
-import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
@@ -120,7 +119,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     );
   }
 
-  // Evidence
+  // Evidence (still loaded for JSON-LD / debug panel if needed)
   let evidence: any[] = [];
   try {
     evidence = (await getEvidenceWithManagers(company.id)) ?? [];
@@ -129,7 +128,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     evidence = [];
   }
 
-  // Category breakdown
+  // Category breakdown (still loaded for JSON-LD / debug panel if needed)
   let breakdownWithFlavor: any[] = [];
   try {
     const { data: mergedBreakdown, error: breakdownError } = await supabase
@@ -382,6 +381,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
           <CeoSection companyId={company.id} userId={user?.id ?? null} />
 
+          {/* ✅ Keep Rotten Score meter on overview */}
           <div className="mt-6 mb-8">
             <RottenScoreMeter score={liveRottenScore ?? 0} />
           </div>
@@ -423,22 +423,15 @@ export default async function CompanyPage({ params }: { params: Params }) {
           )}
         </section>
 
-        {/* Rotten Score Breakdown */}
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold">Rotten Score Breakdown</h2>
-          <div className="mt-4">
-            <CategoryBreakdown
-              company={company}
-              breakdown={breakdownWithFlavor}
-              evidence={evidence}
-            />
-          </div>
-        </section>
+        {/* ❌ Removed: Rotten Score Breakdown section from overview */}
 
         {/* Score debug panel only for dev / SHOW_DEBUG */}
         {user && SHOW_DEBUG && (
           <div className="mt-8">
-            <ScoreDebugPanel score={liveRottenScore} breakdown={breakdownWithFlavor} />
+            <ScoreDebugPanel
+              score={liveRottenScore}
+              breakdown={breakdownWithFlavor}
+            />
           </div>
         )}
       </div>
