@@ -6,7 +6,6 @@ import { supabaseServer } from "@/lib/supabase-server";
 import EvidenceList from "@/components/EvidenceList";
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
-import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
@@ -41,7 +40,9 @@ type Params = Promise<{ slug: string }> | { slug: string };
 
 export default async function CompanyPage({ params }: { params: Params }) {
   const resolvedParams = (await params) as { slug?: string } | undefined;
-  const rawSlug = resolvedParams?.slug ? decodeURIComponent(resolvedParams.slug) : "";
+  const rawSlug = resolvedParams?.slug
+    ? decodeURIComponent(resolvedParams.slug)
+    : "";
 
   const supabase = await supabaseServer();
 
@@ -129,7 +130,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     evidence = [];
   }
 
-  // Category breakdown
+  // Category breakdown (still used for JSON-LD and debug panel)
   let breakdownWithFlavor: any[] = [];
   try {
     const { data: mergedBreakdown, error: breakdownError } = await supabase
@@ -149,7 +150,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
     breakdownWithFlavor = mergedBreakdown ?? [];
   } catch (e) {
-    console.error("Unexpected error building breakdown for company:", company.id, e);
+    console.error(
+      "Unexpected error building breakdown for company:",
+      company.id,
+      e,
+    );
     breakdownWithFlavor = [];
   }
 
@@ -386,7 +391,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
           {categories && categories.length > 0 ? (
             <div className="mt-4 divide-y">
               {categories.map((cat) => (
-                <div key={cat.id} className="flex items-center justify-between py-3">
+                <div
+                  key={cat.id}
+                  className="flex items-center justify-between py-3"
+                >
                   <span className="flex items-center">
                     {getCategoryIcon(cat.id)} {cat.name}
                     <CategoryInfoPopover
@@ -406,18 +414,6 @@ export default async function CompanyPage({ params }: { params: Params }) {
           ) : (
             <p className="mt-4 text-sm text-gray-600">No categories configured yet.</p>
           )}
-        </section>
-
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold">Rotten Score Breakdown</h2>
-          <div className="mt-4">
-            <CategoryBreakdown
-              company={company}
-              breakdown={breakdownWithFlavor}
-              evidence={evidence}
-              showHeader={false}
-            />
-          </div>
         </section>
 
         <section className="mt-8">
