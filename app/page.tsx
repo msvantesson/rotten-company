@@ -51,10 +51,10 @@ export default async function HomePage() {
 
         <div className="space-y-2 max-w-3xl">
           <p className="text-xl text-muted-foreground">
-            Expose the true nature of companies that lie, cheat, and mistreat people.
+            Expose who they really are—backed by evidence.
           </p>
           <p className="text-base text-muted-foreground">
-            Submit documented evidence to hold them accountable—so others can steer clear before
+            Submit documented proof of lies, cheating, and abuse so others can steer clear—before
             accepting a job offer or signing a contract.
           </p>
         </div>
