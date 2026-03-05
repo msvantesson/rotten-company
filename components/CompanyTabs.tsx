@@ -14,6 +14,10 @@ export default function CompanyTabs({ slug }: Props) {
     { label: "Overview", href: `/company/${slug}` },
     { label: "Evidence", href: `/company/${slug}/evidence` },
     { label: "Breakdown", href: `/company/${slug}/breakdown` },
+
+    // New: move "Submit Evidence" into the tab bar.
+    // Note: auth gating should be handled server-side on the submit page (it already redirects to /login).
+    { label: "Submit", href: `/company/${slug}/submit-evidence` },
   ];
 
   return (
