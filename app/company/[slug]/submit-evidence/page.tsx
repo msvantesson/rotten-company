@@ -1,6 +1,7 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect, notFound } from "next/navigation";
 import EvidenceUpload from "@/components/EvidenceUpload";
+import CompanyTabs from "@/components/CompanyTabs";
 
 export default async function SubmitEvidencePage({
   params,
@@ -34,11 +35,17 @@ export default async function SubmitEvidencePage({
 
   return (
     <div className="max-w-3xl mx-auto p-6">
-      <h1 className="text-2xl font-semibold mb-6">
-        Submit Evidence for {company.name}
-      </h1>
+      <header>
+        <h1 className="text-2xl font-semibold mb-2">
+          Submit Evidence for {company.name}
+        </h1>
 
-      <EvidenceUpload entityId={company.id} entityType="company" />
+        <CompanyTabs slug={company.slug} />
+      </header>
+
+      <div className="mt-6">
+        <EvidenceUpload entityId={company.id} entityType="company" />
+      </div>
     </div>
   );
 }
