@@ -3,7 +3,6 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { supabaseServer } from "@/lib/supabase-server";
-import EvidenceList from "@/components/EvidenceList";
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
@@ -15,7 +14,6 @@ import { getRottenFlavor } from "@/lib/flavor-engine";
 import CategoryInfoPopover from "@/components/CategoryInfoPopover";
 import CeoSection from "@/components/CeoSection";
 import CompanyTabs from "@/components/CompanyTabs";
-import Link from "next/link";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -334,12 +332,13 @@ export default async function CompanyPage({ params }: { params: Params }) {
       )}
 
       <div className="max-w-3xl mx-auto py-8 px-4">
-        <header className="space-y-3">
+        <header>
           <h1 className="text-3xl font-semibold">{company.name}</h1>
 
-          {/* Option B: tabs directly under company name */}
           <CompanyTabs slug={company.slug} />
+        </header>
 
+        <section className="space-y-3">
           <div className="flex items-center gap-3">
             <span
               className="text-sm font-semibold px-2 py-1 rounded"
@@ -386,7 +385,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
           <div className="mt-6 mb-8">
             <RottenScoreMeter score={liveRottenScore ?? 0} />
           </div>
-        </header>
+        </section>
 
         <section className="mt-6">
           <h2 className="text-xl font-semibold">Rate this company</h2>
@@ -433,48 +432,6 @@ export default async function CompanyPage({ params }: { params: Params }) {
               breakdown={breakdownWithFlavor}
               evidence={evidence}
             />
-          </div>
-        </section>
-
-        {/* Approved Evidence */}
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold">Approved Evidence</h2>
-
-          <div className="mt-4">
-            {user ? (
-              <a
-                href={`/company/${company.slug}/submit-evidence`}
-                className="inline-block px-4 py-2 bg-black text-white rounded"
-              >
-                Submit Evidence
-              </a>
-            ) : (
-              <a
-                href="/login"
-                className="inline-block px-4 py-2 bg-gray-700 text-white rounded"
-              >
-                Sign in to submit evidence
-              </a>
-            )}
-          </div>
-
-          <div className="mt-6">
-            <EvidenceList evidence={evidence.slice(0, 5)} />
-          </div>
-
-          {evidence.length > 5 && (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Showing 5 of {evidence.length} items.
-            </p>
-          )}
-
-          <div className="mt-4">
-            <Link
-              href={`/company/${company.slug}/evidence`}
-              className="text-sm text-blue-700 hover:underline"
-            >
-              View all evidence →
-            </Link>
           </div>
         </section>
 

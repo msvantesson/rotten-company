@@ -34,11 +34,9 @@ export default async function SubmitEvidencePage({
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
+    <div className="max-w-3xl mx-auto py-8 px-4">
       <header>
-        <h1 className="text-2xl font-semibold mb-2">
-          Submit Evidence for {company.name}
-        </h1>
+        <h1 className="text-3xl font-semibold">{company.name}</h1>
 
         <CompanyTabs slug={company.slug} />
       </header>
