@@ -9,7 +9,7 @@ type BreakdownItem = {
   avg_rating_score: number | null;
   evidence_count: number;
   severity_score: number | null;
-  final_score: number;
+  final_score: number | null;
 };
 
 type EvidenceItem = {
@@ -96,7 +96,7 @@ export function CategoryBreakdown({
                 <div
                   className="h-full transition-all duration-500"
                   style={{
-                    width: `${item.final_score}%`,
+                    width: `${typeof item.final_score === "number" && Number.isFinite(item.final_score) ? Math.min(100, Math.max(0, item.final_score)) : 0}%`,
                     backgroundColor: color,
                   }}
                 />
@@ -106,7 +106,7 @@ export function CategoryBreakdown({
               <div className="flex flex-wrap gap-3 justify-between text-sm text-neutral-600">
                 <span>
                   Avg Rating:{" "}
-                  {item.avg_rating_score !== null
+                  {typeof item.avg_rating_score === "number" && Number.isFinite(item.avg_rating_score)
                     ? item.avg_rating_score.toFixed(2)
                     : "—"}
                 </span>
@@ -115,7 +115,7 @@ export function CategoryBreakdown({
 
                 <span>
                   Severity Score:{" "}
-                  {item.severity_score !== null
+                  {typeof item.severity_score === "number" && Number.isFinite(item.severity_score)
                     ? item.severity_score.toFixed(2)
                     : "—"}
                 </span>
@@ -123,7 +123,10 @@ export function CategoryBreakdown({
                 <span>Evidence Count: {item.evidence_count}</span>
 
                 <span className="font-medium text-neutral-700">
-                  Contribution: {item.final_score.toFixed(1)} pts
+                  Contribution:{" "}
+                  {typeof item.final_score === "number" && Number.isFinite(item.final_score)
+                    ? `${item.final_score.toFixed(1)} pts`
+                    : "—"}
                 </span>
               </div>
 
