@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { toLegacyCategory } from "@/app/lib/legacy-category";
 
 function now() {
   return Date.now();
@@ -161,6 +162,9 @@ export async function POST(req: Request) {
     fileUrl = `https://${storageHost}/storage/v1/object/public/${bucketName}/${filePath}`;
   }
 
+  // Satisfy legacy NOT NULL / CHECK constraint: category IN (1,2,3,4,5,6,13)
+  const legacyCategory = toLegacyCategory(cat.id);
+
   // INSERT
   const { data: inserted, error: insertError } = await supabase
     .from("evidence")
@@ -171,6 +175,7 @@ export async function POST(req: Request) {
         title: String(title).trim(),
         summary: String(summary).trim(),
         category_id: cat.id,
+        category: legacyCategory,
         user_id: userId,
         file_url: fileUrl,
         // Optional: persist file metadata if available
