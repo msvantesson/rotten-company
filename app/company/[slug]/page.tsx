@@ -3,7 +3,6 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import { supabaseServer } from "@/lib/supabase-server";
-import EvidenceList from "@/components/EvidenceList";
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
@@ -15,7 +14,6 @@ import { getRottenFlavor } from "@/lib/flavor-engine";
 import CategoryInfoPopover from "@/components/CategoryInfoPopover";
 import CeoSection from "@/components/CeoSection";
 import CompanyTabs from "@/components/CompanyTabs";
-import Link from "next/link";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -122,7 +120,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     );
   }
 
-  // Evidence
+  // Evidence (still loaded for breakdown + other uses; keep for now)
   let evidence: any[] = [];
   try {
     evidence = (await getEvidenceWithManagers(company.id)) ?? [];
@@ -417,30 +415,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
           )}
         </section>
 
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold">Approved Evidence</h2>
-
-          {/* Submit Evidence button REMOVED from here. Now in the tab bar. */}
-
-          <div className="mt-6">
-            <EvidenceList evidence={evidence.slice(0, 5)} />
-          </div>
-
-          {evidence.length > 5 && (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Showing 5 of {evidence.length} items.
-            </p>
-          )}
-
-          <div className="mt-4">
-            <Link
-              href={`/company/${company.slug}/evidence`}
-              className="text-sm text-blue-700 hover:underline"
-            >
-              View all evidence →
-            </Link>
-          </div>
-        </section>
+        {/* Evidence preview REMOVED: evidence should only be visible in the Evidence tab/page */}
 
         {/* Score debug panel only for dev / SHOW_DEBUG */}
         {user && SHOW_DEBUG && (
