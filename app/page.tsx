@@ -51,11 +51,11 @@ export default async function HomePage() {
 
         <div className="space-y-2 max-w-3xl">
           <p className="text-xl text-muted-foreground">
-            An evidence‑based platform exposing toxic workplaces and corporate misconduct.
+            Expose the true nature of companies that lie, cheat, and mistreat people.
           </p>
           <p className="text-base text-muted-foreground">
-            Submit verified evidence to hold companies accountable and help others make informed
-            decisions before they accept a job offer.
+            Submit documented evidence to hold them accountable—so others can steer clear before
+            accepting a job offer or signing a contract.
           </p>
         </div>
 
