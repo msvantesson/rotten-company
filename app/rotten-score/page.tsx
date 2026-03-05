@@ -1,46 +1,63 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  CATEGORY_WEIGHTS,
-  SIZE_MULTIPLIERS,
-  OWNERSHIP_MULTIPLIERS,
-  COUNTRY_REGION_MULTIPLIERS,
-} from "@/lib/rotten-score";
 
 export const metadata: Metadata = {
   title: "How Rotten Score Works | Rotten Company",
   description:
-    "Learn how the Rotten Score is calculated — a transparent, evidence-based measure of corporate misconduct across 18 harm categories.",
+    "Learn how the Rotten Score is calculated — a transparent, evidence-based measure of corporate misconduct.",
 };
-
-/** Format a snake_case key into Title Case for display. */
-function formatKey(key: string): string {
-  return key
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
 
 export default function RottenScorePage() {
   // Worked example values (fictional company: AcmeCorp)
+  // Using illustrative base_weight values; actual weights are set per-category in the database.
   const exampleCategories = [
-    { id: "toxic_workplace", score: 60 },
-    { id: "wage_abuse", score: 50 },
-    { id: "pollution_environmental_damage", score: 70 },
-  ] as const;
+    {
+      name: "Toxic Workplace",
+      avgRating: 3.5,
+      low: 2,
+      medium: 1,
+      high: 0,
+      baseWeight: 2.0,
+    },
+    {
+      name: "Wage Abuse",
+      avgRating: 4.2,
+      low: 0,
+      medium: 1,
+      high: 1,
+      baseWeight: 1.5,
+    },
+    {
+      name: "Greenwashing",
+      avgRating: 2.0,
+      low: 0,
+      medium: 2,
+      high: 0,
+      baseWeight: 1.0,
+    },
+  ];
 
-  const exampleBase = exampleCategories.reduce(
-    (sum, c) => sum + c.score * CATEGORY_WEIGHTS[c.id],
+  // Illustrative total — the real count is whatever is in the categories table.
+  // Update this constant if the example needs to match a specific DB snapshot.
+  const EXAMPLE_TOTAL_CATEGORIES = 18;
+  const managerRollup = 1.5;
+
+  const categoriesWithScores = exampleCategories.map((c) => {
+    const severityScore = c.low * 1 + c.medium * 3 + c.high * 6;
+    const finalScore = c.avgRating * severityScore * c.baseWeight;
+    return { ...c, severityScore, finalScore };
+  });
+
+  const sumFinalScores = categoriesWithScores.reduce(
+    (sum, c) => sum + c.finalScore,
     0
   );
-  // medium size × public company × western
-  const exampleSize = 1.0;
-  const exampleOwnership = 1.05;
-  const exampleCountry = 1.1;
-  const exampleFinal = Math.min(
-    100,
-    Math.max(0, exampleBase * exampleSize * exampleOwnership * exampleCountry)
-  );
+  // Other categories (no evidence) contribute 0 each
+  const categoryScore =
+    Math.round((sumFinalScores / EXAMPLE_TOTAL_CATEGORIES) * 100) / 100;
+  const managerComponent = managerRollup * 2;
+  const rottenScore =
+    Math.round((categoryScore + managerComponent) * 100) / 100;
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-12 space-y-12">
@@ -53,9 +70,10 @@ export default function RottenScorePage() {
       <section className="space-y-4">
         <h1 className="text-4xl font-bold">How Rotten Score Works</h1>
         <p className="text-lg text-gray-700">
-          The Rotten Score is a single number (0–100) that summarises how much
-          documented harm a company has caused across 18 harm categories.{" "}
-          <strong>0 means clean</strong>; <strong>100 means extremely rotten</strong>.
+          The Rotten Score is a number that summarises how much documented harm
+          a company has caused, weighted by evidence severity and category
+          importance. <strong>Higher means more rotten</strong>; a score of{" "}
+          <strong>0</strong> means no evidence of harm has been recorded.
         </p>
       </section>
 
@@ -65,44 +83,67 @@ export default function RottenScorePage() {
 
         <ol className="list-decimal list-inside space-y-3 text-gray-800">
           <li>
-            <strong>Evidence is submitted</strong> for a company across any of
-            the 18 harm categories (e.g. wage abuse, greenwashing, fraud).
+            <strong>Evidence is submitted</strong> across any harm category
+            (e.g. wage abuse, greenwashing, fraud). Each piece of evidence is
+            assigned a severity: <em>low</em>, <em>medium</em>, or{" "}
+            <em>high</em>.
           </li>
           <li>
-            <strong>Each category gets an average score</strong> (0–100) based
-            on the severity ratings of all submitted evidence for that category.
+            <strong>Community members rate</strong> each piece of evidence on a
+            numeric scale. The average of those ratings becomes the{" "}
+            <em>avg_rating</em> for that category.
           </li>
           <li>
-            <strong>A weighted average</strong> of those category scores forms
-            the <em>base category score</em>. Categories with higher ethical
-            weight (e.g. wage abuse) contribute more to the total.
+            <strong>A severity score</strong> is computed for each category by
+            weighting evidence counts:
+            <br />
+            <code className="bg-gray-100 px-1 rounded text-sm">
+              severity_score = (low_count × 1) + (medium_count × 3) +
+              (high_count × 6)
+            </code>
           </li>
           <li>
-            <strong>Three multipliers</strong> are applied in order to
-            contextualise the score:
-            <ul className="list-disc list-inside ml-4 mt-1 space-y-1 text-gray-700">
-              <li>
-                <strong>Company size</strong> — larger companies face higher
-                scrutiny because their harm has wider reach.
-              </li>
-              <li>
-                <strong>Ownership type</strong> — private equity and
-                hedge-fund-owned companies receive a higher multiplier,
-                reflecting known extractive patterns.
-              </li>
-              <li>
-                <strong>Country / region</strong> — global multinationals and
-                western-headquartered companies carry a higher multiplier due to
-                greater systemic impact.
-              </li>
-            </ul>
+            <strong>Each category&rsquo;s final score</strong> combines all
+            three signals — ratings, severity, and the category&rsquo;s own
+            base weight (set in the database to reflect the category&rsquo;s
+            ethical importance):
+            <br />
+            <code className="bg-gray-100 px-1 rounded text-sm">
+              final_score = avg_rating × severity_score × base_weight
+            </code>
+            <br />
+            Categories with no approved evidence have a final_score of{" "}
+            <strong>0</strong>.
           </li>
           <li>
-            The result is <strong>clamped to 0–100</strong>.
+            <strong>The category score</strong> is the average of
+            final_score across <em>all</em> harm categories in the system
+            (including those with no evidence, which each contribute 0):
+            <br />
+            <code className="bg-gray-100 px-1 rounded text-sm">
+              category_score = round(avg(final_score), 2)
+            </code>
           </li>
           <li>
-            If a company has <strong>no evidence at all</strong>, its score is
-            shown as <em>null</em> — a positive "no data" state, not a zero.
+            <strong>A manager component</strong> may be added if any of the
+            company&rsquo;s managers carry a rolled-up score:
+            <br />
+            <code className="bg-gray-100 px-1 rounded text-sm">
+              manager_component = COALESCE(manager_rollup, 0) × 2
+            </code>
+          </li>
+          <li>
+            <strong>Final Rotten Score:</strong>{" "}
+            <code className="bg-gray-100 px-1 rounded text-sm">
+              rotten_score = category_score + manager_component
+            </code>
+          </li>
+          <li>
+            If a company has <strong>no evidence at all</strong>, every
+            category&rsquo;s final_score is 0, the category_score is 0, and
+            (absent any manager component) the Rotten Score is{" "}
+            <strong>0</strong> — reflecting a clean slate rather than missing
+            data.
           </li>
         </ol>
 
@@ -112,202 +153,195 @@ export default function RottenScorePage() {
             Worked example — AcmeCorp (fictional)
           </h3>
           <p className="text-sm text-gray-600">
-            AcmeCorp is a medium-sized public company headquartered in a western
-            country. Three categories have evidence:
+            AcmeCorp has approved evidence in 3 out of {EXAMPLE_TOTAL_CATEGORIES} harm
+            categories. The other {EXAMPLE_TOTAL_CATEGORIES - exampleCategories.length}{" "}
+            categories each contribute a final_score of 0. Base weights shown
+            here are illustrative; actual per-category weights are stored in
+            the database.
           </p>
 
+          {/* Per-category breakdown */}
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b text-left text-gray-600">
-                <th className="py-1 pr-4">Category</th>
-                <th className="py-1 pr-4 text-right">Avg score</th>
-                <th className="py-1 pr-4 text-right">Weight</th>
-                <th className="py-1 text-right">Contribution</th>
+                <th className="py-1 pr-3">Category</th>
+                <th className="py-1 pr-3 text-right">Avg rating</th>
+                <th className="py-1 pr-3 text-right">
+                  Severity score
+                  <br />
+                  <span className="font-normal text-xs">
+                    (L×1+M×3+H×6)
+                  </span>
+                </th>
+                <th className="py-1 pr-3 text-right">Base weight</th>
+                <th className="py-1 text-right">Final score</th>
               </tr>
             </thead>
             <tbody>
-              {exampleCategories.map((c) => (
-                <tr key={c.id} className="border-b">
-                  <td className="py-1 pr-4">{formatKey(c.id)}</td>
-                  <td className="py-1 pr-4 text-right font-mono">{c.score}</td>
-                  <td className="py-1 pr-4 text-right font-mono">
-                    {CATEGORY_WEIGHTS[c.id]}
+              {categoriesWithScores.map((c) => (
+                <tr key={c.name} className="border-b">
+                  <td className="py-1 pr-3">{c.name}</td>
+                  <td className="py-1 pr-3 text-right font-mono">
+                    {c.avgRating}
+                  </td>
+                  <td className="py-1 pr-3 text-right font-mono">
+                    {c.severityScore}
+                    <span className="text-xs text-gray-500 ml-1">
+                      ({c.low}×1+{c.medium}×3+{c.high}×6)
+                    </span>
+                  </td>
+                  <td className="py-1 pr-3 text-right font-mono">
+                    {c.baseWeight}
                   </td>
                   <td className="py-1 text-right font-mono">
-                    {(c.score * CATEGORY_WEIGHTS[c.id]).toFixed(2)}
+                    {c.finalScore.toFixed(2)}
                   </td>
                 </tr>
               ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={3} className="py-2 text-right font-medium text-gray-700">
-                  Base category score
+              <tr className="border-b text-gray-400 italic">
+                <td className="py-1 pr-3 text-sm">
+                  Other {EXAMPLE_TOTAL_CATEGORIES - exampleCategories.length} categories
                 </td>
-                <td className="py-2 text-right font-mono font-semibold">
-                  {exampleBase.toFixed(2)}
-                </td>
+                <td className="py-1 pr-3 text-right font-mono" aria-label="no ratings">N/A</td>
+                <td className="py-1 pr-3 text-right font-mono">0</td>
+                <td className="py-1 pr-3 text-right font-mono" aria-label="varies">varies</td>
+                <td className="py-1 text-right font-mono">0.00</td>
               </tr>
-            </tfoot>
+            </tbody>
           </table>
 
+          {/* Score roll-up */}
           <div className="text-sm space-y-1 text-gray-700">
             <p>
-              <span className="font-medium">× Size multiplier</span> (medium) ={" "}
-              {exampleSize} → {(exampleBase * exampleSize).toFixed(2)}
+              <span className="font-medium">Sum of final scores:</span>{" "}
+              <span className="font-mono">
+                {sumFinalScores.toFixed(2)}
+              </span>
             </p>
             <p>
-              <span className="font-medium">× Ownership multiplier</span>{" "}
-              (public company) = {exampleOwnership} →{" "}
-              {(exampleBase * exampleSize * exampleOwnership).toFixed(2)}
+              <span className="font-medium">category_score</span> ={" "}
+              round({sumFinalScores.toFixed(2)} ÷ {EXAMPLE_TOTAL_CATEGORIES}, 2) ={" "}
+              <span className="font-mono">{categoryScore.toFixed(2)}</span>
             </p>
             <p>
-              <span className="font-medium">× Country multiplier</span>{" "}
-              (western) = {exampleCountry} →{" "}
-              {(exampleBase * exampleSize * exampleOwnership * exampleCountry).toFixed(
-                2
-              )}
+              <span className="font-medium">manager_component</span> ={" "}
+              manager_rollup ({managerRollup}) × 2 ={" "}
+              <span className="font-mono">{managerComponent.toFixed(2)}</span>
             </p>
             <p className="font-semibold text-gray-900 pt-1">
-              Final Rotten Score (clamped 0–100):{" "}
-              <span className="font-mono">{exampleFinal.toFixed(2)}</span>
+              Rotten Score = {categoryScore.toFixed(2)} +{" "}
+              {managerComponent.toFixed(2)} ={" "}
+              <span className="font-mono">{rottenScore.toFixed(2)}</span>
             </p>
           </div>
         </div>
       </section>
 
-      {/* ── Complex / full methodology (collapsed) ── */}
+      {/* ── Full methodology (collapsed) ── */}
       <section>
         <details className="border rounded-lg">
           <summary className="cursor-pointer px-6 py-4 text-lg font-semibold select-none hover:bg-muted">
-            Full methodology &amp; current weights
+            Full methodology
           </summary>
 
           <div className="px-6 pb-6 space-y-8 pt-4">
             <p className="text-sm text-gray-600">
-              All weights and multipliers are sourced directly from{" "}
+              Company Rotten Scores are computed entirely inside the database
+              via the{" "}
               <code className="bg-gray-100 px-1 rounded">
-                lib/rotten-score.ts
+                company_rotten_score
               </code>{" "}
-              and will stay in sync as the algorithm evolves.
+              view, which aggregates data from{" "}
+              <code className="bg-gray-100 px-1 rounded">
+                company_category_full_breakdown
+              </code>
+              . The formulas below reflect those view definitions.
             </p>
 
-            {/* Category weights */}
-            <div className="space-y-3">
+            {/* Step 1 */}
+            <div className="space-y-2">
               <h3 className="text-base font-semibold">
-                Category weights (sum = 1.0)
+                Step 1 — Severity score per category
               </h3>
               <p className="text-sm text-gray-600">
-                The base category score is a weighted sum of whichever
-                categories have evidence. Only categories with evidence
-                contribute; their individual weights are not renormalized — this
-                means companies with evidence in more categories can score
-                higher.
+                For each company–category pair, count the approved evidence
+                items by severity and combine them:
               </p>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b text-left text-gray-600">
-                    <th className="py-1 pr-4">Category</th>
-                    <th className="py-1 text-right">Weight</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(
-                    Object.entries(CATEGORY_WEIGHTS) as [string, number][]
-                  ).map(([key, weight]) => (
-                    <tr key={key} className="border-b">
-                      <td className="py-1 pr-4">{formatKey(key)}</td>
-                      <td className="py-1 text-right font-mono">{weight}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Size multipliers */}
-            <div className="space-y-3">
-              <h3 className="text-base font-semibold">Size multipliers</h3>
+              <pre className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto">
+                {`severity_score =
+  (low_count  × 1)
++ (medium_count × 3)
++ (high_count  × 6)`}
+              </pre>
               <p className="text-sm text-gray-600">
-                Applied first. Larger companies cause wider harm, so they carry
-                a higher multiplier.
+                High-severity evidence has six times the weight of low-severity
+                evidence, reflecting greater harm.
               </p>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b text-left text-gray-600">
-                    <th className="py-1 pr-4">Size tier</th>
-                    <th className="py-1 text-right">Multiplier</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(
-                    Object.entries(SIZE_MULTIPLIERS) as [string, number][]
-                  ).map(([key, mult]) => (
-                    <tr key={key} className="border-b">
-                      <td className="py-1 pr-4">{formatKey(key)}</td>
-                      <td className="py-1 text-right font-mono">{mult}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
 
-            {/* Ownership multipliers */}
-            <div className="space-y-3">
-              <h3 className="text-base font-semibold">Ownership multipliers</h3>
-              <p className="text-sm text-gray-600">
-                Applied second. Reflects the degree to which ownership
-                structures incentivise extractive or harmful behaviour.
-              </p>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b text-left text-gray-600">
-                    <th className="py-1 pr-4">Ownership type</th>
-                    <th className="py-1 text-right">Multiplier</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(
-                    Object.entries(OWNERSHIP_MULTIPLIERS) as [string, number][]
-                  ).map(([key, mult]) => (
-                    <tr key={key} className="border-b">
-                      <td className="py-1 pr-4">{formatKey(key)}</td>
-                      <td className="py-1 text-right font-mono">{mult}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Country / region multipliers */}
-            <div className="space-y-3">
+            {/* Step 2 */}
+            <div className="space-y-2">
               <h3 className="text-base font-semibold">
-                Country / region multipliers
+                Step 2 — Per-category final score
               </h3>
               <p className="text-sm text-gray-600">
-                Applied last. Global multinationals and western-based companies
-                receive a higher multiplier, reflecting their greater systemic
-                reach and accountability expectations.
+                Multiply the average community rating for the category, the
+                severity score, and the category&rsquo;s base weight:
               </p>
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b text-left text-gray-600">
-                    <th className="py-1 pr-4">Region</th>
-                    <th className="py-1 text-right">Multiplier</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(
-                    Object.entries(
-                      COUNTRY_REGION_MULTIPLIERS
-                    ) as [string, number][]
-                  ).map(([key, mult]) => (
-                    <tr key={key} className="border-b">
-                      <td className="py-1 pr-4">{formatKey(key)}</td>
-                      <td className="py-1 text-right font-mono">{mult}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <pre className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto">
+                {`final_score = COALESCE(avg_rating, 0) × severity_score × base_weight`}
+              </pre>
+              <p className="text-sm text-gray-600">
+                <code className="bg-gray-100 px-1 rounded">avg_rating</code> is
+                the average of all community ratings submitted for that
+                company–category pair.{" "}
+                <code className="bg-gray-100 px-1 rounded">base_weight</code>{" "}
+                is a per-category constant stored in the database that reflects
+                the relative ethical importance of the category. When there are
+                no ratings,{" "}
+                <code className="bg-gray-100 px-1 rounded">avg_rating</code>{" "}
+                defaults to 0, making final_score 0 for that category.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="space-y-2">
+              <h3 className="text-base font-semibold">
+                Step 3 — Company category score
+              </h3>
+              <p className="text-sm text-gray-600">
+                Average the final_score across <em>all</em> categories in the
+                system (the view cross-joins every company with every category,
+                so categories with no evidence contribute 0):
+              </p>
+              <pre className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto">
+                {`category_score = round(avg(final_score), 2)`}
+              </pre>
+            </div>
+
+            {/* Step 4 */}
+            <div className="space-y-2">
+              <h3 className="text-base font-semibold">
+                Step 4 — Manager component
+              </h3>
+              <p className="text-sm text-gray-600">
+                If any of the company&rsquo;s managers have a rolled-up score,
+                that score is added in. If no manager rollup exists, this
+                component is 0:
+              </p>
+              <pre className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto">
+                {`manager_component = COALESCE(manager_rollup, 0) × 2`}
+              </pre>
+            </div>
+
+            {/* Step 5 */}
+            <div className="space-y-2">
+              <h3 className="text-base font-semibold">
+                Step 5 — Final Rotten Score
+              </h3>
+              <pre className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto">
+                {`rotten_score = category_score + manager_component`}
+              </pre>
             </div>
 
             {/* Key behaviours */}
@@ -315,18 +349,31 @@ export default function RottenScorePage() {
               <h3 className="text-base font-semibold">Key behaviours</h3>
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
                 <li>
-                  Base category score = weighted sum of available category
-                  scores (weights sum to 1.0 across all 18 categories).
+                  More evidence — especially high-severity evidence — increases
+                  the score.
                 </li>
                 <li>
-                  Multipliers applied in order: size → ownership → country /
-                  region.
+                  Higher community ratings on that evidence also increase the
+                  score.
                 </li>
-                <li>Final score is clamped to the range 0–100.</li>
                 <li>
-                  If there are no category scores, the score is{" "}
-                  <code className="bg-gray-100 px-1 rounded">null</code> — a
-                  positive "no data" state, not a zero.
+                  Category base weights are set in the database and reflect the
+                  relative severity of each harm type.
+                </li>
+                <li>
+                  Because the category average is taken over{" "}
+                  <em>all</em> categories (including those with no evidence),
+                  a company&rsquo;s score is naturally bounded by how many
+                  categories have evidence and how severe that evidence is.
+                </li>
+                <li>
+                  A company with no approved evidence and no manager component
+                  will have a Rotten Score of{" "}
+                  <strong>0</strong>.
+                </li>
+                <li>
+                  The Rotten Score has no fixed upper bound; it scales with the
+                  amount and severity of evidence.
                 </li>
               </ul>
             </div>

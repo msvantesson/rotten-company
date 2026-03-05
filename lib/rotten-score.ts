@@ -1,14 +1,26 @@
 // lib/rotten-score.ts
 
 /**
- * Rotten Score engine (Option A: full taxonomy)
+ * Leader Rotten Score engine
  *
+ * NOTE: This module computes Rotten Scores for *leaders* (executives / managers).
+ * It is NOT used to compute company Rotten Scores.
+ *
+ * Company Rotten Scores are computed entirely inside the database:
+ *   - View: company_category_full_breakdown
+ *       final_score = COALESCE(avg_rating, 0) × severity_score × base_weight
+ *       severity_score = low_count×1 + medium_count×3 + high_count×6
+ *   - View: company_rotten_score
+ *       category_score = round(avg(final_score across all categories), 2)
+ *       rotten_score   = category_score + COALESCE(manager_rollup, 0) × 2
+ *
+ * This module (leader scoring) uses:
  * - 18 harm categories with explicit weights
- * - Company size normalization (tiered, DB-aligned)
+ * - Company size normalization (tiered)
  * - Ownership-type multipliers
  * - Country/region multipliers (including "global")
  * - Franchise level metadata
- * - Flavor tier mapping (0–100) + micro-flavors per score
+ * - Flavor tier mapping + micro-flavors per score
  *
  * Direction: 0 = clean, 100 = extremely rotten.
  */
