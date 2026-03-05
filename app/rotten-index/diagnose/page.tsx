@@ -27,7 +27,7 @@ export default async function RottenIndexDiagnostics({
     });
 
     const scoreResult = await supabase
-      .from("company_rotten_score")
+      .from("company_rotten_score_v2")
       .select("company_id, rotten_score")
       .order("rotten_score", { ascending: false });
     console.log("[rotten-index-diagnostics] scoreResult:", {

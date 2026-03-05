@@ -10,7 +10,7 @@ export async function generateMetadata(
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, industry, rotten_score")
+    .select("id, name, slug, industry")
     .eq("slug", params.slug)
     .maybeSingle();
 
@@ -21,7 +21,15 @@ export async function generateMetadata(
     };
   }
 
-  const title = `${company.name} – Rotten Score ${company.rotten_score ?? "—"}`;
+  const { data: scoreRow } = await supabase
+    .from("company_rotten_score_v2")
+    .select("rotten_score")
+    .eq("company_id", company.id)
+    .maybeSingle();
+
+  const rottenScore = scoreRow?.rotten_score ?? null;
+
+  const title = `${company.name} – Rotten Score ${rottenScore !== null ? rottenScore.toFixed(1) : "—"}`;
   const description = `See the Rotten Score, category breakdown, evidence, and ratings for ${company.name}.`;
 
   const url = `https://rotten-company.com/company/${company.slug}`;

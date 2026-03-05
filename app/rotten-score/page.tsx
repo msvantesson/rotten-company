@@ -249,7 +249,7 @@ export default function RottenScorePage() {
               Company Rotten Scores are computed entirely inside the database
               via the{" "}
               <code className="bg-gray-100 px-1 rounded">
-                company_rotten_score
+                company_rotten_score_v2
               </code>{" "}
               view, which aggregates data from{" "}
               <code className="bg-gray-100 px-1 rounded">

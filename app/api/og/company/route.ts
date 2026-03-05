@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     if (!company) return new Response("Company not found", { status: 404 });
 
     const { data: scoreRow, error: scoreError } = await supabase
-      .from("company_rotten_score")
+      .from("company_rotten_score_v2")
       .select("rotten_score")
       .eq("company_id", company.id)
       .maybeSingle();

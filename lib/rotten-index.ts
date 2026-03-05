@@ -79,7 +79,7 @@ async function getCompanyRottenIndex({
   const supabase = getSupabaseServerClient();
 
   const query = supabase
-    .from("company_rotten_score")
+    .from("company_rotten_score_v2")
     .select(`
       company_id,
       rotten_score,

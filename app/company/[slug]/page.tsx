@@ -160,14 +160,14 @@ export default async function CompanyPage({ params }: { params: Params }) {
   let liveRottenScore: number | null = null;
   try {
     const { data: scoreRow, error: scoreError } = await supabase
-      .from("company_rotten_score")
+      .from("company_rotten_score_v2")
       .select("rotten_score")
       .eq("company_id", company.id)
       .maybeSingle();
 
     if (scoreError) {
       console.error(
-        "Error loading company_rotten_score for company:",
+        "Error loading company_rotten_score_v2 for company:",
         company.id,
         scoreError,
       );

@@ -80,7 +80,7 @@ export async function GET(request: Request) {
 
   // load scores and companies similar to page
   const { data: scoreRows } = await supabase
-    .from("company_rotten_score")
+    .from("company_rotten_score_v2")
     .select("company_id, rotten_score")
     .order("rotten_score", { ascending: false });
 
