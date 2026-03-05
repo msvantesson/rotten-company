@@ -45,14 +45,24 @@ function getCategoryPresentation(categoryId: number) {
   );
 }
 
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+
 export function CategoryBreakdown({
   company,
   breakdown,
   evidence,
+  showHeader = true,
 }: {
   company: any;
   breakdown: BreakdownItem[];
   evidence: EvidenceItem[];
+  showHeader?: boolean;
 }) {
   if (!breakdown || breakdown.length === 0) {
     return (
@@ -64,19 +74,27 @@ export function CategoryBreakdown({
 
   return (
     <div className="space-y-10">
-      {/* Company header */}
-      <div>
-        <h1 className="text-3xl font-bold">{company.name}</h1>
-        <p className="text-neutral-600 text-sm">
-          Category breakdown and supporting evidence
-        </p>
-      </div>
+      {/* Company header (optional) */}
+      {showHeader && (
+        <div>
+          <h1 className="text-3xl font-bold">{company.name}</h1>
+          <p className="text-neutral-600 text-sm">
+            Category breakdown and supporting evidence
+          </p>
+        </div>
+      )}
 
       {/* Category breakdown */}
       <div className="space-y-6">
         {breakdown.map((item) => {
           const { icon, color } = getCategoryPresentation(item.category_id);
           const categoryFlavor = getCategoryFlavor(item.category_id);
+
+          const finalScore = isFiniteNumber(item.final_score)
+            ? item.final_score
+            : null;
+
+          const barPct = finalScore !== null ? clamp(finalScore, 0, 100) : 0;
 
           return (
             <div key={item.category_id} className="space-y-2">
@@ -87,16 +105,14 @@ export function CategoryBreakdown({
               </div>
 
               {/* Category flavor (string-only, canonical) */}
-              <p className="text-xs italic text-neutral-600">
-                {categoryFlavor}
-              </p>
+              <p className="text-xs italic text-neutral-600">{categoryFlavor}</p>
 
               {/* Mini score bar */}
               <div className="w-full h-2 bg-neutral-200 rounded-full overflow-hidden">
                 <div
                   className="h-full transition-all duration-500"
                   style={{
-                    width: `${typeof item.final_score === "number" && Number.isFinite(item.final_score) ? Math.min(100, Math.max(0, item.final_score)) : 0}%`,
+                    width: `${barPct}%`,
                     backgroundColor: color,
                   }}
                 />
@@ -106,27 +122,25 @@ export function CategoryBreakdown({
               <div className="flex flex-wrap gap-3 justify-between text-sm text-neutral-600">
                 <span>
                   Avg Rating:{" "}
-                  {typeof item.avg_rating_score === "number" && Number.isFinite(item.avg_rating_score)
+                  {isFiniteNumber(item.avg_rating_score)
                     ? item.avg_rating_score.toFixed(2)
                     : "—"}
                 </span>
 
-                <span>Ratings: {item.rating_count}</span>
+                <span>Ratings: {item.rating_count ?? 0}</span>
 
                 <span>
                   Severity Score:{" "}
-                  {typeof item.severity_score === "number" && Number.isFinite(item.severity_score)
+                  {isFiniteNumber(item.severity_score)
                     ? item.severity_score.toFixed(2)
                     : "—"}
                 </span>
 
-                <span>Evidence Count: {item.evidence_count}</span>
+                <span>Evidence Count: {item.evidence_count ?? 0}</span>
 
                 <span className="font-medium text-neutral-700">
-                  Contribution:{" "}
-                  {typeof item.final_score === "number" && Number.isFinite(item.final_score)
-                    ? `${item.final_score.toFixed(1)} pts`
-                    : "—"}
+                  Contribution: {finalScore !== null ? finalScore.toFixed(1) : "—"}{" "}
+                  pts
                 </span>
               </div>
 
@@ -149,8 +163,8 @@ export function CategoryBreakdown({
 
                       {ev.manager && (
                         <div className="text-xs text-neutral-500 mt-1">
-                          Manager: {ev.manager.name} (
-                          {ev.manager.report_count} reports)
+                          Manager: {ev.manager.name} ({ev.manager.report_count}{" "}
+                          reports)
                         </div>
                       )}
                     </div>
