@@ -12,9 +12,10 @@ export default function LeadershipStartTenureForm() {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const body: Record<string, string> = {};
+    const body: Record<string, string | null> = {};
     formData.forEach((v, k) => {
-      body[k] = v.toString();
+      const str = v.toString();
+      body[k] = str === "" ? null : str;
     });
 
     startTransition(async () => {

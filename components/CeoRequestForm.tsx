@@ -15,9 +15,10 @@ export default function CeoRequestForm({ companyId, currentTenureId }: Props) {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const body: Record<string, string> = { company_id: String(companyId) };
+    const body: Record<string, string | null> = { company_id: String(companyId) };
     formData.forEach((v, k) => {
-      body[k] = v.toString();
+      const str = v.toString();
+      body[k] = str === "" ? null : str;
     });
 
     startTransition(async () => {
