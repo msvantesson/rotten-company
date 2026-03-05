@@ -3,6 +3,17 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
 
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Converts blank/whitespace-only strings to null; validates YYYY-MM-DD format. */
+export function normalizeDate(value: string | undefined | null): string | null {
+  if (value == null || value.trim() === "") return null;
+  if (!DATE_REGEX.test(value.trim())) {
+    throw new Error(`Invalid date format: "${value}". Expected YYYY-MM-DD.`);
+  }
+  return value.trim();
+}
+
 export async function POST(req: NextRequest) {
   // Auth check
   const userClient = await supabaseServer();
@@ -38,13 +49,25 @@ export async function POST(req: NextRequest) {
     role,
     leader_name,
     linkedin_url,
-    started_at,
-    ended_at,
+    started_at: raw_started_at,
+    ended_at: raw_ended_at,
     target_tenure_id,
   } = body;
 
   if (!company_id || !request_type || !role) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+  }
+
+  let started_at: string | null;
+  let ended_at: string | null;
+  try {
+    started_at = normalizeDate(raw_started_at);
+    ended_at = normalizeDate(raw_ended_at);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Invalid date value." },
+      { status: 400 },
+    );
   }
 
   if (request_type === "add") {
@@ -85,8 +108,8 @@ export async function POST(req: NextRequest) {
       role,
       leader_name: leader_name ?? null,
       linkedin_url: linkedin_url ?? null,
-      started_at: started_at ?? null,
-      ended_at: ended_at ?? null,
+      started_at,
+      ended_at,
       target_tenure_id: target_tenure_id ? Number(target_tenure_id) : null,
       user_id: userId,
       status: "pending",
