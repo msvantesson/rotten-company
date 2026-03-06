@@ -1,13 +1,6 @@
 // app/api/rotten-index/route.ts
-import { NextResponse } from "next/server"; 
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-type IndexType = "company" | "leader";
+import { NextResponse } from "next/server";
+import { getRottenIndexData } from "@/lib/getRottenIndexData";
 
 function getSearchParam(url: URL, key: string): string | null {
   const value = url.searchParams.get(key);
@@ -17,149 +10,18 @@ function getSearchParam(url: URL, key: string): string | null {
 }
 
 export async function GET(req: Request) {
-  try {
-    const url = new URL(req.url);
-    const rawType = getSearchParam(url, "type");
-    const type: IndexType =
-      rawType === "leader" ? "leader" : "company";
-    const limit = Number(getSearchParam(url, "limit") || "10");
-    const country = getSearchParam(url, "country");
+  const url = new URL(req.url);
+  const result = await getRottenIndexData({
+    type: getSearchParam(url, "type") === "leader" ? "leader" : "company",
+    limit: Number(getSearchParam(url, "limit") || "10"),
+    country: getSearchParam(url, "country"),
+    q: getSearchParam(url, "q"),
+    sort: getSearchParam(url, "sort"),
+    dir: getSearchParam(url, "dir"),
+  });
 
-    const VALID_SORT_FIELDS: Record<string, "asc" | "desc"> = {
-      rotten_score: "desc",
-      approved_evidence_count: "desc",
-      name: "asc",
-      industry: "asc",
-    };
-
-    let query;
-
-    // ✅ COMPANIES — use the VIEW
-    if (type === "company") {
-      const q = getSearchParam(url, "q");
-      const rawSort = getSearchParam(url, "sort") ?? "rotten_score";
-      const rawDir = getSearchParam(url, "dir");
-      const sortField = rawSort in VALID_SORT_FIELDS ? rawSort : "rotten_score";
-      const defaultDir = VALID_SORT_FIELDS[sortField];
-      const ascending =
-        rawDir === "asc" || rawDir === "desc"
-          ? rawDir === "asc"
-          : defaultDir === "asc";
-
-      query = supabase
-        .from("global_rotten_index")
-        .select("id, name, slug, country, rotten_score, industry, approved_evidence_count")
-        .order(sortField, { ascending, nullsFirst: false })
-        .limit(limit);
-
-      if (country) query = query.eq("country", country);
-      if (q) {
-        // Escape backslashes first, then LIKE wildcards (% _) so they match literally,
-        // and strip characters that could inject PostgREST filter conditions (, ( )).
-        const safeQ = q
-          .replace(/\\/g, "\\\\")
-          .replace(/[%_]/g, "\\$&")
-          .replace(/[(),]/g, "");
-        query = query.or(
-          `name.ilike.%${safeQ}%,industry.ilike.%${safeQ}%,country.ilike.%${safeQ}%`
-        );
-      }
-
-    // LEADERS — query all leaders (base), enrich with optional best CEO tenure
-    } else {
-      let leadersQuery = supabase
-        .from("leaders")
-        .select("id, name, slug, country, rotten_score")
-        .order("rotten_score", { ascending: false })
-        .limit(limit);
-
-      if (country) leadersQuery = leadersQuery.eq("country", country);
-
-      const { data: leadersData, error: leadersError } = await leadersQuery;
-
-      if (leadersError) {
-        console.error("Supabase error:", leadersError);
-        return NextResponse.json({ error: leadersError.message }, { status: 500 });
-      }
-
-      const leaders = leadersData ?? [];
-
-      if (leaders.length === 0) {
-        return NextResponse.json({ rows: [] }, { status: 200 });
-      }
-
-      // Fetch all tenures for these leaders
-      const leaderIds = leaders.map((l: any) => l.id);
-      const { data: tenuresData } = await supabase
-        .from("leader_tenures")
-        .select("id, leader_id, started_at, ended_at, companies(id, name, slug)")
-        .in("leader_id", leaderIds);
-
-      // For each leader, pick the best tenure:
-      // Priority: active (ended_at IS NULL) > past; then most recent started_at
-      const tenureMap = new Map<number, any>();
-      for (const tenure of tenuresData ?? []) {
-        const existing = tenureMap.get(tenure.leader_id);
-        if (!existing) {
-          tenureMap.set(tenure.leader_id, tenure);
-          continue;
-        }
-        const tActive = !tenure.ended_at;
-        const eActive = !existing.ended_at;
-        if (tActive && !eActive) {
-          tenureMap.set(tenure.leader_id, tenure);
-          continue;
-        }
-        if (!tActive && eActive) continue;
-        const tTime = new Date(tenure.started_at).getTime();
-        const eTime = new Date(existing.started_at).getTime();
-        if (tTime > eTime) tenureMap.set(tenure.leader_id, tenure);
-      }
-
-      const rows = leaders.map((l: any) => {
-        const tenure = tenureMap.get(l.id);
-        const company = tenure?.companies as any;
-        return {
-          id: l.id,
-          name: l.name,
-          slug: l.slug,
-          country: l.country ?? null,
-          rotten_score: Number(l.rotten_score) || 0,
-          tenure_id: tenure?.id ?? null,
-          company_name: company?.name ?? null,
-          company_slug: company?.slug ?? null,
-          started_at: tenure?.started_at ?? null,
-          ended_at: tenure?.ended_at ?? null,
-        };
-      });
-
-      return NextResponse.json({ rows }, { status: 200 });
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Supabase error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const rows = (data ?? []).map((r: any) => ({
-      id: r.id,
-      name: r.name,
-      slug: r.slug,
-      country: r.country ?? null,
-      rotten_score: Number(r.rotten_score),
-      industry: r.industry ?? null,
-      approved_evidence_count: Number(r.approved_evidence_count) || 0,
-    }));
-
-    return NextResponse.json({ rows }, { status: 200 });
-
-  } catch (err) {
-    console.error("Error in /api/rotten-index:", err);
-    return NextResponse.json(
-      { error: "Failed to load Rotten Index" },
-      { status: 500 }
-    );
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: 500 });
   }
+  return NextResponse.json({ rows: result.rows }, { status: 200 });
 }
