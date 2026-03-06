@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { buildCompanyEditPatch, isPatchNonEmpty } from "@/lib/company-edit-patch";
+import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
 
 export async function POST(req: Request) {
   const cookieClient = await supabaseServer();
@@ -30,25 +31,40 @@ export async function POST(req: Request) {
     return new NextResponse("Field 'why' is required", { status: 400 });
   }
 
-  // Validate proposed fields using the patch helper
+  // Validate proposed text fields using the patch helper
   const proposed = {
     website: body.website ?? null,
     industry: body.industry ?? null,
     description: body.description ?? null,
     country: body.country ?? null,
-    size_employees: body.size_employees ?? null,
   };
 
-  // Validate size_employees if provided
-  if (proposed.size_employees !== null && proposed.size_employees !== undefined && proposed.size_employees !== "") {
-    const parsed = parseInt(String(proposed.size_employees), 10);
-    if (isNaN(parsed) || parsed < 0) {
-      return new NextResponse("size_employees must be an integer >= 0", { status: 400 });
+  // Parse size_employees: accept a range label (new) or a legacy integer string
+  const sizeEmployeesRaw = body.size_employees ?? null;
+  let sizeEmployeesLabel: string | null = null;
+  let sizeEmployeesMin: number | null = null;
+
+  if (sizeEmployeesRaw !== null && sizeEmployeesRaw !== undefined && sizeEmployeesRaw !== "") {
+    const rangeEntry = EMPLOYEE_RANGES.find((r) => r.label === String(sizeEmployeesRaw));
+    if (rangeEntry) {
+      // New path: a known range label
+      sizeEmployeesLabel = rangeEntry.label;
+      sizeEmployeesMin = rangeEntry.min;
+    } else {
+      // Legacy path: try to parse as an integer
+      const parsed = parseInt(String(sizeEmployeesRaw), 10);
+      if (isNaN(parsed) || parsed < 0) {
+        return new NextResponse(
+          "size_employees must be a valid range label or an integer >= 0",
+          { status: 400 }
+        );
+      }
+      sizeEmployeesMin = parsed;
     }
   }
 
   const patch = buildCompanyEditPatch(proposed);
-  if (!isPatchNonEmpty(patch)) {
+  if (!isPatchNonEmpty(patch) && sizeEmployeesMin === null) {
     return new NextResponse("No fields to update — all proposed values are empty", { status: 400 });
   }
 
@@ -79,8 +95,12 @@ export async function POST(req: Request) {
     industry: typeof patch.industry === "string" ? patch.industry : null,
   };
 
-  if (patch.size_employees !== undefined) {
-    insertRow.size_employees_min = patch.size_employees;
+  if (sizeEmployeesMin !== null) {
+    insertRow.size_employees_min = sizeEmployeesMin;
+  }
+  if (sizeEmployeesLabel !== null) {
+    // Store the range label so moderation can also update companies.size_employees_range
+    insertRow.size_employees = sizeEmployeesLabel;
   }
 
   const { data: inserted, error: insertErr } = await service

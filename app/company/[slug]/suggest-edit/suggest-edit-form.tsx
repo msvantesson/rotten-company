@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
 
 type Props = {
   companySlug: string;
@@ -11,8 +12,33 @@ type Props = {
     description: string;
     country: string;
     size_employees: string;
+    size_employees_range: string;
   };
 };
+
+/**
+ * Derive the initial employee-range label to pre-select in the dropdown.
+ * Prefers `size_employees_range` (stored label) if it matches a known range;
+ * falls back to finding the closest range from the numeric `size_employees`.
+ */
+function deriveInitialRange(currentValues: Props["currentValues"]): string {
+  if (currentValues.size_employees_range) {
+    const match = EMPLOYEE_RANGES.find(
+      (r) => r.label === currentValues.size_employees_range
+    );
+    if (match) return match.label;
+  }
+  if (currentValues.size_employees) {
+    const num = parseInt(currentValues.size_employees, 10);
+    if (!isNaN(num) && num >= 0) {
+      // Find the range where num >= min, picking the highest matching min
+      const sorted = [...EMPLOYEE_RANGES].sort((a, b) => b.min - a.min);
+      const match = sorted.find((r) => num >= r.min);
+      if (match) return match.label;
+    }
+  }
+  return "";
+}
 
 export default function SuggestEditForm({ companySlug, currentValues }: Props) {
   const router = useRouter();
@@ -21,7 +47,9 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
   const [industry, setIndustry] = useState(currentValues.industry);
   const [description, setDescription] = useState(currentValues.description);
   const [country, setCountry] = useState(currentValues.country);
-  const [sizeEmployees, setSizeEmployees] = useState(currentValues.size_employees);
+  const [sizeEmployees, setSizeEmployees] = useState(
+    deriveInitialRange(currentValues)
+  );
   const [why, setWhy] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +74,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
           industry: industry.trim() || null,
           description: description.trim() || null,
           country: country.trim() || null,
-          size_employees: sizeEmployees.trim() || null,
+          size_employees: sizeEmployees || null,
           why: why.trim(),
         }),
       });
@@ -121,17 +149,20 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1">
           Number of Employees
-          <span className="ml-1 text-xs text-gray-400 font-normal">(optional integer ≥ 0; leave blank to keep current)</span>
+          <span className="ml-1 text-xs text-gray-400 font-normal">(optional; leave blank to keep current)</span>
         </label>
-        <input
-          type="number"
-          min="0"
-          step="1"
+        <select
           value={sizeEmployees}
           onChange={(e) => setSizeEmployees(e.target.value)}
-          placeholder={currentValues.size_employees || "e.g. 500"}
-          className="w-full rounded-md border px-3 py-2 text-sm"
-        />
+          className="w-full rounded-md border px-3 py-2 text-sm bg-white"
+        >
+          <option value="">Select range</option>
+          {EMPLOYEE_RANGES.map((r) => (
+            <option key={r.label} value={r.label}>
+              {r.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>
