@@ -80,6 +80,13 @@ export async function POST(req: Request) {
     return new NextResponse("Request is not pending", { status: 409 });
   }
 
+  if (cr.approved_company_id !== null) {
+    return new NextResponse(
+      "This request is a company edit suggestion. Please approve it from /moderation/company-edits/",
+      { status: 400 }
+    );
+  }
+
   /* ─────────────────────────────────────────────
      Create company (slug‑safe, idempotent)
   ───────────────────────────────────────────── */
