@@ -2,8 +2,8 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
-import { headers } from "next/headers";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
+import { getRottenIndexData } from "@/lib/getRottenIndexData";
 import Link from "next/link";
 import ExportCsvButton from "./ExportCsvButton";
 import CompanyCardList from "./CompanyCardList";
@@ -130,66 +130,44 @@ export default async function RottenIndexPage({
       ? rawDir
       : DEFAULT_SORT_DIRS[sort];
 
-  const qs = new URLSearchParams();
-  qs.set("type", type);
-  qs.set("limit", String(limit));
-  if (selectedCountry) qs.set("country", selectedCountry);
-  if (q) qs.set("q", q);
-  if (type === "company") {
-    qs.set("sort", sort);
-    qs.set("dir", dir);
-  }
-
-  const h = await headers();
-  const host = h.get("host");
-  if (!host) throw new Error("Missing host header");
-
-  const protocol = host.includes("localhost") ? "http" : "https";
-  const baseUrl = `${protocol}://${host}`;
-
-  const res = await fetch(`${baseUrl}/api/rotten-index?${qs.toString()}`, {
-    cache: "no-store",
+  const result = await getRottenIndexData({
+    type,
+    limit,
+    country: selectedCountry,
+    q,
+    sort,
+    dir,
   });
 
-  if (!res.ok) {
+  if ("error" in result) {
     return <p className="mt-6">Failed to load Rotten Index.</p>;
   }
 
-  const json = await res.json();
-
-  let rows: IndexedRow[] = Array.isArray(json.rows)
-    ? json.rows.map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        slug: r.slug,
-        country: r.country ?? null,
-        rotten_score: Number(r.rotten_score) || 0,
-        industry: r.industry ?? null,
-        approved_evidence_count: Number(r.approved_evidence_count) || 0,
-        leader_id: r.leader_id ?? undefined,
-        tenure_id: r.tenure_id ?? null,
-        company_name: r.company_name ?? null,
-        company_slug: r.company_slug ?? null,
-        started_at: r.started_at ?? null,
-        ended_at: r.ended_at ?? null,
-      }))
-    : [];
+  let rows: IndexedRow[] = result.rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    slug: r.slug,
+    country: r.country ?? null,
+    rotten_score: Number(r.rotten_score) || 0,
+    industry: r.industry ?? null,
+    approved_evidence_count: Number(r.approved_evidence_count) || 0,
+    tenure_id: r.tenure_id ?? null,
+    company_name: r.company_name ?? null,
+    company_slug: r.company_slug ?? null,
+    started_at: r.started_at ?? null,
+    ended_at: r.ended_at ?? null,
+  }));
 
   rows = rows.filter((r) => typeof r.rotten_score === "number");
   rows = rows.slice(0, limit);
 
-  const countryRes = await fetch(
-    `${baseUrl}/api/rotten-index?type=${type}&limit=1000`,
-    { cache: "no-store" }
-  );
-
-  const countryJson = await countryRes.json();
+  const countryResult = await getRottenIndexData({ type, limit: 1000 });
 
   const countryOptions = Array.from(
     new Set<string>(
-      Array.isArray(countryJson.rows)
-        ? countryJson.rows
-            .map((r: any) => (r.country ?? "").trim())
+      !("error" in countryResult)
+        ? countryResult.rows
+            .map((r) => (r.country ?? "").trim())
             .filter(Boolean)
         : []
     )
