@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
+import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
 
 /* ─────────────────────────────────────────────
    Utilities
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
 
   const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("id, name, country, website, description, status, user_id, approved_company_id")
+    .select("id, name, country, website, industry, description, size_employees_min, size_employees, status, user_id, approved_company_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -80,21 +81,61 @@ export async function POST(req: Request) {
     return new NextResponse("Request is not pending", { status: 409 });
   }
 
-  if (cr.approved_company_id !== null) {
-    return new NextResponse(
-      "This request is a company edit suggestion. Please approve it from /moderation/company-edits/",
-      { status: 400 }
-    );
-  }
-
   /* ─────────────────────────────────────────────
-     Create company (slug‑safe, idempotent)
+     Branch: edit suggestion vs new company
   ───────────────────────────────────────────── */
 
   let companyId: number | null = cr.approved_company_id ?? null;
   let companySlug: string = "";
 
-  if (!cr.approved_company_id) {
+  if (cr.approved_company_id !== null) {
+    // EDIT SUGGESTION: apply patch to the existing company using whitelist + no-clearing rules
+    const patch = buildCompanyEditPatch({
+      website: cr.website,
+      industry: cr.industry,
+      description: cr.description,
+      country: cr.country,
+      size_employees: cr.size_employees_min,
+    });
+
+    // Also update size_employees_range when a range label is stored
+    const sizeEmployeesLabel =
+      cr.size_employees && typeof cr.size_employees === "string"
+        ? cr.size_employees.trim()
+        : null;
+    if (sizeEmployeesLabel) {
+      (patch as Record<string, unknown>).size_employees_range = sizeEmployeesLabel;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      const { error: updateCompanyErr } = await service
+        .from("companies")
+        .update(patch)
+        .eq("id", cr.approved_company_id);
+
+      if (updateCompanyErr) {
+        console.error("[company-requests/approve] failed to update company:", updateCompanyErr.message);
+        return new NextResponse(`Failed to update company: ${updateCompanyErr.message}`, { status: 500 });
+      }
+    }
+
+    // Resolve slug for the response
+    const { data: existingCompany, error: lookupErr } = await service
+      .from("companies")
+      .select("slug")
+      .eq("id", cr.approved_company_id)
+      .maybeSingle();
+
+    if (lookupErr || !existingCompany) {
+      return new NextResponse(
+        `Failed to look up existing company: ${lookupErr?.message ?? "not found"}`,
+        { status: 500 }
+      );
+    }
+
+    companySlug = existingCompany.slug;
+  } else {
+    // NEW COMPANY: create company (slug‑safe, idempotent)
     const baseSlug = slugify(cr.name);
     let slug = baseSlug || `company-${id.slice(0, 8)}`;
 
@@ -133,21 +174,6 @@ export async function POST(req: Request) {
 
     companyId = company.id;
     companySlug = company.slug;
-  } else {
-    const { data: existingCompany, error: lookupErr } = await service
-      .from("companies")
-      .select("slug")
-      .eq("id", cr.approved_company_id)
-      .maybeSingle();
-
-    if (lookupErr || !existingCompany) {
-      return new NextResponse(
-        `Failed to look up existing company: ${lookupErr?.message ?? "not found"}`,
-        { status: 500 }
-      );
-    }
-
-    companySlug = existingCompany.slug;
   }
 
   /* ─────────────────────────────────────────────
