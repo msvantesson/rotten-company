@@ -13,6 +13,7 @@ import { getRottenFlavor } from "@/lib/flavor-engine";
 import CategoryInfoPopover from "@/components/CategoryInfoPopover";
 import CeoSection from "@/components/CeoSection";
 import CompanyTabs from "@/components/CompanyTabs";
+import Link from "next/link";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -380,6 +381,16 @@ export default async function CompanyPage({ params }: { params: Params }) {
           </div>
 
           <CeoSection companyId={company.id} userId={user?.id ?? null} />
+
+          {/* Suggest an edit CTA */}
+          <p className="text-xs text-gray-400 mt-2">
+            <Link
+              href={`/company/${company.slug}/suggest-edit`}
+              className="hover:underline"
+            >
+              Suggest an edit
+            </Link>
+          </p>
 
           {/* ✅ Keep Rotten Score meter on overview */}
           <div className="mt-6 mb-8">
