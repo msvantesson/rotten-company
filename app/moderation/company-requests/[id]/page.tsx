@@ -51,7 +51,7 @@ export default async function CommunityCompanyRequestReviewPage(props: {
   const service = supabaseService();
   const { data: cr, error } = await service
     .from("company_requests")
-    .select("id, name, country, website, description, status, user_id, assigned_moderator_id, assigned_at, created_at")
+    .select("id, name, country, website, description, industry, size_employees, size_employees_min, status, user_id, assigned_moderator_id, assigned_at, created_at, approved_company_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -109,6 +109,29 @@ export default async function CommunityCompanyRequestReviewPage(props: {
     );
   }
 
+  // For edit suggestions, load current company values for the diff view
+  let currentCompany: {
+    name: string;
+    slug: string;
+    website: string | null;
+    industry: string | null;
+    description: string | null;
+    country: string | null;
+    size_employees: number | null;
+    size_employees_range: string | null;
+  } | null = null;
+
+  if (cr.approved_company_id) {
+    const { data: comp } = await service
+      .from("companies")
+      .select("name, slug, website, industry, description, country, size_employees, size_employees_range")
+      .eq("id", cr.approved_company_id)
+      .maybeSingle();
+    currentCompany = comp ?? null;
+  }
+
+  const isEditSuggestion = Boolean(cr.approved_company_id);
+
   return (
     <main className="max-w-3xl mx-auto py-8 space-y-6">
       <Link href="/moderation" className="text-sm text-blue-700">
@@ -122,47 +145,109 @@ export default async function CommunityCompanyRequestReviewPage(props: {
       )}
 
       <header>
-        <h1 className="text-2xl font-bold">Moderate Company Request</h1>
+        <h1 className="text-2xl font-bold">
+          {isEditSuggestion ? "Moderate Edit Suggestion" : "Moderate Company Request"}
+        </h1>
         <p className="text-sm text-neutral-500 mt-1">
           ID: {cr.id} · Submitted {new Date(cr.created_at).toLocaleString()}
         </p>
       </header>
 
-      {/* Company request details */}
-      <section className="rounded-md border border-border bg-surface p-4 space-y-3">
-        <div>
-          <p className="text-xs font-semibold text-neutral-500">Company Name</p>
-          <p className="text-base font-medium text-neutral-900">{cr.name}</p>
-        </div>
-
-        {cr.country && (
-          <div>
-            <p className="text-xs font-semibold text-neutral-500">Country</p>
-            <p className="text-sm text-neutral-800">{cr.country}</p>
-          </div>
-        )}
-
-        {cr.website && (
-          <div>
-            <p className="text-xs font-semibold text-neutral-500">Website</p>
+      {/* Edit suggestion diff table */}
+      {isEditSuggestion && currentCompany ? (
+        <section className="rounded-md border border-border bg-surface p-4 space-y-3">
+          <h2 className="text-base font-semibold">Proposed Changes</h2>
+          <p className="text-xs text-neutral-500">
+            This is an edit suggestion for{" "}
             <a
-              href={cr.website}
+              href={`/company/${currentCompany.slug}`}
               target="_blank"
               rel="noreferrer"
-              className="text-sm text-blue-700"
+              className="text-blue-700"
             >
-              {cr.website}
+              {currentCompany.name}
             </a>
-          </div>
-        )}
-
-        {cr.description && (
+            . Approving will apply the non-empty proposed fields to the company.
+          </p>
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="text-left text-xs text-neutral-500 border-b">
+                <th className="py-1 pr-4 font-semibold w-1/4">Field</th>
+                <th className="py-1 pr-4 font-semibold w-[37.5%]">Current</th>
+                <th className="py-1 font-semibold w-[37.5%]">Proposed</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              <tr>
+                <td className="py-1 pr-4 text-neutral-500 align-top">Website</td>
+                <td className="py-1 pr-4 text-neutral-700 align-top break-all">{currentCompany.website ?? <span className="text-neutral-400">—</span>}</td>
+                <td className={`py-1 align-top break-all ${cr.website ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.website || "—"}</td>
+              </tr>
+              <tr>
+                <td className="py-1 pr-4 text-neutral-500 align-top">Industry</td>
+                <td className="py-1 pr-4 text-neutral-700 align-top">{currentCompany.industry ?? <span className="text-neutral-400">—</span>}</td>
+                <td className={`py-1 align-top ${cr.industry ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.industry || "—"}</td>
+              </tr>
+              <tr>
+                <td className="py-1 pr-4 text-neutral-500 align-top">Description</td>
+                <td className="py-1 pr-4 text-neutral-700 align-top whitespace-pre-wrap">{currentCompany.description ?? <span className="text-neutral-400">—</span>}</td>
+                <td className={`py-1 align-top whitespace-pre-wrap ${cr.description ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.description || "—"}</td>
+              </tr>
+              <tr>
+                <td className="py-1 pr-4 text-neutral-500 align-top">Country</td>
+                <td className="py-1 pr-4 text-neutral-700 align-top">{currentCompany.country ?? <span className="text-neutral-400">—</span>}</td>
+                <td className={`py-1 align-top ${cr.country ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.country || "—"}</td>
+              </tr>
+              <tr>
+                <td className="py-1 pr-4 text-neutral-500 align-top">Employees (min)</td>
+                <td className="py-1 pr-4 text-neutral-700 align-top">{currentCompany.size_employees != null ? currentCompany.size_employees : <span className="text-neutral-400">—</span>}</td>
+                <td className={`py-1 align-top ${cr.size_employees_min != null ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.size_employees_min != null ? cr.size_employees_min : "—"}</td>
+              </tr>
+              <tr>
+                <td className="py-1 pr-4 text-neutral-500 align-top">Employees (range)</td>
+                <td className="py-1 pr-4 text-neutral-700 align-top">{currentCompany.size_employees_range ?? <span className="text-neutral-400">—</span>}</td>
+                <td className={`py-1 align-top ${cr.size_employees ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.size_employees || "—"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      ) : (
+        /* New-company request details */
+        <section className="rounded-md border border-border bg-surface p-4 space-y-3">
           <div>
-            <p className="text-xs font-semibold text-neutral-500">Description</p>
-            <p className="text-sm text-neutral-800 whitespace-pre-wrap">{cr.description}</p>
+            <p className="text-xs font-semibold text-neutral-500">Company Name</p>
+            <p className="text-base font-medium text-neutral-900">{cr.name}</p>
           </div>
-        )}
-      </section>
+
+          {cr.country && (
+            <div>
+              <p className="text-xs font-semibold text-neutral-500">Country</p>
+              <p className="text-sm text-neutral-800">{cr.country}</p>
+            </div>
+          )}
+
+          {cr.website && (
+            <div>
+              <p className="text-xs font-semibold text-neutral-500">Website</p>
+              <a
+                href={cr.website}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-blue-700"
+              >
+                {cr.website}
+              </a>
+            </div>
+          )}
+
+          {cr.description && (
+            <div>
+              <p className="text-xs font-semibold text-neutral-500">Description</p>
+              <p className="text-sm text-neutral-800 whitespace-pre-wrap">{cr.description}</p>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Moderation actions */}
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -170,7 +255,8 @@ export default async function CommunityCompanyRequestReviewPage(props: {
         <div className="rounded-md border border-border bg-surface p-4 flex flex-col gap-3">
           <h2 className="text-base font-semibold">Approve</h2>
           <p className="text-sm text-neutral-600">
-            Mark this company request as <strong>approved</strong>.
+            Mark this {isEditSuggestion ? "edit suggestion" : "company request"} as <strong>approved</strong>.
+            {isEditSuggestion && " This will apply the proposed non-empty fields to the company."}
           </p>
           <form action={approveCompanyRequest} className="flex flex-col gap-2 flex-1">
             <input type="hidden" name="request_id" value={requestId} />
@@ -195,7 +281,7 @@ export default async function CommunityCompanyRequestReviewPage(props: {
         <div className="rounded-md border border-border bg-surface p-4 flex flex-col gap-3">
           <h2 className="text-base font-semibold">Reject</h2>
           <p className="text-sm text-neutral-600">
-            Mark this company request as <strong>rejected</strong>. A reason is required.
+            Mark this {isEditSuggestion ? "edit suggestion" : "company request"} as <strong>rejected</strong>. A reason is required.
           </p>
           <form action={rejectCompanyRequest} className="flex flex-col gap-2 flex-1">
             <input type="hidden" name="request_id" value={requestId} />

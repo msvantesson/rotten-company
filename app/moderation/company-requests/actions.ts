@@ -6,6 +6,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { createClient } from "@supabase/supabase-js";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
+import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
 
 function adminClient() {
   return createClient(
@@ -165,10 +166,10 @@ export async function approveCompanyRequest(formData: FormData) {
 
   const service = supabaseService();
 
-  // Fetch and validate assignment (include name, country, approved_company_id for company creation)
+  // Fetch and validate assignment (include edit fields for edit-suggestion approval)
   const { data: cr, error: crError } = await service
     .from("company_requests")
-    .select("id, name, country, status, assigned_moderator_id, user_id, approved_company_id")
+    .select("id, name, country, website, description, industry, size_employees, size_employees_min, status, assigned_moderator_id, user_id, approved_company_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -232,6 +233,36 @@ export async function approveCompanyRequest(formData: FormData) {
       .eq("id", approvedCompanyId)
       .maybeSingle();
     companySlug = existingCompany?.slug ?? "";
+
+    // Apply proposed edit fields to the existing company row
+    const patch = buildCompanyEditPatch({
+      website: cr.website,
+      industry: cr.industry,
+      description: cr.description,
+      country: cr.country,
+      size_employees: cr.size_employees_min,
+    });
+
+    // Also update size_employees_range when a range label is present
+    const sizeEmployeesLabel =
+      cr.size_employees && typeof cr.size_employees === "string"
+        ? cr.size_employees.trim()
+        : null;
+    if (sizeEmployeesLabel) {
+      (patch as Record<string, unknown>).size_employees_range = sizeEmployeesLabel;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      const { error: patchErr } = await service
+        .from("companies")
+        .update(patch)
+        .eq("id", approvedCompanyId);
+
+      if (patchErr) {
+        console.error("[approveCompanyRequest] failed to apply edit patch:", patchErr.message);
+        redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("Failed to apply edits to company.")}`);
+      }
+    }
   }
 
   await service

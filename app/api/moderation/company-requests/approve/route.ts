@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
+import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
 
 /* ─────────────────────────────────────────────
    Utilities
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
 
   const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("id, name, country, website, description, status, user_id, approved_company_id")
+    .select("id, name, country, website, description, industry, size_employees, size_employees_min, status, user_id, approved_company_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -78,13 +79,6 @@ export async function POST(req: Request) {
 
   if (cr.status !== "pending") {
     return new NextResponse("Request is not pending", { status: 409 });
-  }
-
-  if (cr.approved_company_id !== null) {
-    return new NextResponse(
-      "This request is a company edit suggestion. Please approve it from /moderation/company-edits/",
-      { status: 400 }
-    );
   }
 
   /* ─────────────────────────────────────────────
@@ -148,6 +142,35 @@ export async function POST(req: Request) {
     }
 
     companySlug = existingCompany.slug;
+
+    // Apply proposed edit fields to the existing company row
+    const patch = buildCompanyEditPatch({
+      website: cr.website,
+      industry: cr.industry,
+      description: cr.description,
+      country: cr.country,
+      size_employees: cr.size_employees_min,
+    });
+
+    // Also update size_employees_range when a range label is present
+    const sizeEmployeesLabel =
+      cr.size_employees && typeof cr.size_employees === "string"
+        ? cr.size_employees.trim()
+        : null;
+    if (sizeEmployeesLabel) {
+      (patch as Record<string, unknown>).size_employees_range = sizeEmployeesLabel;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      const { error: patchErr } = await service
+        .from("companies")
+        .update(patch)
+        .eq("id", cr.approved_company_id);
+
+      if (patchErr) {
+        return new NextResponse(`Failed to update company: ${patchErr.message}`, { status: 500 });
+      }
+    }
   }
 
   /* ─────────────────────────────────────────────
