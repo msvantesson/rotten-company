@@ -166,10 +166,10 @@ export async function approveCompanyRequest(formData: FormData) {
 
   const service = supabaseService();
 
-  // Fetch and validate assignment (include edit fields for edit-suggestion approval)
+  // Fetch and validate assignment (include all editable fields for edit suggestion support)
   const { data: cr, error: crError } = await service
     .from("company_requests")
-    .select("id, name, country, website, description, industry, size_employees, size_employees_min, status, assigned_moderator_id, user_id, approved_company_id")
+    .select("id, name, country, website, industry, description, size_employees_min, size_employees, status, assigned_moderator_id, user_id, approved_company_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -194,7 +194,44 @@ export async function approveCompanyRequest(formData: FormData) {
   let approvedCompanyId: number | null = cr.approved_company_id ?? null;
   let companySlug = "";
 
-  if (!approvedCompanyId) {
+  if (approvedCompanyId !== null) {
+    // EDIT SUGGESTION: apply patch to the existing company using whitelist + no-clearing rules
+    const patch = buildCompanyEditPatch({
+      website: cr.website,
+      industry: cr.industry,
+      description: cr.description,
+      country: cr.country,
+      size_employees: cr.size_employees_min,
+    });
+
+    // Also update size_employees_range when a range label is stored
+    const sizeEmployeesLabel =
+      cr.size_employees && typeof cr.size_employees === "string"
+        ? cr.size_employees.trim()
+        : null;
+    if (sizeEmployeesLabel) {
+      (patch as Record<string, unknown>).size_employees_range = sizeEmployeesLabel;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      const { error: updateCompanyErr } = await service
+        .from("companies")
+        .update(patch)
+        .eq("id", approvedCompanyId);
+
+      if (updateCompanyErr) {
+        console.error("[approveCompanyRequest] failed to update company:", updateCompanyErr.message);
+        redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("Failed to apply edits to company.")}`);
+      }
+    }
+
+    const { data: existingCompany } = await service
+      .from("companies")
+      .select("slug")
+      .eq("id", approvedCompanyId)
+      .maybeSingle();
+    companySlug = existingCompany?.slug ?? "";
+  } else {
     const baseSlug = slugify(cr.name) || `company-${requestId.slice(0, 8)}`;
     let slug = baseSlug;
 
@@ -225,43 +262,6 @@ export async function approveCompanyRequest(formData: FormData) {
     } else if (company) {
       approvedCompanyId = company.id;
       companySlug = company.slug;
-    }
-  } else {
-    const { data: existingCompany } = await service
-      .from("companies")
-      .select("slug")
-      .eq("id", approvedCompanyId)
-      .maybeSingle();
-    companySlug = existingCompany?.slug ?? "";
-
-    // Apply proposed edit fields to the existing company row
-    const patch = buildCompanyEditPatch({
-      website: cr.website,
-      industry: cr.industry,
-      description: cr.description,
-      country: cr.country,
-      size_employees: cr.size_employees_min,
-    });
-
-    // Also update size_employees_range when a range label is present
-    const sizeEmployeesLabel =
-      cr.size_employees && typeof cr.size_employees === "string"
-        ? cr.size_employees.trim()
-        : null;
-    if (sizeEmployeesLabel) {
-      (patch as Record<string, unknown>).size_employees_range = sizeEmployeesLabel;
-    }
-
-    if (Object.keys(patch).length > 0) {
-      const { error: patchErr } = await service
-        .from("companies")
-        .update(patch)
-        .eq("id", approvedCompanyId);
-
-      if (patchErr) {
-        console.error("[approveCompanyRequest] failed to apply edit patch:", patchErr.message);
-        redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("Failed to apply edits to company.")}`);
-      }
     }
   }
 

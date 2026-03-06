@@ -51,7 +51,7 @@ export default async function CommunityCompanyRequestReviewPage(props: {
   const service = supabaseService();
   const { data: cr, error } = await service
     .from("company_requests")
-    .select("id, name, country, website, description, industry, size_employees, size_employees_min, status, user_id, assigned_moderator_id, assigned_at, created_at, approved_company_id")
+    .select("id, name, country, website, industry, description, size_employees_min, size_employees, why, status, user_id, assigned_moderator_id, assigned_at, created_at, approved_company_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -109,28 +109,28 @@ export default async function CommunityCompanyRequestReviewPage(props: {
     );
   }
 
-  // For edit suggestions, load current company values for the diff view
+  // If this is an edit suggestion (approved_company_id is set), load the current company for diff view
   let currentCompany: {
-    name: string;
+    id: number;
     slug: string;
+    name: string;
     website: string | null;
     industry: string | null;
     description: string | null;
     country: string | null;
     size_employees: number | null;
-    size_employees_range: string | null;
   } | null = null;
 
-  if (cr.approved_company_id) {
-    const { data: comp } = await service
+  if (cr.approved_company_id !== null) {
+    const { data: company } = await service
       .from("companies")
-      .select("name, slug, website, industry, description, country, size_employees, size_employees_range")
+      .select("id, name, slug, website, industry, description, country, size_employees")
       .eq("id", cr.approved_company_id)
       .maybeSingle();
-    currentCompany = comp ?? null;
+    currentCompany = company ?? null;
   }
 
-  const isEditSuggestion = Boolean(cr.approved_company_id);
+  const isEditSuggestion = cr.approved_company_id !== null;
 
   return (
     <main className="max-w-3xl mx-auto py-8 space-y-6">
@@ -153,66 +153,80 @@ export default async function CommunityCompanyRequestReviewPage(props: {
         </p>
       </header>
 
-      {/* Edit suggestion diff table */}
       {isEditSuggestion && currentCompany ? (
-        <section className="rounded-md border border-border bg-surface p-4 space-y-3">
-          <h2 className="text-base font-semibold">Proposed Changes</h2>
-          <p className="text-xs text-neutral-500">
-            This is an edit suggestion for{" "}
-            <a
-              href={`/company/${currentCompany.slug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-700"
-            >
-              {currentCompany.name}
-            </a>
-            . Approving will apply the non-empty proposed fields to the company.
-          </p>
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="text-left text-xs text-neutral-500 border-b">
-                <th className="py-1 pr-4 font-semibold w-1/4">Field</th>
-                <th className="py-1 pr-4 font-semibold w-[37.5%]">Current</th>
-                <th className="py-1 font-semibold w-[37.5%]">Proposed</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              <tr>
-                <td className="py-1 pr-4 text-neutral-500 align-top">Website</td>
-                <td className="py-1 pr-4 text-neutral-700 align-top break-all">{currentCompany.website ?? <span className="text-neutral-400">—</span>}</td>
-                <td className={`py-1 align-top break-all ${cr.website ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.website || "—"}</td>
-              </tr>
-              <tr>
-                <td className="py-1 pr-4 text-neutral-500 align-top">Industry</td>
-                <td className="py-1 pr-4 text-neutral-700 align-top">{currentCompany.industry ?? <span className="text-neutral-400">—</span>}</td>
-                <td className={`py-1 align-top ${cr.industry ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.industry || "—"}</td>
-              </tr>
-              <tr>
-                <td className="py-1 pr-4 text-neutral-500 align-top">Description</td>
-                <td className="py-1 pr-4 text-neutral-700 align-top whitespace-pre-wrap">{currentCompany.description ?? <span className="text-neutral-400">—</span>}</td>
-                <td className={`py-1 align-top whitespace-pre-wrap ${cr.description ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.description || "—"}</td>
-              </tr>
-              <tr>
-                <td className="py-1 pr-4 text-neutral-500 align-top">Country</td>
-                <td className="py-1 pr-4 text-neutral-700 align-top">{currentCompany.country ?? <span className="text-neutral-400">—</span>}</td>
-                <td className={`py-1 align-top ${cr.country ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.country || "—"}</td>
-              </tr>
-              <tr>
-                <td className="py-1 pr-4 text-neutral-500 align-top">Employees (min)</td>
-                <td className="py-1 pr-4 text-neutral-700 align-top">{currentCompany.size_employees != null ? currentCompany.size_employees : <span className="text-neutral-400">—</span>}</td>
-                <td className={`py-1 align-top ${cr.size_employees_min != null ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.size_employees_min != null ? cr.size_employees_min : "—"}</td>
-              </tr>
-              <tr>
-                <td className="py-1 pr-4 text-neutral-500 align-top">Employees (range)</td>
-                <td className="py-1 pr-4 text-neutral-700 align-top">{currentCompany.size_employees_range ?? <span className="text-neutral-400">—</span>}</td>
-                <td className={`py-1 align-top ${cr.size_employees ? "font-medium text-emerald-700" : "text-neutral-400"}`}>{cr.size_employees || "—"}</td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
+        <>
+          {/* Edit suggestion: show company link and diff table */}
+          <section className="rounded-md border border-border bg-surface p-4 space-y-1">
+            <p className="text-xs font-semibold text-neutral-500">Company</p>
+            <p className="text-sm font-medium">
+              <a
+                href={`/company/${currentCompany.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-700 hover:underline"
+              >
+                {currentCompany.name}
+              </a>
+            </p>
+          </section>
+
+          {cr.why && (
+            <section className="rounded-md border border-border bg-surface p-4 space-y-1">
+              <p className="text-xs font-semibold text-neutral-500">Why</p>
+              <p className="text-sm text-neutral-800 whitespace-pre-wrap">{cr.why}</p>
+            </section>
+          )}
+
+          {/* Current vs Proposed diff */}
+          <section className="rounded-md border border-border overflow-hidden">
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-neutral-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 w-32">Field</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500">Current</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500">Proposed</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {(
+                  [
+                    { label: "Website", current: currentCompany.website, proposed: cr.website },
+                    { label: "Industry", current: currentCompany.industry, proposed: cr.industry },
+                    { label: "Description", current: currentCompany.description, proposed: cr.description },
+                    { label: "Country", current: currentCompany.country, proposed: cr.country },
+                    { label: "Employees (min)", current: currentCompany.size_employees, proposed: cr.size_employees_min },
+                    { label: "Employees (range)", current: null, proposed: cr.size_employees },
+                  ] as { label: string; current: string | number | null; proposed: string | number | null }[]
+                ).map(({ label, current: cur, proposed }) => {
+                  const hasChange =
+                    proposed !== null &&
+                    proposed !== "" &&
+                    String(proposed).trim() !== "" &&
+                    String(proposed) !== String(cur ?? "");
+                  return (
+                    <tr key={label} className={hasChange ? "bg-amber-50" : ""}>
+                      <td className="px-3 py-2 text-xs font-medium text-neutral-500 w-32">{label}</td>
+                      <td className="px-3 py-2 text-sm text-neutral-800">
+                        {cur != null && cur !== "" ? String(cur) : <span className="text-neutral-400 italic">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-sm">
+                        {proposed != null && String(proposed).trim() !== "" ? (
+                          <span className={hasChange ? "font-medium text-amber-700" : "text-neutral-800"}>
+                            {String(proposed)}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-400 italic">no change</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </section>
+        </>
       ) : (
-        /* New-company request details */
+        /* New company request: show submitted fields */
         <section className="rounded-md border border-border bg-surface p-4 space-y-3">
           <div>
             <p className="text-xs font-semibold text-neutral-500">Company Name</p>
@@ -255,8 +269,9 @@ export default async function CommunityCompanyRequestReviewPage(props: {
         <div className="rounded-md border border-border bg-surface p-4 flex flex-col gap-3">
           <h2 className="text-base font-semibold">Approve</h2>
           <p className="text-sm text-neutral-600">
-            Mark this {isEditSuggestion ? "edit suggestion" : "company request"} as <strong>approved</strong>.
-            {isEditSuggestion && " This will apply the proposed non-empty fields to the company."}
+            {isEditSuggestion
+              ? "Apply the non-empty proposed values to the company profile."
+              : "Mark this company request as approved."}
           </p>
           <form action={approveCompanyRequest} className="flex flex-col gap-2 flex-1">
             <input type="hidden" name="request_id" value={requestId} />
@@ -281,7 +296,7 @@ export default async function CommunityCompanyRequestReviewPage(props: {
         <div className="rounded-md border border-border bg-surface p-4 flex flex-col gap-3">
           <h2 className="text-base font-semibold">Reject</h2>
           <p className="text-sm text-neutral-600">
-            Mark this {isEditSuggestion ? "edit suggestion" : "company request"} as <strong>rejected</strong>. A reason is required.
+            Mark this {isEditSuggestion ? "suggestion" : "company request"} as <strong>rejected</strong>. A reason is required.
           </p>
           <form action={rejectCompanyRequest} className="flex flex-col gap-2 flex-1">
             <input type="hidden" name="request_id" value={requestId} />
