@@ -1,6 +1,6 @@
 'use client'
 
-import { supabase } from '@/app/lib/supabaseClient'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
@@ -11,6 +11,7 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     const fetchCategories = async () => {
+      const supabase = supabaseBrowser()
       const { data, error } = await supabase
         .from('categories')
         .select('*')
