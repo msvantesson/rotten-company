@@ -45,7 +45,7 @@ export async function POST(req: Request) {
   // Fetch the edit request — must be pending and have approved_company_id set
   const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("id, status, name, website, industry, description, country, size_employees_min, approved_company_id, user_id")
+    .select("id, status, name, website, industry, description, country, size_employees_min, size_employees, approved_company_id, user_id")
     .eq("id", id)
     .not("approved_company_id", "is", null)
     .maybeSingle();
@@ -66,6 +66,15 @@ export async function POST(req: Request) {
     country: cr.country,
     size_employees: cr.size_employees_min,
   });
+
+  // Also update size_employees_range when a range label is stored (new-style edit suggestions)
+  const sizeEmployeesLabel =
+    cr.size_employees && typeof cr.size_employees === "string"
+      ? cr.size_employees.trim()
+      : null;
+  if (sizeEmployeesLabel) {
+    (patch as Record<string, unknown>).size_employees_range = sizeEmployeesLabel;
+  }
 
   // Apply patch to companies table (only non-empty fields)
   if (Object.keys(patch).length > 0) {
