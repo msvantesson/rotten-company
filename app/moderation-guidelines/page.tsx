@@ -121,8 +121,8 @@ export default function ModerationGuidelinesPage() {
           <ul className="list-disc pl-6 mt-2 space-y-1">
             <li>A clear description of what happened and when.</li>
             <li>
-              Identification of the specific leader or decision-maker involved and
-              their role.
+              Identification of the company involved and (if named) the leader or
+              manager involved and their role.
             </li>
             <li>
               At least one verifiable source (court document, regulatory filing, news
@@ -134,8 +134,7 @@ export default function ModerationGuidelinesPage() {
           </ul>
           <p className="mt-2">
             Vague, unsubstantiated, or speculative submissions will be declined during
-            review. Moderators may request clarification or additional sources before
-            approving a submission.
+            review.
           </p>
         </section>
 
@@ -144,26 +143,24 @@ export default function ModerationGuidelinesPage() {
           <h2 className="text-xl font-semibold text-gray-900 mb-3">
             Moderation outcomes
           </h2>
-          <p>Each submission is reviewed against these guidelines and may result in:</p>
+
+          <p>
+            Each submission is reviewed against these guidelines and results in one
+            of the following outcomes:
+          </p>
+
           <ul className="list-disc pl-6 mt-2 space-y-1">
             <li>
-              <strong>Approved</strong> — the submission meets quality standards and
-              is published.
+              <strong>Approved</strong> — the submission meets our guidelines and is
+              published.
             </li>
             <li>
-              <strong>Returned for revision</strong> — the submission has potential but
-              needs additional evidence, clarification, or other changes before it can
-              be approved.
-            </li>
-            <li>
-              <strong>Declined</strong> — the submission does not meet our guidelines
-              and will not be published.
-            </li>
-            <li>
-              <strong>Removed</strong> — already-published content that is found to
-              violate these guidelines will be taken down.
+              <strong>Rejected</strong> — the submission does not meet our guidelines
+              and will not be published. If you want to try again, create a new
+              submission with updated information and sources.
             </li>
           </ul>
+
           <p className="mt-2">
             Repeated submission of content that violates these guidelines may result
             in account suspension.
@@ -174,9 +171,8 @@ export default function ModerationGuidelinesPage() {
         <section className="border-t border-gray-200 pt-6">
           <p className="text-sm text-gray-500">
             <strong>Disclaimer:</strong> These guidelines describe our content
-            moderation practices and do not constitute legal advice. Nothing on this
-            platform should be construed as a legal determination, finding of
-            liability, or allegation of criminal conduct. See our{" "}
+            moderation practices. Content reflects user submissions and cited sources.
+            Rotten Company may remove content that violates these guidelines. See our{" "}
             <Link href="/disclaimer" className="underline hover:text-gray-700">
               full disclaimer
             </Link>{" "}
