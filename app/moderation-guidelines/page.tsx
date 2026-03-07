@@ -18,10 +18,14 @@ export default function ModerationGuidelinesPage() {
           <h2 className="text-xl font-semibold text-gray-900 mb-3">
             What we accept
           </h2>
+
           <p>
-            Rotten Company focuses on the documented actions of corporate leaders and
-            decision-makers. Submissions are accepted when they concern:
+            Rotten Company focuses on documenting the behavior of companies — how
+            they abuse and mistreat employees and how “rotten” they are. Submissions
+            are accepted when they concern a company’s documented conduct, policies,
+            decisions, or patterns of behavior.
           </p>
+
           <ul className="list-disc pl-6 mt-2 space-y-1">
             <li>
               <strong>C-suite executives, board members, and senior directors</strong>{" "}
@@ -34,11 +38,6 @@ export default function ModerationGuidelinesPage() {
               title and describe conduct connected to that role).
             </li>
           </ul>
-          <p className="mt-2">
-            Evidence must relate to conduct that occurred in a professional or
-            corporate context. Personal conduct unrelated to a leadership role falls
-            outside our scope.
-          </p>
         </section>
 
         {/* What we do not accept */}
