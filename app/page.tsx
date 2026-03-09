@@ -54,8 +54,8 @@ export default async function HomePage() {
             Expose who they really are—backed by evidence.
           </p>
           <p className="text-base text-muted-foreground">
-            Submit documented proof of lies, cheating, and abuse so others can steer clear—before
-            accepting a job offer or signing a contract.
+            Submit documented evidence of misconduct so others can make informed decisions before
+            accepting a job or signing a contract.
           </p>
         </div>
 
@@ -71,6 +71,9 @@ export default async function HomePage() {
               <p className="text-xs text-muted-foreground">
                 Requires an account&nbsp;·&nbsp;Takes ~2 minutes&nbsp;·&nbsp;Upload PDF or image
               </p>
+              <p className="text-xs text-muted-foreground">
+                Moderation required before first evidence submission
+              </p>
             </div>
 
             <Link
@@ -82,13 +85,16 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-          <Link href="/leadership" className="text-accent hover:underline">
-            Leadership Accountability →
-          </Link>
-          <Link href="/rotten-score" className="text-accent hover:underline">
-            How Rotten Score works →
-          </Link>
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Learn more</p>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <Link href="/leadership" className="text-accent hover:underline flex items-center gap-1">
+              <span aria-hidden="true">↗</span> Leadership Accountability
+            </Link>
+            <Link href="/rotten-score" className="text-accent hover:underline flex items-center gap-1">
+              <span aria-hidden="true">↗</span> How Rotten Score works
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -111,6 +117,11 @@ export default async function HomePage() {
             <p className="text-sm text-muted-foreground">
               Rotten Company is maintained together by the community. Submissions are reviewed by
               other users against simple guidelines before acceptance.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Before submitting evidence for the first time, registered users complete a small number
+              of moderation tasks when available. This shared responsibility keeps the platform
+              credible.
             </p>
           </div>
 
@@ -203,6 +214,29 @@ export default async function HomePage() {
           </table>
         </div>
       </section>
+      {/* GOVERNANCE & FAIRNESS */}
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold">Governance &amp; Fairness</h2>
+        <ul className="space-y-2 text-sm text-muted-foreground list-none">
+          <li className="flex items-start gap-2">
+            <span className="mt-0.5 text-accent">✓</span>
+            <span><strong className="text-foreground">Evidence-first moderation</strong> — every submission is reviewed against documented evidence before it can affect any score or appear publicly.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="mt-0.5 text-accent">✓</span>
+            <span><strong className="text-foreground">Right to respond</strong> — companies and individuals can submit a public response to any approved evidence.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="mt-0.5 text-accent">✓</span>
+            <span><strong className="text-foreground">No anonymous scoring</strong> — all evidence submissions require a verified account; anonymous ratings are not accepted.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="mt-0.5 text-accent">✓</span>
+            <span><strong className="text-foreground">No paid removals or reputation laundering</strong> — scores reflect evidence only and cannot be purchased, boosted, or suppressed.</span>
+          </li>
+        </ul>
+      </section>
+
     </main>
   );
 }
