@@ -98,9 +98,13 @@ export default function RottenScorePage() {
             weighting evidence counts:
             <br />
             <code className="bg-gray-100 px-1 rounded text-sm">
-              severity_score = (low_count × 1) + (medium_count × 3) +
-              (high_count × 6)
+              severity_score = (misconduct_low × 1) + (misconduct_medium × 3) +
+              (misconduct_high × 6) − eligible_remediation_units
             </code>
+            <br />
+            Remediation evidence can offset misconduct, but is capped at 25% of
+            the misconduct count per category (minimum 1 if any misconduct
+            exists).
           </li>
           <li>
             <strong>Each category&rsquo;s final score</strong> combines all
@@ -265,17 +269,42 @@ export default function RottenScorePage() {
               </h3>
               <p className="text-sm text-gray-600">
                 For each company–category pair, count the approved evidence
-                items by severity and combine them:
+                items by type and severity, then apply the remediation cap:
               </p>
               <pre className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto">
-                {`severity_score =
-  (low_count  × 1)
-+ (medium_count × 3)
-+ (high_count  × 6)`}
+                {`misconduct_units =
+  (misconduct_low  × 1)
++ (misconduct_medium × 3)
++ (misconduct_high  × 6)
+
+remediation_units =
+  (remediation_low  × 1)
++ (remediation_medium × 3)
++ (remediation_high  × 6)
+
+-- Remediation cap (per category):
+-- eligible_remediation_count = 0 when total_misconduct_count = 0
+eligible_remediation_count =
+  LEAST(total_remediation_count,
+        GREATEST(1, FLOOR(total_misconduct_count × 0.25)))
+
+eligible_ratio =
+  eligible_remediation_count / total_remediation_count
+
+eligible_remediation_units =
+  remediation_units × eligible_ratio
+
+severity_score =
+  misconduct_units − eligible_remediation_units`}
               </pre>
               <p className="text-sm text-gray-600">
-                High-severity evidence has six times the weight of low-severity
-                evidence, reflecting greater harm.
+                Remediation evidence can reduce a category&rsquo;s severity
+                score, but is capped at{" "}
+                <strong>25% of the misconduct count</strong> per category
+                (minimum 1 eligible if any misconduct exists). This prevents a
+                company from wiping out a large misconduct score with a handful
+                of remediation items. High-severity evidence carries six times
+                the weight of low-severity evidence.
               </p>
             </div>
 
@@ -289,7 +318,7 @@ export default function RottenScorePage() {
                 severity score, and the category&rsquo;s base weight:
               </p>
               <pre className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto">
-                {`final_score = COALESCE(avg_rating, 0) × severity_score × base_weight`}
+                {`final_score = COALESCE(avg_rating, 0) × GREATEST(severity_score, 0) × base_weight`}
               </pre>
               <p className="text-sm text-gray-600">
                 <code className="bg-gray-100 px-1 rounded">avg_rating</code> is
@@ -300,7 +329,11 @@ export default function RottenScorePage() {
                 the relative ethical importance of the category. When there are
                 no ratings,{" "}
                 <code className="bg-gray-100 px-1 rounded">avg_rating</code>{" "}
-                defaults to 0, making final_score 0 for that category.
+                defaults to 0, making final_score 0 for that category.{" "}
+                <code className="bg-gray-100 px-1 rounded">GREATEST(severity_score, 0)</code>{" "}
+                clamps the severity score to a minimum of 0, ensuring that
+                unusually large remediation cannot produce a negative final
+                score.
               </p>
             </div>
 
@@ -355,6 +388,14 @@ export default function RottenScorePage() {
                 <li>
                   Higher community ratings on that evidence also increase the
                   score.
+                </li>
+                <li>
+                  Remediation evidence can reduce a category&rsquo;s severity
+                  score, but only up to{" "}
+                  <strong>25% of the misconduct count</strong> (minimum 1
+                  eligible item if any misconduct exists). This guardrail
+                  prevents a small number of remediation items from eliminating
+                  a large misconduct score.
                 </li>
                 <li>
                   Category base weights are set in the database and reflect the

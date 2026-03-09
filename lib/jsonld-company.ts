@@ -10,6 +10,12 @@ type CategoryBreakdownJsonLd = {
   evidence_count: number;
   severity_score: number | null;
   final_score: number;
+  misconduct_low_count?: number | null;
+  misconduct_medium_count?: number | null;
+  misconduct_high_count?: number | null;
+  remediation_low_count?: number | null;
+  remediation_medium_count?: number | null;
+  remediation_high_count?: number | null;
 };
 
 type JsonLdInput = {
@@ -97,6 +103,12 @@ export function buildCompanyJsonLd({
         evidenceCount: c.evidence_count,
         severityScore: c.severity_score,
         finalScore: c.final_score,
+        misconductLowCount: c.misconduct_low_count ?? 0,
+        misconductMediumCount: c.misconduct_medium_count ?? 0,
+        misconductHighCount: c.misconduct_high_count ?? 0,
+        remediationLowCount: c.remediation_low_count ?? 0,
+        remediationMediumCount: c.remediation_medium_count ?? 0,
+        remediationHighCount: c.remediation_high_count ?? 0,
       },
     })),
 
