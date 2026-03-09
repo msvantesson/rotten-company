@@ -2,6 +2,23 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { toLegacyCategory } from "@/app/lib/legacy-category";
 
+const ALLOWED_EVIDENCE_TYPES = [
+  "misconduct",
+  "remediation",
+  "correction",
+  "audit",
+  "statement",
+] as const;
+
+type EvidenceType = (typeof ALLOWED_EVIDENCE_TYPES)[number];
+
+function parseEvidenceType(raw: string | undefined): EvidenceType {
+  if (raw && (ALLOWED_EVIDENCE_TYPES as readonly string[]).includes(raw)) {
+    return raw as EvidenceType;
+  }
+  return "misconduct";
+}
+
 function now() {
   return Date.now();
 }
@@ -37,7 +54,8 @@ export async function POST(req: Request) {
     }
   }
 
-  const { entityType, entityId, title, summary, category } = fields;
+  const { entityType, entityId, title, summary, category, evidenceType } = fields;
+  const validatedEvidenceType = parseEvidenceType(evidenceType);
 
   // ---- REQUIRED FIELDS (server-side) ----
   if (!entityType || !entityId || !title || !category || !summary) {
@@ -178,6 +196,7 @@ export async function POST(req: Request) {
         category: legacyCategory,
         user_id: userId,
         file_url: fileUrl,
+        evidence_type: validatedEvidenceType,
         // Optional: persist file metadata if available
         file_type: file?.type ?? null,
         file_size: file?.size ?? null,
