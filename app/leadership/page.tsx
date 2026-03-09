@@ -41,6 +41,7 @@ type IndexedRow = {
   slug: string;
   country?: string | null;
   rotten_score: number | null;
+  escalation_score?: number | null;
   leader_id?: number;
   tenure_id?: number | null;
   company_name?: string | null;
@@ -87,6 +88,7 @@ export default async function LeadershipPage({
                 slug: r.slug,
                 country: r.country ?? null,
                 rotten_score: r.rotten_score != null ? Number(r.rotten_score) : null,
+                escalation_score: r.escalation_score != null ? Number(r.escalation_score) : null,
                 leader_id: r.leader_id ?? undefined,
                 tenure_id: r.tenure_id ?? null,
                 company_name: r.company_name ?? null,
@@ -216,13 +218,16 @@ export default async function LeadershipPage({
                 <th scope="col" className="py-2 px-4 text-center font-mono tabular-nums w-24">
                   Rotten Score
                 </th>
+                <th scope="col" className="py-2 px-4 text-center font-mono tabular-nums w-28">
+                  Repeat Offender
+                </th>
                 {isModerator && <th scope="col" className="py-2 pl-4">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {indexRows.length === 0 ? (
                 <tr>
-                  <td colSpan={isModerator ? 8 : 7} className="py-4 text-center text-muted-foreground text-sm">
+                  <td colSpan={isModerator ? 9 : 8} className="py-4 text-center text-muted-foreground text-sm">
                     No CEO records found.
                   </td>
                 </tr>
@@ -266,6 +271,11 @@ export default async function LeadershipPage({
                       </td>
                       <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-muted">
                         {r.rotten_score != null && isFinite(r.rotten_score) ? r.rotten_score.toFixed(2) : "—"}
+                      </td>
+                      <td className="py-2 px-4 text-center font-mono tabular-nums w-28 bg-muted">
+                        {r.escalation_score != null && isFinite(r.escalation_score)
+                          ? r.escalation_score.toFixed(2)
+                          : "—"}
                       </td>
                       {isModerator && (
                         <td className="py-2 pl-4">
