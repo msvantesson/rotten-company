@@ -12,7 +12,7 @@ export type RottenIndexRow = {
   name: string;
   slug: string;
   country: string | null;
-  rotten_score: number;
+  rotten_score: number | null;
   // company-only
   industry?: string | null;
   approved_evidence_count?: number;
@@ -101,11 +101,11 @@ export async function getRottenIndexData(
 
       return { rows };
     } else {
-      // Leaders
+      // Leaders — join with leader_rotten_score (left join via PostgREST) to get
+      // computed final_score. Leaders without a score record are included with null.
       let leadersQuery = supabase
         .from("leaders")
-        .select("id, name, slug, country, rotten_score")
-        .order("rotten_score", { ascending: false })
+        .select("id, name, slug, country, leader_rotten_score(final_score)")
         .limit(limit);
 
       if (country) leadersQuery = leadersQuery.eq("country", country);
@@ -149,22 +149,34 @@ export async function getRottenIndexData(
         if (tTime > eTime) tenureMap.set(tenure.leader_id, tenure);
       }
 
-      const rows: RottenIndexRow[] = leaders.map((l: any) => {
-        const tenure = tenureMap.get(l.id);
-        const company = tenure?.companies as any;
-        return {
-          id: l.id,
-          name: l.name,
-          slug: l.slug,
-          country: l.country ?? null,
-          rotten_score: Number(l.rotten_score) || 0,
-          tenure_id: tenure?.id ?? null,
-          company_name: company?.name ?? null,
-          company_slug: company?.slug ?? null,
-          started_at: tenure?.started_at ?? null,
-          ended_at: tenure?.ended_at ?? null,
-        };
-      });
+      const rows: RottenIndexRow[] = leaders
+        .map((l: any) => {
+          const tenure = tenureMap.get(l.id);
+          const company = tenure?.companies as any;
+          const scoreRaw = l.leader_rotten_score?.final_score;
+          const scoreNum = scoreRaw != null ? Number(scoreRaw) : NaN;
+          const rotten_score: number | null =
+            isFinite(scoreNum) ? scoreNum : null;
+          return {
+            id: l.id,
+            name: l.name,
+            slug: l.slug,
+            country: l.country ?? null,
+            rotten_score,
+            tenure_id: tenure?.id ?? null,
+            company_name: company?.name ?? null,
+            company_slug: company?.slug ?? null,
+            started_at: tenure?.started_at ?? null,
+            ended_at: tenure?.ended_at ?? null,
+          };
+        })
+        // Sort by computed score descending, nulls last
+        .sort((a, b) => {
+          if (a.rotten_score == null && b.rotten_score == null) return 0;
+          if (a.rotten_score == null) return 1;
+          if (b.rotten_score == null) return -1;
+          return b.rotten_score - a.rotten_score;
+        });
 
       return { rows };
     }
