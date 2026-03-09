@@ -72,7 +72,7 @@ export default async function HomePage() {
                 Requires an account&nbsp;·&nbsp;Takes ~2 minutes&nbsp;·&nbsp;Upload PDF or image
               </p>
               <p className="text-xs text-muted-foreground">
-                Moderation required before first evidence submission
+                Moderation required before your first evidence submission
               </p>
             </div>
 
@@ -85,7 +85,7 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="border-t border-border/50 pt-3 space-y-1.5">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Learn more</p>
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
             <Link href="/leadership" className="text-accent hover:underline flex items-center gap-1">
@@ -137,7 +137,7 @@ export default async function HomePage() {
       </section>
 
       {/* TRUST SIGNALS */}
-      <section className="space-y-4">
+      <section className="mt-24 space-y-4">
         <h2 className="text-2xl font-semibold">Our principles</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1">
@@ -164,7 +164,7 @@ export default async function HomePage() {
       </section>
 
       {/* TOP 10 */}
-      <section className="space-y-4">
+      <section className="mt-24 space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-2xl font-semibold">Top 10 Rotten Companies</h2>
           <Link href="/rotten-index" className="text-sm text-accent hover:underline">
