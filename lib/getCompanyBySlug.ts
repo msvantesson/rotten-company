@@ -29,8 +29,14 @@ export type CompanyWithRelations = {
     rating_count: number;
     avg_rating_score: number | null;
     evidence_count: number;
-    evidence_score: number | null;
+    severity_score: number | null;
     final_score: number | null;
+    misconduct_low_count: number | null;
+    misconduct_medium_count: number | null;
+    misconduct_high_count: number | null;
+    remediation_low_count: number | null;
+    remediation_medium_count: number | null;
+    remediation_high_count: number | null;
   }>;
 };
 
@@ -94,7 +100,7 @@ export async function getCompanyBySlug(
   // STEP 6 — Load category breakdown
   //
   const { data: breakdown, error: breakdownError } = await supabase
-    .from("company_category_breakdown")
+    .from("company_category_full_breakdown")
     .select(
       `
       category_id,
@@ -102,8 +108,14 @@ export async function getCompanyBySlug(
       rating_count,
       avg_rating_score,
       evidence_count,
-      evidence_score,
-      final_score
+      severity_score,
+      final_score,
+      misconduct_low_count,
+      misconduct_medium_count,
+      misconduct_high_count,
+      remediation_low_count,
+      remediation_medium_count,
+      remediation_high_count
     `
     )
     .eq("company_id", company.id);

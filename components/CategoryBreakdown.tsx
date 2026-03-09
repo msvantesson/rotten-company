@@ -10,6 +10,12 @@ type BreakdownItem = {
   evidence_count: number;
   severity_score: number | null;
   final_score: number | null;
+  misconduct_low_count: number | null;
+  misconduct_medium_count: number | null;
+  misconduct_high_count: number | null;
+  remediation_low_count: number | null;
+  remediation_medium_count: number | null;
+  remediation_high_count: number | null;
 };
 
 type EvidenceItem = {
@@ -129,7 +135,9 @@ export function CategoryBreakdown({
 
                 <span>Ratings: {item.rating_count ?? 0}</span>
 
-                <span>
+                <span
+                  title="Severity score after remediation cap: eligible remediation ≤ 25% of misconduct count (min 1 if any misconduct exists)"
+                >
                   Severity Score:{" "}
                   {isFiniteNumber(item.severity_score)
                     ? item.severity_score.toFixed(2)
@@ -143,6 +151,37 @@ export function CategoryBreakdown({
                   pts
                 </span>
               </div>
+
+              {/* Split evidence counts */}
+              {((item.misconduct_low_count ?? 0) > 0 ||
+                (item.misconduct_medium_count ?? 0) > 0 ||
+                (item.misconduct_high_count ?? 0) > 0 ||
+                (item.remediation_low_count ?? 0) > 0 ||
+                (item.remediation_medium_count ?? 0) > 0 ||
+                (item.remediation_high_count ?? 0) > 0) && (
+                <div className="text-xs text-neutral-500 space-y-0.5 pl-1 border-l-2 border-neutral-200">
+                  <div>
+                    <span className="font-medium text-red-700">Misconduct</span>
+                    {": "}
+                    low&nbsp;{item.misconduct_low_count ?? 0} · medium&nbsp;
+                    {item.misconduct_medium_count ?? 0} · high&nbsp;
+                    {item.misconduct_high_count ?? 0}
+                  </div>
+                  <div>
+                    <span className="font-medium text-green-700">Remediation</span>
+                    {": "}
+                    low&nbsp;{item.remediation_low_count ?? 0} · medium&nbsp;
+                    {item.remediation_medium_count ?? 0} · high&nbsp;
+                    {item.remediation_high_count ?? 0}
+                    <span
+                      className="ml-1 text-neutral-400"
+                      title="Only up to 25% of the misconduct count (minimum 1 if there is any misconduct) counts toward remediation credit."
+                    >
+                      ⓘ cap: 25%
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Evidence list for this category */}
               <div className="pl-6 space-y-3">
