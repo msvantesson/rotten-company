@@ -40,7 +40,7 @@ type IndexedRow = {
   name: string;
   slug: string;
   country?: string | null;
-  rotten_score: number;
+  rotten_score: number | null;
   leader_id?: number;
   tenure_id?: number | null;
   company_name?: string | null;
@@ -86,7 +86,7 @@ export default async function LeadershipPage({
                 name: r.name,
                 slug: r.slug,
                 country: r.country ?? null,
-                rotten_score: Number(r.rotten_score) || 0,
+                rotten_score: r.rotten_score != null ? Number(r.rotten_score) : null,
                 leader_id: r.leader_id ?? undefined,
                 tenure_id: r.tenure_id ?? null,
                 company_name: r.company_name ?? null,
@@ -94,7 +94,6 @@ export default async function LeadershipPage({
                 started_at: r.started_at ?? null,
                 ended_at: r.ended_at ?? null,
               }))
-              .filter((r: IndexedRow) => typeof r.rotten_score === "number")
               .slice(0, limit)
           : [];
       }
@@ -266,7 +265,7 @@ export default async function LeadershipPage({
                         )}
                       </td>
                       <td className="py-2 px-4 text-center font-mono tabular-nums w-24 bg-muted">
-                        {r.rotten_score.toFixed(2)}
+                        {r.rotten_score != null && isFinite(r.rotten_score) ? r.rotten_score.toFixed(2) : "—"}
                       </td>
                       {isModerator && (
                         <td className="py-2 pl-4">
