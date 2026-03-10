@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { approveEvidence, rejectEvidence } from "@/app/moderation/actions";
+import ModerationForms from "./ModerationForms";
 
 export const dynamic = "force-dynamic";
 
@@ -315,72 +316,13 @@ export default async function CommunityEvidenceReviewPage(props: {
       </section>
 
       {/* Moderation actions */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Approve */}
-        <div className="rounded-md border border-border bg-surface p-4 flex flex-col gap-3">
-          <h2 className="text-base font-semibold">Approve</h2>
-          <p className="text-sm text-neutral-600">
-            Mark as <strong>approved</strong>. The submitter will be notified.
-          </p>
-          <form action={handleApprove} className="flex flex-col gap-2 flex-1">
-            <input type="hidden" name="evidence_id" value={String(evidenceId)} />
-            <label className="text-sm">
-              Severity{severityRequired ? " (required)" : " (optional)"}
-              <select
-                name="severity"
-                required={severityRequired}
-                defaultValue={enumSeverity ?? ""}
-                className="mt-1 w-full rounded border px-2 py-1 text-sm"
-              >
-                <option value="">— select severity —</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </label>
-            <label className="text-sm">
-              Note (optional)
-              <textarea
-                name="moderator_note"
-                placeholder="Optional note for the submitter"
-                className="mt-1 w-full rounded border px-2 py-1 text-sm min-h-[60px]"
-              />
-            </label>
-            <button
-              type="submit"
-              className="mt-auto rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-            >
-              Approve
-            </button>
-          </form>
-        </div>
-
-        {/* Reject */}
-        <div className="rounded-md border border-border bg-surface p-4 flex flex-col gap-3">
-          <h2 className="text-base font-semibold">Reject</h2>
-          <p className="text-sm text-neutral-600">
-            Mark as <strong>rejected</strong>. A reason is required.
-          </p>
-          <form action={handleReject} className="flex flex-col gap-2 flex-1">
-            <input type="hidden" name="evidence_id" value={String(evidenceId)} />
-            <label className="text-sm">
-              Rejection reason (required)
-              <textarea
-                name="moderator_note"
-                placeholder="Explain why this evidence is being rejected"
-                required
-                className="mt-1 w-full rounded border px-2 py-1 text-sm min-h-[70px]"
-              />
-            </label>
-            <button
-              type="submit"
-              className="mt-auto rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-            >
-              Reject
-            </button>
-          </form>
-        </div>
-      </section>
+      <ModerationForms
+        evidenceId={evidenceId}
+        severityRequired={severityRequired}
+        defaultSeverity={enumSeverity ?? ""}
+        approveAction={handleApprove}
+        rejectAction={handleReject}
+      />
     </main>
   );
 }
