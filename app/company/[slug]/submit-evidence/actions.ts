@@ -2,6 +2,7 @@
 
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import { severityLabelToNumber } from "@/lib/severity-mapping";
 
 export async function submitEvidence(formData: FormData) {
   const company_id = Number(formData.get("company_id"));
@@ -9,6 +10,8 @@ export async function submitEvidence(formData: FormData) {
   const title = String(formData.get("title"));
   const summary = String(formData.get("summary"));
   const category_id = Number(formData.get("category_id"));
+  const severity_suggested_raw = formData.get("severity_suggested")?.toString() ?? null;
+  const severity_suggested = severityLabelToNumber(severity_suggested_raw);
 
   const supabase = await supabaseServer();
 
@@ -37,6 +40,7 @@ export async function submitEvidence(formData: FormData) {
     summary,
     category_id,
     status: "pending",
+    severity_suggested,
   });
 
   if (error) {

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { type SeverityLabel } from "@/lib/severity-mapping";
 
 type EvidenceUploadProps = {
   entityId: number;
@@ -31,7 +32,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
 
-  const [severity, setSeverity] = useState<number>(3);
+  const [severitySuggested, setSeveritySuggested] = useState<SeverityLabel>("medium");
 
   const [confirmPolicy, setConfirmPolicy] = useState(false);
 
@@ -93,7 +94,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       form.append("entityType", entityType);
       form.append("entityId", String(entityId));
       form.append("category", String(categoryId));
-      form.append("severity", String(severity));
+      form.append("severitySuggested", severitySuggested);
       form.append("evidenceType", evidenceType);
       form.append("userId", user.id);
 
@@ -219,18 +220,17 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       </div>
 
       <div className="space-y-1">
-        <label className="block text-sm font-medium">
-          Severity (1 = low, 5 = severe)
-        </label>
-        <input
-          type="range"
-          min={1}
-          max={5}
-          value={severity}
-          onChange={(e) => setSeverity(Number(e.target.value))}
+        <label className="block text-sm font-medium">Severity (suggested)</label>
+        <select
+          value={severitySuggested}
+          onChange={(e) => setSeveritySuggested(e.target.value as SeverityLabel)}
+          className="border p-2 rounded w-full"
           disabled={loading}
-        />
-        <p className="text-xs text-muted-foreground">Selected: {severity}</p>
+        >
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
       </div>
 
       <div className="space-y-1">
