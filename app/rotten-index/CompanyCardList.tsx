@@ -5,7 +5,7 @@ type CompanyRow = {
   name: string;
   slug: string;
   country?: string | null;
-  rotten_score: number;
+  rotten_score: number | null;
   industry?: string | null;
   approved_evidence_count?: number;
 };
@@ -32,7 +32,7 @@ export default function CompanyCardList({ rows }: { rows: CompanyRow[] }) {
             </div>
             <div className="shrink-0 text-right">
               <p className="text-lg font-mono font-bold tabular-nums text-foreground leading-none">
-                {r.rotten_score.toFixed(2)}
+                {r.rotten_score != null ? r.rotten_score.toFixed(2) : "—"}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {r.approved_evidence_count ?? 0}{" "}

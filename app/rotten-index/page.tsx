@@ -15,7 +15,7 @@ type IndexedRow = {
   name: string;
   slug: string;
   country?: string | null;
-  rotten_score: number;
+  rotten_score: number | null;
   // company-only fields
   industry?: string | null;
   approved_evidence_count?: number;
@@ -148,7 +148,7 @@ export default async function RottenIndexPage({
     name: r.name,
     slug: r.slug,
     country: r.country ?? null,
-    rotten_score: Number(r.rotten_score) || 0,
+    rotten_score: r.rotten_score != null ? Number(r.rotten_score) : null,
     industry: r.industry ?? null,
     approved_evidence_count: Number(r.approved_evidence_count) || 0,
     tenure_id: r.tenure_id ?? null,
@@ -158,7 +158,11 @@ export default async function RottenIndexPage({
     ended_at: r.ended_at ?? null,
   }));
 
-  rows = rows.filter((r) => typeof r.rotten_score === "number");
+  // For the company index, filter out rows with no score (unscored companies).
+  // For the leader index, keep all leaders even when score is unknown.
+  if (type === "company") {
+    rows = rows.filter((r) => r.rotten_score != null);
+  }
   rows = rows.slice(0, limit);
 
   const countryResult = await getRottenIndexData({ type, limit: 1000 });
@@ -377,7 +381,7 @@ export default async function RottenIndexPage({
                     )}
                   </td>
                   <td className="py-3 pr-4 text-right font-mono tabular-nums">
-                    {r.rotten_score.toFixed(2)}
+                    {r.rotten_score != null ? r.rotten_score.toFixed(2) : "—"}
                   </td>
                 </tr>
               ) : (
@@ -403,7 +407,7 @@ export default async function RottenIndexPage({
                     {r.approved_evidence_count ?? 0}
                   </td>
                   <td className="py-3 pr-4 text-right font-mono tabular-nums">
-                    {r.rotten_score.toFixed(2)}
+                    {r.rotten_score != null ? r.rotten_score.toFixed(2) : "—"}
                   </td>
                 </tr>
               )
