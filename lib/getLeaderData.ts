@@ -89,7 +89,7 @@ export async function getLeaderData(slug: string) {
     .eq("leader_id", leader.id)
     .maybeSingle();
 
-  if (inequalityError) {
+  if (inequalityError && inequalityError.code !== "PGRST205") {
     console.error("Leader inequality error:", inequalityError);
   }
 
@@ -142,7 +142,7 @@ export async function getLeaderData(slug: string) {
     .select("*")
     .eq("leader_id", leader.id);
 
-  if (categoriesError) {
+  if (categoriesError && categoriesError.code !== "PGRST205") {
     console.error("Leader category breakdown error:", categoriesError);
   }
 
@@ -165,8 +165,8 @@ export async function getLeaderData(slug: string) {
       inequality_score: inequality?.pay_ratio ?? 0,
       company_rotten_score: 0,
     },
-    categories,
-    inequality,
+    categories: categories ?? [],
+    inequality: inequality ?? null,
     evidence,
   };
 }
