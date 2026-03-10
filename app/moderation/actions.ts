@@ -77,17 +77,24 @@ async function enqueueNotification(
   }
 }
 
+const VALID_SEVERITIES = ["low", "medium", "high"] as const;
+type SeverityEnum = (typeof VALID_SEVERITIES)[number];
+
+function isValidSeverity(s: string): s is SeverityEnum {
+  return (VALID_SEVERITIES as readonly string[]).includes(s);
+}
+
 /**
- * Fetch user_id and assigned_moderator_id for an evidence item.
- * Used to enforce self-moderation and assignment rules in a single round-trip.
+ * Fetch user_id, assigned_moderator_id, and evidence_type for an evidence item.
+ * Used to enforce self-moderation, assignment rules, and severity requirements.
  */
 async function fetchEvidenceMeta(
   supabase: ReturnType<typeof supabaseService>,
   evidenceId: number,
-): Promise<{ userId: string | null; assignedModeratorId: string | null }> {
+): Promise<{ userId: string | null; assignedModeratorId: string | null; evidenceType: string | null }> {
   const { data, error } = await supabase
     .from("evidence")
-    .select("user_id, assigned_moderator_id")
+    .select("user_id, assigned_moderator_id, evidence_type")
     .eq("id", evidenceId)
     .maybeSingle();
 
@@ -96,12 +103,13 @@ async function fetchEvidenceMeta(
       evidenceId,
       error,
     });
-    return { userId: null, assignedModeratorId: null };
+    return { userId: null, assignedModeratorId: null, evidenceType: null };
   }
 
   return {
     userId: data.user_id ?? null,
     assignedModeratorId: data.assigned_moderator_id ?? null,
+    evidenceType: data.evidence_type ?? null,
   };
 }
 
@@ -143,6 +151,7 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
 
   const evidenceIdRaw = formData.get("evidence_id")?.toString() ?? null;
   const moderatorNote = formData.get("moderator_note")?.toString() ?? "";
+  const severityRaw = formData.get("severity")?.toString().trim() ?? "";
 
   const evidenceId = evidenceIdRaw ? Number(evidenceIdRaw) : NaN;
   if (!evidenceId || Number.isNaN(evidenceId)) {
@@ -157,7 +166,7 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
 
   // Enforce "cannot moderate own evidence" (only when owner is known)
   // and that only the assigned moderator can approve — both in a single query.
-  const { userId: ownerId, assignedModeratorId } = await fetchEvidenceMeta(supabase, evidenceId);
+  const { userId: ownerId, assignedModeratorId, evidenceType } = await fetchEvidenceMeta(supabase, evidenceId);
   if (ownerId && ownerId === moderatorId) {
     return {
       ok: false,
@@ -168,14 +177,30 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
     return { ok: false, error: "This item is assigned to a different moderator." };
   }
 
+  // Validate severity: required for misconduct and remediation evidence types
+  const severity = isValidSeverity(severityRaw) ? severityRaw : null;
+  const severityRequired = evidenceType === "remediation" || evidenceType === "misconduct";
+  if (severityRequired && !severity) {
+    return {
+      ok: false,
+      error: "Severity (low / medium / high) is required when approving this evidence.",
+    };
+  }
+
+  // Build update payload — always include severity if provided
+  const updatePayload: Record<string, unknown> = {
+    status: "approved",
+    assigned_moderator_id: moderatorId,
+    assigned_at: new Date().toISOString(),
+  };
+  if (severity) {
+    updatePayload.severity = severity;
+  }
+
   // Update evidence status
   const { error: updateError } = await supabase
     .from("evidence")
-    .update({
-      status: "approved",
-      assigned_moderator_id: moderatorId,
-      assigned_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", evidenceId);
 
   if (updateError) {

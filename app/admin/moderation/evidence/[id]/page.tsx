@@ -128,11 +128,20 @@ export default async function EvidenceReviewPage(props: {
     categoryName = (cat as any)?.name ?? null;
   }
 
-  const severityValue =
+  // Prefer enum severity from DB (low/medium/high); fall back to severity_suggested as a hint
+  const enumSeverity =
+    evidence.severity === "low" || evidence.severity === "medium" || evidence.severity === "high"
+      ? (evidence.severity as "low" | "medium" | "high")
+      : null;
+  const severityDisplay =
+    enumSeverity ??
     (typeof evidence.severity_suggested === "number"
-      ? evidence.severity_suggested
-      : null) ??
-    (typeof evidence.severity === "number" ? evidence.severity : null);
+      ? `${evidence.severity_suggested} (suggested, not scored)`
+      : null);
+
+  // Whether severity selection is required for approval
+  const severityRequired =
+    evidence.evidence_type === "remediation" || evidence.evidence_type === "misconduct";
 
   return (
     <main
@@ -273,10 +282,10 @@ export default async function EvidenceReviewPage(props: {
 
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>
-                Severity (1 = low, 5 = severe)
+                Severity
               </div>
               <div style={{ fontSize: 14, color: "var(--foreground)" }}>
-                {severityValue ?? "(not set)"}
+                {severityDisplay ?? "(not set)"}
               </div>
             </div>
           </div>
@@ -389,6 +398,28 @@ export default async function EvidenceReviewPage(props: {
             }}
           >
             <input type="hidden" name="evidenceId" value={String(evidenceId)} />
+
+            <label style={{ fontSize: 13 }}>
+              Severity{severityRequired ? " (required)" : " (optional)"}
+              <select
+                name="severity"
+                required={severityRequired}
+                defaultValue={enumSeverity ?? ""}
+                style={{
+                  width: "100%",
+                  display: "block",
+                  marginTop: 4,
+                  padding: "4px 6px",
+                  fontSize: 13,
+                }}
+                disabled={!isPending}
+              >
+                <option value="">— select severity —</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </label>
 
             <label style={{ fontSize: 13 }}>
               Approval note (optional)

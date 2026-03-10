@@ -198,11 +198,20 @@ export default async function CommunityEvidenceReviewPage(props: {
     categoryName = (cat as any)?.name ?? null;
   }
 
-  const severityValue =
+  // Prefer enum severity from DB (low/medium/high); fall back to severity_suggested as a hint
+  const enumSeverity =
+    evidence.severity === "low" || evidence.severity === "medium" || evidence.severity === "high"
+      ? (evidence.severity as "low" | "medium" | "high")
+      : null;
+  const severityDisplay =
+    enumSeverity ??
     (typeof evidence.severity_suggested === "number"
-      ? evidence.severity_suggested
-      : null) ??
-    (typeof evidence.severity === "number" ? evidence.severity : null);
+      ? `${evidence.severity_suggested} (suggested, not scored)`
+      : null);
+
+  // Whether severity selection is required for approval
+  const severityRequired =
+    evidence.evidence_type === "remediation" || evidence.evidence_type === "misconduct";
 
   return (
     <main className="max-w-3xl mx-auto py-8 space-y-6">
@@ -261,8 +270,8 @@ export default async function CommunityEvidenceReviewPage(props: {
             </p>
           </div>
           <div>
-            <p className="text-xs font-semibold text-neutral-500">Severity (1–5)</p>
-            <p className="text-neutral-800">{severityValue ?? "(not set)"}</p>
+            <p className="text-xs font-semibold text-neutral-500">Severity</p>
+            <p className="text-neutral-800">{severityDisplay ?? "(not set)"}</p>
           </div>
         </div>
 
@@ -315,6 +324,20 @@ export default async function CommunityEvidenceReviewPage(props: {
           </p>
           <form action={handleApprove} className="flex flex-col gap-2 flex-1">
             <input type="hidden" name="evidence_id" value={String(evidenceId)} />
+            <label className="text-sm">
+              Severity{severityRequired ? " (required)" : " (optional)"}
+              <select
+                name="severity"
+                required={severityRequired}
+                defaultValue={enumSeverity ?? ""}
+                className="mt-1 w-full rounded border px-2 py-1 text-sm"
+              >
+                <option value="">— select severity —</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </label>
             <label className="text-sm">
               Note (optional)
               <textarea
