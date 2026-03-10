@@ -4,6 +4,13 @@ import { supabaseService } from "@/lib/supabase-service";
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 
+const VALID_SEVERITIES = ["low", "medium", "high"] as const;
+type SeverityEnum = (typeof VALID_SEVERITIES)[number];
+
+function isValidSeverity(s: string): s is SeverityEnum {
+  return (VALID_SEVERITIES as readonly string[]).includes(s);
+}
+
 async function getAuthenticatedUserOrThrow() {
   const supabase = await supabaseServer();
   const { data: auth } = await supabase.auth.getUser();
@@ -15,13 +22,14 @@ export async function approveEvidence(formData: FormData) {
   const user = await getAuthenticatedUserOrThrow();
   const evidenceId = String(formData.get("evidenceId"));
   const note = String(formData.get("note") || "");
+  const severityRaw = (formData.get("severity")?.toString() ?? "").trim();
 
   const db = supabaseService();
 
   // Enforce: only the assigned moderator can approve
   const { data: ev } = await db
     .from("evidence")
-    .select("assigned_moderator_id, user_id")
+    .select("assigned_moderator_id, user_id, evidence_type")
     .eq("id", evidenceId)
     .maybeSingle();
   if (ev?.assigned_moderator_id && ev.assigned_moderator_id !== user.id) {
@@ -32,7 +40,21 @@ export async function approveEvidence(formData: FormData) {
     redirect(`/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent("You cannot approve your own submission.")}`);
   }
 
-  await db.from("evidence").update({ status: "approved" }).eq("id", evidenceId);
+  // Validate severity: required for misconduct and remediation evidence types
+  const severity = isValidSeverity(severityRaw) ? severityRaw : null;
+  const evidenceType: string | null = ev?.evidence_type ?? null;
+  const severityRequired = evidenceType === "remediation" || evidenceType === "misconduct";
+  if (severityRequired && !severity) {
+    redirect(`/admin/moderation/evidence/${evidenceId}?error=${encodeURIComponent("Severity (low / medium / high) is required when approving this evidence.")}`);
+  }
+
+  // Build update payload — always include severity if provided
+  const updatePayload: Record<string, unknown> = { status: "approved" };
+  if (severity) {
+    updatePayload.severity = severity;
+  }
+
+  await db.from("evidence").update(updatePayload).eq("id", evidenceId);
 
   await db.from("moderation_actions").insert({
     moderator_id: user.id,
