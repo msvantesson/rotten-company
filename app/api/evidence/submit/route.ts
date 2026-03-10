@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { toLegacyCategory } from "@/app/lib/legacy-category";
+import { severityLabelToNumber } from "@/lib/severity-mapping";
 
 const ALLOWED_EVIDENCE_TYPES = [
   "misconduct",
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const { entityType, entityId, title, summary, category, evidenceType } = fields;
+  const { entityType, entityId, title, summary, category, evidenceType, severitySuggested } = fields;
   const validatedEvidenceType = parseEvidenceType(evidenceType);
 
   // ---- REQUIRED FIELDS (server-side) ----
@@ -197,6 +198,7 @@ export async function POST(req: Request) {
         user_id: userId,
         file_url: fileUrl,
         evidence_type: validatedEvidenceType,
+        severity_suggested: severityLabelToNumber(severitySuggested),
         // Optional: persist file metadata if available
         file_type: file?.type ?? null,
         file_size: file?.size ?? null,
