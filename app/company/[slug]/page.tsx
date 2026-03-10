@@ -1,6 +1,7 @@
-export const dynamic = "force-dynamic";
+// Cache this page for 5 minutes (ISR) to reduce Supabase query volume and server load
+// while still serving reasonably fresh data. Increase for lower load or decrease for fresher data.
+export const revalidate = 300;
 export const dynamicParams = true;
-export const fetchCache = "force-no-store";
 
 import { supabaseServer } from "@/lib/supabase-server";
 import RatingStars from "@/components/RatingStars";
