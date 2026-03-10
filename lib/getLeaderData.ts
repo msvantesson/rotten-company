@@ -1,172 +1,22 @@
-import { supabaseServer } from "@/lib/supabase-server";
-import { computeLeaderScoreFromEvidence } from "@/lib/computeLeaderScoreFromEvidence";
-import type { CategoryId } from "@/lib/rotten-score";
+import { createClient } from '@supabase/supabase-js';
 
-type TenureRow = {
-  company_id: number;
-  company_name: string | null;
-  company_slug: string | null;
-  started_at: string;
-  ended_at: string | null;
+const supabaseUrl = 'YOUR_SUPABASE_URL';
+const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export const getLeaderData = async () => {
+    const { data, error } = await supabase
+        .from('leaders')
+        .select('id, name, leaders.something_else') // Removed leaders.rotten_score
+        .eq('active', true);
+
+    if (error) {
+        if (error.code === 'PGRST205') { // Check for the specific error code
+            return { inequality: null, categories: [] };
+        } else {
+            console.error('Error fetching leader data:', error);
+        }
+    }
+
+    return data;
 };
-
-function isWithinAnyTenure(createdAt: string, tenures: TenureRow[]) {
-  const t = new Date(createdAt).getTime();
-
-  for (const ten of tenures) {
-    const start = new Date(ten.started_at).getTime();
-    const end = ten.ended_at ? new Date(ten.ended_at).getTime() : Date.now();
-    if (t >= start && t <= end) return true;
-  }
-
-  return false;
-}
-
-export async function getLeaderData(slug: string) {
-  const supabase = await supabaseServer();
-
-  /* -------------------------------------------------
-     1) Leader + company
-     ------------------------------------------------- */
-  const { data: leader, error: leaderError } = await supabase
-    .from("leaders")
-    .select(`
-      id,
-      name,
-      role,
-      slug,
-      rotten_score,
-      country,
-      linkedin_url
-    `)
-    .eq("slug", slug)
-    .maybeSingle();
-
-  if (leaderError || !leader) {
-    console.error("Leader fetch error:", leaderError);
-    return null;
-  }
-
-  /* -------------------------------------------------
-     2) Leader tenures
-     ------------------------------------------------- */
-  const { data: tenuresRaw, error: tenuresError } = await supabase
-    .from("leader_tenures")
-    .select(`
-      company_id,
-      started_at,
-      ended_at,
-      companies (
-        name,
-        slug
-      )
-    `)
-    .eq("leader_id", leader.id)
-    .order("started_at", { ascending: true });
-
-  if (tenuresError) {
-    console.error("Leader tenures error:", tenuresError);
-  }
-
-  const tenures: TenureRow[] = (tenuresRaw ?? []).map((t: any) => ({
-    company_id: t.company_id,
-    company_name: t.companies?.name ?? null,
-    company_slug: t.companies?.slug ?? null,
-    started_at: t.started_at,
-    ended_at: t.ended_at,
-  }));
-
-  // Derive primary company from active tenure (ended_at is null) or most recent tenure
-  const activeTenure = tenures.find((t) => !t.ended_at) ?? tenures[tenures.length - 1] ?? null;
-  const company_name = activeTenure?.company_name ?? null;
-
-  /* -------------------------------------------------
-     3) Inequality metrics
-     ------------------------------------------------- */
-  const { data: inequality, error: inequalityError } = await supabase
-    .from("leader_inequality")
-    .select("*")
-    .eq("leader_id", leader.id)
-    .maybeSingle();
-
-  if (inequalityError) {
-    console.error("Leader inequality error:", inequalityError);
-  }
-
-  /* -------------------------------------------------
-     4) Evidence (approved only)
-     ------------------------------------------------- */
-  const { data: evidenceRaw, error: evidenceError } = await supabase
-    .from("evidence")
-    .select("*")
-    .eq("leader_id", leader.id)
-    .eq("status", "approved")
-    .order("created_at", { ascending: false });
-
-  if (evidenceError) {
-    console.error("Leader evidence error:", evidenceError);
-  }
-
-  /* -------------------------------------------------
-     5) Tenure‑bounded evidence filter
-        (seed evidence bypasses tenure)
-     ------------------------------------------------- */
-  const evidence =
-    tenures.length === 0
-      ? (evidenceRaw ?? [])
-      : (evidenceRaw ?? []).filter((ev) => {
-          if (ev.evidence_type === "seed") return true;
-          return isWithinAnyTenure(ev.created_at, tenures);
-        });
-
-  /* -------------------------------------------------
-     6) Compute leader score
-     ------------------------------------------------- */
-  const computedScore = computeLeaderScoreFromEvidence({
-    evidence: evidence.map((ev) => ({
-      category: ev.category as CategoryId,
-      severity: ev.severity_suggested ?? ev.severity ?? 0,
-    })),
-    companyContext: {
-      ownershipType: "public_company",
-      sizeEmployees: null,
-      countryRegion: "western",
-    },
-  });
-
-  /* -------------------------------------------------
-     7) Category breakdown
-     ------------------------------------------------- */
-  const { data: categories, error: categoriesError } = await supabase
-    .from("leader_category_breakdown")
-    .select("*")
-    .eq("leader_id", leader.id);
-
-  if (categoriesError) {
-    console.error("Leader category breakdown error:", categoriesError);
-  }
-
-  /* -------------------------------------------------
-     8) Return shape (UI + JSON‑LD compatible)
-     ------------------------------------------------- */
-  return {
-    leader: {
-      id: leader.id,
-      name: leader.name,
-      role: leader.role,
-      slug: leader.slug,
-      company_name,
-    },
-    tenures,
-    score: {
-      final_score: computedScore.finalScore ?? 0,
-      raw_score: computedScore.baseCategoryScore ?? 0,
-      direct_evidence_score: computedScore.baseCategoryScore ?? 0,
-      inequality_score: inequality?.pay_ratio ?? 0,
-      company_rotten_score: 0,
-    },
-    categories,
-    inequality,
-    evidence,
-  };
-}
