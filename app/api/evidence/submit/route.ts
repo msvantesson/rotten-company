@@ -55,7 +55,15 @@ export async function POST(req: Request) {
     }
   }
 
-  const { entityType, entityId, title, summary, category, evidenceType, severitySuggested } = fields;
+  const {
+    entityType,
+    entityId,
+    title,
+    summary,
+    category,
+    evidenceType,
+    severitySuggested,
+  } = fields;
   const validatedEvidenceType = parseEvidenceType(evidenceType);
 
   // ---- REQUIRED FIELDS (server-side) ----
@@ -89,9 +97,10 @@ export async function POST(req: Request) {
   const summaryText = String(summary);
   const mentionsLinkedIn = /linkedin\.com/i.test(summaryText);
   const mentionsHttp = /https?:\/\//i.test(summaryText);
-  const mentionsPersonHint = /\b(CEO|CFO|CTO|COO|VP|Vice President|Director|Manager|Head of)\b/i.test(
-    summaryText,
-  );
+  const mentionsPersonHint =
+    /\b(CEO|CFO|CTO|COO|VP|Vice President|Director|Manager|Head of)\b/i.test(
+      summaryText,
+    );
 
   if (mentionsPersonHint && !(mentionsLinkedIn || mentionsHttp)) {
     return NextResponse.json(
@@ -106,10 +115,33 @@ export async function POST(req: Request) {
 
   const supabase = await supabaseServer();
 
+  // --- DIAGNOSTIC LOGGING (temporary) ---
+  // This helps confirm which DB/user the Vercel function is actually connected to.
+  // Remove once resolved.
+  try {
+    const { data: whoami, error: whoamiErr } = await supabase.rpc(
+      "rc_debug_whoami",
+    );
+    console.info("[evidence-submit] db identity (rpc)", {
+      requestId,
+      whoami,
+      whoamiErr,
+    });
+  } catch (err) {
+    console.info("[evidence-submit] db identity (rpc) failed", {
+      requestId,
+      err,
+    });
+  }
+  // --- END DIAGNOSTIC LOGGING ---
+
   // AUTH
   const { data, error: authError } = await supabase.auth.getUser();
   if (authError || !data?.user) {
-    return NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized", requestId },
+      { status: 401 },
+    );
   }
   const userId = data.user.id;
 
