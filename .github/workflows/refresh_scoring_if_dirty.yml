@@ -1,0 +1,18 @@
+name: Refresh scoring (dirty-flag)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Call refresh endpoint
+        run: |
+          curl -f -X GET \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
+            https://rotten-company.com/api/cron/refresh-scoring
