@@ -37,23 +37,20 @@ export async function GET(req: Request) {
   }
 
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/functions/v1/refresh_scoring_if_dirty`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ trigger: "github-actions-cron" }),
-        cache: "no-store",
-      }
-    );
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/refresh_scoring_if_dirty`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ trigger: "github-actions-cron" }),
+      cache: "no-store",
+    });
 
     const text = await res.text();
     return NextResponse.json(
       { ok: res.ok, status: res.status, body: text.slice(0, 2000) },
-      { status: res.ok ? 200 : 502 }
+      { status: res.status }
     );
   } catch (e: any) {
     console.error("refresh-scoring cron error:", e?.message);
