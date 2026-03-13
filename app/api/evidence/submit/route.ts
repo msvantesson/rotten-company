@@ -115,26 +115,6 @@ export async function POST(req: Request) {
 
   const supabase = await supabaseServer();
 
-  // --- DIAGNOSTIC LOGGING (temporary) ---
-  // This helps confirm which DB/user the Vercel function is actually connected to.
-  // Remove once resolved.
-  try {
-    const { data: whoami, error: whoamiErr } = await supabase.rpc(
-      "rc_debug_whoami",
-    );
-    console.info("[evidence-submit] db identity (rpc)", {
-      requestId,
-      whoami,
-      whoamiErr,
-    });
-  } catch (err) {
-    console.info("[evidence-submit] db identity (rpc) failed", {
-      requestId,
-      err,
-    });
-  }
-  // --- END DIAGNOSTIC LOGGING ---
-
   // AUTH
   const { data, error: authError } = await supabase.auth.getUser();
   if (authError || !data?.user) {
@@ -158,7 +138,10 @@ export async function POST(req: Request) {
   );
 
   if (upsertError) {
-    console.error("[evidence-submit] user upsert failed", { requestId, upsertError });
+    console.error("[evidence-submit] user upsert failed", {
+      requestId,
+      upsertError,
+    });
     return NextResponse.json(
       { error: "User upsert failed", requestId },
       { status: 500 },
