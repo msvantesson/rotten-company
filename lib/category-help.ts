@@ -16,56 +16,56 @@ const CATEGORY_HELP_MAP: Record<string, CategoryHelp> = {
   "broken-promises": {
     title: "💼 Broken promises",
     definition:
-      "Public commitments or internal promises that aren't honored.",
+      "Commitments made to employees, customers, or the public that weren't honored.",
     examples:
       "bait\u2011and\u2011switch job terms, promised raises/bonuses that don't happen, \u201cflexible remote\u201d revoked after hiring, benefits quietly removed.",
   },
   exploitation: {
     title: "📰 Exploitation",
     definition:
-      "Extracting labor/value through unfair pay, conditions, or power imbalance.",
+      "Unfair labor practices or taking advantage of vulnerable workers, users, or communities.",
     examples:
       "unpaid overtime, wage theft, misclassifying contractors, abusive scheduling, coercive \u201calways on\u201d expectations, unsafe working conditions.",
   },
   fraud: {
     title: "🎭 Fraud",
     definition:
-      "Intentional deception for financial or operational gain.",
+      "Intentional deception for gain, including financial wrongdoing, forged records, or scams.",
     examples:
       "falsified numbers, billing scams, fake customers/contracts, accounting manipulation, insider self\u2011dealing, knowingly selling defective services as compliant.",
   },
   "false-claims": {
-    title: "🧪 False claims",
+    title: "🧪 Deceptive claims",
     definition:
-      "Misleading statements about products/services/results (not necessarily \u201cfraud-level\u201d, but deceptive).",
+      "Misleading or unsubstantiated statements in marketing, PR, or internal messaging.",
     examples:
       "exaggerated performance claims, hiding limitations, cherry\u2011picked data, \u201cAI-powered\u201d when it isn\u2019t, misleading \u201cbest in class\u201d assertions.",
   },
   "environmental-damage": {
     title: "🚨 Environmental damage",
     definition:
-      "Actions that cause real, measurable environmental harm.",
+      "Measurable harm to ecosystems, pollution, waste, or destructive resource extraction.",
     examples:
       "pollution, toxic spills, illegal dumping, excessive emissions, deforestation, water contamination, habitat destruction.",
   },
   greenwashing: {
     title: "🌱 Greenwashing",
     definition:
-      "Marketing that implies environmental responsibility without real action (or while harm continues).",
+      "Making environmental claims that overstate benefits or hide real impacts.",
     examples:
       'vague \u201ceco-friendly\u201d branding, fake/meaningless certifications, tiny green initiatives used as cover, misleading \u201ccarbon neutral\u201d claims.',
   },
   "management-by-fear": {
-    title: "💸 Management by fear",
+    title: "💸 Fear-based management",
     definition:
-      "Using intimidation or retaliation to control employees.",
+      "Control through intimidation: threats, retaliation, or a culture of fear.",
     examples:
       'threats about layoffs/visas, public shaming, retaliation for reporting issues, forced stack ranking, \u201cdo it or you\u2019re out\u201d culture.',
   },
   "private-equity-fallout": {
-    title: "⚠️ Private Equity Fallout",
+    title: "⚠️ Private equity fallout",
     definition:
-      "Harm patterns often linked to PE ownership/value extraction.",
+      "Harm linked to PE ownership: cost-cutting, layoffs, asset stripping, or degraded quality.",
     examples:
       "aggressive cost\u2011cutting that reduces quality/safety, layoffs and chronic understaffing, asset stripping (sale\u2011leaseback), heavy debt/fees loaded onto the company, short\u2011term profit extraction over long\u2011term health.",
   },
