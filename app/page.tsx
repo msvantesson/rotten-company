@@ -96,6 +96,9 @@ export default async function HomePage() {
             <Link href="/rotten-score" className="text-accent hover:underline flex items-center gap-1">
               <span aria-hidden="true">↗</span> How Rotten Score works
             </Link>
+            <Link href="/guides/seo-keyword-list-2026" className="text-accent hover:underline flex items-center gap-1">
+              <span aria-hidden="true">↗</span> SEO Keyword Guide 2026
+            </Link>
           </div>
         </div>
       </section>

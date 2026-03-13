@@ -15,6 +15,7 @@ import CategoryInfoPopover from "@/components/CategoryInfoPopover";
 import CeoSection from "@/components/CeoSection";
 import CompanyTabs from "@/components/CompanyTabs";
 import Link from "next/link";
+import { isTestCompany } from "@/lib/test-company";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -299,19 +300,21 @@ export default async function CompanyPage({ params }: { params: Params }) {
     destructionLever = null;
   }
 
-  // JSON-LD
+  // JSON-LD — suppressed for test companies to avoid polluting search indexes
   let jsonLd: any = null;
-  try {
-    jsonLd = buildCompanyJsonLd({
-      company,
-      rottenScore: liveRottenScore,
-      breakdown: breakdownWithFlavor,
-      ownershipSignals,
-      destructionLever,
-    });
-  } catch (e) {
-    console.error("Error building company JSON-LD for company:", company.id, e);
-    jsonLd = null;
+  if (!isTestCompany(company.name)) {
+    try {
+      jsonLd = buildCompanyJsonLd({
+        company,
+        rottenScore: liveRottenScore,
+        breakdown: breakdownWithFlavor,
+        ownershipSignals,
+        destructionLever,
+      });
+    } catch (e) {
+      console.error("Error building company JSON-LD for company:", company.id, e);
+      jsonLd = null;
+    }
   }
 
   return (
