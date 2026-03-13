@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase-server";
+import { isTestCompany } from "@/lib/test-company";
 
 type Params = { slug: string };
 
@@ -33,6 +34,15 @@ export async function generateMetadata(
   const description = `See the Rotten Score, category breakdown, evidence, and ratings for ${company.name}.`;
 
   const url = `https://rotten-company.com/company/${company.slug}`;
+
+  // Prevent test companies from being indexed.
+  if (isTestCompany(company.name)) {
+    return {
+      title,
+      description,
+      robots: { index: false, follow: false },
+    };
+  }
 
   return {
     title,
