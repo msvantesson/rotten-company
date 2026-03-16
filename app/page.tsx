@@ -52,12 +52,10 @@ export default async function HomePage() {
         <h1 className="text-4xl font-bold">Rotten Company</h1>
 
         <div className="space-y-2 max-w-3xl">
-          <p className="text-xl text-muted-foreground">
-            Expose who they really are—backed by evidence.
-          </p>
+          <p className="text-xl text-muted-foreground">Know something rotten?</p>
           <p className="text-base text-muted-foreground">
-            Submit documented evidence of misconduct so others can make informed decisions before
-            accepting a job or signing a contract.
+            Submit documented evidence and help expose corporate misconduct before others accept the job or sign the
+            contract.
           </p>
         </div>
 
@@ -73,9 +71,7 @@ export default async function HomePage() {
               <p className="text-xs text-muted-foreground">
                 Requires an account&nbsp;·&nbsp;Takes ~2 minutes&nbsp;·&nbsp;Upload PDF or image
               </p>
-              <p className="text-xs text-muted-foreground">
-                Moderation required before your first evidence submission
-              </p>
+              <p className="text-xs text-muted-foreground">Moderation required before your first evidence submission</p>
             </div>
 
             <Link
@@ -111,8 +107,7 @@ export default async function HomePage() {
             <div className="text-2xl font-bold text-muted-foreground">1</div>
             <h3 className="font-semibold">Submit Evidence</h3>
             <p className="text-sm text-muted-foreground">
-              Upload documents, PDFs, or screenshots and provide a short summary of the misconduct
-              you witnessed.
+              Upload documents, PDFs, or screenshots and provide a short summary of the misconduct you witnessed.
             </p>
           </div>
 
@@ -120,13 +115,12 @@ export default async function HomePage() {
             <div className="text-2xl font-bold text-muted-foreground">2</div>
             <h3 className="font-semibold">A Joint Community Effort</h3>
             <p className="text-sm text-muted-foreground">
-              Rotten Company is maintained together by the community. Submissions are reviewed by
-              other users against simple guidelines before acceptance.
+              Rotten Company is maintained together by the community. Submissions are reviewed by other users against
+              simple guidelines before acceptance.
             </p>
             <p className="text-sm text-muted-foreground">
-              Before submitting evidence for the first time, registered users complete a small number
-              of moderation tasks when available. This shared responsibility keeps the platform
-              credible.
+              Before submitting evidence for the first time, registered users complete a small number of moderation
+              tasks when available. This shared responsibility keeps the platform credible.
             </p>
           </div>
 
@@ -134,8 +128,8 @@ export default async function HomePage() {
             <div className="text-2xl font-bold text-muted-foreground">3</div>
             <h3 className="font-semibold">Score Impact</h3>
             <p className="text-sm text-muted-foreground">
-              Verified evidence updates the company&apos;s Rotten Score in the public index, helping
-              others assess workplace risk.
+              Verified evidence updates the company&apos;s Rotten Score in the public index, helping others assess
+              workplace risk.
             </p>
           </div>
         </div>
@@ -154,15 +148,13 @@ export default async function HomePage() {
           <div className="space-y-1">
             <h3 className="font-semibold">Moderated Submissions</h3>
             <p className="text-sm text-muted-foreground">
-              Every submission goes through a review process before it can affect any score or
-              appear publicly.
+              Every submission goes through a review process before it can affect any score or appear publicly.
             </p>
           </div>
           <div className="space-y-1">
             <h3 className="font-semibold">Protects Regular Employees</h3>
             <p className="text-sm text-muted-foreground">
-              We focus on leadership decisions and systemic harm — not on individual non-executive
-              staff members.
+              We focus on leadership decisions and systemic harm — not on individual non-executive staff members.
             </p>
           </div>
         </div>
@@ -177,9 +169,7 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        <p className="text-sm text-muted-foreground">
-          All-time global ranking based on verified, moderated evidence.
-        </p>
+        <p className="text-sm text-muted-foreground">All-time global ranking based on verified, moderated evidence.</p>
 
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full min-w-[480px] border-collapse text-sm">
@@ -204,15 +194,9 @@ export default async function HomePage() {
                       {company.name}
                     </Link>
                   </td>
-                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">
-                    {company.industry ?? "—"}
-                  </td>
-                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">
-                    {company.country ?? "—"}
-                  </td>
-                  <td className="py-2 pr-3 text-right font-mono tabular-nums">
-                    {company.rotten_score.toFixed(2)}
-                  </td>
+                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">{company.industry ?? "—"}</td>
+                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">{company.country ?? "—"}</td>
+                  <td className="py-2 pr-3 text-right font-mono tabular-nums">{company.rotten_score.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -226,23 +210,34 @@ export default async function HomePage() {
         <ul className="space-y-2 text-sm text-muted-foreground list-none">
           <li className="flex items-start gap-2">
             <span className="mt-0.5 text-accent">✓</span>
-            <span><strong className="text-foreground">Evidence-first moderation</strong> — every submission is reviewed against documented evidence before it can affect any score or appear publicly.</span>
+            <span>
+              <strong className="text-foreground">Evidence-first moderation</strong> — every submission is reviewed
+              against documented evidence before it can affect any score or appear publicly.
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-0.5 text-accent">✓</span>
-            <span><strong className="text-foreground">Remediation evidence</strong> — submit evidence of corrective actions; remediation is reviewed like any other evidence.</span>
+            <span>
+              <strong className="text-foreground">Remediation evidence</strong> — submit evidence of corrective actions;
+              remediation is reviewed like any other evidence.
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-0.5 text-accent">✓</span>
-            <span><strong className="text-foreground">No anonymous scoring</strong> — all evidence submissions require a verified account; anonymous ratings are not accepted.</span>
+            <span>
+              <strong className="text-foreground">No anonymous scoring</strong> — all evidence submissions require a
+              verified account; anonymous ratings are not accepted.
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-0.5 text-accent">✓</span>
-            <span><strong className="text-foreground">No paid removals or reputation laundering</strong> — scores reflect evidence only and cannot be purchased, boosted, or suppressed.</span>
+            <span>
+              <strong className="text-foreground">No paid removals or reputation laundering</strong> — scores reflect
+              evidence only and cannot be purchased, boosted, or suppressed.
+            </span>
           </li>
         </ul>
       </section>
-
     </main>
   );
 }
