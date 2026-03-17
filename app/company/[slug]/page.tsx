@@ -1,1 +1,508 @@
-<Link href={`/company/${company.slug}/breakdown`} className="btn btn-primary">View Breakdown</Link>
+// Cache this page for 5 minutes (ISR) to reduce Supabase query volume and server load
+// while still serving reasonably fresh data. Increase for lower load or decrease for fresher data.
+export const revalidate = 300;
+export const dynamicParams = true;
+
+import { supabaseServer } from "@/lib/supabase-server";
+import RatingStars from "@/components/RatingStars";
+import RottenScoreMeter from "@/components/RottenScoreMeter";
+import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
+import { buildCompanyJsonLd } from "@/lib/jsonld-company";
+import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
+import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
+import { getRottenFlavor } from "@/lib/flavor-engine";
+import CategoryInfoPopover from "@/components/CategoryInfoPopover";
+import CeoSection from "@/components/CeoSection";
+import CompanyTabs from "@/components/CompanyTabs";
+import Link from "next/link";
+import { isTestCompany } from "@/lib/test-company";
+
+// --- Toggle debug UI in non-production or when explicit env flag is set ---
+// Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
+const SHOW_DEBUG =
+  process.env.NODE_ENV !== "production" || process.env.SHOW_DEBUG === "1";
+
+// --- Category icons ---
+const CATEGORY_ICON_MAP: Record<number, string> = {
+  1: "💼",
+  2: "📰",
+  3: "🎭",
+  4: "🧪",
+  5: "🚨",
+  6: "🌱",
+  13: "💸",
+};
+
+function getCategoryIcon(categoryId: number): string {
+  return CATEGORY_ICON_MAP[categoryId] ?? "⚠️";
+}
+
+type Params = Promise<{ slug: string }> | { slug: string };
+
+export default async function CompanyPage({ params }: { params: Params }) {
+  const resolvedParams = (await params) as { slug?: string } | undefined;
+  const rawSlug = resolvedParams?.slug
+    ? decodeURIComponent(resolvedParams.slug)
+    : "";
+
+  const supabase = await supabaseServer();
+
+  // 1) Core company fetch — include country, website, description so they can be displayed
+  const { data: company, error: companyError } = await supabase
+    .from("companies")
+    .select(
+      "id, name, slug, industry, size_employees, rotten_score, country, website, description",
+    )
+    .eq("slug", rawSlug)
+    .maybeSingle();
+
+  if (companyError) {
+    console.error("Error loading company:", rawSlug, companyError);
+  }
+
+  // If no company found and a DB error occurred, attempt a fallback select('*') for the same slug
+  // (only when SHOW_DEBUG is enabled — does not affect the production experience)
+  let fallbackCompany: any = null;
+  let fallbackError: any = null;
+  if (!company && companyError && SHOW_DEBUG) {
+    const { data: fbData, error: fbError } = await supabase
+      .from("companies")
+      .select("*")
+      .eq("slug", rawSlug)
+      .maybeSingle();
+    fallbackCompany = fbData ?? null;
+    fallbackError = fbError ?? null;
+    if (fallbackError) {
+      console.error("Fallback select('*') also failed:", rawSlug, fallbackError);
+    }
+  }
+
+  if (!company) {
+    // When SHOW_DEBUG is enabled and there was a DB error, surface the error details to the maintainer
+    if (SHOW_DEBUG && (companyError || fallbackError)) {
+      return (
+        <div className="max-w-3xl mx-auto py-16 px-4">
+          <h1 className="text-2xl font-semibold">No company found</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            <strong>Slug</strong>: {rawSlug || "null"}
+          </p>
+          {/* Debug error panel — only rendered when SHOW_DEBUG is enabled */}
+          <div className="mt-4 p-4 bg-red-50 border border-red-300 rounded text-xs text-red-800 font-mono whitespace-pre-wrap">
+            <p className="font-bold mb-1">[DEBUG] Company query error:</p>
+            <p>{JSON.stringify(companyError, null, 2)}</p>
+            {fallbackError && (
+              <>
+                <p className="font-bold mt-2 mb-1">
+                  [DEBUG] Fallback select(&apos;*&apos;) error:
+                </p>
+                <p>{JSON.stringify(fallbackError, null, 2)}</p>
+              </>
+            )}
+            {fallbackCompany && (
+              <>
+                <p className="font-bold mt-2 mb-1">
+                  [DEBUG] Fallback select(&apos;*&apos;) result:
+                </p>
+                <p>{JSON.stringify(fallbackCompany, null, 2)}</p>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Default: keep the 'No company found' state as before
+    return (
+      <div className="max-w-3xl mx-auto py-16 px-4">
+        <h1 className="text-2xl font-semibold">No company found</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          <strong>Slug</strong>: {rawSlug || "null"}
+        </p>
+      </div>
+    );
+  }
+
+  // Evidence (still loaded for JSON-LD / debug panel if needed)
+  let evidence: any[] = [];
+  try {
+    evidence = (await getEvidenceWithManagers(company.id)) ?? [];
+  } catch (e) {
+    console.error("Error loading evidence for company:", company.id, e);
+    evidence = [];
+  }
+
+  // Category breakdown (still loaded for JSON-LD / debug panel if needed)
+  let breakdownWithFlavor: any[] = [];
+  try {
+    const { data: mergedBreakdown, error: breakdownError } = await supabase
+      .from("company_category_full_breakdown")
+      .select(
+        "category_id, category_name, rating_count, avg_rating_score, evidence_count, severity_score, final_score, misconduct_low_count, misconduct_medium_count, misconduct_high_count, remediation_low_count, remediation_medium_count, remediation_high_count",
+      )
+      .eq("company_id", company.id);
+
+    if (breakdownError) {
+      console.error(
+        "Error loading company_category_full_breakdown for company:",
+        company.id,
+        breakdownError,
+      );
+    }
+
+    breakdownWithFlavor = mergedBreakdown ?? [];
+  } catch (e) {
+    console.error(
+      "Unexpected error building breakdown for company:",
+      company.id,
+      e,
+    );
+    breakdownWithFlavor = [];
+  }
+
+  // Live Rotten Score
+  let liveRottenScore: number | null = null;
+  try {
+    const { data: scoreRow, error: scoreError } = await supabase
+      .from("company_rotten_score_v2")
+      .select("rotten_score")
+      .eq("company_id", company.id)
+      .maybeSingle();
+
+    if (scoreError) {
+      console.error(
+        "Error loading company_rotten_score_v2 for company:",
+        company.id,
+        scoreError,
+      );
+    }
+
+    liveRottenScore = scoreRow?.rotten_score ?? null;
+  } catch (e) {
+    console.error(
+      "Unexpected error loading Rotten Score for company:",
+      company.id,
+      e,
+    );
+    liveRottenScore = null;
+  }
+
+  // Flavor (canonical)
+  const flavor = getRottenFlavor(liveRottenScore ?? company.rotten_score ?? 0);
+
+  // Categories
+  let categories: {
+    id: number;
+    slug: string;
+    name: string;
+    description: string | null;
+  }[] = [];
+  try {
+    const { data: categoriesData, error: categoriesError } = await supabase
+      .from("categories")
+      .select("id, slug, name, description")
+      .order("id", { ascending: true });
+
+    if (categoriesError) {
+      console.error("Error loading categories:", categoriesError);
+    }
+
+    categories = categoriesData ?? [];
+  } catch (e) {
+    console.error("Unexpected error loading categories:", e);
+    categories = [];
+  }
+
+  // Auth user
+  let user: { id: string } | null = null;
+  try {
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError) {
+      console.error("Error loading auth user:", authError);
+    }
+
+    user = authUser ?? null;
+  } catch (e) {
+    console.error("Unexpected error loading auth user:", e);
+    user = null;
+  }
+
+  // User ratings
+  let userRatings: Record<number, number> = {};
+  if (user) {
+    try {
+      const { data: ratings, error: ratingsError } = await supabase
+        .from("ratings")
+        .select("category, score")
+        .eq("company_id", company.id)
+        .eq("user_id", user.id);
+
+      if (ratingsError) {
+        console.error("Error loading user ratings:", ratingsError);
+      }
+
+      if (ratings) {
+        for (const r of ratings) {
+          userRatings[r.category] = r.score;
+        }
+      }
+    } catch (e) {
+      console.error("Unexpected error loading user ratings:", e);
+      userRatings = {};
+    }
+  }
+
+  // Evidence counts by category_id (safe: uses already-loaded breakdownWithFlavor)
+  const evidenceCountByCategoryId = new Map<number, number>();
+  for (const row of breakdownWithFlavor ?? []) {
+    const id = row?.category_id;
+    const count = row?.evidence_count;
+    if (typeof id === "number") {
+      evidenceCountByCategoryId.set(id, typeof count === "number" ? count : 0);
+    }
+  }
+
+  // Ownership signals
+  let ownershipSignals: any[] = [];
+  try {
+    const { data: ownershipSignalsData, error: ownershipError } = await supabase
+      .from("ownership_signals_summary")
+      .select("*")
+      .eq("company_id", company.id);
+
+    if (ownershipError) {
+      console.error(
+        "Error loading ownership_signals_summary for company:",
+        company.id,
+        ownershipError,
+      );
+    }
+
+    ownershipSignals = ownershipSignalsData ?? [];
+  } catch (e) {
+    console.error("Unexpected error loading ownership_signals_summary:", e);
+    ownershipSignals = [];
+  }
+
+  // Destruction lever
+  let destructionLever: any | null = null;
+  try {
+    const { data: destructionLeverData, error: destructionError } = await supabase
+      .from("company_destruction_lever")
+      .select("*")
+      .eq("company_id", company.id)
+      .maybeSingle();
+
+    if (destructionError) {
+      console.error(
+        "Error loading company_destruction_lever for company:",
+        company.id,
+        destructionError,
+      );
+    }
+
+    destructionLever = destructionLeverData ?? null;
+  } catch (e) {
+    console.error("Unexpected error loading company_destruction_lever:", e);
+    destructionLever = null;
+  }
+
+  // JSON-LD — suppressed for test companies to avoid polluting search indexes
+  let jsonLd: any = null;
+  if (!isTestCompany(company.name)) {
+    try {
+      jsonLd = buildCompanyJsonLd({
+        company,
+        rottenScore: liveRottenScore,
+        breakdown: breakdownWithFlavor,
+        ownershipSignals,
+        destructionLever,
+      });
+    } catch (e) {
+      console.error("Error building company JSON-LD for company:", company.id, e);
+      jsonLd = null;
+    }
+  }
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd, null, 2),
+          }}
+        />
+      )}
+
+      {/* Debug panels: only show in development or when SHOW_DEBUG env flag is set */}
+      {SHOW_DEBUG && (
+        <JsonLdDebugPanel data={jsonLd ?? { error: "JSON-LD generation failed" }} />
+      )}
+
+      <div className="max-w-3xl mx-auto py-8 px-4">
+        <header>
+          <h1 className="text-3xl font-semibold">{company.name}</h1>
+
+          <CompanyTabs slug={company.slug} />
+        </header>
+
+        <section className="space-y-3">
+          <div className="flex items-center gap-3">
+            <span
+              className="text-sm font-semibold px-2 py-1 rounded"
+              style={{ color: flavor.color }}
+            >
+              {flavor.macroTier}
+            </span>
+            <p className="text-sm italic text-gray-600">{flavor.microFlavor}</p>
+          </div>
+
+          <div className="text-sm text-gray-700 space-y-1">
+            <p>
+              <strong>Industry:</strong> {company.industry ?? "Unknown"}
+            </p>
+            <p>
+              <strong>Employees:</strong> {company.size_employees ?? "Unknown"}
+            </p>
+            <p>
+              <strong>Country (Headquarters):</strong>{" "}
+              {company.country ? company.country : "Unknown"}
+            </p>
+            <p>
+              <strong>Website:</strong>{" "}
+              {company.website ? (
+                <a
+                  href={company.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-700 hover:underline"
+                >
+                  {company.website}
+                </a>
+              ) : (
+                "—"
+              )}
+            </p>
+            {company.description && (
+              <p className="mt-2 text-sm text-gray-700">{company.description}</p>
+            )}
+          </div>
+
+          <CeoSection companyId={company.id} userId={user?.id ?? null} />
+
+          {/* Suggest an edit CTA */}
+          <p className="text-xs text-gray-400 mt-2">
+            <Link
+              href={`/company/${company.slug}/suggest-edit`}
+              className="hover:underline"
+            >
+              Suggest an edit
+            </Link>
+          </p>
+
+          {/* ✅ Keep Rotten Score meter on overview, but make it a hero card */}
+          <div className="mt-6 mb-8">
+            <div className="rounded-xl border border-border bg-surface shadow-sm p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-neutral-600">
+                    Rotten Score
+                  </div>
+                  <div className="text-sm text-neutral-600">
+                    Evidence-backed signal (0–100)
+                  </div>
+                </div>
+
+                <div
+                  className="text-xs font-semibold px-2 py-1 rounded"
+                  style={{ color: flavor.color }}
+                >
+                  {flavor.macroTier}
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <RottenScoreMeter score={liveRottenScore ?? 0} />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6">
+          <h2 className="text-xl font-semibold">Assess documented harm</h2>
+
+          <div className="mt-2 rounded-lg border border-border bg-surface p-3">
+            <div className="text-sm font-medium text-neutral-900">
+              Category impact
+            </div>
+            <div className="mt-1 text-sm text-neutral-600">
+              Each category reflects documented patterns of misconduct.
+            </div>
+            <div className="mt-1 text-sm text-neutral-600">
+              1 = low harm · 5 = severe harm
+            </div>
+          </div>
+
+          {categories && categories.length > 0 ? (
+            <div className="mt-4 divide-y">
+              {categories.map((cat) => {
+                const evidenceCount = evidenceCountByCategoryId.get(cat.id) ?? 0;
+
+                return (
+                  <div
+                    key={cat.id}
+                    className="flex items-center justify-between py-3 gap-4"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center">
+                        <span className="shrink-0">
+                          {getCategoryIcon(cat.id)}{" "}
+                        </span>
+                        <span className="ml-1 font-medium text-neutral-900 truncate">
+                          {cat.name}
+                        </span>
+                        <CategoryInfoPopover
+                          categoryName={cat.name}
+                          categorySlug={cat.slug}
+                          description={cat.description ?? null}
+                        />
+                      </div>
+
+                      <div className="mt-0.5 text-xs text-neutral-500">
+                        Evidence: {evidenceCount} record
+                        {evidenceCount === 1 ? "" : "s"}
+                      </div>
+                    </div>
+
+                    <RatingStars
+                      companySlug={company.slug}
+                      categorySlug={cat.slug}
+                      initialScore={userRatings[cat.id] ?? null}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-gray-600">
+              No categories configured yet.
+            </p>
+          )}
+        </section>
+
+        {/* ❌ Removed: Rotten Score Breakdown section from overview */}
+
+        {/* Score debug panel only for dev / SHOW_DEBUG */}
+        {user && SHOW_DEBUG && (
+          <div className="mt-8">
+            <ScoreDebugPanel score={liveRottenScore} breakdown={breakdownWithFlavor} />
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
