@@ -71,6 +71,7 @@ export default async function HomePage() {
         </div>
 
         <div className="rounded-lg border border-border/70 bg-surface-2 p-6 shadow-sm">
+          {/* Key fix is here: items-baseline + mt-2 on the link */}
           <div className="flex flex-wrap items-baseline gap-4">
             <div className="flex flex-col gap-1.5">
               <Link
@@ -146,15 +147,9 @@ export default async function HomePage() {
                       {company.name}
                     </Link>
                   </td>
-                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">
-                    {company.industry ?? "—"}
-                  </td>
-                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">
-                    {company.country ?? "—"}
-                  </td>
-                  <td className="py-2 pr-3 text-right font-mono tabular-nums">
-                    {Math.round(company.rotten_score)}
-                  </td>
+                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">{company.industry ?? "—"}</td>
+                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">{company.country ?? "—"}</td>
+                  <td className="py-2 pr-3 text-right font-mono tabular-nums">{Math.round(company.rotten_score)}</td>
                 </tr>
               ))}
             </tbody>
