@@ -48,22 +48,22 @@ export default async function HomePage() {
   return (
     <main className="max-w-6xl mx-auto px-4 py-12 space-y-20">
       {/* HERO */}
-      <section className="space-y-6">
-        <h1 className="text-4xl font-bold">Rotten Company</h1>
+      <section className="space-y-4">
+        <h1 className="text-5xl sm:text-6xl font-bold">Rotten Company</h1>
 
-        <p className="text-xl text-muted-foreground max-w-3xl">
+        <p className="text-lg text-muted-foreground max-w-3xl">
           An evidence-based index of corporate misconduct.
         </p>
 
-        <div className="space-y-2 max-w-3xl">
-          <p className="text-xl text-muted-foreground">Know something rotten?</p>
-          <p className="text-base text-muted-foreground">
+        <div className="pt-4 space-y-2 max-w-3xl">
+          <p className="text-base font-medium">Know something rotten?</p>
+          <p className="text-sm text-muted-foreground">
             Submit documented evidence and help expose corporate misconduct before others accept the job or sign the
             contract.
           </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-surface-2 p-4">
+        <div className="rounded-lg border border-border/70 bg-surface-2 p-6 shadow-sm">
           <div className="flex flex-wrap items-start gap-4">
             <div className="flex flex-col gap-1.5">
               <Link
@@ -80,7 +80,7 @@ export default async function HomePage() {
 
             <Link
               href="/rotten-index"
-              className="inline-flex items-center justify-center rounded-md border border-border px-5 py-2.5 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring self-center"
             >
               Explore the Rotten Index →
             </Link>
@@ -106,13 +106,13 @@ export default async function HomePage() {
       {/* TOP 10 */}
       <section className="mt-24 space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-2xl font-semibold">Top 10 Rotten Companies</h2>
+          <h2 className="text-2xl font-semibold">The Rotten Index</h2>
           <Link href="/rotten-index" className="text-sm text-accent hover:underline">
             View full index →
           </Link>
         </div>
 
-        <p className="text-sm text-muted-foreground">All-time global ranking based on verified, moderated evidence.</p>
+        <p className="text-sm text-muted-foreground">Top 10 companies by documented harm.</p>
 
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full min-w-[480px] border-collapse text-sm">
@@ -139,7 +139,7 @@ export default async function HomePage() {
                   </td>
                   <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">{company.industry ?? "—"}</td>
                   <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">{company.country ?? "—"}</td>
-                  <td className="py-2 pr-3 text-right font-mono tabular-nums">{company.rotten_score.toFixed(2)}</td>
+                  <td className="py-2 pr-3 text-right font-mono tabular-nums">{Math.round(company.rotten_score)}</td>
                 </tr>
               ))}
             </tbody>
