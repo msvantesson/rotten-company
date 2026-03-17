@@ -71,25 +71,22 @@ export default async function HomePage() {
         </div>
 
         <div className="rounded-lg border border-border/70 bg-surface-2 p-6 shadow-sm">
-          <div className="flex flex-wrap items-baseline gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Link
-                href={submitEvidenceHref}
-                className="inline-flex items-center justify-center rounded-md bg-foreground px-5 py-2.5 text-sm font-semibold text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Submit Evidence
-              </Link>
-              <p className="text-xs text-muted-foreground">
-                Requires an account&nbsp;·&nbsp;Takes ~2 minutes&nbsp;·&nbsp;Upload PDF or image
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Moderation required before your first evidence submission
-              </p>
-            </div>
-
+          <div className="flex flex-col gap-1.5">
+            <Link
+              href={submitEvidenceHref}
+              className="inline-flex self-start items-center justify-center rounded-md bg-foreground px-5 py-2.5 text-sm font-semibold text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Submit Evidence
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              Requires an account&nbsp;·&nbsp;Takes ~2 minutes&nbsp;·&nbsp;Upload PDF or image
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Moderation required before your first evidence submission
+            </p>
             <Link
               href="/rotten-index"
-              className="mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-1 inline-flex self-start items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Explore the Rotten Index →
             </Link>
