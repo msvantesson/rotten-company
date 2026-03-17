@@ -64,7 +64,7 @@ export default async function HomePage() {
         </div>
 
         <div className="rounded-lg border border-border/70 bg-surface-2 p-6 shadow-sm">
-          <div className="flex flex-wrap items-start gap-4">
+          <div className="flex flex-wrap items-baseline gap-4">
             <div className="flex flex-col gap-1.5">
               <Link
                 href={submitEvidenceHref}
@@ -80,7 +80,7 @@ export default async function HomePage() {
 
             <Link
               href="/rotten-index"
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Explore the Rotten Index →
             </Link>
