@@ -51,6 +51,10 @@ export default async function HomePage() {
       <section className="space-y-6">
         <h1 className="text-4xl font-bold">Rotten Company</h1>
 
+        <p className="text-xl text-muted-foreground max-w-3xl">
+          An evidence-based index of corporate misconduct.
+        </p>
+
         <div className="space-y-2 max-w-3xl">
           <p className="text-xl text-muted-foreground">Know something rotten?</p>
           <p className="text-base text-muted-foreground">
@@ -96,6 +100,50 @@ export default async function HomePage() {
               <span aria-hidden="true">↗</span> SEO Keyword Guide 2026
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* TOP 10 */}
+      <section className="mt-24 space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-2xl font-semibold">Top 10 Rotten Companies</h2>
+          <Link href="/rotten-index" className="text-sm text-accent hover:underline">
+            View full index →
+          </Link>
+        </div>
+
+        <p className="text-sm text-muted-foreground">All-time global ranking based on verified, moderated evidence.</p>
+
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full min-w-[480px] border-collapse text-sm">
+            <thead className="bg-muted border-b border-border">
+              <tr className="text-left text-muted-foreground">
+                <th className="py-2 pr-4 pl-3 w-10 whitespace-nowrap">#</th>
+                <th className="py-2 pr-4 whitespace-nowrap">Company</th>
+                <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Industry</th>
+                <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Country</th>
+                <th className="py-2 pr-3 text-right whitespace-nowrap">Rotten Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topCompanies.map((company, index) => (
+                <tr
+                  key={company.id}
+                  className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
+                >
+                  <td className="py-2 pr-4 pl-3 text-muted-foreground">{index + 1}</td>
+                  <td className="py-2 pr-4 font-medium text-accent">
+                    <Link href={`/company/${company.slug}`} className="hover:underline">
+                      {company.name}
+                    </Link>
+                  </td>
+                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">{company.industry ?? "—"}</td>
+                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">{company.country ?? "—"}</td>
+                  <td className="py-2 pr-3 text-right font-mono tabular-nums">{company.rotten_score.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -157,50 +205,6 @@ export default async function HomePage() {
               We focus on leadership decisions and systemic harm — not on individual non-executive staff members.
             </p>
           </div>
-        </div>
-      </section>
-
-      {/* TOP 10 */}
-      <section className="mt-24 space-y-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-2xl font-semibold">Top 10 Rotten Companies</h2>
-          <Link href="/rotten-index" className="text-sm text-accent hover:underline">
-            View full index →
-          </Link>
-        </div>
-
-        <p className="text-sm text-muted-foreground">All-time global ranking based on verified, moderated evidence.</p>
-
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[480px] border-collapse text-sm">
-            <thead className="bg-muted border-b border-border">
-              <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-4 pl-3 w-10 whitespace-nowrap">#</th>
-                <th className="py-2 pr-4 whitespace-nowrap">Company</th>
-                <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Industry</th>
-                <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Country</th>
-                <th className="py-2 pr-3 text-right whitespace-nowrap">Rotten Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topCompanies.map((company, index) => (
-                <tr
-                  key={company.id}
-                  className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
-                >
-                  <td className="py-2 pr-4 pl-3 text-muted-foreground">{index + 1}</td>
-                  <td className="py-2 pr-4 font-medium text-accent">
-                    <Link href={`/company/${company.slug}`} className="hover:underline">
-                      {company.name}
-                    </Link>
-                  </td>
-                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">{company.industry ?? "—"}</td>
-                  <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">{company.country ?? "—"}</td>
-                  <td className="py-2 pr-3 text-right font-mono tabular-nums">{company.rotten_score.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </section>
 

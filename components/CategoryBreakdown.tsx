@@ -78,6 +78,11 @@ export function CategoryBreakdown({
     );
   }
 
+  const totalScore =
+    isFiniteNumber(company?.rotten_score) && company.rotten_score > 0
+      ? company.rotten_score
+      : null;
+
   return (
     <div className="space-y-10">
       {/* Company header (optional) */}
@@ -149,6 +154,9 @@ export function CategoryBreakdown({
                 <span className="font-medium text-neutral-700">
                   Contribution: {finalScore !== null ? finalScore.toFixed(1) : "—"}{" "}
                   pts
+                  {finalScore !== null && totalScore !== null
+                    ? ` (${Math.round((finalScore / totalScore) * 100)}% of total)`
+                    : null}
                 </span>
               </div>
 

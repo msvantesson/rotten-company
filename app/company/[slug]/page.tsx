@@ -189,6 +189,21 @@ export default async function CompanyPage({ params }: { params: Params }) {
   // Flavor (canonical)
   const flavor = getRottenFlavor(liveRottenScore ?? company.rotten_score ?? 0);
 
+  // Main driver: category with the highest final_score (contribution points)
+  const mainDriver = (() => {
+    let best: { category_name: string; final_score: number } | null = null;
+    for (const row of breakdownWithFlavor ?? []) {
+      const name = row?.category_name;
+      const score = row?.final_score;
+      if (typeof name !== "string") continue;
+      if (typeof score !== "number" || !Number.isFinite(score)) continue;
+      if (!best || score > best.final_score) {
+        best = { category_name: name, final_score: score };
+      }
+    }
+    return best;
+  })();
+
   // Categories
   let categories: {
     id: number;
@@ -437,9 +452,15 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
               {/* ✅ Bridge CTA: overview → breakdown */}
               <div className="mt-3 flex items-center justify-between gap-4">
-                <p className="text-xs text-neutral-500">
-                  Want the math and evidence behind this score?
-                </p>
+                <div className="text-xs text-neutral-500 space-y-1">
+                  {mainDriver && (
+                    <p>
+                      <span className="font-medium text-neutral-700">Main driver:</span>{" "}
+                      {mainDriver.category_name} ({mainDriver.final_score.toFixed(1)} pts)
+                    </p>
+                  )}
+                  <p>Want the math and evidence behind this score?</p>
+                </div>
 
                 <Link
                   href={`/company/${company.slug}/breakdown`}
