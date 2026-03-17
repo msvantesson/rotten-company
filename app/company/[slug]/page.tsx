@@ -322,7 +322,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
         destructionLever,
       });
     } catch (e) {
-      console.error("Error building company JSON-LD for company:", company.id, e);
+      console.error(
+        "Error building company JSON-LD for company:",
+        company.id,
+        e,
+      );
       jsonLd = null;
     }
   }
@@ -340,7 +344,9 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
       {/* Debug panels: only show in development or when SHOW_DEBUG env flag is set */}
       {SHOW_DEBUG && (
-        <JsonLdDebugPanel data={jsonLd ?? { error: "JSON-LD generation failed" }} />
+        <JsonLdDebugPanel
+          data={jsonLd ?? { error: "JSON-LD generation failed" }}
+        />
       )}
 
       <div className="max-w-3xl mx-auto py-8 px-4">
@@ -428,6 +434,20 @@ export default async function CompanyPage({ params }: { params: Params }) {
               <div className="mt-3">
                 <RottenScoreMeter score={liveRottenScore ?? 0} />
               </div>
+
+              {/* ✅ Bridge CTA: overview → breakdown */}
+              <div className="mt-3 flex items-center justify-between gap-4">
+                <p className="text-xs text-neutral-500">
+                  Want the math and evidence behind this score?
+                </p>
+
+                <Link
+                  href={`/company/${company.slug}/breakdown`}
+                  className="text-sm font-medium text-blue-700 hover:underline whitespace-nowrap"
+                >
+                  See full breakdown →
+                </Link>
+              </div>
             </div>
           </div>
         </section>
@@ -499,7 +519,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
         {/* Score debug panel only for dev / SHOW_DEBUG */}
         {user && SHOW_DEBUG && (
           <div className="mt-8">
-            <ScoreDebugPanel score={liveRottenScore} breakdown={breakdownWithFlavor} />
+            <ScoreDebugPanel
+              score={liveRottenScore}
+              breakdown={breakdownWithFlavor}
+            />
           </div>
         )}
       </div>
