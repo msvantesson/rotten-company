@@ -80,7 +80,7 @@ export default async function HomePage() {
 
             <Link
               href="/rotten-index"
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring self-center"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Explore the Rotten Index →
             </Link>
