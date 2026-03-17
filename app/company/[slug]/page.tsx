@@ -255,7 +255,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
     }
   }
 
-  // Map category_id -> evidence_count (safe fallback to 0)
+  // Evidence counts by category_id (safe: uses already-loaded breakdownWithFlavor)
   const evidenceCountByCategoryId = new Map<number, number>();
   for (const row of breakdownWithFlavor ?? []) {
     const id = row?.category_id;
@@ -404,7 +404,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
             </Link>
           </p>
 
-          {/* ✅ Keep Rotten Score meter on overview, but promote it visually */}
+          {/* ✅ Keep Rotten Score meter on overview, but make it a hero card */}
           <div className="mt-6 mb-8">
             <div className="rounded-xl border border-border bg-surface shadow-sm p-5">
               <div className="flex items-center justify-between gap-4">
@@ -473,7 +473,8 @@ export default async function CompanyPage({ params }: { params: Params }) {
                       </div>
 
                       <div className="mt-0.5 text-xs text-neutral-500">
-                        Evidence: {evidenceCount} record{evidenceCount === 1 ? "" : "s"}
+                        Evidence: {evidenceCount} record
+                        {evidenceCount === 1 ? "" : "s"}
                       </div>
                     </div>
 
@@ -492,6 +493,8 @@ export default async function CompanyPage({ params }: { params: Params }) {
             </p>
           )}
         </section>
+
+        {/* ❌ Removed: Rotten Score Breakdown section from overview */}
 
         {/* Score debug panel only for dev / SHOW_DEBUG */}
         {user && SHOW_DEBUG && (
