@@ -255,6 +255,16 @@ export default async function CompanyPage({ params }: { params: Params }) {
     }
   }
 
+  // Map category_id -> evidence_count (safe fallback to 0)
+  const evidenceCountByCategoryId = new Map<number, number>();
+  for (const row of breakdownWithFlavor ?? []) {
+    const id = row?.category_id;
+    const count = row?.evidence_count;
+    if (typeof id === "number") {
+      evidenceCountByCategoryId.set(id, typeof count === "number" ? count : 0);
+    }
+  }
+
   // Ownership signals
   let ownershipSignals: any[] = [];
   try {
@@ -330,9 +340,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
       {/* Debug panels: only show in development or when SHOW_DEBUG env flag is set */}
       {SHOW_DEBUG && (
-        <JsonLdDebugPanel
-          data={jsonLd ?? { error: "JSON-LD generation failed" }}
-        />
+        <JsonLdDebugPanel data={jsonLd ?? { error: "JSON-LD generation failed" }} />
       )}
 
       <div className="max-w-3xl mx-auto py-8 px-4">
@@ -396,40 +404,87 @@ export default async function CompanyPage({ params }: { params: Params }) {
             </Link>
           </p>
 
-          {/* ✅ Keep Rotten Score meter on overview */}
+          {/* ✅ Keep Rotten Score meter on overview, but promote it visually */}
           <div className="mt-6 mb-8">
-            <RottenScoreMeter score={liveRottenScore ?? 0} />
+            <div className="rounded-xl border border-border bg-surface shadow-sm p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-neutral-600">
+                    Rotten Score
+                  </div>
+                  <div className="text-sm text-neutral-600">
+                    Evidence-backed signal (0–100)
+                  </div>
+                </div>
+
+                <div
+                  className="text-xs font-semibold px-2 py-1 rounded"
+                  style={{ color: flavor.color }}
+                >
+                  {flavor.macroTier}
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <RottenScoreMeter score={liveRottenScore ?? 0} />
+              </div>
+            </div>
           </div>
         </section>
 
         <section className="mt-6">
-          <h2 className="text-xl font-semibold">Rate this company</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            1 = low harm · 5 = severe harm
-          </p>
+          <h2 className="text-xl font-semibold">Assess documented harm</h2>
+
+          <div className="mt-2 rounded-lg border border-border bg-surface p-3">
+            <div className="text-sm font-medium text-neutral-900">
+              Category impact
+            </div>
+            <div className="mt-1 text-sm text-neutral-600">
+              Each category reflects documented patterns of misconduct.
+            </div>
+            <div className="mt-1 text-sm text-neutral-600">
+              1 = low harm · 5 = severe harm
+            </div>
+          </div>
 
           {categories && categories.length > 0 ? (
             <div className="mt-4 divide-y">
-              {categories.map((cat) => (
-                <div
-                  key={cat.id}
-                  className="flex items-center justify-between py-3"
-                >
-                  <span className="flex items-center">
-                    {getCategoryIcon(cat.id)} {cat.name}
-                    <CategoryInfoPopover
-                      categoryName={cat.name}
+              {categories.map((cat) => {
+                const evidenceCount = evidenceCountByCategoryId.get(cat.id) ?? 0;
+
+                return (
+                  <div
+                    key={cat.id}
+                    className="flex items-center justify-between py-3 gap-4"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center">
+                        <span className="shrink-0">
+                          {getCategoryIcon(cat.id)}{" "}
+                        </span>
+                        <span className="ml-1 font-medium text-neutral-900 truncate">
+                          {cat.name}
+                        </span>
+                        <CategoryInfoPopover
+                          categoryName={cat.name}
+                          categorySlug={cat.slug}
+                          description={cat.description ?? null}
+                        />
+                      </div>
+
+                      <div className="mt-0.5 text-xs text-neutral-500">
+                        Evidence: {evidenceCount} record{evidenceCount === 1 ? "" : "s"}
+                      </div>
+                    </div>
+
+                    <RatingStars
+                      companySlug={company.slug}
                       categorySlug={cat.slug}
-                      description={cat.description ?? null}
+                      initialScore={userRatings[cat.id] ?? null}
                     />
-                  </span>
-                  <RatingStars
-                    companySlug={company.slug}
-                    categorySlug={cat.slug}
-                    initialScore={userRatings[cat.id] ?? null}
-                  />
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="mt-4 text-sm text-gray-600">
@@ -438,15 +493,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
           )}
         </section>
 
-        {/* ❌ Removed: Rotten Score Breakdown section from overview */}
-
         {/* Score debug panel only for dev / SHOW_DEBUG */}
         {user && SHOW_DEBUG && (
           <div className="mt-8">
-            <ScoreDebugPanel
-              score={liveRottenScore}
-              breakdown={breakdownWithFlavor}
-            />
+            <ScoreDebugPanel score={liveRottenScore} breakdown={breakdownWithFlavor} />
           </div>
         )}
       </div>
