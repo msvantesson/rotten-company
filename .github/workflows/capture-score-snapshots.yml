@@ -1,0 +1,64 @@
+name: Capture daily company score snapshots
+
+on:
+  schedule:
+    # 00:10 UTC daily
+    - cron: "10 0 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: capture-score-snapshots
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Call Supabase RPC to capture daily snapshots (UTC date)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_URL:-}" ]; then
+            echo "Missing SUPABASE_URL secret" >&2
+            exit 1
+          fi
+
+          echo "Calling RPC capture_daily_company_rotten_scores..."
+          curl -sS -X POST "${SUPABASE_URL}/rest/v1/rpc/capture_daily_company_rotten_scores" \
+            -H "apikey: ${SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            --fail \
+            --show-error \
+            --location
+
+      - name: Verify at least 1 snapshot exists for today (UTC)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          TODAY_UTC="$(date -u +%F)"
+
+          # Query: snapshots for today (limit 1). If empty => fail.
+          echo "Verifying snapshots exist for ${TODAY_UTC}..."
+          RESP="$(curl -sS "${SUPABASE_URL}/rest/v1/company_rotten_score_snapshots?select=company_id&snapshot_date=eq.${TODAY_UTC}&limit=1" \
+            -H "apikey: ${SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+            -H "Accept: application/json" \
+            --fail \
+            --show-error \
+            --location)"
+
+          if [ "${RESP}" = "[]" ]; then
+            echo "No snapshots found for ${TODAY_UTC}. Failing." >&2
+            exit 1
+          fi
+
+          echo "OK: snapshots exist for ${TODAY_UTC}"
