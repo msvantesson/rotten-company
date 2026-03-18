@@ -13,7 +13,7 @@ function formatDate(dateStr: string): string {
 }
 
 type RecentlyVerifiedItem = {
-  eventId: number;
+  eventId: string;
   createdAt: string;
   evidenceTitle: string;
   companyName: string;
