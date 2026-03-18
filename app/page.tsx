@@ -4,6 +4,83 @@ export const fetchCache = "force-no-store";
 import { supabaseServer } from "@/lib/supabase-server";
 import Link from "next/link";
 
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+type RecentlyVerifiedItem = {
+  eventId: number;
+  createdAt: string;
+  evidenceTitle: string;
+  companyName: string;
+  companySlug: string;
+};
+
+async function getRecentlyVerified(): Promise<RecentlyVerifiedItem[]> {
+  try {
+    const supabase = await supabaseServer();
+
+    const { data: events, error: eventsError } = await supabase
+      .from("moderation_events")
+      .select("id, evidence_id, created_at")
+      .eq("action", "approved")
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    if (eventsError || !events || events.length === 0) return [];
+
+    const evidenceIds = events.map((e) => e.evidence_id);
+
+    const { data: evidenceRows, error: evidenceError } = await supabase
+      .from("evidence")
+      .select("id, title, company_id")
+      .in("id", evidenceIds);
+
+    if (evidenceError || !evidenceRows || evidenceRows.length === 0) return [];
+
+    const companyIds = [
+      ...new Set(evidenceRows.map((e) => e.company_id).filter((id): id is number => id != null)),
+    ];
+
+    const { data: companyRows, error: companiesError } = await supabase
+      .from("companies")
+      .select("id, name, slug")
+      .in("id", companyIds);
+
+    if (companiesError || !companyRows) return [];
+
+    const evidenceById: Record<number, { title: string; company_id: number | null }> = {};
+    for (const ev of evidenceRows) evidenceById[ev.id] = ev;
+
+    const companyById: Record<number, { name: string; slug: string }> = {};
+    for (const c of companyRows) companyById[c.id] = c;
+
+    const items: RecentlyVerifiedItem[] = [];
+    for (const event of events) {
+      const evidence = evidenceById[event.evidence_id];
+      if (!evidence) continue;
+      const company = evidence.company_id != null ? companyById[evidence.company_id] : undefined;
+      if (!company) continue;
+      items.push({
+        eventId: event.id,
+        createdAt: event.created_at,
+        evidenceTitle: evidence.title,
+        companyName: company.name,
+        companySlug: company.slug,
+      });
+    }
+
+    return items;
+  } catch (err) {
+    console.error("[homepage] Failed to fetch recently verified:", err);
+    return [];
+  }
+}
+
 export default async function HomePage() {
   const supabase = await supabaseServer();
 
@@ -51,6 +128,8 @@ export default async function HomePage() {
     })
     .filter((c): c is TopCompany => c !== null)
     .sort((a, b) => b.rotten_score - a.rotten_score);
+
+  const recentlyVerified = await getRecentlyVerified();
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-12 space-y-20">
@@ -158,6 +237,43 @@ export default async function HomePage() {
           </table>
         </div>
       </section>
+
+      {/* RECENTLY VERIFIED */}
+      {recentlyVerified.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold">Recently verified</h2>
+          <p className="text-sm text-muted-foreground">The 3 most recently approved evidence submissions.</p>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full min-w-[480px] border-collapse text-sm">
+              <thead className="bg-muted border-b border-border">
+                <tr className="text-left text-muted-foreground">
+                  <th className="py-2 pr-4 pl-3 whitespace-nowrap">Company</th>
+                  <th className="py-2 pr-4 whitespace-nowrap">Evidence</th>
+                  <th className="py-2 pr-3 whitespace-nowrap">Approved</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentlyVerified.map((item) => (
+                  <tr
+                    key={item.eventId}
+                    className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
+                  >
+                    <td className="py-2 pr-4 pl-3 font-medium text-accent whitespace-nowrap">
+                      <Link href={`/company/${item.companySlug}`} className="hover:underline">
+                        {item.companyName}
+                      </Link>
+                    </td>
+                    <td className="py-2 pr-4 text-muted-foreground">{item.evidenceTitle}</td>
+                    <td className="py-2 pr-3 text-muted-foreground whitespace-nowrap">
+                      {formatDate(item.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* HOW IT WORKS */}
       <section className="space-y-6">
