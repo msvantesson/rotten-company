@@ -199,13 +199,40 @@ export async function POST(req: Request) {
   // Satisfy legacy NOT NULL / CHECK constraint: category IN (1,2,3,4,5,6,13)
   const legacyCategory = toLegacyCategory(cat.id);
 
+  const entityIdNum = Number(entityId);
+  if (!Number.isFinite(entityIdNum)) {
+    return NextResponse.json(
+      { error: "Invalid entityId.", requestId },
+      { status: 400 },
+    );
+  }
+
+  const fk =
+    entityType === "company"
+      ? { company_id: entityIdNum }
+      : entityType === "leader"
+        ? { leader_id: entityIdNum }
+        : entityType === "manager"
+          ? { manager_id: entityIdNum }
+          : entityType === "owner"
+            ? { owner_id: entityIdNum }
+            : null;
+
+  if (!fk) {
+    return NextResponse.json(
+      { error: "Invalid entityType.", requestId },
+      { status: 400 },
+    );
+  }
+
   // INSERT
   const { data: inserted, error: insertError } = await supabase
     .from("evidence")
     .insert([
       {
         entity_type: entityType,
-        entity_id: Number(entityId),
+        entity_id: entityIdNum,
+        ...fk,
         title: String(title).trim(),
         summary: String(summary).trim(),
         category_id: cat.id,
