@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import NavMenu from "@/components/NavMenu";
 
-export default function SiteHeader() {
+export default function SiteHeader({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -60,7 +59,7 @@ export default function SiteHeader() {
           </Link>
         </nav>
 
-        <NavMenu />
+        {children}
       </div>
     </header>
   );

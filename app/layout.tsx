@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
+import NavMenu from "@/components/NavMenu";
 import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
@@ -27,7 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <SiteHeader />
+        <SiteHeader>
+          <NavMenu />
+        </SiteHeader>
 
         <main>{children}</main>
         <Analytics />
