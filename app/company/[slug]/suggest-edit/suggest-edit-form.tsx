@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
+import { INDUSTRIES } from "@/lib/constants/industries";
 
 type Props = {
   companySlug: string;
@@ -110,14 +111,20 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1">
           Industry
-          <span className="ml-1 text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+          <span className="ml-1 text-xs text-gray-400 font-normal">(optional; leave blank to keep current)</span>
         </label>
-        <input
+        <select
           value={industry}
           onChange={(e) => setIndustry(e.target.value)}
-          placeholder={currentValues.industry || "e.g. Technology"}
-          className="w-full rounded-md border px-3 py-2 text-sm"
-        />
+          className="w-full rounded-md border px-3 py-2 text-sm bg-white"
+        >
+          <option value="">Select industry (or keep current)</option>
+          {INDUSTRIES.map((ind) => (
+            <option key={ind} value={ind}>
+              {ind}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>
