@@ -18,6 +18,10 @@ function formatDelta(delta: number): string {
   return `${sign}${Math.abs(delta).toFixed(1)}`;
 }
 
+function showDelta(delta: number | null | undefined): delta is number {
+  return delta != null && Math.abs(delta) >= 0.05;
+}
+
 // Returns a map of company_id → weekly delta (today − 7 days ago).
 // Only includes entries where both snapshots exist.
 async function getWeeklyDeltaMap(
@@ -372,7 +376,7 @@ export default async function HomePage() {
                     </td>
                     <td className="py-2 pr-3 text-right font-mono tabular-nums">
                       <span>{company.rotten_score.toFixed(1)}</span>
-                      {delta != null && (
+                      {showDelta(delta) && (
                         <span
                           className={`ml-2 text-xs font-medium ${delta >= 0 ? "text-red-500" : "text-green-600"}`}
                         >
@@ -464,7 +468,7 @@ export default async function HomePage() {
                         <Link href={`/company/${item.companySlug}`} className="hover:underline">
                           {item.companyName}
                         </Link>
-                        {delta != null && (
+                        {showDelta(delta) && (
                           <span className={`ml-1.5 text-xs font-medium ${delta >= 0 ? "text-red-500" : "text-green-600"}`}>
                             ({formatDelta(delta)} this week)
                           </span>
