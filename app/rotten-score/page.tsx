@@ -44,8 +44,11 @@ export default function RottenScorePage() {
 
   const categoriesWithScores = exampleCategories.map((c) => {
     const severityScore = c.low * 1 + c.medium * 3 + c.high * 6;
-    const finalScore = c.avgRating * severityScore * c.baseWeight;
-    return { ...c, severityScore, finalScore };
+    // rating_factor: small modifier in [0.9, 1.0] — ratings adjust score by ≤ ±10%
+    // COALESCE(avg_rating, 3) → neutral default when no ratings exist
+    const ratingFactor = 0.9 + 0.1 * ((c.avgRating - 1) / 4);
+    const finalScore = Math.max(severityScore, 0) * c.baseWeight * ratingFactor;
+    return { ...c, severityScore, ratingFactor, finalScore };
   });
 
   const sumFinalScores = categoriesWithScores.reduce(
@@ -56,8 +59,11 @@ export default function RottenScorePage() {
   const categoryScore =
     Math.round((sumFinalScores / EXAMPLE_TOTAL_CATEGORIES) * 100) / 100;
   const managerComponent = managerRollup * 2;
-  const rottenScore =
+  const rawRottenScore =
     Math.round((categoryScore + managerComponent) * 100) / 100;
+  // Exponential squash: bounded [0, 100), approaches 100 asymptotically
+  const rottenScore =
+    Math.round(100 * (1 - Math.exp(-rawRottenScore / 50)) * 100) / 100;
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-12 space-y-12">
@@ -91,7 +97,8 @@ export default function RottenScorePage() {
           <li>
             <strong>Community members rate</strong> each piece of evidence on a
             numeric scale. The average of those ratings becomes the{" "}
-            <em>avg_rating</em> for that category.
+            <em>avg_rating</em> for that category and is used to compute a small{" "}
+            <em>rating_factor</em> modifier.
           </li>
           <li>
             <strong>A severity score</strong> is computed for each category by
@@ -107,17 +114,21 @@ export default function RottenScorePage() {
             exists).
           </li>
           <li>
-            <strong>Each category&rsquo;s final score</strong> combines all
-            three signals — ratings, severity, and the category&rsquo;s own
-            base weight (set in the database to reflect the category&rsquo;s
-            ethical importance):
+            <strong>Each category&rsquo;s final score</strong> uses evidence
+            quality as the primary driver; ratings are a weak modifier (±10%):
             <br />
             <code className="bg-gray-100 px-1 rounded text-sm">
-              final_score = avg_rating × severity_score × base_weight
+              rating_factor = 0.9 + 0.1 × ((COALESCE(avg_rating, 3) − 1) / 4)
             </code>
             <br />
-            Categories with no approved evidence have a final_score of{" "}
-            <strong>0</strong>.
+            <code className="bg-gray-100 px-1 rounded text-sm">
+              final_score = GREATEST(severity_score, 0) × base_weight × rating_factor
+            </code>
+            <br />
+            When there are no ratings, <em>avg_rating</em> defaults to 3 (neutral),
+            giving <em>rating_factor</em> = 0.95. Categories with no approved
+            evidence still have a <strong>final_score of 0</strong> because their
+            severity_score is 0.
           </li>
           <li>
             <strong>The category score</strong> is the average of
@@ -137,9 +148,16 @@ export default function RottenScorePage() {
             </code>
           </li>
           <li>
-            <strong>Final Rotten Score:</strong>{" "}
+            <strong>Final Rotten Score:</strong> the raw score is passed through
+            an exponential squash that maps it to a bounded{" "}
+            <strong>0–100 scale</strong>:
+            <br />
             <code className="bg-gray-100 px-1 rounded text-sm">
-              rotten_score = category_score + manager_component
+              raw_rotten_score = category_score + manager_component
+            </code>
+            <br />
+            <code className="bg-gray-100 px-1 rounded text-sm">
+              rotten_score = round(100 × (1 − exp(−raw_rotten_score / 50)), 2)
             </code>
           </li>
           <li>
@@ -170,6 +188,7 @@ export default function RottenScorePage() {
               <tr className="border-b text-left text-gray-600">
                 <th className="py-1 pr-3">Category</th>
                 <th className="py-1 pr-3 text-right">Avg rating</th>
+                <th className="py-1 pr-3 text-right">Rating factor</th>
                 <th className="py-1 pr-3 text-right">
                   Severity score
                   <br />
@@ -187,6 +206,9 @@ export default function RottenScorePage() {
                   <td className="py-1 pr-3">{c.name}</td>
                   <td className="py-1 pr-3 text-right font-mono">
                     {c.avgRating}
+                  </td>
+                  <td className="py-1 pr-3 text-right font-mono">
+                    {c.ratingFactor.toFixed(4)}
                   </td>
                   <td className="py-1 pr-3 text-right font-mono">
                     {c.severityScore}
@@ -207,6 +229,10 @@ export default function RottenScorePage() {
                   Other {EXAMPLE_TOTAL_CATEGORIES - exampleCategories.length} categories
                 </td>
                 <td className="py-1 pr-3 text-right font-mono" aria-label="no ratings">N/A</td>
+                <td className="py-1 pr-3 text-right font-mono" aria-label="neutral">
+                  {/* neutral default: avg_rating=3, same formula as rating_factor above */}
+                  {(0.9 + 0.1 * ((3 - 1) / 4)).toFixed(4)}
+                </td>
                 <td className="py-1 pr-3 text-right font-mono">0</td>
                 <td className="py-1 pr-3 text-right font-mono" aria-label="varies">varies</td>
                 <td className="py-1 text-right font-mono">0.00</td>
@@ -232,9 +258,13 @@ export default function RottenScorePage() {
               manager_rollup ({managerRollup}) × 2 ={" "}
               <span className="font-mono">{managerComponent.toFixed(2)}</span>
             </p>
+            <p>
+              <span className="font-medium">raw_rotten_score</span> ={" "}
+              {categoryScore.toFixed(2)} + {managerComponent.toFixed(2)} ={" "}
+              <span className="font-mono">{rawRottenScore.toFixed(2)}</span>
+            </p>
             <p className="font-semibold text-gray-900 pt-1">
-              Rotten Score = {categoryScore.toFixed(2)} +{" "}
-              {managerComponent.toFixed(2)} ={" "}
+              Rotten Score = round(100 × (1 − exp(−{rawRottenScore.toFixed(2)} ÷ 50)), 2) ={" "}
               <span className="font-mono">{rottenScore.toFixed(2)}</span>
             </p>
           </div>
@@ -314,26 +344,28 @@ severity_score =
                 Step 2 — Per-category final score
               </h3>
               <p className="text-sm text-gray-600">
-                Multiply the average community rating for the category, the
-                severity score, and the category&rsquo;s base weight:
+                Evidence quality (severity × base weight) is the primary driver.
+                Community ratings contribute a small modifier of ±10% via a{" "}
+                <em>rating_factor</em>:
               </p>
               <pre className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto">
-                {`final_score = COALESCE(avg_rating, 0) × GREATEST(severity_score, 0) × base_weight`}
+                {`-- avg_rating defaults to 3 (neutral) when no ratings exist
+rating_factor = 0.9 + 0.1 × ((COALESCE(avg_rating, 3) − 1) / 4)
+--   avg_rating = 1 → rating_factor = 0.90  (lowest)
+--   avg_rating = 3 → rating_factor = 0.95  (neutral default)
+--   avg_rating = 5 → rating_factor = 1.00  (highest)
+
+final_score = GREATEST(severity_score, 0) × base_weight × rating_factor`}
               </pre>
               <p className="text-sm text-gray-600">
-                <code className="bg-gray-100 px-1 rounded">avg_rating</code> is
-                the average of all community ratings submitted for that
-                company–category pair.{" "}
                 <code className="bg-gray-100 px-1 rounded">base_weight</code>{" "}
                 is a per-category constant stored in the database that reflects
-                the relative ethical importance of the category. When there are
-                no ratings,{" "}
-                <code className="bg-gray-100 px-1 rounded">avg_rating</code>{" "}
-                defaults to 0, making final_score 0 for that category.{" "}
+                the relative ethical importance of the category.{" "}
                 <code className="bg-gray-100 px-1 rounded">GREATEST(severity_score, 0)</code>{" "}
                 clamps the severity score to a minimum of 0, ensuring that
                 unusually large remediation cannot produce a negative final
-                score.
+                score. A category with no approved evidence has a severity_score
+                of 0 and therefore a final_score of 0, regardless of ratings.
               </p>
             </div>
 
@@ -370,10 +402,18 @@ severity_score =
             {/* Step 5 */}
             <div className="space-y-2">
               <h3 className="text-base font-semibold">
-                Step 5 — Final Rotten Score
+                Step 5 — Final Rotten Score (exponential squash)
               </h3>
+              <p className="text-sm text-gray-600">
+                The raw score is passed through an exponential transform that
+                maps it to a <strong>bounded 0–100 scale</strong>. The score
+                approaches 100 asymptotically — a company can never reach a
+                perfect 100, but extreme misconduct drives it close.
+              </p>
               <pre className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto">
-                {`rotten_score = category_score + manager_component`}
+                {`raw_rotten_score = category_score + manager_component
+
+rotten_score = round(100 × (1 − exp(−raw_rotten_score / 50)), 2)`}
               </pre>
             </div>
 
@@ -386,8 +426,11 @@ severity_score =
                   the score.
                 </li>
                 <li>
-                  Higher community ratings on that evidence also increase the
-                  score.
+                  Community ratings act as a small modifier (±10%) via{" "}
+                  <em>rating_factor</em>. They do not dominate the score; a
+                  category with strong evidence but no ratings still
+                  contributes meaningfully at the neutral default (rating_factor
+                  = 0.95).
                 </li>
                 <li>
                   Remediation evidence can reduce a category&rsquo;s severity
@@ -413,8 +456,9 @@ severity_score =
                   <strong>0</strong>.
                 </li>
                 <li>
-                  The Rotten Score has no fixed upper bound; it scales with the
-                  amount and severity of evidence.
+                  The Rotten Score is <strong>bounded between 0 and 100</strong>.
+                  The exponential squash (1 − exp(−x/50)) approaches 100
+                  asymptotically; it can never reach 100 exactly.
                 </li>
               </ul>
             </div>
