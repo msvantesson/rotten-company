@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
+import { companyInsertFromRequest } from "@/lib/company/companyInsertFromRequest";
 
 /* ─────────────────────────────────────────────
    Utilities
@@ -152,16 +153,7 @@ export async function POST(req: Request) {
 
     const { data: company, error: companyErr } = await service
       .from("companies")
-      .insert({
-        name: cr.name,
-        country: cr.country,
-        slug,
-        industry: null,
-
-        // NEW: copy submitted fields into the canonical companies row (only on creation)
-        website: cr.website ?? null,
-        description: cr.description ?? null,
-      })
+      .insert(companyInsertFromRequest(cr, slug))
       .select("id, slug")
       .single();
 
