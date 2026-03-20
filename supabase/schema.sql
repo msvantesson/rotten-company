@@ -16,7 +16,6 @@ CREATE TABLE companies (
     industry text,
     size_employees integer,
     website text,
-    rotten_score numeric,
     owner_investor_id bigint
 );
 

@@ -51,7 +51,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select(
-      "id, name, slug, industry, size_employees, rotten_score, country, website, description",
+      "id, name, slug, industry, size_employees, country, website, description",
     )
     .eq("slug", rawSlug)
     .maybeSingle();
@@ -187,7 +187,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   }
 
   // Flavor (canonical)
-  const flavor = getRottenFlavor(liveRottenScore ?? company.rotten_score ?? 0);
+  const flavor = getRottenFlavor(liveRottenScore ?? 0);
 
   // Main driver: category with the highest final_score (contribution points)
   const mainDriver = (() => {
