@@ -26,7 +26,7 @@ export default async function BreakdownPage({
   // 1) Load company
   const { data: company, error: companyError } = await supabase
     .from("companies")
-    .select("id, name, slug, industry, size_employees, rotten_score")
+    .select("id, name, slug, industry, size_employees")
     .eq("slug", slug)
     .maybeSingle();
 
