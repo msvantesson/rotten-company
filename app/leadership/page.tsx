@@ -44,6 +44,7 @@ type IndexedRow = {
   escalation_score?: number | null;
   leader_id?: number;
   tenure_id?: number | null;
+  company_id?: number | null;
   company_name?: string | null;
   company_slug?: string | null;
   started_at?: string | null;
@@ -91,6 +92,7 @@ export default async function LeadershipPage({
                 escalation_score: r.escalation_score != null ? Number(r.escalation_score) : null,
                 leader_id: r.leader_id ?? undefined,
                 tenure_id: r.tenure_id ?? null,
+                company_id: r.company_id ?? null,
                 company_name: r.company_name ?? null,
                 company_slug: r.company_slug ?? null,
                 started_at: r.started_at ?? null,
@@ -283,6 +285,7 @@ export default async function LeadershipPage({
                             <LeadershipEndTenureButton
                               tenureId={r.tenure_id}
                               leaderName={r.name}
+                              companyId={r.company_id ?? null}
                             />
                           )}
                         </td>

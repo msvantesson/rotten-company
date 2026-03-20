@@ -5,9 +5,10 @@ import { useState, useTransition } from "react";
 type Props = {
   tenureId: number;
   leaderName: string;
+  companyId: number | null;
 };
 
-export default function LeadershipEndTenureButton({ tenureId, leaderName }: Props) {
+export default function LeadershipEndTenureButton({ tenureId, leaderName, companyId }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; error?: string } | null>(null);
@@ -65,6 +66,9 @@ export default function LeadershipEndTenureButton({ tenureId, leaderName }: Prop
           <input type="hidden" name="request_type" value="end" />
           <input type="hidden" name="role" value="ceo" />
           <input type="hidden" name="target_tenure_id" value={String(tenureId)} />
+          {companyId !== null && (
+            <input type="hidden" name="company_id" value={String(companyId)} />
+          )}
           <input
             name="ended_at"
             type="date"
@@ -73,7 +77,7 @@ export default function LeadershipEndTenureButton({ tenureId, leaderName }: Prop
           />
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || companyId === null}
             className="rounded bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
           >
             {isPending ? "…" : "Submit"}
