@@ -19,6 +19,7 @@ export type RottenIndexRow = {
   approved_evidence_count?: number;
   // leader-only
   tenure_id?: number | null;
+  company_id?: number | null;
   company_name?: string | null;
   company_slug?: string | null;
   started_at?: string | null;
@@ -212,6 +213,7 @@ export async function getRottenIndexData(
             country: l.country ?? null,
             rotten_score,
             tenure_id: tenure?.id ?? null,
+            company_id: companyId,
             company_name: company?.name ?? null,
             company_slug: company?.slug ?? null,
             started_at: tenure?.started_at ?? null,
