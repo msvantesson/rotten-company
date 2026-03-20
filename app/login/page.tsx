@@ -8,7 +8,7 @@ export default async function LoginPage() {
   const loginError = cookieStore.get("login_error")?.value ?? null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted px-4">
+    <div className="min-h-[calc(100vh-72px)] flex items-center justify-center bg-muted px-4">
       <div className="w-full max-w-md bg-surface border border-border rounded-xl shadow-sm p-8">
         <h1 className="text-2xl font-bold mb-6">Sign in</h1>
 
