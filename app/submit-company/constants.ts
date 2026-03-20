@@ -1,15 +1,2 @@
-export const INDUSTRIES = [
-  "Software & IT",
-  "Finance & Insurance",
-  "Healthcare & Life Sciences",
-  "Manufacturing",
-  "Retail & E-commerce",
-  "Consumer Goods",
-  "Energy & Utilities",
-  "Logistics & Transportation",
-  "Media & Entertainment",
-  "Real Estate",
-  "Other",
-];
-
+export { INDUSTRIES } from "@/lib/constants/industries";
 export { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
