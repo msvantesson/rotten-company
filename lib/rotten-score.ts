@@ -8,11 +8,14 @@
  *
  * Company Rotten Scores are computed entirely inside the database:
  *   - View: company_category_full_breakdown
- *       final_score = COALESCE(avg_rating, 0) × severity_score × base_weight
- *       severity_score = low_count×1 + medium_count×3 + high_count×6
+ *       rating_factor = 0.9 + 0.1 × ((COALESCE(avg_rating, 3) − 1) / 4)  -- weak ±10% modifier
+ *       final_score   = GREATEST(severity_score, 0) × base_weight × rating_factor
+ *       severity_score = misconduct_units − capped_remediation_units
+ *         (misconduct: low×1 + medium×3 + high×6; remediation capped at 25% of misconduct count)
  *   - View: company_rotten_score_v2
- *       category_score = round(avg(final_score across all categories), 2)
- *       rotten_score   = category_score + COALESCE(manager_rollup, 0) × 2
+ *       category_score   = round(avg(final_score across all categories), 2)
+ *       raw_rotten_score = category_score + COALESCE(manager_rollup, 0) × 2
+ *       rotten_score     = round(100 × (1 − exp(−raw_rotten_score / 50)), 2)  -- bounded 0–100
  *
  * This module (leader scoring) uses:
  * - 18 harm categories with explicit weights
