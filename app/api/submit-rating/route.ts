@@ -94,23 +94,39 @@ export async function POST(req: Request) {
       );
     }
 
-    // Insert or update rating
-    const { error: insertError } = await supabase.from("ratings").upsert({
-      user_id: user.id,
-      company_id: company.id,
-      category: category.id,
-      score: parsedScore,
-    });
+    // Insert or update rating — explicitly target the unique constraint so
+    // re-submitting the same (user, company, category) updates the existing row.
+    const { data: ratingRow, error: ratingError } = await supabase
+      .from("ratings")
+      .upsert(
+        {
+          user_id: user.id,
+          company_id: company.id,
+          category: category.id,
+          score: parsedScore,
+        },
+        { onConflict: "user_id,company_id,category" }
+      )
+      .select("id, user_id, company_id, category, score, created_at")
+      .single();
 
-    if (insertError) {
-      console.error("Rating insert failed:", insertError);
+    if (ratingError) {
+      // Duplicate-key violation — return 409 instead of 500 for a normal update conflict.
+      if ((ratingError as any).code === "23505") {
+        return NextResponse.json(
+          { error: "Rating already exists for this category (conflict)." },
+          { status: 409 }
+        );
+      }
+
+      console.error("Rating upsert failed:", ratingError);
       return NextResponse.json(
-        { error: "Failed to submit rating", details: insertError },
+        { error: "Failed to submit rating", details: ratingError },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, rating: ratingRow });
   } catch (err: any) {
     console.error("Unhandled rating error:", err);
     return NextResponse.json(
