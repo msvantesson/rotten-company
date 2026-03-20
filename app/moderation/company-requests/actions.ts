@@ -7,6 +7,7 @@ import { supabaseService } from "@/lib/supabase-service";
 import { createClient } from "@supabase/supabase-js";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
 import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
+import { companyInsertFromRequest } from "@/lib/company/companyInsertFromRequest";
 
 function adminClient() {
   return createClient(
@@ -248,12 +249,7 @@ export async function approveCompanyRequest(formData: FormData) {
 
     const { data: company, error: companyInsertErr } = await service
       .from("companies")
-      .insert({
-        name: cr.name,
-        country: cr.country ?? null,
-        slug,
-        industry: null,
-      })
+      .insert(companyInsertFromRequest(cr, slug))
       .select("id, slug")
       .single();
 
