@@ -279,10 +279,10 @@ export default async function HomePage() {
     <main className="max-w-6xl mx-auto px-4 py-12 space-y-20">
       {/* HERO */}
       <section className="space-y-4">
-        <h1 className="text-5xl sm:text-6xl font-bold">An evidence-based index of corporate misconduct.</h1>
+        <h1 className="text-5xl sm:text-6xl font-bold">Expose Corporate Misconduct — Documented Evidence</h1>
 
         <div className="pt-4 space-y-2 max-w-3xl">
-          <p className="text-base font-medium">Know something rotten?</p>
+          <p className="text-base font-medium">A public index of companies ranked by documented wrongdoing.</p>
           <p className="text-sm text-muted-foreground">
             Submit documented evidence and help expose corporate misconduct before others accept the job or sign the
             contract.
