@@ -1,26 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 export default function SiteHeader({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
   return (
     <header className="w-full border-b border-border">
       <div className="relative mx-auto max-w-6xl flex flex-wrap items-center justify-between gap-2 py-3 px-3 sm:py-4 sm:px-6">
-        {pathname === "/" ? (
-          <span
-            className="font-bold text-xl opacity-0 select-none"
-            aria-hidden="true"
-          >
-            Rotten Company
-          </span>
-        ) : (
-          <Link href="/" className="font-bold text-xl">
-            Rotten Company
-          </Link>
-        )}
+        <Link href="/" className="font-bold text-xl">
+          Rotten Company
+        </Link>
 
         <nav className="hidden sm:flex items-center gap-4 text-sm font-medium">
           <Link
