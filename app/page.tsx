@@ -279,11 +279,7 @@ export default async function HomePage() {
     <main className="max-w-6xl mx-auto px-4 py-12 space-y-20">
       {/* HERO */}
       <section className="space-y-4">
-        <h1 className="text-5xl sm:text-6xl font-bold">Rotten Company</h1>
-
-        <p className="text-lg text-muted-foreground max-w-3xl">
-          An evidence-based index of corporate misconduct.
-        </p>
+        <h1 className="text-5xl sm:text-6xl font-bold">An evidence-based index of corporate misconduct.</h1>
 
         <div className="pt-4 space-y-2 max-w-3xl">
           <p className="text-base font-medium">Know something rotten?</p>
