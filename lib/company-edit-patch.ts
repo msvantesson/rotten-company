@@ -2,12 +2,14 @@
  * Pure helper for building a company edit patch.
  *
  * Rules:
- *  - Only allow the whitelisted fields (v1: website, industry, description, country, size_employees).
+ *  - Only allow the whitelisted fields (website, industry, description, country, size_employees, name).
  *  - No-clearing rule: blank/empty inputs are treated as "no change".
  *  - size_employees: optional; if provided must be an integer >= 0.
+ *  - name: if provided must be at least 2 characters after trimming.
  */
 
 export const EDITABLE_COMPANY_FIELDS = [
+  "name",
   "website",
   "industry",
   "description",
@@ -20,6 +22,7 @@ export type EditableField = (typeof EDITABLE_COMPANY_FIELDS)[number];
 export type CompanyEditInput = Partial<Record<EditableField, string | number | null | undefined>>;
 
 export type CompanyPatch = {
+  name?: string;
   website?: string;
   industry?: string;
   description?: string;
@@ -34,10 +37,12 @@ export type CompanyPatch = {
 export function buildCompanyEditPatch(proposed: CompanyEditInput): CompanyPatch {
   const patch: CompanyPatch = {};
 
-  const textFields = ["website", "industry", "description", "country"] as const;
+  const textFields = ["name", "website", "industry", "description", "country"] as const;
   for (const field of textFields) {
     const val = proposed[field];
     if (typeof val === "string" && val.trim() !== "") {
+      // name requires at least 2 characters
+      if (field === "name" && val.trim().length < 2) continue;
       (patch as Record<string, unknown>)[field] = val.trim();
     }
   }

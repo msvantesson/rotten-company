@@ -8,6 +8,7 @@ import { INDUSTRIES } from "@/lib/constants/industries";
 type Props = {
   companySlug: string;
   currentValues: {
+    name: string;
     website: string;
     industry: string;
     description: string;
@@ -44,6 +45,7 @@ function deriveInitialRange(currentValues: Props["currentValues"]): string {
 export default function SuggestEditForm({ companySlug, currentValues }: Props) {
   const router = useRouter();
 
+  const [name, setName] = useState(currentValues.name);
   const [website, setWebsite] = useState(currentValues.website);
   const [industry, setIndustry] = useState(currentValues.industry);
   const [description, setDescription] = useState(currentValues.description);
@@ -71,6 +73,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companySlug,
+          name: name.trim() || null,
           website: website.trim() || null,
           industry: industry.trim() || null,
           description: description.trim() || null,
@@ -94,6 +97,19 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          Name
+          <span className="ml-1 text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+        </label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={currentValues.name || "Company name"}
+          className="w-full rounded-md border px-3 py-2 text-sm"
+        />
+      </div>
+
       <div>
         <label className="block text-sm font-medium mb-1">
           Website

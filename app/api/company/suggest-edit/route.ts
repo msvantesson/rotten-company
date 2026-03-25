@@ -33,11 +33,18 @@ export async function POST(req: Request) {
 
   // Validate proposed text fields using the patch helper
   const proposed = {
+    name: body.name ?? null,
     website: body.website ?? null,
     industry: body.industry ?? null,
     description: body.description ?? null,
     country: body.country ?? null,
   };
+
+  // Validate proposed name length if provided
+  const proposedName = typeof proposed.name === "string" ? proposed.name.trim() : null;
+  if (proposedName !== null && proposedName !== "" && proposedName.length < 2) {
+    return new NextResponse("Company name must be at least 2 characters", { status: 400 });
+  }
 
   // Parse size_employees: accept a range label (new) or a legacy integer string
   const sizeEmployeesRaw = body.size_employees ?? null;
@@ -89,6 +96,7 @@ export async function POST(req: Request) {
     status: "pending",
     user_id: user.id,
     approved_company_id: company.id,
+    proposed_name: proposedName || null,
     website: typeof patch.website === "string" ? patch.website : null,
     description: typeof patch.description === "string" ? patch.description : null,
     country: typeof patch.country === "string" ? patch.country : null,

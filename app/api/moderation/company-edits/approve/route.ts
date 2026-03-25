@@ -45,7 +45,7 @@ export async function POST(req: Request) {
   // Fetch the edit request — must be pending and have approved_company_id set
   const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("id, status, name, website, industry, description, country, size_employees_min, size_employees, approved_company_id, user_id")
+    .select("id, status, name, website, industry, description, country, size_employees_min, size_employees, proposed_name, approved_company_id, user_id")
     .eq("id", id)
     .not("approved_company_id", "is", null)
     .maybeSingle();
@@ -60,6 +60,7 @@ export async function POST(req: Request) {
 
   // Build the patch using whitelist + no-clearing rules
   const patch = buildCompanyEditPatch({
+    name: cr.proposed_name,
     website: cr.website,
     industry: cr.industry,
     description: cr.description,

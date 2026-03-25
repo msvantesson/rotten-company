@@ -56,7 +56,7 @@ export default async function CompanyEditReviewPage({
   // Fetch the edit request
   const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("id, name, status, why, website, industry, description, country, size_employees_min, approved_company_id, created_at, user_id")
+    .select("id, name, status, why, website, industry, description, country, size_employees_min, proposed_name, approved_company_id, created_at, user_id")
     .eq("id", requestId)
     .not("approved_company_id", "is", null)
     .maybeSingle();
@@ -108,6 +108,7 @@ export default async function CompanyEditReviewPage({
       why={cr.why ?? ""}
       submittedAt={cr.created_at}
       current={{
+        name: company.name ?? null,
         website: company.website ?? null,
         industry: company.industry ?? null,
         description: company.description ?? null,
@@ -115,6 +116,7 @@ export default async function CompanyEditReviewPage({
         size_employees: company.size_employees ?? null,
       }}
       proposed={{
+        name: cr.proposed_name ?? null,
         website: cr.website ?? null,
         industry: cr.industry ?? null,
         description: cr.description ?? null,
