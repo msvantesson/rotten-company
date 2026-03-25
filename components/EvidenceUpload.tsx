@@ -11,7 +11,9 @@ type EvidenceUploadProps = {
 };
 
 const MAX_IMAGE_SIZE = 3 * 1024 * 1024; // 3MB
-const MAX_PDF_SIZE = 8 * 1024 * 1024; // 8MB
+const MAX_PDF_SIZE = 1 * 1024 * 1024; // 1MB
+
+const toMB = (bytes: number) => bytes / (1024 * 1024);
 
 function sanitizeFileName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_");
@@ -67,11 +69,11 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
     if (!categoryId) return setError("Please select a category.");
 
     if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
-      return setError("Image too large. Max size is 3MB.");
+      return setError(`Image too large. Max size is ${toMB(MAX_IMAGE_SIZE)}MB.`);
     }
 
     if (file.type === "application/pdf" && file.size > MAX_PDF_SIZE) {
-      return setError("PDF too large. Max size is 8MB.");
+      return setError(`PDF too large. Max size is ${toMB(MAX_PDF_SIZE)}MB.`);
     }
 
     setLoading(true);
@@ -241,6 +243,19 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           disabled={loading}
         />
+        <p className="text-xs text-muted-foreground">
+          Max file size: images {toMB(MAX_IMAGE_SIZE)} MB · PDFs {toMB(MAX_PDF_SIZE)} MB.{" "}
+          Need to reduce a PDF?{" "}
+          <a
+            href="https://www.ilovepdf.com/compress_pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            Compress it for free at ilovepdf.com
+          </a>
+          .
+        </p>
       </div>
 
       {error && (
