@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type FieldValues = {
+  name: string | null;
   website: string | null;
   industry: string | null;
   description: string | null;
@@ -144,6 +145,7 @@ export default function CompanyEditReviewClient({
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
+            <DiffRow label="Name" current={current.name} proposed={proposed.name} />
             <DiffRow label="Website" current={current.website} proposed={proposed.website} />
             <DiffRow label="Industry" current={current.industry} proposed={proposed.industry} />
             <DiffRow label="Description" current={current.description} proposed={proposed.description} />

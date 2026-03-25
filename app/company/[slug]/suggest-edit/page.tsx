@@ -53,6 +53,7 @@ export default async function SuggestEditPage({
         <SuggestEditForm
           companySlug={company.slug}
           currentValues={{
+            name: company.name ?? "",
             website: company.website ?? "",
             industry: company.industry ?? "",
             description: company.description ?? "",
