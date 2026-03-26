@@ -279,13 +279,14 @@ export default async function HomePage() {
     <main className="max-w-6xl mx-auto px-4 py-12 space-y-20">
       {/* HERO */}
       <section className="space-y-4">
-        <h1 className="text-5xl sm:text-6xl font-bold">Expose Corporate Misconduct — Documented Evidence</h1>
+        <h1 className="text-5xl sm:text-6xl font-bold">Expose Corporate Misconduct — Backed by Evidence</h1>
 
         <div className="pt-4 space-y-2 max-w-3xl">
-          <p className="text-base font-medium">A public index of companies ranked by documented wrongdoing.</p>
+          <p className="text-base font-medium">A public index of companies ranked by documented wrongdoing—not opinions.</p>
+          <p className="text-sm text-muted-foreground">Bad companies count on silence.</p>
           <p className="text-sm text-muted-foreground">
-            Submit documented evidence and help expose corporate misconduct before others accept the job or sign the
-            contract.
+            Expose how they really behave. Build the record—and warn others before they give them their time, work, or
+            money.
           </p>
         </div>
 
@@ -298,11 +299,9 @@ export default async function HomePage() {
               Submit Evidence
             </Link>
             <p className="text-xs text-muted-foreground">
-              Requires an account&nbsp;·&nbsp;Takes ~2 minutes&nbsp;·&nbsp;Upload PDF or image
+              Takes ~2 minutes&nbsp;•&nbsp;Upload documents or links&nbsp;•&nbsp;Reviewed before publishing
             </p>
-            <p className="text-xs text-muted-foreground">
-              Moderation required before your first evidence submission
-            </p>
+            <p className="text-xs text-muted-foreground italic">Anyone can complain. Evidence makes it count.</p>
             <Link
               href="/rotten-index"
               className="mt-1 inline-flex self-start items-center gap-1 text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
