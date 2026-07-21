@@ -25,12 +25,12 @@ function getRecipientLogValue(recipient: unknown) {
 
   const atIndex = email.indexOf("@");
   if (atIndex < 0) {
-    return `${email.slice(0, 2)}***`;
+    return email.length >= 2 ? `${email.slice(0, 2)}***` : "***";
   }
 
   const local = email.slice(0, atIndex);
   const domain = email.slice(atIndex + 1);
-  const visibleLocal = local ? local.slice(0, 2) : "***";
+  const visibleLocal = local.length >= 2 ? local.slice(0, 2) : "***";
 
   return `${visibleLocal}***@${domain}`;
 }
