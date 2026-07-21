@@ -12,6 +12,17 @@ jobs:
     steps:
       - name: Call notification worker
         run: |
-          curl -f -X GET \
+          HTTP_STATUS=$(curl --silent --show-error \
+            --write-out "%{http_code}" \
+            --output /tmp/notification_response.txt \
+            -X GET \
             -H "X-Worker-Secret: ${{ secrets.NOTIFICATION_WORKER_SECRET }}" \
-            https://rotten-company.com/api/send-notifications
+            https://rotten-company.com/api/send-notifications)
+          echo "Response body:"
+          cat /tmp/notification_response.txt
+          echo ""
+          echo "HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "Worker returned non-2xx status: $HTTP_STATUS" >&2
+            exit 1
+          fi
