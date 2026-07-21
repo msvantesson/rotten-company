@@ -132,7 +132,7 @@ async function sendEmailWithRetry(job: any) {
         jobId,
         attempt: err.attemptNumber,
         retriesLeft: err.retriesLeft,
-        error: err.message,
+        error: err.error.message,
       });
     },
   });
