@@ -6,7 +6,7 @@ import nodemailer from "nodemailer";
 import pRetry from "p-retry";
 
 const {
-  SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
   SMTP_HOST,
   SMTP_PORT,
@@ -16,48 +16,70 @@ const {
   NOTIFICATION_WORKER_SECRET,
 } = process.env;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("Missing Supabase env vars");
+if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("[send-notifications] startup: Missing Supabase env vars", {
+    NEXT_PUBLIC_SUPABASE_URL: !!NEXT_PUBLIC_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: !!SUPABASE_SERVICE_ROLE_KEY,
+  });
 }
 
 if (!SMTP_HOST || !SMTP_PORT || !SMTP_USERNAME || !SMTP_PASSWORD) {
-  console.error("Missing SMTP env vars");
+  console.error("[send-notifications] startup: Missing SMTP env vars", {
+    SMTP_HOST: !!SMTP_HOST,
+    SMTP_PORT: !!SMTP_PORT,
+    SMTP_USERNAME: !!SMTP_USERNAME,
+    SMTP_PASSWORD: !!SMTP_PASSWORD,
+  });
 }
 
 if (!NOTIFICATION_WORKER_SECRET) {
-  console.error("Missing NOTIFICATION_WORKER_SECRET");
+  console.error("[send-notifications] startup: Missing NOTIFICATION_WORKER_SECRET");
 }
 
 const supabase = createClient(
-  SUPABASE_URL!,
+  NEXT_PUBLIC_SUPABASE_URL!,
   SUPABASE_SERVICE_ROLE_KEY!
 );
 
 // --- Claim a pending job atomically ---
 async function claimJob() {
+  console.info("[send-notifications] claimJob: calling claim_notification_job RPC");
   const { data, error } = await supabase.rpc("claim_notification_job");
   if (error) {
-    console.error("claim_notification_job RPC error:", error);
+    console.error("[send-notifications] claimJob: RPC error", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
     return null;
   }
-  if (!data) return null;
-  return Array.isArray(data) ? data[0] ?? null : data;
+  const job = Array.isArray(data) ? data[0] ?? null : data ?? null;
+  if (!job) {
+    console.info("[send-notifications] claimJob: no pending jobs available");
+  } else {
+    console.info("[send-notifications] claimJob: claimed job", { jobId: job.id, recipient: job.recipient_email });
+  }
+  return job;
 }
 
 // --- Mark job as sent ---
 async function markSent(jobId: number) {
-  await supabase
+  const { error } = await supabase
     .from("notification_jobs")
     .update({
       status: "sent",
       updated_at: new Date().toISOString(),
     })
     .eq("id", jobId);
+  if (error) {
+    console.error("[send-notifications] markSent: failed to mark job sent", { jobId, error: error.message });
+  }
 }
 
 // --- Mark job as failed ---
 async function markFailed(jobId: number, err: any, attempts: number) {
-  await supabase
+  const { error } = await supabase
     .from("notification_jobs")
     .update({
       status: "failed",
@@ -66,6 +88,9 @@ async function markFailed(jobId: number, err: any, attempts: number) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", jobId);
+  if (error) {
+    console.error("[send-notifications] markFailed: failed to mark job failed", { jobId, error: error.message });
+  }
 }
 
 // --- SMTP transporter ---
@@ -81,37 +106,57 @@ const transporter = nodemailer.createTransport({
 
 // --- Send email once ---
 async function sendEmailOnce(job: any) {
+  console.info("[send-notifications] sendMail: calling transporter.sendMail", {
+    jobId: job.id,
+    to: job.recipient_email,
+    subject: job.subject,
+  });
   await transporter.sendMail({
     from: FROM_EMAIL,
     to: job.recipient_email,
     subject: job.subject || "Notification",
     text: job.body || "",
   });
+  console.info("[send-notifications] sendMail: succeeded", { jobId: job.id });
 }
 
 // --- Retry wrapper ---
 async function sendEmailWithRetry(job: any) {
+  const jobId: number = job.id;
   return pRetry(() => sendEmailOnce(job), {
     retries: 2,
     factor: 2,
     minTimeout: 1000,
+    onFailedAttempt: (err) => {
+      console.warn("[send-notifications] sendEmailWithRetry: attempt failed", {
+        jobId,
+        attempt: err.attemptNumber,
+        retriesLeft: err.retriesLeft,
+        error: err.message,
+      });
+    },
   });
 }
 
 // --- Core worker logic ---
 async function processJob() {
+  console.info("[send-notifications] processJob: entered");
   const job = await claimJob();
   if (!job) {
     return NextResponse.json({ ok: true, message: "no jobs" });
   }
 
+  console.info("[send-notifications] processJob: sending email for job", { jobId: job.id });
   try {
     await sendEmailWithRetry(job);
     await markSent(job.id);
-    console.info("Sent notification job", job.id, job.recipient_email);
+    console.info("[send-notifications] processJob: job completed successfully", { jobId: job.id });
     return NextResponse.json({ ok: true, jobId: job.id });
   } catch (err) {
-    console.error("sendEmail error for job", job.id, err);
+    console.error("[send-notifications] processJob: sendEmail failed after all retries", {
+      jobId: job.id,
+      error: String(err),
+    });
     const attempts = (job.attempts || 0) + 1;
     await markFailed(job.id, err, attempts);
     return NextResponse.json(
@@ -123,21 +168,27 @@ async function processJob() {
 
 // --- Authenticated entrypoints ---
 export async function GET(req: Request) {
+  console.info("[send-notifications] GET: worker endpoint entered");
   const incoming = req.headers.get("x-worker-secret");
 
   if (incoming !== NOTIFICATION_WORKER_SECRET) {
+    console.warn("[send-notifications] GET: authentication failed — secret mismatch");
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  console.info("[send-notifications] GET: authentication accepted");
   return processJob();
 }
 
 export async function POST(req: Request) {
+  console.info("[send-notifications] POST: worker endpoint entered");
   const incoming = req.headers.get("x-worker-secret");
 
   if (incoming !== NOTIFICATION_WORKER_SECRET) {
+    console.warn("[send-notifications] POST: authentication failed — secret mismatch");
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  console.info("[send-notifications] POST: authentication accepted");
   return processJob();
 }
