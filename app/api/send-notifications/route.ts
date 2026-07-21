@@ -154,8 +154,12 @@ async function processJob() {
     return NextResponse.json({ ok: true, jobId: job.id });
   } catch (err) {
     console.error("[send-notifications] processJob: sendEmail failed after all retries", {
+      worker: "send-notifications",
+      context: "processJob",
       jobId: job.id,
-      error: String(err),
+      recipient: job.recipient_email,
+      error: err instanceof Error ? err.message : String(err),
+      timestamp: new Date().toISOString(),
     });
     const attempts = (job.attempts || 0) + 1;
     await markFailed(job.id, err, attempts);
