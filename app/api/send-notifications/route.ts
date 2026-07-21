@@ -16,6 +16,9 @@ const {
   NOTIFICATION_WORKER_SECRET,
 } = process.env;
 
+const WORKER_NAME = "send-notifications";
+const PROCESS_JOB_CONTEXT = "processJob";
+
 if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("[send-notifications] startup: Missing Supabase env vars", {
     NEXT_PUBLIC_SUPABASE_URL: !!NEXT_PUBLIC_SUPABASE_URL,
@@ -153,9 +156,9 @@ async function processJob() {
     console.info("[send-notifications] processJob: job completed successfully", { jobId: job.id });
     return NextResponse.json({ ok: true, jobId: job.id });
   } catch (err) {
-    console.error("[send-notifications] processJob: sendEmail failed after all retries", {
-      worker: "send-notifications",
-      context: "processJob",
+    console.error(`[${WORKER_NAME}] ${PROCESS_JOB_CONTEXT}: sendEmail failed after all retries`, {
+      worker: WORKER_NAME,
+      context: PROCESS_JOB_CONTEXT,
       jobId: job.id,
       recipient: job.recipient_email,
       error: err instanceof Error ? err.message : String(err),
