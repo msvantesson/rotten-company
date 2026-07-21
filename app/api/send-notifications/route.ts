@@ -24,13 +24,13 @@ function getRecipientLogValue(recipient: unknown) {
   if (!email) return "unknown";
 
   const atIndex = email.indexOf("@");
-  if (atIndex <= 0) {
-    return email.length <= 4 ? "***" : `${email.slice(0, 2)}***`;
+  if (atIndex < 0) {
+    return `${email.slice(0, 2)}***`;
   }
 
   const local = email.slice(0, atIndex);
   const domain = email.slice(atIndex + 1);
-  const visibleLocal = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
+  const visibleLocal = local ? local.slice(0, 2) : "***";
 
   return `${visibleLocal}***@${domain}`;
 }
