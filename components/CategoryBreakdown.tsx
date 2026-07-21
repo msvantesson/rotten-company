@@ -65,7 +65,7 @@ export function CategoryBreakdown({
   evidence,
   showHeader = true,
 }: {
-  company: any;
+  company: { name: string };
   breakdown: BreakdownItem[];
   evidence: EvidenceItem[];
   showHeader?: boolean;
@@ -94,11 +94,20 @@ export function CategoryBreakdown({
       <div className="space-y-6">
         {breakdown.map((item) => {
           const { icon, color } = getCategoryPresentation(item.category_id);
-          const categoryFlavor = getCategoryFlavor(item.category_id);
 
           const finalScore = isFiniteNumber(item.final_score)
             ? item.final_score
             : null;
+          const contribution = finalScore ?? 0;
+          const evidenceCount = item.evidence_count ?? 0;
+          const ratingsCount = item.rating_count ?? 0;
+          const hasEvidenceContribution = evidenceCount > 0 && contribution > 0;
+
+          const categoryStatus = hasEvidenceContribution
+            ? getCategoryFlavor(item.category_id)
+            : ratingsCount > 0
+              ? "Community concern only"
+              : "No documented evidence";
 
           const barPct = finalScore !== null ? clamp(finalScore, 0, 100) : 0;
 
@@ -110,8 +119,14 @@ export function CategoryBreakdown({
                 <span>{item.category_name}</span>
               </div>
 
-              {/* Category flavor (string-only, canonical) */}
-              <p className="text-xs italic text-neutral-600">{categoryFlavor}</p>
+              {/* Category status/flavor */}
+              <p className="text-xs italic text-neutral-600">{categoryStatus}</p>
+              {!hasEvidenceContribution && ratingsCount > 0 && (
+                <p className="text-xs text-neutral-500">
+                  Community ratings exist, but no approved evidence has been
+                  submitted. Community ratings do not affect the Rotten Score.
+                </p>
+              )}
 
               {/* Mini score bar */}
               <div className="w-full h-2 bg-neutral-200 rounded-full overflow-hidden">
