@@ -98,10 +98,10 @@ export function CategoryBreakdown({
           const finalScore = isFiniteNumber(item.final_score)
             ? item.final_score
             : null;
-          const contribution = finalScore ?? 0;
           const evidenceCount = item.evidence_count ?? 0;
           const ratingsCount = item.rating_count ?? 0;
-          const hasEvidenceContribution = evidenceCount > 0 && contribution > 0;
+          const hasEvidenceContribution =
+            evidenceCount > 0 && finalScore !== null && finalScore > 0;
 
           const categoryStatus = hasEvidenceContribution
             ? getCategoryFlavor(item.category_id)
