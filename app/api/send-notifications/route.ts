@@ -19,6 +19,22 @@ const {
 const WORKER_NAME = "send-notifications";
 const PROCESS_JOB_CONTEXT = "processJob";
 
+function getRecipientLogValue(recipient: unknown) {
+  const email = typeof recipient === "string" ? recipient.trim() : "";
+  if (!email) return "unknown";
+
+  const atIndex = email.indexOf("@");
+  if (atIndex <= 0) {
+    return email.length <= 4 ? "***" : `${email.slice(0, 2)}***`;
+  }
+
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex + 1);
+  const visibleLocal = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
+
+  return `${visibleLocal}***@${domain}`;
+}
+
 if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("[send-notifications] startup: Missing Supabase env vars", {
     NEXT_PUBLIC_SUPABASE_URL: !!NEXT_PUBLIC_SUPABASE_URL,
@@ -160,7 +176,7 @@ async function processJob() {
       worker: WORKER_NAME,
       context: PROCESS_JOB_CONTEXT,
       jobId: job.id,
-      recipient: job.recipient_email,
+      recipientIdentifier: getRecipientLogValue(job.recipient_email),
       error: err instanceof Error ? err.message : String(err),
       timestamp: new Date().toISOString(),
     });
