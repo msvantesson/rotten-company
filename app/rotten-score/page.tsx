@@ -9,10 +9,12 @@ export const metadata: Metadata = {
 
 export default function RottenScorePage() {
   // Worked example values (fictional company: AcmeCorp)
+  // These category names are illustrative only — actual names are stored in
+  // the `categories` database table and are the single source of truth.
   // Using illustrative base_weight values; actual weights are set per-category in the database.
   const exampleCategories = [
     {
-      name: "Toxic Workplace",
+      name: "Harm Category A (illustrative)",
       avgRating: 3.5,
       low: 2,
       medium: 1,
@@ -20,7 +22,7 @@ export default function RottenScorePage() {
       baseWeight: 2.0,
     },
     {
-      name: "Wage Abuse",
+      name: "Harm Category B (illustrative)",
       avgRating: 4.2,
       low: 0,
       medium: 1,
@@ -28,7 +30,7 @@ export default function RottenScorePage() {
       baseWeight: 1.5,
     },
     {
-      name: "Sustainability Deception",
+      name: "Harm Category C (illustrative)",
       avgRating: 2.0,
       low: 0,
       medium: 2,
@@ -90,9 +92,9 @@ export default function RottenScorePage() {
         <ol className="list-decimal list-inside space-y-3 text-gray-800">
           <li>
             <strong>Evidence is submitted</strong> across any harm category
-            (e.g. wage abuse, greenwashing, fraud). Each piece of evidence is
-            assigned a severity: <em>low</em>, <em>medium</em>, or{" "}
-            <em>high</em>.
+            (e.g. environmental harm, fraud, workplace misconduct). Each piece
+            of evidence is assigned a severity: <em>low</em>, <em>medium</em>,
+            or <em>high</em>.
           </li>
           <li>
             <strong>Community members rate</strong> each piece of evidence on a
