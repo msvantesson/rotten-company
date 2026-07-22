@@ -54,8 +54,60 @@ export async function getEvidenceWithManagers(companyId: number) {
     return [];
   }
 
-  return (evidenceRows ?? []).map((row: any) => {
+  const rows = evidenceRows ?? [];
+
+  // Collect unique category IDs so we can resolve category names.
+  // Prefer category_id (canonical FK) and fall back to the legacy category column.
+  const categoryIdSet = new Set<number>();
+  for (const row of rows) {
+    const id =
+      typeof row.category_id === "number"
+        ? row.category_id
+        : typeof row.category === "number"
+          ? row.category
+          : null;
+    if (id !== null) categoryIdSet.add(id);
+  }
+
+  // Build a lookup map { categoryId -> categoryName }.
+  const categoryNameById: Record<number, string> = {};
+  if (categoryIdSet.size > 0) {
+    const { data: cats, error: catsError } = await supabase
+      .from("categories")
+      .select("id, name")
+      .in("id", Array.from(categoryIdSet));
+
+    if (catsError) {
+      console.error("[getEvidenceWithManagers] error loading categories", {
+        error: catsError,
+      });
+    }
+
+    for (const cat of cats ?? []) {
+      if (typeof cat.id === "number" && typeof cat.name === "string") {
+        categoryNameById[cat.id] = cat.name;
+      }
+    }
+  }
+
+  return rows.map((row: any) => {
     const managers: ManagerRow[] = row.managers ?? [];
-    return { ...row, managers };
+
+    // Resolve the category name from the lookup map.
+    const catId =
+      typeof row.category_id === "number"
+        ? row.category_id
+        : typeof row.category === "number"
+          ? row.category
+          : null;
+    const catName = catId !== null ? (categoryNameById[catId] ?? null) : null;
+
+    return {
+      ...row,
+      managers,
+      // Provide category as { name } so components can display the category name
+      // without falling back to "Uncategorized" when category_id is present.
+      category: catName !== null ? { name: catName } : null,
+    };
   });
 }
