@@ -94,12 +94,17 @@ for (const dir of SCAN_DIRS) {
     }
 
     // Check line by line, skipping pure comment lines so that internal code
-    // comments (e.g. "// Environmental Harm") don't trigger false positives.
+    // comments (e.g. "// Environmental Harm", "/* category notes */") don't
+    // trigger false positives.
     const lines = src.split("\n");
     const nonCommentSrc = lines
       .filter((line) => {
         const trimmed = line.trimStart();
-        return !trimmed.startsWith("//") && !trimmed.startsWith("*");
+        return (
+          !trimmed.startsWith("//") &&
+          !trimmed.startsWith("*") &&
+          !trimmed.startsWith("/*")
+        );
       })
       .join("\n");
 
