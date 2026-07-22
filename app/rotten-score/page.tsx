@@ -28,7 +28,7 @@ export default function RottenScorePage() {
       baseWeight: 1.5,
     },
     {
-      name: "Greenwashing",
+      name: "Sustainability Deception",
       avgRating: 2.0,
       low: 0,
       medium: 2,
