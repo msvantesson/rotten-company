@@ -6,22 +6,8 @@ import React from "react";
 import Link from "next/link";
 import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
 import { getCategoryHelp } from "@/lib/category-help";
+import { getCategoryFlavor } from "@/lib/flavor-engine";
 import BackLink from "@/components/BackLink";
-
-// --- Category flavor taxonomy ---
-const CATEGORY_FLAVORS: Record<number, string> = {
-  1: "Rotten to the core",
-  2: "Smells like spin",
-  3: "Boardroom smoke and mirrors",
-  4: "Toxic workplace vibes",
-  5: "Ethics on life support",
-  6: "Greenwashing deluxe",
-  13: "Customer trust? Never heard of it",
-};
-
-function getCategoryFlavor(categoryId: number): string {
-  return CATEGORY_FLAVORS[categoryId] ?? "No flavor assigned";
-}
 
 export default async function CategoryPage({ params }: { params: any }) {
   const resolvedParams = await Promise.resolve(params);
