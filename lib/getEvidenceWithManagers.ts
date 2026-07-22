@@ -78,9 +78,10 @@ export async function getEvidenceWithManagers(companyId: number) {
       .in("id", Array.from(categoryIdSet));
 
     if (catsError) {
-      console.error("[getEvidenceWithManagers] error loading categories", {
-        error: catsError,
-      });
+      console.error(
+        "[getEvidenceWithManagers] error loading categories; evidence will display without category names",
+        { error: catsError },
+      );
     }
 
     for (const cat of cats ?? []) {
