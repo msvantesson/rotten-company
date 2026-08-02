@@ -1,10 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Moderation Guidelines | Rotten Company",
+  title: "Moderation Guidelines",
   description:
     "Learn what content Rotten Company accepts, what we reject, and how evidence is reviewed.",
+  alternates: {
+    canonical: canonicalUrl("/moderation-guidelines"),
+  },
+  openGraph: {
+    title: "Moderation Guidelines | Rotten Company",
+    description:
+      "Learn what content Rotten Company accepts, what we reject, and how evidence is reviewed.",
+    url: canonicalUrl("/moderation-guidelines"),
+    type: "article",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Moderation Guidelines | Rotten Company",
+    description:
+      "Learn what content Rotten Company accepts, what we reject, and how evidence is reviewed.",
+  },
 };
 
 export default function ModerationGuidelinesPage() {

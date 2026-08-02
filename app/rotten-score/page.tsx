@@ -1,10 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "How Rotten Score Works | Rotten Company",
+  title: "How Rotten Score Works",
   description:
     "Learn how the Rotten Score is calculated — a transparent, evidence-based measure of corporate misconduct.",
+  alternates: {
+    canonical: canonicalUrl("/rotten-score"),
+  },
+  openGraph: {
+    title: "How Rotten Score Works | Rotten Company",
+    description:
+      "Learn how the Rotten Score is calculated — a transparent, evidence-based measure of corporate misconduct.",
+    url: canonicalUrl("/rotten-score"),
+    type: "article",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "How Rotten Score Works | Rotten Company",
+    description:
+      "Learn how the Rotten Score is calculated — a transparent, evidence-based measure of corporate misconduct.",
+  },
 };
 
 export default function RottenScorePage() {

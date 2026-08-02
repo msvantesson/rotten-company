@@ -1,12 +1,36 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
+import type { Metadata } from "next";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
 import { headers } from "next/headers";
 import Link from "next/link";
 import LeadershipStartTenureForm from "@/components/LeadershipStartTenureForm";
 import LeadershipEndTenureButton from "@/components/LeadershipEndTenureButton";
 import ExportCsvButton from "@/app/rotten-index/ExportCsvButton";
+import { canonicalUrl } from "@/lib/seo";
+
+export const metadata: Metadata = {
+  title: "Leadership Accountability Index",
+  description:
+    "Track executives and leaders ranked by documented corporate misconduct under their watch. Explore leadership Rotten Scores, tenure timelines, and evidence records.",
+  alternates: {
+    canonical: canonicalUrl("/leadership"),
+  },
+  openGraph: {
+    title: "Leadership Accountability Index | Rotten Company",
+    description:
+      "Track executives and leaders ranked by documented corporate misconduct under their watch.",
+    url: canonicalUrl("/leadership"),
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Leadership Accountability Index | Rotten Company",
+    description:
+      "Track executives and leaders ranked by documented corporate misconduct under their watch.",
+  },
+};
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";

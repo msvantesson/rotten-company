@@ -2,11 +2,35 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
+import type { Metadata } from "next";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import { getRottenIndexData } from "@/lib/getRottenIndexData";
 import Link from "next/link";
 import ExportCsvButton from "./ExportCsvButton";
 import CompanyCardList from "./CompanyCardList";
+import { canonicalUrl } from "@/lib/seo";
+
+export const metadata: Metadata = {
+  title: "Rotten Index — Companies Ranked by Documented Misconduct",
+  description:
+    "Browse the global Rotten Index: companies and leaders ranked by severity of verified misconduct. Filter by country, industry, and evidence count.",
+  alternates: {
+    canonical: canonicalUrl("/rotten-index"),
+  },
+  openGraph: {
+    title: "Rotten Index — Companies Ranked by Documented Misconduct",
+    description:
+      "Browse the global Rotten Index: companies and leaders ranked by severity of verified misconduct. Filter by country, industry, and evidence count.",
+    url: canonicalUrl("/rotten-index"),
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Rotten Index — Companies Ranked by Documented Misconduct",
+    description:
+      "Browse the global Rotten Index: companies and leaders ranked by severity of verified misconduct.",
+  },
+};
 
 type IndexType = "company" | "leader";
 
