@@ -2,14 +2,61 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
+import type { Metadata } from "next";
 import React from "react";
 import Link from "next/link";
 import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
 import { getCategoryHelp } from "@/lib/category-help";
 import { getCategoryFlavor } from "@/lib/flavor-engine";
 import BackLink from "@/components/BackLink";
+import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 
-export default async function CategoryPage({ params }: { params: any }) {
+type Params = Promise<{ slug: string }> | { slug: string };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Params;
+}): Promise<Metadata> {
+  const resolvedParams = (await Promise.resolve(params)) as { slug?: string };
+  const slug = resolvedParams?.slug as string | undefined;
+
+  if (!slug) {
+    return { title: "Category Not Found", robots: { index: false, follow: false } };
+  }
+
+  const category = await fetchEntityBySlug("category", slug);
+
+  if (!category) {
+    return { title: "Category Not Found", robots: { index: false, follow: false } };
+  }
+
+  const flavor = getCategoryFlavor(category.id);
+  const title = `${category.name} — Misconduct Category`;
+  const description =
+    category.description ??
+    `Browse verified evidence and company misconduct records in the ${category.name} category on Rotten Company. ${flavor}`;
+  const url = canonicalUrl(`/category/${category.slug}`);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
+
+export default async function CategoryPage({ params }: { params: Params }) {
   const resolvedParams = await Promise.resolve(params);
   const slug = resolvedParams?.slug as string | undefined;
 
@@ -46,9 +93,9 @@ export default async function CategoryPage({ params }: { params: any }) {
     "@type": "DefinedTerm",
     name: category.name,
     termCode: category.id,
-    url: `https://rotten-company.com/category/${category.slug}`,
+    url: canonicalUrl(`/category/${category.slug}`),
     description: categoryFlavor,
-    inDefinedTermSet: "https://rotten-company.com/categories",
+    inDefinedTermSet: canonicalUrl("/categories"),
 
     additionalProperty: [
       {
@@ -67,9 +114,15 @@ export default async function CategoryPage({ params }: { params: any }) {
       evidence.slice(0, 10).map((item: any) => ({
         "@type": "CreativeWork",
         name: item.title,
-        url: `https://rotten-company.com/evidence/${item.id}`,
+        url: canonicalUrl(`/evidence/${item.id}`),
       })) ?? [],
   };
+
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Home", url: canonicalUrl("/") },
+    { name: "Categories", url: canonicalUrl("/categories") },
+    { name: category.name, url: canonicalUrl(`/category/${category.slug}`) },
+  ]);
 
   return (
     <>
@@ -78,6 +131,14 @@ export default async function CategoryPage({ params }: { params: any }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(jsonLd, null, 2),
+        }}
+      />
+
+      {/* Breadcrumb JSON-LD */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbJsonLd),
         }}
       />
 

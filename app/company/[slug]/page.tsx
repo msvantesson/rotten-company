@@ -16,6 +16,7 @@ import CeoSection from "@/components/CeoSection";
 import CompanyTabs from "@/components/CompanyTabs";
 import Link from "next/link";
 import { isTestCompany } from "@/lib/test-company";
+import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -346,6 +347,15 @@ export default async function CompanyPage({ params }: { params: Params }) {
     }
   }
 
+  // Breadcrumb JSON-LD — suppressed for test companies
+  const breadcrumbJsonLd = !isTestCompany(company.name)
+    ? buildBreadcrumbJsonLd([
+        { name: "Home", url: canonicalUrl("/") },
+        { name: "Rotten Index", url: canonicalUrl("/rotten-index") },
+        { name: company.name, url: canonicalUrl(`/company/${company.slug}`) },
+      ])
+    : null;
+
   return (
     <>
       {jsonLd && (
@@ -353,6 +363,15 @@ export default async function CompanyPage({ params }: { params: Params }) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(jsonLd, null, 2),
+          }}
+        />
+      )}
+
+      {breadcrumbJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(breadcrumbJsonLd),
           }}
         />
       )}

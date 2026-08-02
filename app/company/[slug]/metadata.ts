@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase-server";
 import { isTestCompany } from "@/lib/test-company";
+import { canonicalUrl, SITE_ORIGIN } from "@/lib/seo";
 
 type Params = { slug: string };
 
@@ -17,7 +18,7 @@ export async function generateMetadata(
 
   if (!company) {
     return {
-      title: "Company Not Found – Rotten Company",
+      title: "Company Not Found",
       description: "This company does not exist in the Rotten Company database.",
     };
   }
@@ -30,10 +31,10 @@ export async function generateMetadata(
 
   const rottenScore = scoreRow?.rotten_score ?? null;
 
-  const title = `${company.name} – Rotten Score ${rottenScore !== null ? rottenScore.toFixed(1) : "—"}`;
+  const title = `${company.name} — Rotten Score ${rottenScore !== null ? rottenScore.toFixed(1) : "—"}`;
   const description = `See the Rotten Score, category breakdown, evidence, and ratings for ${company.name}.`;
 
-  const url = `https://rotten-company.com/company/${company.slug}`;
+  const url = canonicalUrl(`/company/${company.slug}`);
 
   // Prevent test companies from being indexed.
   if (isTestCompany(company.name)) {
@@ -58,7 +59,7 @@ export async function generateMetadata(
       type: "website",
       images: [
         {
-          url: `https://rotten-company.com/api/og/company?slug=${company.slug}`,
+          url: `${SITE_ORIGIN}/api/og/company?slug=${company.slug}`,
           width: 1200,
           height: 630,
           alt: `${company.name} Rotten Score`,
@@ -69,7 +70,7 @@ export async function generateMetadata(
       card: "summary_large_image",
       title,
       description,
-      images: [`https://rotten-company.com/api/og/company?slug=${company.slug}`],
+      images: [`${SITE_ORIGIN}/api/og/company?slug=${company.slug}`],
     },
   };
 }

@@ -1,19 +1,26 @@
 import type { Metadata } from "next";
+import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "SEO Keyword List 2026 — Corporate Accountability & Misconduct | Rotten Company",
+  title: "SEO Keyword List 2026 — Corporate Accountability & Misconduct",
   description:
     "A comprehensive SEO keyword reference for corporate accountability research in 2026. Covers entity search, Rotten Score methodology, category-level, listicle, and AI-friendly explainer keywords.",
   alternates: {
-    canonical: "https://rotten-company.com/guides/seo-keyword-list-2026",
+    canonical: canonicalUrl("/guides/seo-keyword-list-2026"),
   },
   openGraph: {
     title: "SEO Keyword List 2026 — Corporate Accountability & Misconduct",
     description:
       "A comprehensive SEO keyword reference for corporate accountability research in 2026.",
-    url: "https://rotten-company.com/guides/seo-keyword-list-2026",
+    url: canonicalUrl("/guides/seo-keyword-list-2026"),
     siteName: "Rotten Company",
     type: "article",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SEO Keyword List 2026 — Corporate Accountability & Misconduct",
+    description:
+      "A comprehensive SEO keyword reference for corporate accountability research in 2026.",
   },
 };
 

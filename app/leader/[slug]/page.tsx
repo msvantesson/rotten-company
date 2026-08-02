@@ -2,12 +2,54 @@ export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
+import type { Metadata } from "next";
 import LeaderScorePanel from "./LeaderScorePanel";
 import { getLeaderData } from "@/lib/getLeaderData";
 import { buildLeaderJsonLd } from "@/lib/jsonld-leader";
 import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
+import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 
 type Params = Promise<{ slug: string }> | { slug: string };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Params;
+}): Promise<Metadata> {
+  const resolved = (await params) as { slug?: string };
+  const rawSlug = resolved?.slug ? decodeURIComponent(resolved.slug) : "";
+
+  const data = await getLeaderData(rawSlug);
+
+  if (!data) {
+    return {
+      title: "Leader Not Found",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const { leader, score } = data;
+  const title = `${leader.name} — Leadership Accountability`;
+  const description = `Rotten Score ${score?.final_score != null ? score.final_score.toFixed(1) : "—"} for ${leader.name}${leader.role ? `, ${leader.role}` : ""}${leader.company_name ? ` at ${leader.company_name}` : ""}. Explore evidence, tenure timeline, and accountability metrics.`;
+  const url = canonicalUrl(`/leader/${leader.slug}`);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      type: "profile",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
 
 export default async function LeaderPage({ params }: { params: Params }) {
   const resolved = (await params) as { slug?: string };
@@ -48,6 +90,12 @@ export default async function LeaderPage({ params }: { params: Params }) {
     evidence: mappedEvidence,
   });
 
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Home", url: canonicalUrl("/") },
+    { name: "Rotten Index", url: canonicalUrl("/rotten-index") },
+    { name: leader.name, url: canonicalUrl(`/leader/${leader.slug}`) },
+  ]);
+
   return (
     <>
       {/* JSON-LD injection */}
@@ -55,6 +103,14 @@ export default async function LeaderPage({ params }: { params: Params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(jsonLd, null, 2),
+        }}
+      />
+
+      {/* Breadcrumb JSON-LD */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbJsonLd),
         }}
       />
 
