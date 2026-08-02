@@ -167,99 +167,131 @@ export default function EvidenceList({ evidence }: Props) {
     setExpanded((prev) => ({ ...prev, [catId]: !prev[catId] }));
   }
 
+  function expandAll() {
+    setExpanded((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, true])));
+  }
+
+  function collapseAll() {
+    setExpanded((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, false])));
+  }
+
   return (
-    <div className="space-y-10">
-      {sortedCategories.map(([catId, group]) => {
-        const isExpanded = expanded[catId] ?? true;
-        const bodyId = `evidence-section-${catId}`;
+    <div>
+      {/* EXPAND / COLLAPSE ALL CONTROLS */}
+      <div className="flex gap-3 mb-6">
+        <button
+          type="button"
+          onClick={expandAll}
+          className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          Expand all
+        </button>
+        <button
+          type="button"
+          onClick={collapseAll}
+          className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          Collapse all
+        </button>
+      </div>
 
-        return (
-          <div key={catId} className="space-y-4">
-            {/* CATEGORY HEADER BUTTON */}
-            <button
-              type="button"
-              aria-expanded={isExpanded}
-              aria-controls={bodyId}
-              onClick={() => toggleCategory(catId)}
-              className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-left hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <h2 className="text-xl font-semibold text-foreground">
-                {group.categoryName}{" "}
-                <span className="font-normal text-muted-foreground">
-                  ({group.items.length})
-                </span>
-              </h2>
-              <span
-                aria-hidden="true"
-                className={[
-                  "text-muted-foreground transition-transform duration-200",
-                  isExpanded ? "rotate-90" : "rotate-0",
-                ].join(" ")}
+      {/* CATEGORY SECTIONS */}
+      <div className="space-y-14">
+        {sortedCategories.map(([catId, group]) => {
+          const isExpanded = expanded[catId] ?? true;
+          const bodyId = `evidence-section-${catId}`;
+          const count = group.items.length;
+
+          return (
+            <div key={catId}>
+              {/* CATEGORY HEADER BUTTON */}
+              <button
+                type="button"
+                aria-expanded={isExpanded}
+                aria-controls={bodyId}
+                onClick={() => toggleCategory(catId)}
+                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
-                ▶
-              </span>
-            </button>
+                <span className="text-xl font-semibold text-foreground">
+                  {group.categoryName}{" "}
+                  <span className="font-normal text-muted-foreground text-base">
+                    ({count} {count === 1 ? "evidence" : "evidence"})
+                  </span>
+                </span>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "inline-block",
+                    transition: "transform 175ms ease",
+                    transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                  }}
+                  className="text-muted-foreground"
+                >
+                  ▶
+                </span>
+              </button>
 
-            {/* CATEGORY EVIDENCE LIST */}
-            {isExpanded && (
-              <div id={bodyId} className="space-y-6">
-                {group.items.map((item) => {
-                  const weight = item.total_weight ?? 0;
+              {/* CATEGORY EVIDENCE LIST */}
+              {isExpanded && (
+                <div id={bodyId} className="mt-4 space-y-6">
+                  {group.items.map((item) => {
+                    const weight = item.total_weight ?? 0;
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="border border-border p-4 rounded-md bg-surface shadow-sm space-y-3"
-                    >
-                      {item.evidence_type && (
-                        <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-muted text-muted-foreground uppercase">
-                          {item.evidence_type}
-                        </span>
-                      )}
+                    return (
+                      <div
+                        key={item.id}
+                        className="border border-border p-4 rounded-md bg-surface shadow-sm space-y-3"
+                      >
+                        {item.evidence_type && (
+                          <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-muted text-muted-foreground uppercase">
+                            {item.evidence_type}
+                          </span>
+                        )}
 
-                      <h3 className="font-semibold text-lg text-foreground">
-                        {item.title}
-                      </h3>
+                        <h3 className="font-semibold text-lg text-foreground">
+                          {item.title}
+                        </h3>
 
-                      <SummaryBlock summary={item.summary} />
+                        <SummaryBlock summary={item.summary} />
 
-                      {item.manager && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Reported manager: {item.manager.name}
-                          {typeof item.manager.report_count === "number" &&
-                            ` (${item.manager.report_count} reports)`}
-                        </p>
-                      )}
+                        {item.manager && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Reported manager: {item.manager.name}
+                            {typeof item.manager.report_count === "number" &&
+                              ` (${item.manager.report_count} reports)`}
+                          </p>
+                        )}
 
-                      {/* Compact Weight Meter */}
-                      <div className="mt-2">
-                        <div className="text-xs font-medium text-muted-foreground mb-1">
-                          Evidence Weight
+                        {/* Compact Weight Meter */}
+                        <div className="mt-2">
+                          <div className="text-xs font-medium text-muted-foreground mb-1">
+                            Evidence Weight
+                          </div>
+                          <WeightBoxes weight={weight} />
                         </div>
-                        <WeightBoxes weight={weight} />
-                      </div>
 
-                      <div className="text-xs text-muted-foreground space-y-1 mt-2">
-                        {item.severity !== undefined && (
-                          <div>Severity: {item.severity}</div>
-                        )}
-                        {item.recency_weight !== undefined && (
-                          <div>Recency Weight: {item.recency_weight}</div>
-                        )}
-                        {item.file_weight !== undefined && (
-                          <div>File Weight: {item.file_weight}</div>
-                        )}
-                      </div>
+                        <div className="text-xs text-muted-foreground space-y-1 mt-2">
+                          {item.severity !== undefined && (
+                            <div>Severity: {item.severity}</div>
+                          )}
+                          {item.recency_weight !== undefined && (
+                            <div>Recency Weight: {item.recency_weight}</div>
+                          )}
+                          {item.file_weight !== undefined && (
+                            <div>File Weight: {item.file_weight}</div>
+                          )}
+                        </div>
 
-                      <FilePreview item={item} />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+                        <FilePreview item={item} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
