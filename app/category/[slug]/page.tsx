@@ -5,13 +5,23 @@ export const fetchCache = "force-no-store";
 import type { Metadata } from "next";
 import React from "react";
 import Link from "next/link";
-import { fetchEntityBySlug, fetchApprovedEvidence } from "@/app/lib/data";
+import {
+  fetchEntityBySlug,
+  fetchApprovedEvidence,
+  supabase,
+} from "@/app/lib/data";
 import { getCategoryHelp } from "@/lib/category-help";
 import { getCategoryFlavor } from "@/lib/flavor-engine";
 import BackLink from "@/components/BackLink";
 import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 
 type Params = Promise<{ slug: string }> | { slug: string };
+type CategoryEvidenceItem = {
+  id: number;
+  title: string;
+  entity_type?: string | null;
+  entity_id?: number | null;
+};
 
 export async function generateMetadata({
   params,
@@ -82,7 +92,50 @@ export default async function CategoryPage({ params }: { params: Params }) {
   const categoryHelp = getCategoryHelp(category.slug);
 
   // 2. Fetch approved evidence for this category
-  const evidence = await fetchApprovedEvidence("category", category.id);
+  const evidence = (await fetchApprovedEvidence(
+    "category",
+    category.id
+  )) as CategoryEvidenceItem[];
+
+  const companyIds = Array.from(
+    new Set(
+      evidence
+        .filter(
+          (item) =>
+            item.entity_type === "company" &&
+            Number.isInteger(item.entity_id) &&
+            Number(item.entity_id) > 0
+        )
+        .map((item) => Number(item.entity_id))
+    )
+  );
+
+  const companySlugById = new Map<number, string>();
+  if (companyIds.length > 0) {
+    const { data: companies } = await supabase
+      .from("companies")
+      .select("id, slug")
+      .in("id", companyIds);
+    for (const company of companies ?? []) {
+      if (company?.id && company?.slug) {
+        companySlugById.set(company.id, company.slug);
+      }
+    }
+  }
+
+  const evidenceUrlById = new Map<number, string>();
+  for (const item of evidence) {
+    const companyId = Number(item.entity_id);
+    const slug =
+      item.entity_type === "company" && Number.isInteger(companyId)
+        ? companySlugById.get(companyId)
+        : undefined;
+    if (!slug) continue;
+    evidenceUrlById.set(
+      item.id,
+      canonicalUrl(`/company/${slug}/evidence#evidence-${item.id}`)
+    );
+  }
 
   // 3. Compute evidence stats
   const evidenceCount = evidence.length;
@@ -111,10 +164,12 @@ export default async function CategoryPage({ params }: { params: Params }) {
     ],
 
     hasPart:
-      evidence.slice(0, 10).map((item: any) => ({
+      evidence.slice(0, 10).map((item: CategoryEvidenceItem) => ({
         "@type": "CreativeWork",
         name: item.title,
-        url: canonicalUrl(`/evidence/${item.id}`),
+        ...(evidenceUrlById.get(item.id)
+          ? { url: evidenceUrlById.get(item.id) }
+          : {}),
       })) ?? [],
   };
 
@@ -169,14 +224,18 @@ export default async function CategoryPage({ params }: { params: Params }) {
             <p>No approved evidence yet.</p>
           ) : (
             <ul>
-              {evidence.map((item: any) => (
+              {evidence.map((item: CategoryEvidenceItem) => (
                 <li key={item.id} style={{ marginBottom: 8 }}>
-                  <Link
-                    href={`/evidence/${item.id}`}
-                    style={{ textDecoration: "none", fontWeight: 600 }}
-                  >
-                    {item.title}
-                  </Link>
+                  {evidenceUrlById.get(item.id) ? (
+                    <Link
+                      href={evidenceUrlById.get(item.id)!}
+                      style={{ textDecoration: "none", fontWeight: 600 }}
+                    >
+                      {item.title}
+                    </Link>
+                  ) : (
+                    <span style={{ fontWeight: 600 }}>{item.title}</span>
+                  )}
                 </li>
               ))}
             </ul>
