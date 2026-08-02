@@ -240,6 +240,7 @@ export default function EvidenceList({ evidence }: Props) {
                     return (
                       <div
                         key={item.id}
+                        id={`evidence-${item.id}`}
                         className="border border-border p-4 rounded-md bg-surface shadow-sm space-y-3"
                       >
                         {item.evidence_type && (
