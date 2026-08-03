@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     for (const [key, value] of formData.entries()) {
       if (typeof value === "string") fields[key] = value;
-      else if (value instanceof File) file = value;
+      else if (value instanceof File && value.size > 0) file = value;
     }
   } else {
     try {
@@ -170,10 +170,34 @@ export async function POST(req: Request) {
     );
   }
 
-  // FILE UPLOAD (still optional here because UI enforces it; keep API tolerant)
+  // FILE UPLOAD (optional — run type/size validation only when a real file is provided)
   let fileUrl: string | null = null;
 
   if (file) {
+    const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // 3 MB
+    const MAX_PDF_BYTES = 1 * 1024 * 1024;   // 1 MB
+
+    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+      return NextResponse.json(
+        { error: "Only images and PDFs are accepted.", requestId },
+        { status: 400 },
+      );
+    }
+
+    if (file.type.startsWith("image/") && file.size > MAX_IMAGE_BYTES) {
+      return NextResponse.json(
+        { error: "Image too large. Max size is 3 MB.", requestId },
+        { status: 400 },
+      );
+    }
+
+    if (file.type === "application/pdf" && file.size > MAX_PDF_BYTES) {
+      return NextResponse.json(
+        { error: "PDF too large. Max size is 1 MB.", requestId },
+        { status: 400 },
+      );
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const filePath = `evidence/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
     const bucketName = process.env.EVIDENCE_BUCKET_NAME ?? "evidence-files";
