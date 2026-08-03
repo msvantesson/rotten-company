@@ -65,15 +65,16 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
         "Please confirm the policy about naming only leaders/managers."
       );
 
-    if (!file) return setError("Please attach a file.");
     if (!categoryId) return setError("Please select a category.");
 
-    if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
-      return setError(`Image too large. Max size is ${toMB(MAX_IMAGE_SIZE)}MB.`);
-    }
+    if (file) {
+      if (file.type.startsWith("image/") && file.size > MAX_IMAGE_SIZE) {
+        return setError(`Image too large. Max size is ${toMB(MAX_IMAGE_SIZE)}MB.`);
+      }
 
-    if (file.type === "application/pdf" && file.size > MAX_PDF_SIZE) {
-      return setError(`PDF too large. Max size is ${toMB(MAX_PDF_SIZE)}MB.`);
+      if (file.type === "application/pdf" && file.size > MAX_PDF_SIZE) {
+        return setError(`PDF too large. Max size is ${toMB(MAX_PDF_SIZE)}MB.`);
+      }
     }
 
     setLoading(true);
@@ -90,7 +91,9 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       }
 
       const form = new FormData();
-      form.append("file", file, sanitizeFileName(file.name));
+      if (file) {
+        form.append("file", file, sanitizeFileName(file.name));
+      }
       form.append("title", title.trim());
       form.append("summary", summary.trim());
       form.append("entityType", entityType);
@@ -236,7 +239,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       </div>
 
       <div className="space-y-1">
-        <label className="block text-sm font-medium">Attachment (image or PDF)</label>
+        <label className="block text-sm font-medium">Attachment (optional — image or PDF)</label>
         <input
           type="file"
           accept="image/*,application/pdf"
