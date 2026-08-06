@@ -6,6 +6,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { canonicalUrl } from "@/lib/seo";
+import MacroTierBadge from "@/components/MacroTierBadge";
 
 export const metadata: Metadata = {
   title: "Rotten Company — Evidence-Based Corporate Accountability",
@@ -252,24 +253,18 @@ export default async function HomePage() {
     : "/login?reason=submit-evidence&message=You'll need an account to submit evidence.";
 
   const { data: scoreRows } = await supabase
-    .from("company_rotten_score_v2")
-    .select("company_id, rotten_score")
+    .from("global_rotten_index")
+    .select("id, name, slug, industry, country, rotten_score, approved_evidence_count")
     .order("rotten_score", { ascending: false })
     .limit(10);
 
-  const companyIds = scoreRows?.map((r) => r.company_id) ?? [];
+  const companyIds = scoreRows?.map((r) => r.id) ?? [];
 
-  const [companyRowsResult, weeklyDeltaMap, biggestMovers, recentlyVerified] = await Promise.all([
-    supabase
-      .from("companies")
-      .select("id, name, slug, industry, country")
-      .in("id", companyIds),
+  const [weeklyDeltaMap, biggestMovers, recentlyVerified] = await Promise.all([
     getWeeklyDeltaMap(supabase, companyIds),
     getBiggestMovers(supabase),
     getRecentlyVerified(),
   ]);
-
-  const companyRows = companyRowsResult.data;
 
   type CompanyRow = {
     id: number;
@@ -277,23 +272,21 @@ export default async function HomePage() {
     slug: string;
     industry: string | null;
     country: string | null;
+    approved_evidence_count: number;
   };
 
-  const companyById: Record<number, CompanyRow> = {};
-  for (const c of companyRows ?? []) companyById[c.id] = c;
-
   type TopCompany = CompanyRow & { rotten_score: number };
-  const topCompanies = (scoreRows ?? [])
-    .map((row) => {
-      const c = companyById[row.company_id];
-      if (!c) return null;
-      return {
-        ...c,
-        rotten_score: Number(row.rotten_score),
-      };
-    })
-    .filter((c): c is TopCompany => c !== null)
-    .sort((a, b) => b.rotten_score - a.rotten_score);
+  const topCompanies: TopCompany[] = (scoreRows ?? [])
+    .filter((row) => row.rotten_score != null)
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      industry: row.industry ?? null,
+      country: row.country ?? null,
+      rotten_score: Number(row.rotten_score),
+      approved_evidence_count: Number(row.approved_evidence_count) || 0,
+    }));
 
   // Build delta map for recently-verified company IDs
   const recentCompanyIds = recentlyVerified.map((i) => i.companyId);
@@ -370,7 +363,9 @@ export default async function HomePage() {
                 <th className="py-2 pr-4 whitespace-nowrap">Company</th>
                 <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Industry</th>
                 <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Country</th>
+                <th className="py-2 pr-4 hidden sm:table-cell text-right whitespace-nowrap">Evidence</th>
                 <th className="py-2 pr-3 text-right whitespace-nowrap">Rotten Score</th>
+                <th className="py-2 pl-5 pr-3 hidden sm:table-cell whitespace-nowrap min-w-[240px]">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -393,6 +388,9 @@ export default async function HomePage() {
                     <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">
                       {company.country ?? "—"}
                     </td>
+                    <td className="py-2 pr-4 text-right text-muted-foreground hidden sm:table-cell">
+                      {company.approved_evidence_count}
+                    </td>
                     <td className="py-2 pr-3 text-right font-mono tabular-nums">
                       <span>{company.rotten_score.toFixed(1)}</span>
                       {showDelta(delta) && (
@@ -402,6 +400,9 @@ export default async function HomePage() {
                           {delta >= 0 ? "↑" : "↓"} {formatDelta(delta)} this week
                         </span>
                       )}
+                    </td>
+                    <td className="py-2 pl-8 pr-3 hidden sm:table-cell align-middle">
+                      <MacroTierBadge score={company.rotten_score} />
                     </td>
                   </tr>
                 );

@@ -165,6 +165,50 @@ export function getScoreColor(score: number): string {
  * - the micro flavor text
  * - the color for the meter
  */
+export type MacroTierStyle = {
+  /** Tailwind classes for the badge pill background + text color */
+  badgeClass: string;
+};
+
+/**
+ * Returns Tailwind classes for the macro tier badge.
+ * Derives color from the same score thresholds as getMacroTier().
+ */
+export function getMacroTierStyle(score: number): MacroTierStyle {
+  const clamped = Math.max(0, Math.min(100, score));
+
+  if (clamped >= 95) {
+    // Working for Satan → almost black / very dark red
+    return { badgeClass: "bg-[#3b0a0a] text-red-200" };
+  }
+  if (clamped >= 85) {
+    // Working for the Empire from Star Wars → dark red
+    return { badgeClass: "bg-red-900 text-red-100" };
+  }
+  if (clamped >= 70) {
+    // Corporate Disaster Zone → muted red
+    return { badgeClass: "bg-red-700 text-red-50" };
+  }
+  if (clamped >= 55) {
+    // Rotten but Redeemable → deep orange (muted)
+    return { badgeClass: "bg-orange-700 text-orange-50" };
+  }
+  if (clamped >= 40) {
+    // Serious Rot Detected → muted orange
+    return { badgeClass: "bg-orange-500 text-white" };
+  }
+  if (clamped >= 25) {
+    // Rotten Enough to Notice → muted amber
+    return { badgeClass: "bg-amber-500 text-amber-950" };
+  }
+  if (clamped >= 10) {
+    // Mildly Rotten → muted green
+    return { badgeClass: "bg-green-700 text-green-50" };
+  }
+  // Mostly Decent → slate / gray
+  return { badgeClass: "bg-slate-500 text-slate-50" };
+}
+
 export function getRottenFlavor(score: number): RottenFlavor {
   const clamped = Math.max(0, Math.min(100, score));
   const roundedScore = Math.round(clamped);
