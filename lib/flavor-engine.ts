@@ -195,7 +195,7 @@ export function getMacroTierStyle(score: number): MacroTierStyle {
   }
   if (clamped >= 40) {
     // Serious Rot Detected → muted orange
-    return { badgeClass: "bg-orange-500 text-white" };
+    return { badgeClass: "bg-orange-500 text-orange-950" };
   }
   if (clamped >= 25) {
     // Rotten Enough to Notice → muted amber

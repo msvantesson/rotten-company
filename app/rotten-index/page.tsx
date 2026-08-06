@@ -361,7 +361,7 @@ export default async function RottenIndexPage({
                 <th className="py-3 pr-4 text-right">
                   Rotten Score
                 </th>
-                <th className="py-3 pl-5 pr-4 min-w-[240px]">Status</th>
+                <th className="py-3 pl-8 pr-4 min-w-[240px]">Status</th>
               </tr>
             )}
           </thead>

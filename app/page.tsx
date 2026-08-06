@@ -365,7 +365,7 @@ export default async function HomePage() {
                 <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Country</th>
                 <th className="py-2 pr-4 hidden sm:table-cell text-right whitespace-nowrap">Evidence</th>
                 <th className="py-2 pr-3 text-right whitespace-nowrap">Rotten Score</th>
-                <th className="py-2 pl-5 pr-3 hidden sm:table-cell whitespace-nowrap min-w-[240px]">Status</th>
+                <th className="py-2 pl-8 pr-3 hidden sm:table-cell whitespace-nowrap min-w-[240px]">Status</th>
               </tr>
             </thead>
             <tbody>
