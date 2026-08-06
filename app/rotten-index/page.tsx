@@ -341,27 +341,27 @@ export default async function RottenIndexPage({
           <thead className="bg-muted border-b border-border">
             {type === "leader" ? (
               <tr className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <th className="py-3 pr-2 pl-4 w-12">#</th>
-                <th className="py-3 pr-4">CEO Name</th>
-                <th className="py-3 pr-4">Company</th>
-                <th className="py-3 pr-4">Country</th>
-                <th className="py-3 pr-4">Started</th>
-                <th className="py-3 pr-4">Ended</th>
+                <th className="py-3 pr-2 pl-4 w-12 text-left">#</th>
+                <th className="py-3 pr-4 text-left">CEO Name</th>
+                <th className="py-3 pr-4 text-left">Company</th>
+                <th className="py-3 pr-4 text-left">Country</th>
+                <th className="py-3 pr-4 text-left">Started</th>
+                <th className="py-3 pr-4 text-left">Ended</th>
                 <th className="py-3 pr-4 text-right">
                   Rotten Score
                 </th>
               </tr>
             ) : (
               <tr className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <th className="py-3 pr-2 pl-4 w-12">#</th>
-                <th className="py-3 pr-4">Name</th>
-                <th className="py-3 pr-4">Country</th>
-                <th className="py-3 pr-4">Industry</th>
+                <th className="py-3 pr-2 pl-4 w-12 text-left">#</th>
+                <th className="py-3 pr-4 text-left">Name</th>
+                <th className="py-3 pr-4 text-left">Country</th>
+                <th className="py-3 pr-4 text-left">Industry</th>
                 <th className="py-3 pr-4 text-right">Evidence</th>
                 <th className="py-3 pr-4 text-right">
                   Rotten Score
                 </th>
-                <th className="py-3 pl-8 pr-4 min-w-[240px]">Status</th>
+                <th className="px-4 py-3 text-center min-w-[240px]">Status</th>
               </tr>
             )}
           </thead>
@@ -435,7 +435,7 @@ export default async function RottenIndexPage({
                   <td className="py-3 pr-4 text-right font-mono tabular-nums">
                     {r.rotten_score != null ? r.rotten_score.toFixed(2) : "—"}
                   </td>
-                  <td className="py-3 pl-8 pr-4 align-middle">
+                  <td className="px-4 py-3 text-center align-middle min-w-[240px]">
                     {r.rotten_score != null ? (
                       <MacroTierBadge score={r.rotten_score} />
                     ) : (
