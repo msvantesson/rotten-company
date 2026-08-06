@@ -401,7 +401,7 @@ export default async function HomePage() {
                         </span>
                       )}
                     </td>
-                    <td className="py-2 pl-5 pr-3 hidden sm:table-cell">
+                    <td className="py-2 pl-8 pr-3 hidden sm:table-cell align-middle">
                       <MacroTierBadge score={company.rotten_score} />
                     </td>
                   </tr>

@@ -178,35 +178,35 @@ export function getMacroTierStyle(score: number): MacroTierStyle {
   const clamped = Math.max(0, Math.min(100, score));
 
   if (clamped >= 95) {
-    // Working for Satan → near-black / very dark red
-    return { badgeClass: "bg-red-950 text-red-100" };
+    // Working for Satan → almost black / very dark red
+    return { badgeClass: "bg-[#3b0a0a] text-red-200" };
   }
   if (clamped >= 85) {
     // Working for the Empire from Star Wars → dark red
-    return { badgeClass: "bg-red-800 text-red-100" };
+    return { badgeClass: "bg-red-900 text-red-100" };
   }
   if (clamped >= 70) {
-    // Corporate Disaster Zone → red
-    return { badgeClass: "bg-red-600 text-white" };
+    // Corporate Disaster Zone → muted red
+    return { badgeClass: "bg-red-700 text-red-50" };
   }
   if (clamped >= 55) {
-    // Rotten but Redeemable → deep orange
-    return { badgeClass: "bg-orange-600 text-white" };
+    // Rotten but Redeemable → deep orange (muted)
+    return { badgeClass: "bg-orange-700 text-orange-50" };
   }
   if (clamped >= 40) {
-    // Serious Rot Detected → orange
-    return { badgeClass: "bg-orange-400 text-orange-950" };
+    // Serious Rot Detected → muted orange
+    return { badgeClass: "bg-orange-500 text-white" };
   }
   if (clamped >= 25) {
-    // Rotten Enough to Notice → amber
-    return { badgeClass: "bg-amber-400 text-amber-950" };
+    // Rotten Enough to Notice → muted amber
+    return { badgeClass: "bg-amber-500 text-amber-950" };
   }
   if (clamped >= 10) {
-    // Mildly Rotten → green
-    return { badgeClass: "bg-green-600 text-white" };
+    // Mildly Rotten → muted green
+    return { badgeClass: "bg-green-700 text-green-50" };
   }
-  // Mostly Decent → slate
-  return { badgeClass: "bg-slate-400 text-slate-900" };
+  // Mostly Decent → slate / gray
+  return { badgeClass: "bg-slate-500 text-slate-50" };
 }
 
 export function getRottenFlavor(score: number): RottenFlavor {

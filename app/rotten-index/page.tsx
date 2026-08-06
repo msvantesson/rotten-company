@@ -435,7 +435,7 @@ export default async function RottenIndexPage({
                   <td className="py-3 pr-4 text-right font-mono tabular-nums">
                     {r.rotten_score != null ? r.rotten_score.toFixed(2) : "—"}
                   </td>
-                  <td className="py-3 pl-5 pr-4">
+                  <td className="py-3 pl-8 pr-4 align-middle">
                     {r.rotten_score != null ? (
                       <MacroTierBadge score={r.rotten_score} />
                     ) : (
