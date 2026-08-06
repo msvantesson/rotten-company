@@ -6,7 +6,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { canonicalUrl } from "@/lib/seo";
-import { getMacroTier } from "@/lib/flavor-engine";
+import MacroTierBadge from "@/components/MacroTierBadge";
 
 export const metadata: Metadata = {
   title: "Rotten Company — Evidence-Based Corporate Accountability",
@@ -277,6 +277,7 @@ export default async function HomePage() {
 
   type TopCompany = CompanyRow & { rotten_score: number };
   const topCompanies: TopCompany[] = (scoreRows ?? [])
+    .filter((row) => row.rotten_score != null)
     .map((row) => ({
       id: row.id,
       name: row.name,
@@ -364,7 +365,7 @@ export default async function HomePage() {
                 <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Country</th>
                 <th className="py-2 pr-4 hidden sm:table-cell text-right whitespace-nowrap">Evidence</th>
                 <th className="py-2 pr-3 text-right whitespace-nowrap">Rotten Score</th>
-                <th className="py-2 pr-3 hidden sm:table-cell whitespace-nowrap">Status</th>
+                <th className="py-2 pl-5 pr-3 hidden sm:table-cell whitespace-nowrap min-w-[240px]">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -400,8 +401,8 @@ export default async function HomePage() {
                         </span>
                       )}
                     </td>
-                    <td className="py-2 pr-3 text-muted-foreground hidden sm:table-cell">
-                      {getMacroTier(company.rotten_score)}
+                    <td className="py-2 pl-5 pr-3 hidden sm:table-cell">
+                      <MacroTierBadge score={company.rotten_score} />
                     </td>
                   </tr>
                 );

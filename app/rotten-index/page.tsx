@@ -5,7 +5,7 @@ export const fetchCache = "force-no-store";
 import type { Metadata } from "next";
 import JsonLdDebugPanel from "@/components/JsonLdDebugPanel";
 import { getRottenIndexData } from "@/lib/getRottenIndexData";
-import { getMacroTier } from "@/lib/flavor-engine";
+import MacroTierBadge from "@/components/MacroTierBadge";
 import Link from "next/link";
 import ExportCsvButton from "./ExportCsvButton";
 import CompanyCardList from "./CompanyCardList";
@@ -361,7 +361,7 @@ export default async function RottenIndexPage({
                 <th className="py-3 pr-4 text-right">
                   Rotten Score
                 </th>
-                <th className="py-3 pr-4">Status</th>
+                <th className="py-3 pl-5 pr-4 min-w-[240px]">Status</th>
               </tr>
             )}
           </thead>
@@ -435,8 +435,12 @@ export default async function RottenIndexPage({
                   <td className="py-3 pr-4 text-right font-mono tabular-nums">
                     {r.rotten_score != null ? r.rotten_score.toFixed(2) : "—"}
                   </td>
-                  <td className="py-3 pr-4 text-muted-foreground">
-                    {r.rotten_score != null ? getMacroTier(r.rotten_score) : "—"}
+                  <td className="py-3 pl-5 pr-4">
+                    {r.rotten_score != null ? (
+                      <MacroTierBadge score={r.rotten_score} />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </td>
                 </tr>
               )
