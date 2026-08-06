@@ -365,7 +365,7 @@ export default async function HomePage() {
                 <th className="py-2 pr-4 hidden sm:table-cell text-left whitespace-nowrap">Country</th>
                 <th className="py-2 pr-4 hidden sm:table-cell text-right whitespace-nowrap">Evidence</th>
                 <th className="py-2 pr-3 text-right whitespace-nowrap">Rotten Score</th>
-                <th className="py-2 pl-8 pr-3 hidden sm:table-cell text-left whitespace-nowrap min-w-[240px]">Status</th>
+                <th className="px-4 py-2 hidden sm:table-cell text-center whitespace-nowrap min-w-[240px]">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -401,7 +401,7 @@ export default async function HomePage() {
                         </span>
                       )}
                     </td>
-                    <td className="py-2 pl-8 pr-3 hidden sm:table-cell text-left align-middle min-w-[240px]">
+                    <td className="px-4 py-2 hidden sm:table-cell text-center align-middle min-w-[240px]">
                       <MacroTierBadge score={company.rotten_score} />
                     </td>
                   </tr>
