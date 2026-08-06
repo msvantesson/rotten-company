@@ -359,13 +359,13 @@ export default async function HomePage() {
           <table className="w-full min-w-[480px] border-collapse text-sm">
             <thead className="bg-muted border-b border-border">
               <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-4 pl-3 w-10 whitespace-nowrap">#</th>
-                <th className="py-2 pr-4 whitespace-nowrap">Company</th>
-                <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Industry</th>
-                <th className="py-2 pr-4 hidden sm:table-cell whitespace-nowrap">Country</th>
+                <th className="py-2 pr-4 pl-3 w-10 text-left whitespace-nowrap">#</th>
+                <th className="py-2 pr-4 text-left whitespace-nowrap">Company</th>
+                <th className="py-2 pr-4 hidden sm:table-cell text-left whitespace-nowrap">Industry</th>
+                <th className="py-2 pr-4 hidden sm:table-cell text-left whitespace-nowrap">Country</th>
                 <th className="py-2 pr-4 hidden sm:table-cell text-right whitespace-nowrap">Evidence</th>
                 <th className="py-2 pr-3 text-right whitespace-nowrap">Rotten Score</th>
-                <th className="py-2 pl-8 pr-3 hidden sm:table-cell whitespace-nowrap min-w-[240px]">Status</th>
+                <th className="py-2 pl-8 pr-3 hidden sm:table-cell text-left whitespace-nowrap min-w-[240px]">Status</th>
               </tr>
             </thead>
             <tbody>
