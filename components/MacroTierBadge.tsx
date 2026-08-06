@@ -17,11 +17,11 @@ export default function MacroTierBadge({ score }: MacroTierBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-medium whitespace-nowrap align-middle ${badgeClass}`}
+      className={`inline-flex items-start gap-1.5 rounded-full px-2.5 py-1 text-sm font-medium align-middle ${badgeClass}`}
     >
       <span
         aria-hidden="true"
-        className="inline-block h-1.5 w-1.5 rounded-full shrink-0 bg-current opacity-50"
+        className="inline-block h-1.5 w-1.5 rounded-full shrink-0 bg-current opacity-50 mt-[0.2rem]"
       />
       {label}
     </span>
