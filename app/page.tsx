@@ -285,8 +285,7 @@ export default async function HomePage() {
       country: row.country ?? null,
       rotten_score: Number(row.rotten_score),
       approved_evidence_count: Number(row.approved_evidence_count) || 0,
-    }))
-    .sort((a, b) => b.rotten_score - a.rotten_score);
+    }));
 
   // Build delta map for recently-verified company IDs
   const recentCompanyIds = recentlyVerified.map((i) => i.companyId);
