@@ -39,16 +39,22 @@ describe("evidence timeline validation", () => {
     expect(result.data.resolution_date).toBe("2025-07-01");
   });
 
-  it("accepts ongoing conduct + unresolved case", () => {
+  it("ongoing auto-submits unresolved with null end and resolution fields", () => {
     const result = normalizeEvidenceTimelineInput({
       event_start_date: "2024",
       event_start_precision: "year",
       event_is_ongoing: true,
-      resolution_status: "unresolved",
+      event_end_date: "2024-06-30",
+      event_end_precision: "day",
+      resolution_status: "resolved",
+      resolution_date: "2025-01-01",
+      resolution_date_precision: "day",
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expect(result.data.resolution_status).toBe("unresolved");
     expect(result.data.event_end_date).toBeNull();
+    expect(result.data.event_end_precision).toBeNull();
     expect(result.data.resolution_date).toBeNull();
     expect(result.data.resolution_date_precision).toBeNull();
   });
@@ -96,21 +102,39 @@ describe("evidence timeline validation", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("rejects resolved without resolution date", () => {
+  it("accepts ended conduct + resolved case with resolution date", () => {
     const result = normalizeEvidenceTimelineInput({
       event_start_date: "2024-05-01",
       event_start_precision: "day",
-      event_is_ongoing: true,
+      event_is_ongoing: false,
+      event_end_date: "2024-05-02",
+      event_end_precision: "day",
+      resolution_status: "resolved",
+      resolution_date: "2024-06-01",
+      resolution_date_precision: "day",
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects impossible ended+resolved without resolution date", () => {
+    const result = normalizeEvidenceTimelineInput({
+      event_start_date: "2024-05-01",
+      event_start_precision: "day",
+      event_is_ongoing: false,
+      event_end_date: "2024-05-02",
+      event_end_precision: "day",
       resolution_status: "resolved",
     });
     expect(result.ok).toBe(false);
   });
 
-  it("rejects unresolved with resolution date", () => {
+  it("rejects impossible ended+unresolved with resolution date", () => {
     const result = normalizeEvidenceTimelineInput({
       event_start_date: "2024-05-01",
       event_start_precision: "day",
-      event_is_ongoing: true,
+      event_is_ongoing: false,
+      event_end_date: "2024-05-02",
+      event_end_precision: "day",
       resolution_status: "unresolved",
       resolution_date: "2025-01-01",
       resolution_date_precision: "day",

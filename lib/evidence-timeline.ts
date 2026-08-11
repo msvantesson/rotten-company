@@ -135,31 +135,33 @@ export function normalizeEvidenceTimelineInput(
     }
   }
 
-  const resolutionStatus = toResolutionStatus(input.resolution_status ?? null);
-  if (!resolutionStatus) {
-    return { ok: false, error: "Resolution status is required." };
-  }
-
+  let resolutionStatus: TimelineResolutionStatus = "unresolved";
   let resolutionDate: string | null = null;
   let resolutionPrecision: TimelineDatePrecision | null = null;
-  if (resolutionStatus === "resolved") {
-    resolutionPrecision = toPrecision(input.resolution_date_precision ?? null);
-    if (!resolutionPrecision) {
-      return { ok: false, error: "Resolution date precision is required when resolved." };
+  if (!isOngoing) {
+    const parsedResolutionStatus = toResolutionStatus(input.resolution_status ?? null);
+    if (!parsedResolutionStatus) {
+      return { ok: false, error: "Resolution status is required." };
     }
-    const resolutionRaw = input.resolution_date?.trim() ?? "";
-    if (!resolutionRaw) {
-      return { ok: false, error: "Resolution date is required when resolved." };
-    }
-    resolutionDate = normalizeDateByPrecision(resolutionRaw, resolutionPrecision);
-    if (!resolutionDate) {
-      return { ok: false, error: "Resolution date does not match the selected precision." };
-    }
-    if (compareDateStrings(resolutionDate, startDate) < 0) {
-      return { ok: false, error: "Resolution date cannot be earlier than event start date." };
-    }
-  } else {
-    if ((input.resolution_date?.trim() ?? "") || (input.resolution_date_precision?.trim() ?? "")) {
+    resolutionStatus = parsedResolutionStatus;
+
+    if (resolutionStatus === "resolved") {
+      resolutionPrecision = toPrecision(input.resolution_date_precision ?? null);
+      if (!resolutionPrecision) {
+        return { ok: false, error: "Resolution date precision is required when resolved." };
+      }
+      const resolutionRaw = input.resolution_date?.trim() ?? "";
+      if (!resolutionRaw) {
+        return { ok: false, error: "Resolution date is required when resolved." };
+      }
+      resolutionDate = normalizeDateByPrecision(resolutionRaw, resolutionPrecision);
+      if (!resolutionDate) {
+        return { ok: false, error: "Resolution date does not match the selected precision." };
+      }
+      if (compareDateStrings(resolutionDate, startDate) < 0) {
+        return { ok: false, error: "Resolution date cannot be earlier than event start date." };
+      }
+    } else if ((input.resolution_date?.trim() ?? "") || (input.resolution_date_precision?.trim() ?? "")) {
       return {
         ok: false,
         error: "Resolution date must be empty when resolution status is unresolved.",

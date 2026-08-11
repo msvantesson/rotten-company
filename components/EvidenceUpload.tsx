@@ -74,6 +74,8 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
   useEffect(() => {
     if (eventIsOngoing === true) {
       setEventEndDate("");
+      setResolutionStatus("unresolved");
+      setResolutionDate("");
     }
   }, [eventIsOngoing]);
 
@@ -328,7 +330,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm font-medium">Is the conduct/event ongoing? *</label>
+          <label className="block text-sm font-medium">Is this still ongoing? *</label>
           <select
             value={
               eventIsOngoing === null ? "" : eventIsOngoing ? "true" : "false"
@@ -376,54 +378,56 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
         )}
       </div>
 
-      <div className="space-y-3 rounded-md border border-border bg-surface-2 p-4">
-        <h3 className="text-sm font-semibold">Resolution</h3>
-        <div className="space-y-1">
-          <label className="block text-sm font-medium">Resolution status *</label>
-          <select
-            value={resolutionStatus}
-            onChange={(e) =>
-              setResolutionStatus(e.target.value as TimelineResolutionStatus | "")
-            }
-            className="border p-2 rounded w-full"
-            disabled={loading}
-          >
-            <option value="">Select status</option>
-            <option value="resolved">Resolved</option>
-            <option value="unresolved">Unresolved</option>
-          </select>
-        </div>
-
-        {resolutionStatus === "resolved" && (
+      {eventIsOngoing === false && (
+        <div className="space-y-3 rounded-md border border-border bg-surface-2 p-4">
+          <h3 className="text-sm font-semibold">Resolution</h3>
           <div className="space-y-1">
-            <label className="block text-sm font-medium">Resolution date *</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <select
-                value={resolutionDatePrecision}
-                onChange={(e) =>
-                  setResolutionDatePrecision(e.target.value as TimelineDatePrecision)
-                }
-                className="border p-2 rounded w-full"
-                disabled={loading}
-              >
-                <option value="day">Day</option>
-                <option value="month">Month</option>
-                <option value="year">Year</option>
-              </select>
-              <input
-                type={precisionInputType(resolutionDatePrecision)}
-                className="border p-2 rounded w-full"
-                value={resolutionDate}
-                onChange={(e) => setResolutionDate(e.target.value)}
-                placeholder={resolutionDatePrecision === "year" ? "YYYY" : undefined}
-                min={resolutionDatePrecision === "year" ? 1900 : undefined}
-                max={resolutionDatePrecision === "year" ? 2100 : undefined}
-                disabled={loading}
-              />
-            </div>
+            <label className="block text-sm font-medium">Resolution status *</label>
+            <select
+              value={resolutionStatus}
+              onChange={(e) =>
+                setResolutionStatus(e.target.value as TimelineResolutionStatus | "")
+              }
+              className="border p-2 rounded w-full"
+              disabled={loading}
+            >
+              <option value="">Select status</option>
+              <option value="resolved">Resolved</option>
+              <option value="unresolved">Unresolved</option>
+            </select>
           </div>
-        )}
-      </div>
+
+          {resolutionStatus === "resolved" && (
+            <div className="space-y-1">
+              <label className="block text-sm font-medium">Resolution date *</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <select
+                  value={resolutionDatePrecision}
+                  onChange={(e) =>
+                    setResolutionDatePrecision(e.target.value as TimelineDatePrecision)
+                  }
+                  className="border p-2 rounded w-full"
+                  disabled={loading}
+                >
+                  <option value="day">Day</option>
+                  <option value="month">Month</option>
+                  <option value="year">Year</option>
+                </select>
+                <input
+                  type={precisionInputType(resolutionDatePrecision)}
+                  className="border p-2 rounded w-full"
+                  value={resolutionDate}
+                  onChange={(e) => setResolutionDate(e.target.value)}
+                  placeholder={resolutionDatePrecision === "year" ? "YYYY" : undefined}
+                  min={resolutionDatePrecision === "year" ? 1900 : undefined}
+                  max={resolutionDatePrecision === "year" ? 2100 : undefined}
+                  disabled={loading}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="space-y-1">
         <label className="block text-sm font-medium">Attachment (optional — image or PDF)</label>
