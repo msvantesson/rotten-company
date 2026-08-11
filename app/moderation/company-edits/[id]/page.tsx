@@ -56,7 +56,7 @@ export default async function CompanyEditReviewPage({
   // Fetch the edit request
   const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("id, name, status, why, website, industry, description, country, size_employees_min, proposed_name, approved_company_id, created_at, user_id")
+    .select("id, name, status, why, website, industry, description, country, size_employees, proposed_name, approved_company_id, created_at, user_id")
     .eq("id", requestId)
     .not("approved_company_id", "is", null)
     .maybeSingle();
@@ -85,7 +85,7 @@ export default async function CompanyEditReviewPage({
   // Load current company values for the diff view
   const { data: company } = await service
     .from("companies")
-    .select("id, name, slug, website, industry, description, country, size_employees")
+    .select("id, name, slug, website, industry, description, country, size_employees_range")
     .eq("id", cr.approved_company_id)
     .maybeSingle();
 
@@ -113,7 +113,7 @@ export default async function CompanyEditReviewPage({
         industry: company.industry ?? null,
         description: company.description ?? null,
         country: company.country ?? null,
-        size_employees: company.size_employees ?? null,
+        size_employees_range: company.size_employees_range ?? null,
       }}
       proposed={{
         name: cr.proposed_name ?? null,
@@ -121,7 +121,7 @@ export default async function CompanyEditReviewPage({
         industry: cr.industry ?? null,
         description: cr.description ?? null,
         country: cr.country ?? null,
-        size_employees: cr.size_employees_min ?? null,
+        size_employees_range: cr.size_employees ?? null,
       }}
     />
   );

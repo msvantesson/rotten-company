@@ -288,14 +288,7 @@ export interface RottenScoreInput {
   categories: CategoryScoreInput[];
 
   /**
-   * Directly from DB: companies.size_tier
-   * If missing, we fall back to deriveSizeTier(sizeEmployees).
-   */
-  sizeTier?: CompanySizeTier;
-
-  /**
-   * Fallback only if sizeTier is not provided.
-   * Ideally you pass sizeTier from DB and ignore this.
+   * Used to derive the size tier via `deriveSizeTier`.
    */
   sizeEmployees?: number | null;
 
@@ -369,17 +362,11 @@ function clamp(value: number, min: number, max: number): number {
  *
  * This function is pure and deterministic: given the same input,
  * it will always return the same result.
- *
- * DB alignment:
- * - sizeTier  ← companies.size_tier (preferred)
- * - countryRegion ← companies.country_region (preferred)
  */
 export function computeRottenScore(
   input: RottenScoreInput
 ): RottenScoreBreakdown {
-  const sizeTier: CompanySizeTier =
-    input.sizeTier ??
-    deriveSizeTier(input.sizeEmployees ?? null);
+  const sizeTier: CompanySizeTier = deriveSizeTier(input.sizeEmployees ?? null);
 
   const countryRegion: CountryRegion =
     input.countryRegion ?? "non_western";

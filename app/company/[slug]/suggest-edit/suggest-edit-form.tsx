@@ -13,25 +13,20 @@ type Props = {
     industry: string;
     description: string;
     country: string;
-    size_employees: string;
     size_employees_range: string;
   };
 };
 
 /**
  * Derive the initial employee-range value to pre-select in the dropdown.
- * Prefers `size_employees_range` (canonical stored value) if it matches a known range.
- * Falls back to `size_employees` if it directly matches a known range value.
+ * Uses `size_employees_range` (canonical stored value).
+ * Legacy values not present in the canonical list result in no pre-selection.
  */
 function deriveInitialRange(currentValues: Props["currentValues"]): string {
   if (currentValues.size_employees_range) {
     const match = EMPLOYEE_RANGES.find(
       (r) => r.value === currentValues.size_employees_range
     );
-    if (match) return match.value;
-  }
-  if (currentValues.size_employees) {
-    const match = EMPLOYEE_RANGES.find((r) => r.value === currentValues.size_employees);
     if (match) return match.value;
   }
   return "";

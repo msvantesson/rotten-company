@@ -12,7 +12,6 @@ export function computeLeaderScoreFromEvidence({
 }: {
   evidence: EvidenceRow[];
   companyContext: {
-    sizeTier?: any;
     sizeEmployees?: number | null;
     ownershipType: any;
     countryRegion?: any;
@@ -23,7 +22,6 @@ export function computeLeaderScoreFromEvidence({
     return computeRottenScore({
       categories: [],
       ownershipType: companyContext.ownershipType,
-      sizeTier: companyContext.sizeTier,
       sizeEmployees: companyContext.sizeEmployees,
       countryRegion: companyContext.countryRegion,
       franchiseLevel: companyContext.franchiseLevel,
@@ -50,7 +48,6 @@ export function computeLeaderScoreFromEvidence({
   return computeRottenScore({
     categories,
     ownershipType: companyContext.ownershipType,
-    sizeTier: companyContext.sizeTier,
     sizeEmployees: companyContext.sizeEmployees,
     countryRegion: companyContext.countryRegion,
     franchiseLevel: companyContext.franchiseLevel,
