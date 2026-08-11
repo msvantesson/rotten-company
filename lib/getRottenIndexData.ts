@@ -109,12 +109,13 @@ export async function getRottenIndexData(
       // We fetch up to 1000 leaders without a DB-level limit so we can sort by
       // company score in JS and then slice to `limit` (applying the DB limit
       // before scoring would yield an arbitrary subset, not the top-N by score).
-      let leadersQuery = supabase
+      //
+      // Country filtering is deferred to JS (post-fetch) so we can match on the
+      // company's country rather than the leader's own (often-empty) country field.
+      const leadersQuery = supabase
         .from("leaders")
         .select("id, name, slug, country")
         .limit(1000);
-
-      if (country) leadersQuery = leadersQuery.eq("country", country);
 
       const { data: leadersData, error: leadersError } = await leadersQuery;
 
@@ -168,6 +169,18 @@ export async function getRottenIndexData(
         }
       }
 
+      // Fetch company countries in one batch query — same source used by Rotten Index
+      const companyCountryMap = new Map<number, string>();
+      if (companyIds.size > 0) {
+        const { data: countryRows } = await supabase
+          .from("companies")
+          .select("id, country")
+          .in("id", Array.from(companyIds));
+        for (const row of countryRows ?? []) {
+          if (row.country) companyCountryMap.set(row.id, row.country);
+        }
+      }
+
       // Pick the best (primary) tenure per leader: active > past, then most recent started_at
       const primaryTenureMap = new Map<number, any>();
       for (const tenures of tenuresByLeader.values()) {
@@ -210,7 +223,9 @@ export async function getRottenIndexData(
             id: l.id,
             name: l.name,
             slug: l.slug,
-            country: l.country ?? null,
+            // Prefer company headquarters country; fall back to leader's own country field
+            // for standalone leaders without an associated company.
+            country: (companyId != null ? companyCountryMap.get(companyId) ?? null : null) ?? l.country ?? null,
             rotten_score,
             tenure_id: tenure?.id ?? null,
             company_id: companyId,
@@ -220,6 +235,11 @@ export async function getRottenIndexData(
             ended_at: tenure?.ended_at ?? null,
             escalation_score,
           };
+        })
+        // Apply country filter based on the resolved country (company or leader)
+        .filter((r) => {
+          if (!country) return true;
+          return r.country === country;
         })
         // Sort by computed score descending, nulls last
         .sort((a, b) => {

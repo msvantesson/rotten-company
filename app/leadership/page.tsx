@@ -3,7 +3,7 @@ export const fetchCache = "force-no-store";
 
 import type { Metadata } from "next";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
-import { headers } from "next/headers";
+import { getRottenIndexData } from "@/lib/getRottenIndexData";
 import Link from "next/link";
 import LeadershipStartTenureForm from "@/components/LeadershipStartTenureForm";
 import LeadershipEndTenureButton from "@/components/LeadershipEndTenureButton";
@@ -84,62 +84,41 @@ export default async function LeadershipPage({
   const limit = Number(getFirstString(sp.limit) ?? 10);
   const selectedCountry = getFirstString(sp.country);
 
-  const h = await headers();
-  const host = h.get("host");
-  const protocol = host?.includes("localhost") ? "http" : "https";
-  const baseUrl = host ? `${protocol}://${host}` : "";
-
-  // Fetch leader index data
+  // Fetch leader index data directly (no HTTP self-call)
   let indexRows: IndexedRow[] = [];
   let countryOptions: string[] = [];
-  if (baseUrl) {
-    const qs = new URLSearchParams();
-    qs.set("type", "leader");
-    qs.set("limit", String(limit));
-    if (selectedCountry) qs.set("country", selectedCountry);
 
-    try {
-      const [indexRes, countryRes] = await Promise.all([
-        fetch(`${baseUrl}/api/rotten-index?${qs.toString()}`, { cache: "no-store" }),
-        fetch(`${baseUrl}/api/rotten-index?type=leader&limit=1000`, { cache: "no-store" }),
-      ]);
-      if (indexRes.ok) {
-        const json = await indexRes.json();
-        indexRows = Array.isArray(json.rows)
-          ? json.rows
-              .map((r: any) => ({
-                id: r.id,
-                name: r.name,
-                slug: r.slug,
-                country: r.country ?? null,
-                rotten_score: r.rotten_score != null ? Number(r.rotten_score) : null,
-                escalation_score: r.escalation_score != null ? Number(r.escalation_score) : null,
-                leader_id: r.leader_id ?? undefined,
-                tenure_id: r.tenure_id ?? null,
-                company_id: r.company_id ?? null,
-                company_name: r.company_name ?? null,
-                company_slug: r.company_slug ?? null,
-                started_at: r.started_at ?? null,
-                ended_at: r.ended_at ?? null,
-              }))
-              .slice(0, limit)
-          : [];
-      }
-      if (countryRes.ok) {
-        const countryJson = await countryRes.json();
-        countryOptions = Array.from(
-          new Set<string>(
-            Array.isArray(countryJson.rows)
-              ? countryJson.rows
-                  .map((r: any) => (r.country ?? "").trim())
-                  .filter(Boolean)
-              : []
-          )
-        ).sort((a, b) => a.localeCompare(b));
-      }
-    } catch (e) {
-      console.error("[LeadershipPage] index fetch error:", e);
-    }
+  const [indexResult, countryResult] = await Promise.all([
+    getRottenIndexData({ type: "leader", limit, country: selectedCountry }),
+    getRottenIndexData({ type: "leader", limit: 1000 }),
+  ]);
+
+  if (!("error" in indexResult)) {
+    indexRows = indexResult.rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      country: r.country ?? null,
+      rotten_score: r.rotten_score != null ? Number(r.rotten_score) : null,
+      escalation_score: r.escalation_score != null ? Number(r.escalation_score) : null,
+      leader_id: undefined,
+      tenure_id: r.tenure_id ?? null,
+      company_id: r.company_id ?? null,
+      company_name: r.company_name ?? null,
+      company_slug: r.company_slug ?? null,
+      started_at: r.started_at ?? null,
+      ended_at: r.ended_at ?? null,
+    }));
+  }
+
+  if (!("error" in countryResult)) {
+    countryOptions = Array.from(
+      new Set<string>(
+        countryResult.rows
+          .map((r) => (r.country ?? "").trim())
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
   }
 
   const safeCountry = (selectedCountry ?? "all-countries")
