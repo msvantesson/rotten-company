@@ -31,7 +31,6 @@ export function companyInsertFromRequest(
     website: cr.website ?? null,
     description: cr.description ?? null,
     industry: cr.industry ?? null,
-    size_employees: cr.size_employees_min ?? null,
     size_employees_range: sizeEmployeesRange,
   };
 }

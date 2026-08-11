@@ -19,27 +19,33 @@ type Props = {
 };
 
 /**
- * Derive the initial employee-range label to pre-select in the dropdown.
- * Prefers `size_employees_range` (stored label) if it matches a known range;
- * falls back to finding the closest range from the numeric `size_employees`.
+ * Derive the initial employee-range value to pre-select in the dropdown.
+ * Prefers `size_employees_range` (canonical stored value) if it matches a known range.
+ * Falls back to `size_employees` if it directly matches a known range value.
  */
 function deriveInitialRange(currentValues: Props["currentValues"]): string {
   if (currentValues.size_employees_range) {
     const match = EMPLOYEE_RANGES.find(
-      (r) => r.label === currentValues.size_employees_range
+      (r) => r.value === currentValues.size_employees_range
     );
-    if (match) return match.label;
+    if (match) return match.value;
   }
   if (currentValues.size_employees) {
-    const num = parseInt(currentValues.size_employees, 10);
-    if (!isNaN(num) && num >= 0) {
-      // Find the range where num >= min, picking the highest matching min
-      const sorted = [...EMPLOYEE_RANGES].sort((a, b) => b.min - a.min);
-      const match = sorted.find((r) => num >= r.min);
-      if (match) return match.label;
-    }
+    const match = EMPLOYEE_RANGES.find((r) => r.value === currentValues.size_employees);
+    if (match) return match.value;
   }
   return "";
+}
+
+/** Map legacy industry values (pre-refactor) to their canonical replacements. */
+const LEGACY_INDUSTRY_MAP: Record<string, string> = {
+  "Manufacturing": "Manufacturing & Industrial",
+  "Real Estate": "Real Estate & Construction",
+};
+
+/** Return the canonical industry value, mapping legacy values if needed. */
+function resolveIndustry(value: string): string {
+  return LEGACY_INDUSTRY_MAP[value] ?? value;
 }
 
 export default function SuggestEditForm({ companySlug, currentValues }: Props) {
@@ -47,7 +53,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
 
   const [name, setName] = useState(currentValues.name);
   const [website, setWebsite] = useState(currentValues.website);
-  const [industry, setIndustry] = useState(currentValues.industry);
+  const [industry, setIndustry] = useState(resolveIndustry(currentValues.industry));
   const [description, setDescription] = useState(currentValues.description);
   const [country, setCountry] = useState(currentValues.country);
   const [sizeEmployees, setSizeEmployees] = useState(
@@ -181,7 +187,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
         >
           <option value="">Select range</option>
           {EMPLOYEE_RANGES.map((r) => (
-            <option key={r.label} value={r.label}>
+            <option key={r.value} value={r.value}>
               {r.label}
             </option>
           ))}
