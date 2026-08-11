@@ -1,10 +1,14 @@
-import { Suspense } from "react";
-import CompanyRequestClient from "./request-client";
+import { redirect } from "next/navigation";
 
-export default function CompanyRequestPage() {
-  return (
-    <Suspense fallback={null}>
-      <CompanyRequestClient />
-    </Suspense>
-  );
+export default async function CompanyRequestPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ name?: string }>;
+}) {
+  const { name } = await searchParams;
+  const trimmedName = typeof name === "string" ? name.trim() : "";
+  const to = trimmedName
+    ? `/submit-company?name=${encodeURIComponent(trimmedName)}`
+    : "/submit-company";
+  redirect(to);
 }

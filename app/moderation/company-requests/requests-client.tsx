@@ -87,7 +87,7 @@ export default function CompanyRequestsClient({
                 </button>
 
                 <a
-                  href={`/company/request?name=${encodeURIComponent(r.name)}`}
+                  href={`/submit-company?name=${encodeURIComponent(r.name)}`}
                   className="rounded-md border px-3 py-1 text-xs hover:bg-neutral-100"
                 >
                   Start over

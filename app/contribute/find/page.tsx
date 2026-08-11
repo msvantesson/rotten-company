@@ -70,7 +70,7 @@ export default function ContributeFindPage() {
             No companies found matching “{query.trim()}”.
           </p>
           <Link
-            href={`/company/request?name=${encodeURIComponent(query.trim())}`}
+            href={`/submit-company?name=${encodeURIComponent(query.trim())}`}
             className="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-neutral-50"
           >
             Request “{query.trim()}”

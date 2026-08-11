@@ -29,7 +29,7 @@ export default function ContributePage() {
           If the company isn&apos;t listed yet, you can request it to be added.
         </p>
         <Link
-          href="/company/request"
+          href="/submit-company"
           className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-neutral-50"
         >
           Request a new company
