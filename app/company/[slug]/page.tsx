@@ -17,6 +17,7 @@ import CompanyTabs from "@/components/CompanyTabs";
 import Link from "next/link";
 import { isTestCompany } from "@/lib/test-company";
 import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
+import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -406,7 +407,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
               <strong>Industry:</strong> {company.industry ?? "Unknown"}
             </p>
             <p>
-              <strong>Employees:</strong> {company.size_employees_range ?? "Unknown"}
+              <strong>Company Size:</strong>{" "}
+              {company.size_employees_range
+                ? (EMPLOYEE_RANGES.find((r) => r.value === company.size_employees_range)?.label ?? company.size_employees_range)
+                : "Unknown"}
             </p>
             <p>
               <strong>Country (Headquarters):</strong>{" "}
