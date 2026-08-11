@@ -1,6 +1,7 @@
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 import TechnicalDetails from "@/components/MyEvidenceTechnicalDetails";
+import { formatEvidenceTimeline } from "@/lib/evidence-timeline";
 
 type ParamsShape = { id: string };
 
@@ -51,6 +52,7 @@ export default async function MyEvidencePage(props: {
   const createdAt = evidence.created_at
     ? new Date(evidence.created_at).toLocaleString()
     : "Unknown";
+  const timeline = formatEvidenceTimeline(evidence);
 
   return (
     <main style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
@@ -78,8 +80,31 @@ export default async function MyEvidencePage(props: {
           </span>
         </div>
         <div>
-          <strong>Created at:</strong> {createdAt}
+          <strong>Added to Rotten Company:</strong> {createdAt}
         </div>
+        {timeline.hasTimeline ? (
+          <>
+            <div>
+              <strong>Conduct/Event period:</strong> {timeline.conductPeriod}
+            </div>
+            <div>
+              <strong>Ongoing:</strong> {timeline.ongoingLabel}
+            </div>
+            <div>
+              <strong>Resolution status:</strong> {timeline.resolutionStatusLabel ?? "(not set)"}
+            </div>
+            <div>
+              <strong>Resolution date:</strong>{" "}
+              {timeline.resolutionStatusLabel === "Resolved"
+                ? (timeline.resolutionDateLabel ?? "(not set)")
+                : "Unresolved"}
+            </div>
+          </>
+        ) : (
+          <div>
+            <strong>Timeline:</strong> Event date not yet documented
+          </div>
+        )}
         {evidence.file_url && (
           <div>
             <strong>File:</strong>{" "}

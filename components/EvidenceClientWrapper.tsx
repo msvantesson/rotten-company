@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { formatEvidenceTimeline } from "@/lib/evidence-timeline";
 
 type Evidence = {
   id: number;
@@ -14,6 +15,14 @@ type Evidence = {
   user_id: string;
   entity_type?: string | null;
   entity_id?: number | null;
+  event_start_date?: string | null;
+  event_start_precision?: "day" | "month" | "year" | null;
+  event_end_date?: string | null;
+  event_end_precision?: "day" | "month" | "year" | null;
+  event_is_ongoing?: boolean | null;
+  resolution_status?: "resolved" | "unresolved" | null;
+  resolution_date?: string | null;
+  resolution_date_precision?: "day" | "month" | "year" | null;
 };
 
 type ModerationAction = {
@@ -68,7 +77,7 @@ export default function EvidenceClientWrapper({
           const { data, error } = await supabase
             .from("evidence")
             .select(
-              "id, title, summary, file_url, created_at, category, user_id, entity_type, entity_id",
+              "id, title, summary, file_url, created_at, category, user_id, entity_type, entity_id, event_start_date, event_start_precision, event_end_date, event_end_precision, event_is_ongoing, resolution_status, resolution_date, resolution_date_precision",
             )
             .eq("id", evidenceId)
             .maybeSingle();
@@ -166,6 +175,7 @@ export default function EvidenceClientWrapper({
   }
 
   const isOwner = currentUserId && evidence.user_id === currentUserId;
+  const timeline = formatEvidenceTimeline(evidence);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 space-y-6">
@@ -190,6 +200,30 @@ export default function EvidenceClientWrapper({
           </p>
         </section>
       )}
+
+      <section className="rounded-md border border-border bg-surface-2 p-4 text-sm space-y-1">
+        <p className="text-xs text-muted-foreground">
+          Added to Rotten Company:{" "}
+          {new Date(evidence.created_at).toLocaleDateString(undefined, {
+            dateStyle: "medium",
+          })}
+        </p>
+        {timeline.hasTimeline ? (
+          <>
+            <p>Conduct/Event period: {timeline.conductPeriod}</p>
+            <p>Ongoing: {timeline.ongoingLabel}</p>
+            <p>Resolution status: {timeline.resolutionStatusLabel ?? "(not set)"}</p>
+            <p>
+              Resolution date:{" "}
+              {timeline.resolutionStatusLabel === "Resolved"
+                ? (timeline.resolutionDateLabel ?? "(not set)")
+                : "Unresolved"}
+            </p>
+          </>
+        ) : (
+          <p>Event date not yet documented</p>
+        )}
+      </section>
 
       {evidence.file_url && (
         <section className="space-y-2">

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { type SeverityLabel } from "@/lib/severity-mapping";
+import { normalizeEvidenceTimelineInput, type TimelineDatePrecision, type TimelineResolutionStatus } from "@/lib/evidence-timeline";
 
 type EvidenceUploadProps = {
   entityId: number;
@@ -36,10 +37,25 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
 
   const [severitySuggested, setSeveritySuggested] = useState<SeverityLabel>("medium");
 
+  const [eventStartDate, setEventStartDate] = useState("");
+  const [eventStartPrecision, setEventStartPrecision] = useState<TimelineDatePrecision>("day");
+  const [eventIsOngoing, setEventIsOngoing] = useState<boolean | null>(null);
+  const [eventEndDate, setEventEndDate] = useState("");
+  const [eventEndPrecision, setEventEndPrecision] = useState<TimelineDatePrecision>("day");
+  const [resolutionStatus, setResolutionStatus] = useState<TimelineResolutionStatus | "">("");
+  const [resolutionDate, setResolutionDate] = useState("");
+  const [resolutionDatePrecision, setResolutionDatePrecision] = useState<TimelineDatePrecision>("day");
+
   const [confirmPolicy, setConfirmPolicy] = useState(false);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function precisionInputType(precision: TimelineDatePrecision) {
+    if (precision === "month") return "month";
+    if (precision === "year") return "number";
+    return "date";
+  }
 
   useEffect(() => {
     async function loadCategories() {
@@ -54,6 +70,18 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
     }
     loadCategories();
   }, [supabase]);
+
+  useEffect(() => {
+    if (eventIsOngoing === true) {
+      setEventEndDate("");
+    }
+  }, [eventIsOngoing]);
+
+  useEffect(() => {
+    if (resolutionStatus === "unresolved") {
+      setResolutionDate("");
+    }
+  }, [resolutionStatus]);
 
   const handleSubmit = async () => {
     setError("");
@@ -75,6 +103,20 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       if (file.type === "application/pdf" && file.size > MAX_PDF_SIZE) {
         return setError(`PDF too large. Max size is ${toMB(MAX_PDF_SIZE)}MB.`);
       }
+    }
+
+    const timelineResult = normalizeEvidenceTimelineInput({
+      event_start_date: eventStartDate,
+      event_start_precision: eventStartPrecision,
+      event_end_date: eventEndDate,
+      event_end_precision: eventEndPrecision,
+      event_is_ongoing: eventIsOngoing,
+      resolution_status: resolutionStatus,
+      resolution_date: resolutionDate,
+      resolution_date_precision: resolutionDatePrecision,
+    });
+    if (!timelineResult.ok) {
+      return setError(timelineResult.error);
     }
 
     setLoading(true);
@@ -102,6 +144,25 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       form.append("severitySuggested", severitySuggested);
       form.append("evidenceType", evidenceType);
       form.append("userId", user.id);
+      form.append("event_start_date", timelineResult.data.event_start_date);
+      form.append("event_start_precision", timelineResult.data.event_start_precision);
+      form.append("event_is_ongoing", String(timelineResult.data.event_is_ongoing));
+      if (timelineResult.data.event_end_date) {
+        form.append("event_end_date", timelineResult.data.event_end_date);
+      }
+      if (timelineResult.data.event_end_precision) {
+        form.append("event_end_precision", timelineResult.data.event_end_precision);
+      }
+      form.append("resolution_status", timelineResult.data.resolution_status);
+      if (timelineResult.data.resolution_date) {
+        form.append("resolution_date", timelineResult.data.resolution_date);
+      }
+      if (timelineResult.data.resolution_date_precision) {
+        form.append(
+          "resolution_date_precision",
+          timelineResult.data.resolution_date_precision,
+        );
+      }
 
       const res = await fetch("/api/evidence/submit", {
         method: "POST",
@@ -236,6 +297,132 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
           <option value="medium">Medium</option>
           <option value="high">High</option>
         </select>
+      </div>
+
+      <div className="space-y-3 rounded-md border border-border bg-surface-2 p-4">
+        <h3 className="text-sm font-semibold">When did this happen?</h3>
+        <div className="space-y-1">
+          <label className="block text-sm font-medium">Event start *</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <select
+              value={eventStartPrecision}
+              onChange={(e) => setEventStartPrecision(e.target.value as TimelineDatePrecision)}
+              className="border p-2 rounded w-full"
+              disabled={loading}
+            >
+              <option value="day">Day</option>
+              <option value="month">Month</option>
+              <option value="year">Year</option>
+            </select>
+            <input
+              type={precisionInputType(eventStartPrecision)}
+              className="border p-2 rounded w-full"
+              value={eventStartDate}
+              onChange={(e) => setEventStartDate(e.target.value)}
+              placeholder={eventStartPrecision === "year" ? "YYYY" : undefined}
+              min={eventStartPrecision === "year" ? 1900 : undefined}
+              max={eventStartPrecision === "year" ? 2100 : undefined}
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium">Is the conduct/event ongoing? *</label>
+          <select
+            value={
+              eventIsOngoing === null ? "" : eventIsOngoing ? "true" : "false"
+            }
+            onChange={(e) =>
+              setEventIsOngoing(
+                e.target.value === "" ? null : e.target.value === "true",
+              )
+            }
+            className="border p-2 rounded w-full"
+            disabled={loading}
+          >
+            <option value="">Select one</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+
+        {eventIsOngoing === false && (
+          <div className="space-y-1">
+            <label className="block text-sm font-medium">Event end *</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select
+                value={eventEndPrecision}
+                onChange={(e) => setEventEndPrecision(e.target.value as TimelineDatePrecision)}
+                className="border p-2 rounded w-full"
+                disabled={loading}
+              >
+                <option value="day">Day</option>
+                <option value="month">Month</option>
+                <option value="year">Year</option>
+              </select>
+              <input
+                type={precisionInputType(eventEndPrecision)}
+                className="border p-2 rounded w-full"
+                value={eventEndDate}
+                onChange={(e) => setEventEndDate(e.target.value)}
+                placeholder={eventEndPrecision === "year" ? "YYYY" : undefined}
+                min={eventEndPrecision === "year" ? 1900 : undefined}
+                max={eventEndPrecision === "year" ? 2100 : undefined}
+                disabled={loading}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3 rounded-md border border-border bg-surface-2 p-4">
+        <h3 className="text-sm font-semibold">Resolution</h3>
+        <div className="space-y-1">
+          <label className="block text-sm font-medium">Resolution status *</label>
+          <select
+            value={resolutionStatus}
+            onChange={(e) =>
+              setResolutionStatus(e.target.value as TimelineResolutionStatus | "")
+            }
+            className="border p-2 rounded w-full"
+            disabled={loading}
+          >
+            <option value="">Select status</option>
+            <option value="resolved">Resolved</option>
+            <option value="unresolved">Unresolved</option>
+          </select>
+        </div>
+
+        {resolutionStatus === "resolved" && (
+          <div className="space-y-1">
+            <label className="block text-sm font-medium">Resolution date *</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select
+                value={resolutionDatePrecision}
+                onChange={(e) =>
+                  setResolutionDatePrecision(e.target.value as TimelineDatePrecision)
+                }
+                className="border p-2 rounded w-full"
+                disabled={loading}
+              >
+                <option value="day">Day</option>
+                <option value="month">Month</option>
+                <option value="year">Year</option>
+              </select>
+              <input
+                type={precisionInputType(resolutionDatePrecision)}
+                className="border p-2 rounded w-full"
+                value={resolutionDate}
+                onChange={(e) => setResolutionDate(e.target.value)}
+                placeholder={resolutionDatePrecision === "year" ? "YYYY" : undefined}
+                min={resolutionDatePrecision === "year" ? 1900 : undefined}
+                max={resolutionDatePrecision === "year" ? 2100 : undefined}
+                disabled={loading}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-1">

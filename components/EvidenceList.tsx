@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { formatEvidenceTimeline } from "@/lib/evidence-timeline";
 
 type ManagerInfo = {
   name: string;
@@ -19,6 +20,15 @@ type EvidenceItem = {
   file_type?: string;
   file_size?: number;
   evidence_type?: string;
+  created_at?: string;
+  event_start_date?: string | null;
+  event_start_precision?: "day" | "month" | "year" | null;
+  event_end_date?: string | null;
+  event_end_precision?: "day" | "month" | "year" | null;
+  event_is_ongoing?: boolean | null;
+  resolution_status?: "resolved" | "unresolved" | null;
+  resolution_date?: string | null;
+  resolution_date_precision?: "day" | "month" | "year" | null;
   severity?: number;
   recency_weight?: number;
   file_weight?: number;
@@ -243,6 +253,38 @@ export default function EvidenceList({ evidence }: Props) {
                         id={`evidence-${item.id}`}
                         className="border border-border p-4 rounded-md bg-surface shadow-sm space-y-3"
                       >
+                        {(() => {
+                          const timeline = formatEvidenceTimeline(item);
+                          return (
+                            <div className="text-xs text-muted-foreground space-y-1">
+                              <div>
+                                Added to Rotten Company:{" "}
+                                {item.created_at
+                                  ? new Date(item.created_at).toLocaleDateString()
+                                  : "Unknown"}
+                              </div>
+                              {timeline.hasTimeline ? (
+                                <>
+                                  <div>Conduct/Event period: {timeline.conductPeriod}</div>
+                                  <div>Ongoing: {timeline.ongoingLabel}</div>
+                                  <div>
+                                    Resolution status:{" "}
+                                    {timeline.resolutionStatusLabel ?? "(not set)"}
+                                  </div>
+                                  {timeline.resolutionStatusLabel === "Resolved" && (
+                                    <div>
+                                      Resolution date:{" "}
+                                      {timeline.resolutionDateLabel ?? "(not set)"}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div>Event date not yet documented</div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
                         {item.evidence_type && (
                           <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-muted text-muted-foreground uppercase">
                             {item.evidence_type}

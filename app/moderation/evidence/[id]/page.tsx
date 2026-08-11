@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { approveEvidence, rejectEvidence } from "@/app/moderation/actions";
+import { formatEvidenceTimeline } from "@/lib/evidence-timeline";
 import ModerationForms from "./ModerationForms";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +65,7 @@ export default async function CommunityEvidenceReviewPage(props: {
   const service = supabaseService();
   const { data: evidence, error } = await service
     .from("evidence")
-    .select("id, title, summary, status, user_id, assigned_moderator_id, evidence_type, file_url, category_id, category, severity_suggested, severity, company_id, entity_type, entity_id, company_request_id, created_at")
+    .select("id, title, summary, status, user_id, assigned_moderator_id, evidence_type, file_url, category_id, category, severity_suggested, severity, company_id, entity_type, entity_id, company_request_id, created_at, event_start_date, event_start_precision, event_end_date, event_end_precision, event_is_ongoing, resolution_status, resolution_date, resolution_date_precision")
     .eq("id", evidenceId)
     .maybeSingle();
 
@@ -213,6 +214,7 @@ export default async function CommunityEvidenceReviewPage(props: {
   // Whether severity selection is required for approval
   const severityRequired =
     evidence.evidence_type === "remediation" || evidence.evidence_type === "misconduct";
+  const timeline = formatEvidenceTimeline(evidence);
 
   return (
     <main className="max-w-3xl mx-auto py-8 space-y-6">
@@ -269,6 +271,25 @@ export default async function CommunityEvidenceReviewPage(props: {
             <p className="text-neutral-800">
               {categoryName ?? (categoryId ? `Category #${categoryId}` : "(not set)")}
             </p>
+          </div>
+
+          <div className="text-sm">
+            <p className="text-xs font-semibold text-neutral-500">Timeline</p>
+            {timeline.hasTimeline ? (
+              <div className="space-y-1 text-neutral-800">
+                <p>Conduct/Event period: {timeline.conductPeriod}</p>
+                <p>Ongoing: {timeline.ongoingLabel}</p>
+                <p>Resolution status: {timeline.resolutionStatusLabel ?? "(not set)"}</p>
+                <p>
+                  Resolution date:{" "}
+                  {timeline.resolutionStatusLabel === "Resolved"
+                    ? (timeline.resolutionDateLabel ?? "(not set)")
+                    : "Unresolved"}
+                </p>
+              </div>
+            ) : (
+              <p className="text-neutral-800">Event date not yet documented</p>
+            )}
           </div>
           <div>
             <p className="text-xs font-semibold text-neutral-500">Severity</p>
