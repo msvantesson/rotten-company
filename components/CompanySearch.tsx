@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabase-browser";
 import MacroTierBadge from "@/components/MacroTierBadge";
 
 type Company = {
@@ -15,6 +14,8 @@ type Company = {
 };
 
 type SelectModeProps = {
+  /** Optional id for the underlying input (useful for external label htmlFor) */
+  inputId?: string;
   mode: "select";
   /** Name of the hidden input carrying selected company id in FormData */
   fieldName?: string;
@@ -32,7 +33,6 @@ export default function CompanySearch(props: Props) {
   const uid = useId();
   const listboxId = `company-search-results-${uid}`;
   const router = useRouter();
-  const supabase = supabaseBrowser();
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Company[]>([]);
@@ -44,7 +44,7 @@ export default function CompanySearch(props: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
 
-  // Debounced search
+  // Debounced search via /api/search-entities (canonical score from global_rotten_index)
   useEffect(() => {
     if (!query || query.trim().length < 1) {
       setResults([]);
@@ -60,24 +60,23 @@ export default function CompanySearch(props: Props) {
 
     const id = setTimeout(async () => {
       try {
-        const q = query.trim();
-        const { data, error } = await supabase
-          .from("companies")
-          .select("id, name, slug, country, industry, rotten_score")
-          .ilike("name", `%${q}%`)
-          .order("name", { ascending: true })
-          .limit(25);
+        const res = await fetch(
+          `/api/search-entities?q=${encodeURIComponent(query.trim())}`,
+          { cache: "no-store" },
+        );
 
         if (cancelled) return;
 
-        if (error) {
+        if (!res.ok) {
           setSearchError("Search failed");
           setResults([]);
-        } else {
-          setResults((data ?? []) as Company[]);
-          setOpen(true);
-          setHighlightIndex(0);
+          return;
         }
+
+        const body: { results: Company[] } = await res.json();
+        setResults(body.results ?? []);
+        setOpen(true);
+        setHighlightIndex(0);
       } catch {
         if (!cancelled) setSearchError("Search failed");
       } finally {
@@ -89,7 +88,7 @@ export default function CompanySearch(props: Props) {
       cancelled = true;
       clearTimeout(id);
     };
-  }, [query, supabase]);
+  }, [query]);
 
   function scrollIntoView(index: number) {
     const list = listRef.current;
@@ -150,6 +149,7 @@ export default function CompanySearch(props: Props) {
   }
 
   const isNavigate = props.mode === "navigate";
+  const inputId = props.mode === "select" && props.inputId ? props.inputId : `${listboxId}-input`;
 
   return (
     <div>
@@ -160,6 +160,7 @@ export default function CompanySearch(props: Props) {
       {(!selectedCompany || isNavigate) && (
         <div className="relative">
           <input
+            id={inputId}
             ref={inputRef}
             type="text"
             autoComplete="off"

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   logDebug("search-entities-api", "Searching companies", { q });
 
   const { data, error } = await supabase
-    .from("companies")
+    .from("global_rotten_index")
     .select("id, name, slug, country, industry, rotten_score")
     .ilike("name", `%${q}%`)
     .limit(10);
