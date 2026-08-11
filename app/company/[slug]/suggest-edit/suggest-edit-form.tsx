@@ -37,12 +37,23 @@ function deriveInitialRange(currentValues: Props["currentValues"]): string {
   return "";
 }
 
+/** Map legacy industry values (pre-refactor) to their canonical replacements. */
+const LEGACY_INDUSTRY_MAP: Record<string, string> = {
+  "Manufacturing": "Manufacturing & Industrial",
+  "Real Estate": "Real Estate & Construction",
+};
+
+/** Return the canonical industry value, mapping legacy values if needed. */
+function resolveIndustry(value: string): string {
+  return LEGACY_INDUSTRY_MAP[value] ?? value;
+}
+
 export default function SuggestEditForm({ companySlug, currentValues }: Props) {
   const router = useRouter();
 
   const [name, setName] = useState(currentValues.name);
   const [website, setWebsite] = useState(currentValues.website);
-  const [industry, setIndustry] = useState(currentValues.industry);
+  const [industry, setIndustry] = useState(resolveIndustry(currentValues.industry));
   const [description, setDescription] = useState(currentValues.description);
   const [country, setCountry] = useState(currentValues.country);
   const [sizeEmployees, setSizeEmployees] = useState(
