@@ -302,7 +302,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       </div>
 
       <div className="space-y-3 rounded-md border border-border bg-surface-2 p-4">
-        <h3 className="text-sm font-semibold">When did this happen?</h3>
+        <h3 className="text-sm font-semibold">When did the conduct/event happen?</h3>
         <div className="space-y-1">
           <label className="block text-sm font-medium">Event start *</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -330,7 +330,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm font-medium">Is this still ongoing? *</label>
+          <label className="block text-sm font-medium">Is the conduct/event still happening? *</label>
           <select
             value={
               eventIsOngoing === null ? "" : eventIsOngoing ? "true" : "false"
@@ -380,9 +380,8 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
 
       {eventIsOngoing === false && (
         <div className="space-y-3 rounded-md border border-border bg-surface-2 p-4">
-          <h3 className="text-sm font-semibold">Resolution</h3>
+          <h3 className="text-sm font-semibold">Has the case or matter been resolved?</h3>
           <div className="space-y-1">
-            <label className="block text-sm font-medium">Resolution status *</label>
             <select
               value={resolutionStatus}
               onChange={(e) =>
@@ -392,8 +391,8 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
               disabled={loading}
             >
               <option value="">Select status</option>
-              <option value="resolved">Resolved</option>
-              <option value="unresolved">Unresolved</option>
+              <option value="resolved">Yes — resolved</option>
+              <option value="unresolved">No — still unresolved</option>
             </select>
           </div>
 
