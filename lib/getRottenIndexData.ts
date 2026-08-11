@@ -135,7 +135,7 @@ export async function getRottenIndexData(
       // Fetch all tenures for these leaders in one query (batch, no N+1)
       const { data: tenuresData } = await supabase
         .from("leader_tenures")
-        .select("id, leader_id, started_at, ended_at, companies(id, name, slug, country)")
+        .select("id, leader_id, started_at, ended_at, companies(id, name, slug)")
         .in("leader_id", leaderIds)
         .order("started_at", { ascending: true });
 
@@ -166,6 +166,18 @@ export async function getRottenIndexData(
         for (const row of scoreRows ?? []) {
           const s = Number(row.rotten_score);
           if (isFinite(s)) companyScoreMap.set(row.company_id, s);
+        }
+      }
+
+      // Fetch company countries in one batch query — same source used by Rotten Index
+      const companyCountryMap = new Map<number, string>();
+      if (companyIds.size > 0) {
+        const { data: countryRows } = await supabase
+          .from("companies")
+          .select("id, country")
+          .in("id", Array.from(companyIds));
+        for (const row of countryRows ?? []) {
+          if (row.country) companyCountryMap.set(row.id, row.country);
         }
       }
 
@@ -213,7 +225,7 @@ export async function getRottenIndexData(
             slug: l.slug,
             // Prefer company headquarters country; fall back to leader's own country field
             // for standalone leaders without an associated company.
-            country: company?.country ?? l.country ?? null,
+            country: (companyId != null ? companyCountryMap.get(companyId) ?? null : null) ?? l.country ?? null,
             rotten_score,
             tenure_id: tenure?.id ?? null,
             company_id: companyId,
