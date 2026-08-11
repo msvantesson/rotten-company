@@ -141,33 +141,57 @@ export function deriveSizeTier(
 }
 
 /**
+ * Explicit tier mapping for every canonical `companies.size_employees_range` value.
+ *
+ * Mapping rationale:
+ *   small      1–50       (small company, below medium threshold)
+ *   medium     51–200     (core medium band)
+ *   medium     201–500    (upper medium)
+ *   large      501–1,000  (growing company)
+ *   enterprise 1,001+     (all larger bands)
+ */
+const RANGE_TIER_MAP: Record<string, CompanySizeTier> = {
+  "1-50":           "small",
+  "51-200":         "medium",
+  "201-500":        "medium",
+  "501-1000":       "large",
+  "1001-5000":      "enterprise",
+  "5001-10000":     "enterprise",
+  "10001-50000":    "enterprise",
+  "50001-100000":   "enterprise",
+  "100001-250000":  "enterprise",
+  "250001-500000":  "enterprise",
+  "500001-1000000": "enterprise",
+  "1000001+":       "enterprise",
+};
+
+/** Stored legacy value that pre-dates the canonical range schema. */
+const LEGACY_RANGE_TIER_MAP: Record<string, CompanySizeTier> = {
+  "10000+": "enterprise",
+};
+
+/**
  * Derive size tier directly from the canonical `companies.size_employees_range` string.
  *
- * Tier boundaries match `deriveSizeTier`:
- *   micro      1–10
- *   small      11–50
- *   medium     51–250
- *   large      251–1000
- *   enterprise 1000+
- *
- * - If range is null/undefined/empty, falls back to "medium".
- * - Legacy stored value "10000+" is treated as enterprise (>1000).
- * - Unknown/unrecognised strings fall back to "medium".
+ * - Canonical ranges map via an explicit lookup table (no arithmetic).
+ * - `null` / `undefined` / `""` → `"medium"` (neutral default).
+ * - Legacy stored value `"10000+"` → `"enterprise"` (safe backwards-compatible).
+ * - Any other unknown/unrecognised non-empty value → `"medium"` neutral fallback
+ *   to avoid accidentally inflating scores from bad or future data.
  */
 export function deriveSizeTierFromRange(
   sizeEmployeesRange: string | null | undefined
 ): CompanySizeTier {
   if (!sizeEmployeesRange) return "medium";
 
-  // Parse the lower bound of the range string.
-  // Canonical format: "1-50", "51-200", …, "1000001+"
-  // Legacy format:    "10000+"
-  const lowerStr = sizeEmployeesRange.split(/[-+]/)[0];
-  const lower = parseInt(lowerStr, 10);
+  const canonical = RANGE_TIER_MAP[sizeEmployeesRange];
+  if (canonical) return canonical;
 
-  if (!Number.isFinite(lower) || lower <= 0) return "medium";
+  const legacy = LEGACY_RANGE_TIER_MAP[sizeEmployeesRange];
+  if (legacy) return legacy;
 
-  return deriveSizeTier(lower);
+  // Unknown or future range → neutral medium fallback.
+  return "medium";
 }
 
 // ---------- Ownership multipliers ----------
