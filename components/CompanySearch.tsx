@@ -233,7 +233,7 @@ export default function CompanySearch(props: Props) {
               No company found for &ldquo;{query.trim()}&rdquo;
               <div className="mt-2">
                 <a
-                  href={`/company/request?name=${encodeURIComponent(query.trim())}`}
+                  href={`/submit-company?name=${encodeURIComponent(query.trim())}`}
                   className="text-accent underline"
                 >
                   Suggest this company →
@@ -263,7 +263,7 @@ export default function CompanySearch(props: Props) {
       {!isNavigate && (
         <p className="text-xs text-muted-foreground mt-2">
           Only approved companies are listed. If the company is missing,{" "}
-          <a href="/company/request" className="text-accent underline">
+          <a href="/submit-company" className="text-accent underline">
             request a new company
           </a>
           .
