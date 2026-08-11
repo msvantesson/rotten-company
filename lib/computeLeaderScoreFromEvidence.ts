@@ -12,6 +12,8 @@ export function computeLeaderScoreFromEvidence({
 }: {
   evidence: EvidenceRow[];
   companyContext: {
+    sizeEmployeesRange?: string | null;
+    /** @deprecated Prefer sizeEmployeesRange */
     sizeEmployees?: number | null;
     ownershipType: any;
     countryRegion?: any;
@@ -22,6 +24,7 @@ export function computeLeaderScoreFromEvidence({
     return computeRottenScore({
       categories: [],
       ownershipType: companyContext.ownershipType,
+      sizeEmployeesRange: companyContext.sizeEmployeesRange,
       sizeEmployees: companyContext.sizeEmployees,
       countryRegion: companyContext.countryRegion,
       franchiseLevel: companyContext.franchiseLevel,
@@ -48,6 +51,7 @@ export function computeLeaderScoreFromEvidence({
   return computeRottenScore({
     categories,
     ownershipType: companyContext.ownershipType,
+    sizeEmployeesRange: companyContext.sizeEmployeesRange,
     sizeEmployees: companyContext.sizeEmployees,
     countryRegion: companyContext.countryRegion,
     franchiseLevel: companyContext.franchiseLevel,

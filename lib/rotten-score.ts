@@ -140,6 +140,60 @@ export function deriveSizeTier(
   return "enterprise";
 }
 
+/**
+ * Explicit tier mapping for every canonical `companies.size_employees_range` value.
+ *
+ * Mapping rationale:
+ *   small      1–50       (small company, below medium threshold)
+ *   medium     51–200     (core medium band)
+ *   medium     201–500    (upper medium)
+ *   large      501–1,000  (growing company)
+ *   enterprise 1,001+     (all larger bands)
+ */
+const RANGE_TIER_MAP: Record<string, CompanySizeTier> = {
+  "1-50":           "small",
+  "51-200":         "medium",
+  "201-500":        "medium",
+  "501-1000":       "large",
+  "1001-5000":      "enterprise",
+  "5001-10000":     "enterprise",
+  "10001-50000":    "enterprise",
+  "50001-100000":   "enterprise",
+  "100001-250000":  "enterprise",
+  "250001-500000":  "enterprise",
+  "500001-1000000": "enterprise",
+  "1000001+":       "enterprise",
+};
+
+/** Stored legacy value that pre-dates the canonical range schema. */
+const LEGACY_RANGE_TIER_MAP: Record<string, CompanySizeTier> = {
+  "10000+": "enterprise",
+};
+
+/**
+ * Derive size tier directly from the canonical `companies.size_employees_range` string.
+ *
+ * - Canonical ranges map via an explicit lookup table (no arithmetic).
+ * - `null` / `undefined` / `""` → `"medium"` (neutral default).
+ * - Legacy stored value `"10000+"` → `"enterprise"` (safe backwards-compatible).
+ * - Any other unknown/unrecognised non-empty value → `"medium"` neutral fallback
+ *   to avoid accidentally inflating scores from bad or future data.
+ */
+export function deriveSizeTierFromRange(
+  sizeEmployeesRange: string | null | undefined
+): CompanySizeTier {
+  if (!sizeEmployeesRange) return "medium";
+
+  const canonical = RANGE_TIER_MAP[sizeEmployeesRange];
+  if (canonical) return canonical;
+
+  const legacy = LEGACY_RANGE_TIER_MAP[sizeEmployeesRange];
+  if (legacy) return legacy;
+
+  // Unknown or future range → neutral medium fallback.
+  return "medium";
+}
+
 // ---------- Ownership multipliers ----------
 
 export type OwnershipType =
@@ -288,7 +342,14 @@ export interface RottenScoreInput {
   categories: CategoryScoreInput[];
 
   /**
-   * Used to derive the size tier via `deriveSizeTier`.
+   * Canonical company-size range string (e.g. "51-200").
+   * When provided, size tier is derived via `deriveSizeTierFromRange`.
+   * Falls back to `sizeEmployees` for backward compatibility.
+   */
+  sizeEmployeesRange?: string | null;
+
+  /**
+   * @deprecated Prefer `sizeEmployeesRange`. Used to derive the size tier via `deriveSizeTier`.
    */
   sizeEmployees?: number | null;
 
@@ -366,7 +427,10 @@ function clamp(value: number, min: number, max: number): number {
 export function computeRottenScore(
   input: RottenScoreInput
 ): RottenScoreBreakdown {
-  const sizeTier: CompanySizeTier = deriveSizeTier(input.sizeEmployees ?? null);
+  const sizeTier: CompanySizeTier =
+    input.sizeEmployeesRange != null
+      ? deriveSizeTierFromRange(input.sizeEmployeesRange)
+      : deriveSizeTier(input.sizeEmployees ?? null);
 
   const countryRegion: CountryRegion =
     input.countryRegion ?? "non_western";
