@@ -3,8 +3,8 @@ import {
   formatEvidenceTimeline,
   formatTimelineDate,
   normalizeEvidenceTimelineInput,
-} from "@/lib/evidence-timeline";
-import { buildResubmittedEvidenceInsertPayload } from "@/lib/build-resubmitted-evidence";
+} from "../lib/evidence-timeline";
+import { buildResubmittedEvidenceInsertPayload } from "../lib/build-resubmitted-evidence";
 
 describe("evidence timeline validation", () => {
   it("accepts resolved single-day event", () => {
