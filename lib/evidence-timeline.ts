@@ -89,7 +89,7 @@ function normalizeDateByPrecision(raw: string, precision: TimelineDatePrecision)
 }
 
 function compareDateStrings(a: string, b: string): number {
-  return a.localeCompare(b);
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 export function normalizeEvidenceTimelineInput(

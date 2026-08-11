@@ -213,12 +213,9 @@ export default function EvidenceClientWrapper({
             <p>Conduct/Event period: {timeline.conductPeriod}</p>
             <p>Ongoing: {timeline.ongoingLabel}</p>
             <p>Resolution status: {timeline.resolutionStatusLabel ?? "(not set)"}</p>
-            <p>
-              Resolution date:{" "}
-              {timeline.resolutionStatusLabel === "Resolved"
-                ? (timeline.resolutionDateLabel ?? "(not set)")
-                : "Unresolved"}
-            </p>
+            {timeline.resolutionStatusLabel === "Resolved" && (
+              <p>Resolution date: {timeline.resolutionDateLabel ?? "(not set)"}</p>
+            )}
           </>
         ) : (
           <p>Event date not yet documented</p>

@@ -93,12 +93,11 @@ export default async function MyEvidencePage(props: {
             <div>
               <strong>Resolution status:</strong> {timeline.resolutionStatusLabel ?? "(not set)"}
             </div>
-            <div>
-              <strong>Resolution date:</strong>{" "}
-              {timeline.resolutionStatusLabel === "Resolved"
-                ? (timeline.resolutionDateLabel ?? "(not set)")
-                : "Unresolved"}
-            </div>
+            {timeline.resolutionStatusLabel === "Resolved" && (
+              <div>
+                <strong>Resolution date:</strong> {timeline.resolutionDateLabel ?? "(not set)"}
+              </div>
+            )}
           </>
         ) : (
           <div>

@@ -302,12 +302,9 @@ export default async function EvidenceReviewPage(props: {
                 <div>Conduct/Event period: {timeline.conductPeriod}</div>
                 <div>Ongoing: {timeline.ongoingLabel}</div>
                 <div>Resolution status: {timeline.resolutionStatusLabel ?? "(not set)"}</div>
-                <div>
-                  Resolution date:{" "}
-                  {timeline.resolutionStatusLabel === "Resolved"
-                    ? (timeline.resolutionDateLabel ?? "(not set)")
-                    : "Unresolved"}
-                </div>
+                {timeline.resolutionStatusLabel === "Resolved" && (
+                  <div>Resolution date: {timeline.resolutionDateLabel ?? "(not set)"}</div>
+                )}
               </div>
             ) : (
               <div style={{ fontSize: 14, color: "var(--foreground)" }}>
