@@ -3,7 +3,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { EMPLOYEE_RANGES } from "./constants";
+import { INDUSTRIES, ALLOWED_EMPLOYEE_RANGE_VALUES } from "./constants";
 
 export async function submitCompany(formData: FormData) {
   const cookieStore = await cookies();
@@ -17,8 +17,7 @@ export async function submitCompany(formData: FormData) {
   const industry = (formData.get("industry") as string)?.trim() || null;
   const employeeRange = (formData.get("employee_range") as string)?.trim() || null;
 
-  const rangeEntry = EMPLOYEE_RANGES.find((r) => r.label === employeeRange);
-  const employeeRangeMin = rangeEntry ? rangeEntry.min : null;
+  // No longer use min lookup — store value directly as canonical range string
 
   const isPrivateEquity = formData.get("is_private_equity") === "true";
   const peOwned = formData.get("pe_owned") === "true";
@@ -28,6 +27,22 @@ export async function submitCompany(formData: FormData) {
 
   if (!name || !country || !description || !why) {
     cookieStore.set("submit_company_error", "All required fields must be filled.", {
+      path: "/submit-company",
+      maxAge: 5,
+    });
+    redirect("/submit-company");
+  }
+
+  if (!industry || !INDUSTRIES.includes(industry)) {
+    cookieStore.set("submit_company_error", "Please select a valid industry.", {
+      path: "/submit-company",
+      maxAge: 5,
+    });
+    redirect("/submit-company");
+  }
+
+  if (!employeeRange || !ALLOWED_EMPLOYEE_RANGE_VALUES.includes(employeeRange)) {
+    cookieStore.set("submit_company_error", "Please select a valid company size range.", {
       path: "/submit-company",
       maxAge: 5,
     });
@@ -88,7 +103,6 @@ export async function submitCompany(formData: FormData) {
       is_private_equity: isPrivateEquity,
       industry: industry ?? undefined,
       size_employees: employeeRange ?? undefined,
-      size_employees_min: employeeRangeMin ?? undefined,
     })
     .select("id")
     .single();

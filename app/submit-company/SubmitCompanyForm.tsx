@@ -115,11 +115,12 @@ export default function SubmitCompanyForm({ userEmail, error, prefillName }: Pro
 
         <div>
           <label htmlFor="industry" style={{ display: "block", marginBottom: "0.5rem" }}>
-            Industry (optional)
+            Industry *
           </label>
           <select
             id="industry"
             name="industry"
+            required
             defaultValue=""
             style={{
               width: "100%",
@@ -129,7 +130,9 @@ export default function SubmitCompanyForm({ userEmail, error, prefillName }: Pro
               backgroundColor: "var(--surface)",
             }}
           >
-            <option value="">Select industry</option>
+            <option value="" disabled>
+              Select an industry
+            </option>
             {INDUSTRIES.map((ind) => (
               <option key={ind} value={ind}>
                 {ind}
@@ -140,11 +143,12 @@ export default function SubmitCompanyForm({ userEmail, error, prefillName }: Pro
 
         <div>
           <label htmlFor="employee_range" style={{ display: "block", marginBottom: "0.5rem" }}>
-            Number of employees (optional)
+            Company Size *
           </label>
           <select
             id="employee_range"
             name="employee_range"
+            required
             defaultValue=""
             style={{
               width: "100%",
@@ -154,9 +158,11 @@ export default function SubmitCompanyForm({ userEmail, error, prefillName }: Pro
               backgroundColor: "var(--surface)",
             }}
           >
-            <option value="">Select range</option>
+            <option value="" disabled>
+              Select range
+            </option>
             {EMPLOYEE_RANGES.map((r) => (
-              <option key={r.label} value={r.label}>
+              <option key={r.value} value={r.value}>
                 {r.label}
               </option>
             ))}

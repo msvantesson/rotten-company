@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { buildCompanyEditPatch, isPatchNonEmpty } from "@/lib/company-edit-patch";
-import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
+import { ALLOWED_EMPLOYEE_RANGE_VALUES } from "@/lib/constants/employee-ranges";
 
 export async function POST(req: Request) {
   const cookieClient = await supabaseServer();
@@ -48,30 +48,21 @@ export async function POST(req: Request) {
 
   // Parse size_employees: accept a range label (new) or a legacy integer string
   const sizeEmployeesRaw = body.size_employees ?? null;
-  let sizeEmployeesLabel: string | null = null;
-  let sizeEmployeesMin: number | null = null;
+  let sizeEmployeesValue: string | null = null;
 
   if (sizeEmployeesRaw !== null && sizeEmployeesRaw !== undefined && sizeEmployeesRaw !== "") {
-    const rangeEntry = EMPLOYEE_RANGES.find((r) => r.label === String(sizeEmployeesRaw));
-    if (rangeEntry) {
-      // New path: a known range label
-      sizeEmployeesLabel = rangeEntry.label;
-      sizeEmployeesMin = rangeEntry.min;
-    } else {
-      // Legacy path: try to parse as an integer
-      const parsed = parseInt(String(sizeEmployeesRaw), 10);
-      if (isNaN(parsed) || parsed < 0) {
-        return new NextResponse(
-          "size_employees must be a valid range label or an integer >= 0",
-          { status: 400 }
-        );
-      }
-      sizeEmployeesMin = parsed;
+    const raw = String(sizeEmployeesRaw).trim();
+    if (!ALLOWED_EMPLOYEE_RANGE_VALUES.includes(raw)) {
+      return new NextResponse(
+        "size_employees must be a valid range value (e.g. '100001-250000')",
+        { status: 400 }
+      );
     }
+    sizeEmployeesValue = raw;
   }
 
   const patch = buildCompanyEditPatch(proposed);
-  if (!isPatchNonEmpty(patch) && sizeEmployeesMin === null) {
+  if (!isPatchNonEmpty(patch) && sizeEmployeesValue === null) {
     return new NextResponse("No fields to update — all proposed values are empty", { status: 400 });
   }
 
@@ -103,12 +94,8 @@ export async function POST(req: Request) {
     industry: typeof patch.industry === "string" ? patch.industry : null,
   };
 
-  if (sizeEmployeesMin !== null) {
-    insertRow.size_employees_min = sizeEmployeesMin;
-  }
-  if (sizeEmployeesLabel !== null) {
-    // Store the range label so moderation can also update companies.size_employees_range
-    insertRow.size_employees = sizeEmployeesLabel;
+  if (sizeEmployeesValue !== null) {
+    insertRow.size_employees = sizeEmployeesValue;
   }
 
   const { data: inserted, error: insertErr } = await service
