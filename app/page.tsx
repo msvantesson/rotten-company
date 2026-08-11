@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { canonicalUrl } from "@/lib/seo";
 import MacroTierBadge from "@/components/MacroTierBadge";
+import FindCompanySection from "@/components/FindCompanySection";
 
 export const metadata: Metadata = {
   title: "Rotten Company — Evidence-Based Corporate Accountability",
@@ -343,6 +344,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* FIND A COMPANY */}
+      <FindCompanySection />
 
       {/* TOP 10 */}
       <section className="mt-24 space-y-4">
