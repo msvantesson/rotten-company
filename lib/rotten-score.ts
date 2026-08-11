@@ -288,8 +288,7 @@ export interface RottenScoreInput {
   categories: CategoryScoreInput[];
 
   /**
-   * Used to derive the size tier when no explicit sizeTier is passed.
-   * Ignored in favour of the derived size tier computed from this value.
+   * Used to derive the size tier via `deriveSizeTier`.
    */
   sizeEmployees?: number | null;
 

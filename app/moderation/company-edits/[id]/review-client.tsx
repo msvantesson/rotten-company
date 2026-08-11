@@ -6,6 +6,12 @@ import { useRouter } from "next/navigation";
 
 import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
 
+function formatEmployeeRange(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const match = EMPLOYEE_RANGES.find((r) => r.value === value);
+  return match ? match.label : value;
+}
+
 type FieldValues = {
   name: string | null;
   website: string | null;
@@ -152,7 +158,7 @@ export default function CompanyEditReviewClient({
             <DiffRow label="Industry" current={current.industry} proposed={proposed.industry} />
             <DiffRow label="Description" current={current.description} proposed={proposed.description} />
             <DiffRow label="Country" current={current.country} proposed={proposed.country} />
-            <DiffRow label="Company Size" current={current.size_employees_range ? (EMPLOYEE_RANGES.find(r => r.value === current.size_employees_range)?.label ?? current.size_employees_range) : null} proposed={proposed.size_employees_range ? (EMPLOYEE_RANGES.find(r => r.value === proposed.size_employees_range)?.label ?? proposed.size_employees_range) : null} />
+            <DiffRow label="Company Size" current={formatEmployeeRange(current.size_employees_range)} proposed={formatEmployeeRange(proposed.size_employees_range)} />
           </tbody>
         </table>
       </section>
