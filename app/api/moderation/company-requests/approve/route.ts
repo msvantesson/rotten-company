@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
   const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("id, name, country, website, industry, description, size_employees_min, size_employees, status, user_id, approved_company_id")
+    .select("id, name, country, website, industry, description, size_employees, status, user_id, approved_company_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -91,22 +91,18 @@ export async function POST(req: Request) {
 
   if (cr.approved_company_id !== null) {
     // EDIT SUGGESTION: apply patch to the existing company using whitelist + no-clearing rules
+    const sizeEmployeesRange =
+      cr.size_employees && typeof cr.size_employees === "string"
+        ? cr.size_employees.trim() || null
+        : null;
+
     const patch = buildCompanyEditPatch({
       website: cr.website,
       industry: cr.industry,
       description: cr.description,
       country: cr.country,
-      size_employees: cr.size_employees_min,
+      size_employees_range: sizeEmployeesRange,
     });
-
-    // Also update size_employees_range when a range label is stored
-    const sizeEmployeesLabel =
-      cr.size_employees && typeof cr.size_employees === "string"
-        ? cr.size_employees.trim()
-        : null;
-    if (sizeEmployeesLabel) {
-      (patch as Record<string, unknown>).size_employees_range = sizeEmployeesLabel;
-    }
 
     if (Object.keys(patch).length > 0) {
       const { error: updateCompanyErr } = await service

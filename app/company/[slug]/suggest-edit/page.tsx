@@ -25,7 +25,7 @@ export default async function SuggestEditPage({
   // Load company by slug
   const { data: company, error } = await supabase
     .from("companies")
-    .select("name, slug, website, industry, description, country, size_employees, size_employees_range")
+    .select("name, slug, website, industry, description, country, size_employees_range")
     .eq("slug", slug)
     .single();
 
@@ -58,7 +58,6 @@ export default async function SuggestEditPage({
             industry: company.industry ?? "",
             description: company.description ?? "",
             country: company.country ?? "",
-            size_employees: company.size_employees != null ? String(company.size_employees) : "",
             size_employees_range: company.size_employees_range ?? "",
           }}
         />

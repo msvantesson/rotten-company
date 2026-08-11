@@ -4,13 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
+
 type FieldValues = {
   name: string | null;
   website: string | null;
   industry: string | null;
   description: string | null;
   country: string | null;
-  size_employees: number | null;
+  size_employees_range: string | null;
 };
 
 type Props = {
@@ -150,7 +152,7 @@ export default function CompanyEditReviewClient({
             <DiffRow label="Industry" current={current.industry} proposed={proposed.industry} />
             <DiffRow label="Description" current={current.description} proposed={proposed.description} />
             <DiffRow label="Country" current={current.country} proposed={proposed.country} />
-            <DiffRow label="Employees" current={current.size_employees} proposed={proposed.size_employees} />
+            <DiffRow label="Company Size" current={current.size_employees_range ? (EMPLOYEE_RANGES.find(r => r.value === current.size_employees_range)?.label ?? current.size_employees_range) : null} proposed={proposed.size_employees_range ? (EMPLOYEE_RANGES.find(r => r.value === proposed.size_employees_range)?.label ?? proposed.size_employees_range) : null} />
           </tbody>
         </table>
       </section>

@@ -12,9 +12,7 @@ export interface CompanyRequestFields {
   website?: string | null;
   description?: string | null;
   industry?: string | null;
-  /** Numeric lower-bound of the employee range (e.g. 10000). Maps to company_requests.size_employees_min. */
-  size_employees_min?: number | null;
-  /** Human-readable label for the employee range (e.g. "10000+"). Maps to company_requests.size_employees. */
+  /** Canonical range string (e.g. "10001-50000"). Maps to company_requests.size_employees. */
   size_employees?: string | null;
 }
 

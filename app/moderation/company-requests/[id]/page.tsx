@@ -2,10 +2,17 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { approveCompanyRequest, rejectCompanyRequest } from "@/app/moderation/company-requests/actions";
+import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
 
 export const dynamic = "force-dynamic";
 
 type ParamsShape = { id: string };
+
+function formatEmployeeRange(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const match = EMPLOYEE_RANGES.find((r) => r.value === value);
+  return match ? match.label : value;
+}
 
 export default async function CommunityCompanyRequestReviewPage(props: {
   params: ParamsShape | Promise<ParamsShape>;
@@ -51,7 +58,7 @@ export default async function CommunityCompanyRequestReviewPage(props: {
   const service = supabaseService();
   const { data: cr, error } = await service
     .from("company_requests")
-    .select("id, name, country, website, industry, description, size_employees_min, size_employees, why, status, user_id, assigned_moderator_id, assigned_at, created_at, approved_company_id")
+    .select("id, name, country, website, industry, description, size_employees, why, status, user_id, assigned_moderator_id, assigned_at, created_at, approved_company_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -118,13 +125,13 @@ export default async function CommunityCompanyRequestReviewPage(props: {
     industry: string | null;
     description: string | null;
     country: string | null;
-    size_employees: number | null;
+    size_employees_range: string | null;
   } | null = null;
 
   if (cr.approved_company_id !== null) {
     const { data: company } = await service
       .from("companies")
-      .select("id, name, slug, website, industry, description, country, size_employees")
+      .select("id, name, slug, website, industry, description, country, size_employees_range")
       .eq("id", cr.approved_company_id)
       .maybeSingle();
     currentCompany = company ?? null;
@@ -194,9 +201,8 @@ export default async function CommunityCompanyRequestReviewPage(props: {
                     { label: "Industry", current: currentCompany.industry, proposed: cr.industry },
                     { label: "Description", current: currentCompany.description, proposed: cr.description },
                     { label: "Country", current: currentCompany.country, proposed: cr.country },
-                    { label: "Employees (min)", current: currentCompany.size_employees, proposed: cr.size_employees_min },
-                    { label: "Employees (range)", current: null, proposed: cr.size_employees },
-                  ] as { label: string; current: string | number | null; proposed: string | number | null }[]
+                    { label: "Company Size", current: formatEmployeeRange(currentCompany.size_employees_range), proposed: formatEmployeeRange(cr.size_employees) },
+                  ] as { label: string; current: string | null; proposed: string | null }[]
                 ).map(({ label, current: cur, proposed }) => {
                   const hasChange =
                     proposed !== null &&
@@ -260,6 +266,13 @@ export default async function CommunityCompanyRequestReviewPage(props: {
               <p className="text-sm text-neutral-800 whitespace-pre-wrap">{cr.description}</p>
             </div>
           )}
+
+          {cr.size_employees && (
+            <div>
+              <p className="text-xs font-semibold text-neutral-500">Company Size</p>
+              <p className="text-sm text-neutral-800">{formatEmployeeRange(cr.size_employees)}</p>
+            </div>
+          )}
         </section>
       )}
 
@@ -321,3 +334,4 @@ export default async function CommunityCompanyRequestReviewPage(props: {
     </main>
   );
 }
+

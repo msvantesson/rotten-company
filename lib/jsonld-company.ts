@@ -24,7 +24,6 @@ type JsonLdInput = {
     name: string;
     slug: string;
     industry?: string;
-    size_employees?: number;
   };
   rottenScore: number | null;
   breakdown: CategoryBreakdownJsonLd[];
@@ -80,7 +79,6 @@ export function buildCompanyJsonLd({
     url: `https://rotten-company.com/company/${company.slug}`,
     description: microFlavor,
     industry: company.industry ?? undefined,
-    numberOfEmployees: company.size_employees ?? undefined,
 
     // Canonical Rotten Score (0–100)
     aggregateRating: {
