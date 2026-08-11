@@ -3,6 +3,7 @@ import {
   approveEvidence,
   rejectEvidence,
 } from "@/app/admin/moderation/evidence/actions";
+import { formatEvidenceTimeline } from "@/lib/evidence-timeline";
 import AdminModerationForms from "./AdminModerationForms";
 
 type ParamsShape = { id: string };
@@ -143,6 +144,7 @@ export default async function EvidenceReviewPage(props: {
   // Whether severity selection is required for approval
   const severityRequired =
     evidence.evidence_type === "remediation" || evidence.evidence_type === "misconduct";
+  const timeline = formatEvidenceTimeline(evidence);
 
   return (
     <main
@@ -289,6 +291,26 @@ export default async function EvidenceReviewPage(props: {
                 {severityDisplay ?? "(not set)"}
               </div>
             </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>
+              Timeline
+            </div>
+            {timeline.hasTimeline ? (
+              <div style={{ fontSize: 14, color: "var(--foreground)", display: "grid", gap: 4 }}>
+                <div>Conduct/Event period: {timeline.conductPeriod}</div>
+                <div>Ongoing: {timeline.ongoingLabel}</div>
+                <div>Resolution status: {timeline.resolutionStatusLabel ?? "(not set)"}</div>
+                {timeline.resolutionStatusLabel === "Resolved" && (
+                  <div>Resolution date: {timeline.resolutionDateLabel ?? "(not set)"}</div>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: 14, color: "var(--foreground)" }}>
+                Event date not yet documented
+              </div>
+            )}
           </div>
 
           {/* Company */}

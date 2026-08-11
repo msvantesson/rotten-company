@@ -1,5 +1,6 @@
 // app/lib/api.ts
 import { supabase } from "./supabaseClient";
+import { normalizeEvidenceTimelineInput, type TimelineDatePrecision, type TimelineResolutionStatus } from "@/lib/evidence-timeline";
 
 /**
  * Fetch a single entity by slug.
@@ -67,7 +68,27 @@ export async function submitEvidence(payload: {
   file_path: string;
   user_id: string;
   evidence_type: string; // NEW
+  event_start_date: string;
+  event_start_precision: TimelineDatePrecision;
+  event_end_date?: string | null;
+  event_end_precision?: TimelineDatePrecision | null;
+  event_is_ongoing: boolean;
+  resolution_status: TimelineResolutionStatus;
+  resolution_date?: string | null;
+  resolution_date_precision?: TimelineDatePrecision | null;
 }) {
+  const timelineResult = normalizeEvidenceTimelineInput({
+    event_start_date: payload.event_start_date,
+    event_start_precision: payload.event_start_precision,
+    event_end_date: payload.event_end_date ?? null,
+    event_end_precision: payload.event_end_precision ?? null,
+    event_is_ongoing: payload.event_is_ongoing,
+    resolution_status: payload.resolution_status,
+    resolution_date: payload.resolution_date ?? null,
+    resolution_date_precision: payload.resolution_date_precision ?? null,
+  });
+  if (!timelineResult.ok) throw new Error(timelineResult.error);
+
   const { data, error } = await supabase
     .from("evidence")
     .insert({
@@ -78,6 +99,14 @@ export async function submitEvidence(payload: {
       file_path: payload.file_path,
       user_id: payload.user_id,
       evidence_type: payload.evidence_type, // NEW
+      event_start_date: timelineResult.data.event_start_date,
+      event_start_precision: timelineResult.data.event_start_precision,
+      event_end_date: timelineResult.data.event_end_date,
+      event_end_precision: timelineResult.data.event_end_precision,
+      event_is_ongoing: timelineResult.data.event_is_ongoing,
+      resolution_status: timelineResult.data.resolution_status,
+      resolution_date: timelineResult.data.resolution_date,
+      resolution_date_precision: timelineResult.data.resolution_date_precision,
     })
     .select()
     .single();

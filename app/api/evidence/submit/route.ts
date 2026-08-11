@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 import { toLegacyCategory } from "@/app/lib/legacy-category";
 import { severityLabelToNumber } from "@/lib/severity-mapping";
+import { normalizeEvidenceTimelineInput } from "@/lib/evidence-timeline";
 
 const ALLOWED_EVIDENCE_TYPES = [
   "misconduct",
@@ -63,6 +64,14 @@ export async function POST(req: Request) {
     category,
     evidenceType,
     severitySuggested,
+    event_start_date,
+    event_start_precision,
+    event_end_date,
+    event_end_precision,
+    event_is_ongoing,
+    resolution_status,
+    resolution_date,
+    resolution_date_precision,
   } = fields;
   const validatedEvidenceType = parseEvidenceType(evidenceType);
 
@@ -111,6 +120,20 @@ export async function POST(req: Request) {
       },
       { status: 400 },
     );
+  }
+
+  const timelineResult = normalizeEvidenceTimelineInput({
+    event_start_date,
+    event_start_precision,
+    event_end_date,
+    event_end_precision,
+    event_is_ongoing,
+    resolution_status,
+    resolution_date,
+    resolution_date_precision,
+  });
+  if (!timelineResult.ok) {
+    return NextResponse.json({ error: timelineResult.error, requestId }, { status: 400 });
   }
 
   const supabase = await supabaseServer();
@@ -265,6 +288,14 @@ export async function POST(req: Request) {
         file_url: fileUrl,
         evidence_type: validatedEvidenceType,
         severity_suggested: severityLabelToNumber(severitySuggested),
+        event_start_date: timelineResult.data.event_start_date,
+        event_start_precision: timelineResult.data.event_start_precision,
+        event_end_date: timelineResult.data.event_end_date,
+        event_end_precision: timelineResult.data.event_end_precision,
+        event_is_ongoing: timelineResult.data.event_is_ongoing,
+        resolution_status: timelineResult.data.resolution_status,
+        resolution_date: timelineResult.data.resolution_date,
+        resolution_date_precision: timelineResult.data.resolution_date_precision,
         // Optional: persist file metadata if available
         file_type: file?.type ?? null,
         file_size: file?.size ?? null,
