@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     return new NextResponse("Company name must be at least 2 characters", { status: 400 });
   }
 
-  // Parse size_employees: accept a range label (new) or a legacy integer string
+  // Parse size_employees: must be a canonical range value (e.g. "100001-250000")
   const sizeEmployeesRaw = body.size_employees ?? null;
   let sizeEmployeesValue: string | null = null;
 
