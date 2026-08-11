@@ -6,6 +6,7 @@ type TenureRow = {
   company_id: number;
   company_name: string | null;
   company_slug: string | null;
+  company_size_employees_range: string | null;
   started_at: string;
   ended_at: string | null;
 };
@@ -58,7 +59,8 @@ export async function getLeaderData(slug: string) {
       ended_at,
       companies (
         name,
-        slug
+        slug,
+        size_employees_range
       )
     `)
     .eq("leader_id", leader.id)
@@ -72,6 +74,7 @@ export async function getLeaderData(slug: string) {
     company_id: t.company_id,
     company_name: t.companies?.name ?? null,
     company_slug: t.companies?.slug ?? null,
+    company_size_employees_range: t.companies?.size_employees_range ?? null,
     started_at: t.started_at,
     ended_at: t.ended_at,
   }));
@@ -122,6 +125,8 @@ export async function getLeaderData(slug: string) {
   /* -------------------------------------------------
      6) Compute leader score
      ------------------------------------------------- */
+  const sizeEmployeesRange = activeTenure?.company_size_employees_range ?? null;
+
   const computedScore = computeLeaderScoreFromEvidence({
     evidence: evidence.map((ev) => ({
       category: ev.category as CategoryId,
@@ -129,7 +134,7 @@ export async function getLeaderData(slug: string) {
     })),
     companyContext: {
       ownershipType: "public_company",
-      sizeEmployees: null,
+      sizeEmployeesRange,
       countryRegion: "western",
     },
   });

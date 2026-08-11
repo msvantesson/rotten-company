@@ -140,6 +140,36 @@ export function deriveSizeTier(
   return "enterprise";
 }
 
+/**
+ * Derive size tier directly from the canonical `companies.size_employees_range` string.
+ *
+ * Tier boundaries match `deriveSizeTier`:
+ *   micro      1–10
+ *   small      11–50
+ *   medium     51–250
+ *   large      251–1000
+ *   enterprise 1000+
+ *
+ * - If range is null/undefined/empty, falls back to "medium".
+ * - Legacy stored value "10000+" is treated as enterprise (>1000).
+ * - Unknown/unrecognised strings fall back to "medium".
+ */
+export function deriveSizeTierFromRange(
+  sizeEmployeesRange: string | null | undefined
+): CompanySizeTier {
+  if (!sizeEmployeesRange) return "medium";
+
+  // Parse the lower bound of the range string.
+  // Canonical format: "1-50", "51-200", …, "1000001+"
+  // Legacy format:    "10000+"
+  const lowerStr = sizeEmployeesRange.split(/[-+]/)[0];
+  const lower = parseInt(lowerStr, 10);
+
+  if (!Number.isFinite(lower) || lower <= 0) return "medium";
+
+  return deriveSizeTier(lower);
+}
+
 // ---------- Ownership multipliers ----------
 
 export type OwnershipType =
@@ -288,7 +318,14 @@ export interface RottenScoreInput {
   categories: CategoryScoreInput[];
 
   /**
-   * Used to derive the size tier via `deriveSizeTier`.
+   * Canonical company-size range string (e.g. "51-200").
+   * When provided, size tier is derived via `deriveSizeTierFromRange`.
+   * Falls back to `sizeEmployees` for backward compatibility.
+   */
+  sizeEmployeesRange?: string | null;
+
+  /**
+   * @deprecated Prefer `sizeEmployeesRange`. Used to derive the size tier via `deriveSizeTier`.
    */
   sizeEmployees?: number | null;
 
@@ -366,7 +403,10 @@ function clamp(value: number, min: number, max: number): number {
 export function computeRottenScore(
   input: RottenScoreInput
 ): RottenScoreBreakdown {
-  const sizeTier: CompanySizeTier = deriveSizeTier(input.sizeEmployees ?? null);
+  const sizeTier: CompanySizeTier =
+    input.sizeEmployeesRange != null
+      ? deriveSizeTierFromRange(input.sizeEmployeesRange)
+      : deriveSizeTier(input.sizeEmployees ?? null);
 
   const countryRegion: CountryRegion =
     input.countryRegion ?? "non_western";
