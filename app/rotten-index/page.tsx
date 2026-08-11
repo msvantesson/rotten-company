@@ -9,6 +9,7 @@ import MacroTierBadge from "@/components/MacroTierBadge";
 import Link from "next/link";
 import ExportCsvButton from "./ExportCsvButton";
 import CompanyCardList from "./CompanyCardList";
+import FindCompanyInline from "./FindCompanyInline";
 import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -228,6 +229,9 @@ export default async function RottenIndexPage({
           greater documented harm.
         </p>
       </div>
+
+      {/* FIND A COMPANY */}
+      {type === "company" && <FindCompanyInline />}
 
       {/* FILTER CONTROLS */}
       <form

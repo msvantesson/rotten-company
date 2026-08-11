@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
   logDebug("search-entities-api", "Searching companies", { q });
 
   const { data, error } = await supabase
-    .from("companies")
-    .select("id, name, slug")
+    .from("global_rotten_index")
+    .select("id, name, slug, country, industry, rotten_score")
     .ilike("name", `%${q}%`)
     .limit(10);
 
@@ -25,8 +25,12 @@ export async function GET(req: NextRequest) {
   }
 
   const results = (data || []).map((row) => ({
+    id: row.id,
     name: row.name,
     slug: row.slug,
+    country: row.country ?? null,
+    industry: row.industry ?? null,
+    rotten_score: row.rotten_score != null ? Number(row.rotten_score) : null,
     submitEvidenceUrl: `/company/${row.slug}/submit-evidence`,
   }));
 
