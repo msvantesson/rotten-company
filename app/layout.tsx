@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
 import NavMenu from "@/components/NavMenu";
@@ -77,6 +78,22 @@ export default function RootLayout({
         </SiteHeader>
 
         <main>{children}</main>
+        <footer className="w-full border-t border-border">
+          <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-6 text-sm text-muted-foreground">
+            <Link href="/disclaimer" className="hover:text-foreground hover:underline">
+              Disclaimer
+            </Link>
+            <Link
+              href="/moderation-guidelines"
+              className="hover:text-foreground hover:underline"
+            >
+              Moderation Guidelines
+            </Link>
+            <Link href="/contact" className="hover:text-foreground hover:underline">
+              Contact
+            </Link>
+          </div>
+        </footer>
         <Analytics />
       </body>
     </html>
