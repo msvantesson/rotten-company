@@ -107,7 +107,10 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       }
     }
 
-    const timelineResult = normalizeEvidenceTimelineInput({
+    // Client-side validation only: verify the timeline values would normalize correctly.
+    // Do NOT append the normalized values to FormData.
+    // The server will perform the authoritative normalization.
+    const timelineValidation = normalizeEvidenceTimelineInput({
       event_start_date: eventStartDate,
       event_start_precision: eventStartPrecision,
       event_end_date: eventEndDate,
@@ -117,8 +120,8 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       resolution_date: resolutionDate,
       resolution_date_precision: resolutionDatePrecision,
     });
-    if (!timelineResult.ok) {
-      return setError(timelineResult.error);
+    if (!timelineValidation.ok) {
+      return setError(timelineValidation.error);
     }
 
     setLoading(true);
@@ -146,24 +149,24 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
       form.append("severitySuggested", severitySuggested);
       form.append("evidenceType", evidenceType);
       form.append("userId", user.id);
-      form.append("event_start_date", timelineResult.data.event_start_date);
-      form.append("event_start_precision", timelineResult.data.event_start_precision);
-      form.append("event_is_ongoing", String(timelineResult.data.event_is_ongoing));
-      if (timelineResult.data.event_end_date) {
-        form.append("event_end_date", timelineResult.data.event_end_date);
+      
+      // CRITICAL: Append RAW user-entered timeline values, not normalized values.
+      // The server will perform the authoritative normalization.
+      form.append("event_start_date", eventStartDate);
+      form.append("event_start_precision", eventStartPrecision);
+      form.append("event_is_ongoing", String(eventIsOngoing));
+      if (eventEndDate) {
+        form.append("event_end_date", eventEndDate);
       }
-      if (timelineResult.data.event_end_precision) {
-        form.append("event_end_precision", timelineResult.data.event_end_precision);
+      if (eventEndPrecision) {
+        form.append("event_end_precision", eventEndPrecision);
       }
-      form.append("resolution_status", timelineResult.data.resolution_status);
-      if (timelineResult.data.resolution_date) {
-        form.append("resolution_date", timelineResult.data.resolution_date);
+      form.append("resolution_status", resolutionStatus);
+      if (resolutionDate) {
+        form.append("resolution_date", resolutionDate);
       }
-      if (timelineResult.data.resolution_date_precision) {
-        form.append(
-          "resolution_date_precision",
-          timelineResult.data.resolution_date_precision,
-        );
+      if (resolutionDatePrecision) {
+        form.append("resolution_date_precision", resolutionDatePrecision);
       }
 
       const res = await fetch("/api/evidence/submit", {
@@ -248,7 +251,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           disabled={loading}
-          placeholder="Short headline (e.g. “Retaliation after reporting safety issue”)"
+          placeholder="Short headline (e.g. "Retaliation after reporting safety issue")"
         />
       </div>
 
