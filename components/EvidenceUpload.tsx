@@ -251,7 +251,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           disabled={loading}
-          placeholder="Short headline (e.g. "Retaliation after reporting safety issue")"
+          placeholder="Short headline (e.g. &quot;Retaliation after reporting safety issue&quot;)"
         />
       </div>
 
