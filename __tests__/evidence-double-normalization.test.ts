@@ -278,9 +278,12 @@ describe("Server normalization — mixed precision combinations", () => {
     expect(result.data.resolution_date).toBe("2022-09-15");
   });
 
-  it("ongoing flag overrides end/resolution fields (server-side)", () => {
-    // Even if the client accidentally sends end date with ongoing=true,
-    // the server should ignore end/resolution fields for ongoing events.
+  it("ongoing flag overrides end/resolution fields (server-side, pre-existing normalizer contract)", () => {
+    // Pre-existing behavior of normalizeEvidenceTimelineInput(): when event_is_ongoing=true,
+    // end date and resolution fields are unconditionally nulled out regardless of what the
+    // client sends. This test confirms that contract is not broken by the raw-value change.
+    // (Not a new behavior introduced by this PR — see evidence-timeline.test.ts for the
+    // canonical normalizer tests.)
     const result = serverNormalize({
       event_start_date: "2020",
       event_start_precision: "year",
