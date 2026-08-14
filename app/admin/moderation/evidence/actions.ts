@@ -3,6 +3,7 @@
 import { supabaseService } from "@/lib/supabase-service";
 import { supabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import { notifyIndexNow, companyIndexNowUrl } from "@/lib/indexnow";
 
 const VALID_SEVERITIES = ["low", "medium", "high"] as const;
 type SeverityEnum = (typeof VALID_SEVERITIES)[number];
@@ -64,6 +65,24 @@ export async function approveEvidence(formData: FormData) {
     moderator_note: note,
     source: "ui",
   });
+
+  // Notify IndexNow about the updated company page
+  const { data: evRow } = await db
+    .from("evidence")
+    .select("company_id")
+    .eq("id", evidenceId)
+    .maybeSingle();
+  const companyId = evRow?.company_id ?? null;
+  if (companyId) {
+    const { data: coRow } = await db
+      .from("companies")
+      .select("slug")
+      .eq("id", companyId)
+      .maybeSingle();
+    if (coRow?.slug) {
+      void notifyIndexNow(companyIndexNowUrl(coRow.slug));
+    }
+  }
 
   // Redirect somewhere that exists in prod
   redirect("/moderation/current");

@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
 import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
 import { companyInsertFromRequest } from "@/lib/company/companyInsertFromRequest";
+import { notifyIndexNow, companyIndexNowUrl } from "@/lib/indexnow";
 
 function adminClient() {
   return createClient(
@@ -194,6 +195,7 @@ export async function approveCompanyRequest(formData: FormData) {
   // Create company in public.companies (idempotent: skip if already created)
   let approvedCompanyId: number | null = cr.approved_company_id ?? null;
   let companySlug = "";
+  let notifyCompany = false;
 
   if (approvedCompanyId !== null) {
     // EDIT SUGGESTION: apply patch to the existing company using whitelist + no-clearing rules
@@ -220,6 +222,7 @@ export async function approveCompanyRequest(formData: FormData) {
         console.error("[approveCompanyRequest] failed to update company:", updateCompanyErr.message);
         redirect(`/moderation/company-requests/${requestId}?error=${encodeURIComponent("Failed to apply edits to company.")}`);
       }
+      notifyCompany = true;
     }
 
     const { data: existingCompany } = await service
@@ -254,6 +257,7 @@ export async function approveCompanyRequest(formData: FormData) {
     } else if (company) {
       approvedCompanyId = company.id;
       companySlug = company.slug;
+      notifyCompany = true;
     }
   }
 
@@ -292,6 +296,10 @@ export async function approveCompanyRequest(formData: FormData) {
     ].join("\n"),
     { requestId, action: "approve" },
   );
+
+  if (notifyCompany && companySlug) {
+    void notifyIndexNow(companyIndexNowUrl(companySlug));
+  }
 
   revalidatePath("/moderation");
   redirect("/moderation");
