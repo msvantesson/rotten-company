@@ -6,6 +6,7 @@ import { supabaseService } from "@/lib/supabase-service";
 import { supabaseServer } from "@/lib/supabase-server";
 import { logDebug } from "@/lib/log";
 import { getAssignedModerationItems } from "@/lib/getAssignedModerationItems";
+import { notifyIndexNow, companyIndexNowUrl } from "@/lib/indexnow";
 
 /**
  * Result type returned by moderation server actions.
@@ -237,6 +238,24 @@ export async function approveEvidence(formData: FormData): Promise<ActionResult>
     evidence_id: evidenceId,
     moderator_id: moderatorId,
   });
+
+  // Notify IndexNow about the updated company page
+  const { data: evRow } = await supabase
+    .from("evidence")
+    .select("company_id")
+    .eq("id", evidenceId)
+    .maybeSingle();
+  const companyId = evRow?.company_id ?? null;
+  if (companyId) {
+    const { data: coRow } = await supabase
+      .from("companies")
+      .select("slug")
+      .eq("id", companyId)
+      .maybeSingle();
+    if (coRow?.slug) {
+      void notifyIndexNow(companyIndexNowUrl(coRow.slug));
+    }
+  }
 
   // Revalidate relevant paths
   revalidatePath("/moderation");

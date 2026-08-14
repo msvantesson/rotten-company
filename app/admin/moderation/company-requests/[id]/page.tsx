@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { canModerate } from "@/lib/moderation-guards";
+import { notifyIndexNow, companyIndexNowUrl } from "@/lib/indexnow";
 
 /**
  * Admin moderation detail page for a single company_request.
@@ -245,6 +246,27 @@ export default async function Page({
       console.error("[admin/company-requests][approve] updateErr", updateErr);
       redirect(`/admin/moderation/company-requests/${requestId}?error=${encodeURIComponent(String(updateErr.message ?? updateErr))}`);
     } else {
+      // Best-effort IndexNow notification
+      try {
+        const { data: crRow } = await svc
+          .from("company_requests")
+          .select("approved_company_id")
+          .eq("id", requestId)
+          .maybeSingle();
+        const approvedId = (crRow as any)?.approved_company_id ?? null;
+        if (approvedId) {
+          const { data: co } = await svc
+            .from("companies")
+            .select("slug")
+            .eq("id", approvedId)
+            .maybeSingle();
+          if (co?.slug) {
+            void notifyIndexNow(companyIndexNowUrl(co.slug));
+          }
+        }
+      } catch (err) {
+        console.warn("[admin/company-requests][approve] IndexNow lookup failed (ignored):", err);
+      }
       try {
         revalidatePath("/moderation/company-requests");
       } catch (_) {}
