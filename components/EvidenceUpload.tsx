@@ -82,6 +82,7 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
   useEffect(() => {
     if (resolutionStatus === "unresolved") {
       setResolutionDate("");
+      setResolutionDatePrecision("day");
     }
   }, [resolutionStatus]);
 
@@ -162,10 +163,10 @@ export default function EvidenceUpload({ entityId, entityType }: EvidenceUploadP
         form.append("event_end_precision", eventEndPrecision);
       }
       form.append("resolution_status", resolutionStatus);
-      if (resolutionDate) {
+      if (resolutionStatus === "resolved" && resolutionDate) {
         form.append("resolution_date", resolutionDate);
       }
-      if (resolutionDatePrecision) {
+      if (resolutionStatus === "resolved" && resolutionDatePrecision) {
         form.append("resolution_date_precision", resolutionDatePrecision);
       }
 

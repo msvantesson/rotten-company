@@ -161,11 +161,11 @@ export function normalizeEvidenceTimelineInput(
       if (compareDateStrings(resolutionDate, startDate) < 0) {
         return { ok: false, error: "Resolution date cannot be earlier than event start date." };
       }
-    } else if ((input.resolution_date?.trim() ?? "") || (input.resolution_date_precision?.trim() ?? "")) {
-      return {
-        ok: false,
-        error: "Resolution date must be empty when resolution status is unresolved.",
-      };
+    } else {
+      // Silently discard any stale resolution date fields posted for unresolved cases.
+      // This prevents hidden/stale client values from causing a validation failure.
+      resolutionDate = null;
+      resolutionPrecision = null;
     }
   }
 

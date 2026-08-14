@@ -128,7 +128,9 @@ describe("evidence timeline validation", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("rejects impossible ended+unresolved with resolution date", () => {
+  it("normalizes ended+unresolved with stale resolution date to null (server-side safety)", () => {
+    // Previously this returned an error; now stale resolution date fields are silently
+    // normalized to null so hidden client state cannot block valid submissions.
     const result = normalizeEvidenceTimelineInput({
       event_start_date: "2024-05-01",
       event_start_precision: "day",
@@ -139,7 +141,10 @@ describe("evidence timeline validation", () => {
       resolution_date: "2025-01-01",
       resolution_date_precision: "day",
     });
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.resolution_date).toBeNull();
+    expect(result.data.resolution_date_precision).toBeNull();
   });
 });
 
