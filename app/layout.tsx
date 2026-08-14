@@ -32,6 +32,11 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
   },
+  verification: {
+    other: {
+      "msvalidate.01": "30E88D4C76DD919980B264526E673ACC",
+    },
+  },
 };
 
 // WebSite JSON-LD — site-level structured data for search engines.
