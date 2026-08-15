@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
@@ -251,6 +252,8 @@ Slug: ${companySlug}
   /* ─────────────────────────────────────────────
      Success
   ───────────────────────────────────────────── */
+
+  revalidatePath("/sitemap.xml");
 
   return NextResponse.json({
     ok: true,
