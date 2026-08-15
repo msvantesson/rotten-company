@@ -3,6 +3,8 @@ import { supabaseService } from "@/lib/supabase-service";
 import { isTestCompany } from "@/lib/test-company";
 import { SITE_ORIGIN } from "@/lib/seo";
 
+export const revalidate = 300;
+
 // Static institutional pages — always present regardless of DB availability.
 const STATIC_ENTRIES: MetadataRoute.Sitemap = [
   {
