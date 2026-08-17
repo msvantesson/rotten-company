@@ -59,7 +59,7 @@ export function getMicroFlavor(score: number): string {
  * 10–25  Mildly Rotten
  * 25–40  Rotten Enough to Notice
  * 40–55  Serious Rot Detected
- * 55–70  Rotten but Redeemable
+ * 55–70  Ethics Sold Separately
  * 70–85  Corporate Disaster Zone
  * 85–95  Working for the Empire from Star Wars
  * 95–100 Working for Satan
@@ -77,7 +77,7 @@ export function getMacroTier(score: number): string {
     return "Corporate Disaster Zone";
   }
   if (clamped >= 55) {
-    return "Rotten but Redeemable";
+    return "Ethics Sold Separately";
   }
   if (clamped >= 40) {
     return "Serious Rot Detected";
@@ -190,7 +190,7 @@ export function getMacroTierStyle(score: number): MacroTierStyle {
     return { badgeClass: "bg-red-700 text-red-50" };
   }
   if (clamped >= 55) {
-    // Rotten but Redeemable → deep orange (muted)
+    // Ethics Sold Separately → deep orange (muted)
     return { badgeClass: "bg-orange-700 text-orange-50" };
   }
   if (clamped >= 40) {
