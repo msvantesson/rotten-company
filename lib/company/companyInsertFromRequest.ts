@@ -14,6 +14,8 @@ export interface CompanyRequestFields {
   industry?: string | null;
   /** Canonical range string (e.g. "10001-50000"). Maps to company_requests.size_employees. */
   size_employees?: string | null;
+  hq_region?: string | null;
+  hq_city?: string | null;
 }
 
 export function companyInsertFromRequest(
@@ -30,5 +32,7 @@ export function companyInsertFromRequest(
     description: cr.description ?? null,
     industry: cr.industry ?? null,
     size_employees_range: sizeEmployeesRange,
+    hq_region: cr.hq_region ?? null,
+    hq_city: cr.hq_city ?? null,
   };
 }

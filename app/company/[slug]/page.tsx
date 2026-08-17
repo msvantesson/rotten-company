@@ -53,7 +53,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select(
-      "id, name, slug, industry, size_employees_range, country, website, description",
+      "id, name, slug, industry, size_employees_range, country, hq_region, hq_city, website, description",
     )
     .eq("slug", rawSlug)
     .maybeSingle();
@@ -413,8 +413,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
                 : "Unknown"}
             </p>
             <p>
-              <strong>Country (Headquarters):</strong>{" "}
-              {company.country ? company.country : "Unknown"}
+              <strong>Headquarters:</strong>{" "}
+              {(() => {
+                const parts = [company.hq_city, company.hq_region, company.country].filter(Boolean);
+                return parts.length > 0 ? parts.join(", ") : "Unknown";
+              })()}
             </p>
             <p>
               <strong>Website:</strong>{" "}

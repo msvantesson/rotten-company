@@ -58,7 +58,7 @@ export default async function CommunityCompanyRequestReviewPage(props: {
   const service = supabaseService();
   const { data: cr, error } = await service
     .from("company_requests")
-    .select("id, name, country, website, industry, description, size_employees, why, status, user_id, assigned_moderator_id, assigned_at, created_at, approved_company_id")
+    .select("id, name, country, hq_region, hq_city, website, industry, description, size_employees, why, status, user_id, assigned_moderator_id, assigned_at, created_at, approved_company_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -126,12 +126,14 @@ export default async function CommunityCompanyRequestReviewPage(props: {
     description: string | null;
     country: string | null;
     size_employees_range: string | null;
+    hq_region: string | null;
+    hq_city: string | null;
   } | null = null;
 
   if (cr.approved_company_id !== null) {
     const { data: company } = await service
       .from("companies")
-      .select("id, name, slug, website, industry, description, country, size_employees_range")
+      .select("id, name, slug, website, industry, description, country, size_employees_range, hq_region, hq_city")
       .eq("id", cr.approved_company_id)
       .maybeSingle();
     currentCompany = company ?? null;
@@ -201,6 +203,8 @@ export default async function CommunityCompanyRequestReviewPage(props: {
                     { label: "Industry", current: currentCompany.industry, proposed: cr.industry },
                     { label: "Description", current: currentCompany.description, proposed: cr.description },
                     { label: "Country", current: currentCompany.country, proposed: cr.country },
+                    { label: "Region", current: currentCompany.hq_region, proposed: cr.hq_region },
+                    { label: "City", current: currentCompany.hq_city, proposed: cr.hq_city },
                     { label: "Company Size", current: formatEmployeeRange(currentCompany.size_employees_range), proposed: formatEmployeeRange(cr.size_employees) },
                   ] as { label: string; current: string | null; proposed: string | null }[]
                 ).map(({ label, current: cur, proposed }) => {
@@ -243,6 +247,15 @@ export default async function CommunityCompanyRequestReviewPage(props: {
             <div>
               <p className="text-xs font-semibold text-neutral-500">Country</p>
               <p className="text-sm text-neutral-800">{cr.country}</p>
+            </div>
+          )}
+
+          {(cr.hq_region || cr.hq_city) && (
+            <div>
+              <p className="text-xs font-semibold text-neutral-500">City / Region</p>
+              <p className="text-sm text-neutral-800">
+                {[cr.hq_city, cr.hq_region].filter(Boolean).join(", ")}
+              </p>
             </div>
           )}
 

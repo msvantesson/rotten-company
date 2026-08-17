@@ -171,7 +171,7 @@ export async function approveCompanyRequest(formData: FormData) {
   // Fetch and validate assignment (include all editable fields for edit suggestion support)
   const { data: cr, error: crError } = await service
     .from("company_requests")
-    .select("id, name, country, website, industry, description, size_employees, status, assigned_moderator_id, user_id, approved_company_id")
+    .select("id, name, country, hq_region, hq_city, website, industry, description, size_employees, status, assigned_moderator_id, user_id, approved_company_id")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -210,6 +210,8 @@ export async function approveCompanyRequest(formData: FormData) {
       description: cr.description,
       country: cr.country,
       size_employees_range: sizeEmployeesRange,
+      hq_region: cr.hq_region,
+      hq_city: cr.hq_city,
     });
 
     if (Object.keys(patch).length > 0) {
