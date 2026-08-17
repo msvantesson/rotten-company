@@ -14,6 +14,8 @@ type Props = {
     description: string;
     country: string;
     size_employees_range: string;
+    hq_region: string;
+    hq_city: string;
   };
 };
 
@@ -51,6 +53,8 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
   const [industry, setIndustry] = useState(resolveIndustry(currentValues.industry));
   const [description, setDescription] = useState(currentValues.description);
   const [country, setCountry] = useState(currentValues.country);
+  const [hqRegion, setHqRegion] = useState(currentValues.hq_region);
+  const [hqCity, setHqCity] = useState(currentValues.hq_city);
   const [sizeEmployees, setSizeEmployees] = useState(
     deriveInitialRange(currentValues)
   );
@@ -79,6 +83,8 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
           industry: industry.trim() || null,
           description: description.trim() || null,
           country: country.trim() || null,
+          hq_region: hqRegion.trim() || null,
+          hq_city: hqCity.trim() || null,
           size_employees: sizeEmployees || null,
           why: why.trim(),
         }),
@@ -166,6 +172,32 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
           value={country}
           onChange={(e) => setCountry(e.target.value)}
           placeholder={currentValues.country || "e.g. Sweden"}
+          className="w-full rounded-md border px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          State / Province / Region (optional)
+          <span className="ml-1 text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+        </label>
+        <input
+          value={hqRegion}
+          onChange={(e) => setHqRegion(e.target.value)}
+          placeholder={currentValues.hq_region || "e.g. California"}
+          className="w-full rounded-md border px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          City (optional)
+          <span className="ml-1 text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+        </label>
+        <input
+          value={hqCity}
+          onChange={(e) => setHqCity(e.target.value)}
+          placeholder={currentValues.hq_city || "e.g. Menlo Park"}
           className="w-full rounded-md border px-3 py-2 text-sm"
         />
       </div>

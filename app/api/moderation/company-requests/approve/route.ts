@@ -71,7 +71,7 @@ export async function POST(req: Request) {
 
   const { data: cr, error: crErr } = await service
     .from("company_requests")
-    .select("id, name, country, website, industry, description, size_employees, status, user_id, approved_company_id")
+    .select("id, name, country, hq_region, hq_city, website, industry, description, size_employees, status, user_id, approved_company_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -103,6 +103,8 @@ export async function POST(req: Request) {
       description: cr.description,
       country: cr.country,
       size_employees_range: sizeEmployeesRange,
+      hq_region: cr.hq_region,
+      hq_city: cr.hq_city,
     });
 
     if (Object.keys(patch).length > 0) {

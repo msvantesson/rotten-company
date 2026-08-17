@@ -10,6 +10,8 @@ export async function submitCompany(formData: FormData) {
 
   const name = (formData.get("name") as string)?.trim();
   const country = (formData.get("country") as string)?.trim();
+  const hqRegion = (formData.get("hq_region") as string)?.trim() || null;
+  const hqCity = (formData.get("hq_city") as string)?.trim() || null;
   const website = (formData.get("website") as string)?.trim() || null;
   const description = (formData.get("description") as string)?.trim();
   const why = (formData.get("why") as string)?.trim();
@@ -96,6 +98,8 @@ export async function submitCompany(formData: FormData) {
     .insert({
       name,
       country,
+      hq_region: hqRegion,
+      hq_city: hqCity,
       website,
       description,
       why,

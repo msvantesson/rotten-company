@@ -96,6 +96,42 @@ export default function SubmitCompanyForm({ userEmail, error, prefillName }: Pro
         </div>
 
         <div>
+          <label htmlFor="hq_region" style={{ display: "block", marginBottom: "0.5rem" }}>
+            State / Province / Region (optional)
+          </label>
+          <input
+            id="hq_region"
+            name="hq_region"
+            type="text"
+            placeholder="e.g. California"
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+            }}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="hq_city" style={{ display: "block", marginBottom: "0.5rem" }}>
+            City (optional)
+          </label>
+          <input
+            id="hq_city"
+            name="hq_city"
+            type="text"
+            placeholder="e.g. Menlo Park"
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+            }}
+          />
+        </div>
+
+        <div>
           <label htmlFor="website" style={{ display: "block", marginBottom: "0.5rem" }}>
             Website (optional)
           </label>

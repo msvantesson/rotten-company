@@ -14,6 +14,8 @@ export const EDITABLE_COMPANY_FIELDS = [
   "description",
   "country",
   "size_employees_range",
+  "hq_region",
+  "hq_city",
 ] as const;
 
 export type EditableField = (typeof EDITABLE_COMPANY_FIELDS)[number];
@@ -27,6 +29,8 @@ export type CompanyPatch = {
   description?: string;
   country?: string;
   size_employees_range?: string;
+  hq_region?: string;
+  hq_city?: string;
 };
 
 /**
@@ -36,7 +40,7 @@ export type CompanyPatch = {
 export function buildCompanyEditPatch(proposed: CompanyEditInput): CompanyPatch {
   const patch: CompanyPatch = {};
 
-  const textFields = ["name", "website", "industry", "description", "country", "size_employees_range"] as const;
+  const textFields = ["name", "website", "industry", "description", "country", "size_employees_range", "hq_region", "hq_city"] as const;
   for (const field of textFields) {
     const val = proposed[field];
     if (typeof val === "string" && val.trim() !== "") {

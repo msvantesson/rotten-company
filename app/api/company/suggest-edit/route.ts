@@ -38,6 +38,8 @@ export async function POST(req: Request) {
     industry: body.industry ?? null,
     description: body.description ?? null,
     country: body.country ?? null,
+    hq_region: body.hq_region ?? null,
+    hq_city: body.hq_city ?? null,
   };
 
   // Validate proposed name length if provided
@@ -92,6 +94,8 @@ export async function POST(req: Request) {
     description: typeof patch.description === "string" ? patch.description : null,
     country: typeof patch.country === "string" ? patch.country : null,
     industry: typeof patch.industry === "string" ? patch.industry : null,
+    hq_region: typeof patch.hq_region === "string" ? patch.hq_region : null,
+    hq_city: typeof patch.hq_city === "string" ? patch.hq_city : null,
   };
 
   if (sizeEmployeesValue !== null) {
