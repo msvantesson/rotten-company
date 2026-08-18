@@ -130,8 +130,9 @@ async function getBiggestMovers(
 
     if (movers.length === 0) return empty;
 
-    // Fetch top candidates by absolute delta — need enough to fill 3 increases + 3 decreases
+    // Fetch top candidates by absolute delta — need enough to fill 5 increases + 5 decreases
     const MAX_MOVER_CANDIDATES = 20;
+    const MAX_MOVERS_PER_DIRECTION = 5;
     movers.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
     const top = movers.slice(0, MAX_MOVER_CANDIDATES);
     const companyIds = top.map((m) => m.companyId);
@@ -159,9 +160,14 @@ async function getBiggestMovers(
         currentScore: m.currentScore,
         delta: m.delta,
       };
-      if (m.delta > 0 && increases.length < 3) increases.push(item);
-      else if (m.delta < 0 && decreases.length < 3) decreases.push(item);
-      if (increases.length >= 3 && decreases.length >= 3) break;
+      if (m.delta > 0 && increases.length < MAX_MOVERS_PER_DIRECTION) increases.push(item);
+      else if (m.delta < 0 && decreases.length < MAX_MOVERS_PER_DIRECTION) decreases.push(item);
+      if (
+        increases.length >= MAX_MOVERS_PER_DIRECTION &&
+        decreases.length >= MAX_MOVERS_PER_DIRECTION
+      ) {
+        break;
+      }
     }
 
     return { increases, decreases };
@@ -259,10 +265,7 @@ export default async function HomePage() {
     .order("rotten_score", { ascending: false })
     .limit(10);
 
-  const companyIds = scoreRows?.map((r) => r.id) ?? [];
-
-  const [weeklyDeltaMap, biggestMovers, recentlyVerified] = await Promise.all([
-    getWeeklyDeltaMap(supabase, companyIds),
+  const [biggestMovers, recentlyVerified] = await Promise.all([
     getBiggestMovers(supabase),
     getRecentlyVerified(),
   ]);
@@ -374,7 +377,6 @@ export default async function HomePage() {
             </thead>
             <tbody>
               {topCompanies.map((company, index) => {
-                const delta = weeklyDeltaMap[company.id];
                 return (
                   <tr
                     key={company.id}
@@ -395,16 +397,7 @@ export default async function HomePage() {
                     <td className="py-2 pr-4 text-right text-muted-foreground hidden sm:table-cell">
                       {company.approved_evidence_count}
                     </td>
-                    <td className="py-2 pr-3 text-right font-mono tabular-nums">
-                      <span>{company.rotten_score.toFixed(1)}</span>
-                      {showDelta(delta) && (
-                        <span
-                          className={`ml-2 text-xs font-medium ${delta >= 0 ? "text-red-500" : "text-green-600"}`}
-                        >
-                          {delta >= 0 ? "↑" : "↓"} {formatDelta(delta)} this week
-                        </span>
-                      )}
-                    </td>
+                    <td className="py-2 pr-3 text-right font-mono tabular-nums">{company.rotten_score.toFixed(1)}</td>
                     <td className="px-4 py-2 hidden sm:table-cell text-center align-middle min-w-[240px]">
                       <MacroTierBadge score={company.rotten_score} />
                     </td>
