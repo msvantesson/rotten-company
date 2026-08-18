@@ -414,51 +414,85 @@ export default async function HomePage() {
         <section className="space-y-4">
           <h2 className="text-2xl font-semibold">Biggest movers this week</h2>
           <p className="text-sm text-muted-foreground">Companies with the largest score changes in the past 7 days.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-4">
             {biggestMovers.increases.length > 0 && (
-              <div className="rounded-lg border border-border overflow-hidden">
+              <div className="overflow-x-auto rounded-lg border border-border">
                 <div className="bg-muted border-b border-border px-3 py-2 text-sm font-medium text-muted-foreground">
                   ↑ Worsening
                 </div>
-                <ul className="divide-y divide-border">
-                  {biggestMovers.increases.map((m) => (
-                    <li
-                      key={m.companyId}
-                      className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-3 py-2 text-sm odd:bg-surface even:bg-surface-2 hover:bg-muted"
-                    >
-                      <Link href={`/company/${m.companySlug}`} className="min-w-0 truncate font-medium text-accent hover:underline">
-                        {m.companyName}
-                      </Link>
-                      <span className="text-right whitespace-nowrap font-mono tabular-nums text-red-500 font-medium">
-                        ↑ {formatDelta(m.delta)} this week
-                      </span>
-                      <span className="text-right font-mono tabular-nums text-muted-foreground">{m.currentScore.toFixed(1)}</span>
-                    </li>
-                  ))}
-                </ul>
+                <table className="w-full min-w-[640px] border-collapse text-sm">
+                  <thead className="bg-muted border-b border-border">
+                    <tr className="text-left text-muted-foreground">
+                      <th scope="col" className="py-2 pr-4 pl-3 whitespace-nowrap">Company</th>
+                      <th scope="col" className="py-2 pr-4 text-right whitespace-nowrap">7-day change</th>
+                      <th scope="col" className="py-2 pr-4 text-right whitespace-nowrap">Rotten Score</th>
+                      <th scope="col" className="py-2 pr-3 pl-4 text-center whitespace-nowrap">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {biggestMovers.increases.map((m) => (
+                      <tr
+                        key={m.companyId}
+                        className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
+                      >
+                        <td className="py-2 pr-4 pl-3 font-medium text-accent whitespace-nowrap">
+                          <Link href={`/company/${m.companySlug}`} className="hover:underline">
+                            {m.companyName}
+                          </Link>
+                        </td>
+                        <td className="py-2 pr-4 text-right whitespace-nowrap font-mono tabular-nums text-red-500 font-medium">
+                          ↑ {formatDelta(m.delta)}
+                        </td>
+                        <td className="py-2 pr-4 text-right whitespace-nowrap font-mono tabular-nums text-muted-foreground">
+                          {m.currentScore.toFixed(1)}
+                        </td>
+                        <td className="py-2 pr-3 pl-4 text-center align-middle">
+                          <MacroTierBadge score={m.currentScore} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
             {biggestMovers.decreases.length > 0 && (
-              <div className="rounded-lg border border-border overflow-hidden">
+              <div className="overflow-x-auto rounded-lg border border-border">
                 <div className="bg-muted border-b border-border px-3 py-2 text-sm font-medium text-muted-foreground">
                   ↓ Improving
                 </div>
-                <ul className="divide-y divide-border">
-                  {biggestMovers.decreases.map((m) => (
-                    <li
-                      key={m.companyId}
-                      className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-3 py-2 text-sm odd:bg-surface even:bg-surface-2 hover:bg-muted"
-                    >
-                      <Link href={`/company/${m.companySlug}`} className="min-w-0 truncate font-medium text-accent hover:underline">
-                        {m.companyName}
-                      </Link>
-                      <span className="text-right whitespace-nowrap font-mono tabular-nums text-green-600 font-medium">
-                        ↓ {formatDelta(m.delta)} this week
-                      </span>
-                      <span className="text-right font-mono tabular-nums text-muted-foreground">{m.currentScore.toFixed(1)}</span>
-                    </li>
-                  ))}
-                </ul>
+                <table className="w-full min-w-[640px] border-collapse text-sm">
+                  <thead className="bg-muted border-b border-border">
+                    <tr className="text-left text-muted-foreground">
+                      <th scope="col" className="py-2 pr-4 pl-3 whitespace-nowrap">Company</th>
+                      <th scope="col" className="py-2 pr-4 text-right whitespace-nowrap">7-day change</th>
+                      <th scope="col" className="py-2 pr-4 text-right whitespace-nowrap">Rotten Score</th>
+                      <th scope="col" className="py-2 pr-3 pl-4 text-center whitespace-nowrap">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {biggestMovers.decreases.map((m) => (
+                      <tr
+                        key={m.companyId}
+                        className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
+                      >
+                        <td className="py-2 pr-4 pl-3 font-medium text-accent whitespace-nowrap">
+                          <Link href={`/company/${m.companySlug}`} className="hover:underline">
+                            {m.companyName}
+                          </Link>
+                        </td>
+                        <td className="py-2 pr-4 text-right whitespace-nowrap font-mono tabular-nums text-green-600 font-medium">
+                          ↓ {formatDelta(m.delta)}
+                        </td>
+                        <td className="py-2 pr-4 text-right whitespace-nowrap font-mono tabular-nums text-muted-foreground">
+                          {m.currentScore.toFixed(1)}
+                        </td>
+                        <td className="py-2 pr-3 pl-4 text-center align-middle">
+                          <MacroTierBadge score={m.currentScore} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

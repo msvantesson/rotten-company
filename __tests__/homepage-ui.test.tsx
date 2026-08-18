@@ -169,15 +169,18 @@ describe("Homepage UI updates", () => {
     supabaseServerMock.mockResolvedValue(createMockSupabase(nowIsoDate, weekAgoIsoDate));
   });
 
-  it("shows 5 movers per direction and no inline Rotten Score weekly text", async () => {
+  it("shows 5 movers per direction with aligned movers columns and status", async () => {
     const { default: HomePage } = await import("../app/page");
     const html = renderToStaticMarkup(await HomePage());
 
     expect(html).toContain("Biggest movers this week");
-    expect(html).toMatch(/↑ Worsening[\s\S]*Worsen 1[\s\S]*↑ \+10.0 this week[\s\S]*40.0/);
-    expect(html).toMatch(/↓ Improving[\s\S]*Improve 1[\s\S]*↓ -10.0 this week[\s\S]*60.0/);
-    expect(html).not.toContain("7-day change");
-    expect(html).not.toContain("Current score");
+    expect(html).toContain("↑ Worsening");
+    expect(html).toContain("Company");
+    expect(html).toContain("7-day change");
+    expect(html).toContain("Rotten Score");
+    expect(html).toContain("Status");
+    expect(html).toMatch(/↑ Worsening[\s\S]*Worsen 1[\s\S]*↑ \+10.0[\s\S]*40.0[\s\S]*Tier 40.0/);
+    expect(html).toMatch(/↓ Improving[\s\S]*Improve 1[\s\S]*↓ -10.0[\s\S]*60.0[\s\S]*Tier 60.0/);
 
     expect(html).toContain("Worsen 1");
     expect(html).toContain("Worsen 5");
@@ -191,5 +194,7 @@ describe("Homepage UI updates", () => {
     expect(html).toContain("↓ -10.0");
 
     expect(html).not.toContain("↑ +2.0 this week");
+    expect(html).not.toContain("↑ +10.0 this week");
+    expect(html).not.toContain("↓ -10.0 this week");
   });
 });
