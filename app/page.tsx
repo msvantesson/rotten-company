@@ -420,16 +420,19 @@ export default async function HomePage() {
                 <div className="bg-muted border-b border-border px-3 py-2 text-sm font-medium text-muted-foreground">
                   ↑ Worsening
                 </div>
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-border px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                  <span>Company</span>
+                  <span className="text-right">7-day change</span>
+                  <span className="text-right">Current score</span>
+                </div>
                 <ul className="divide-y divide-border">
                   {biggestMovers.increases.map((m) => (
-                    <li key={m.companyId} className="flex items-center justify-between px-3 py-2 text-sm odd:bg-surface even:bg-surface-2 hover:bg-muted">
-                      <Link href={`/company/${m.companySlug}`} className="font-medium text-accent hover:underline truncate mr-2">
+                    <li key={m.companyId} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-3 py-2 text-sm odd:bg-surface even:bg-surface-2 hover:bg-muted">
+                      <Link href={`/company/${m.companySlug}`} className="min-w-0 truncate font-medium text-accent hover:underline">
                         {m.companyName}
                       </Link>
-                      <span className="shrink-0 font-mono tabular-nums">
-                        <span className="text-red-500 font-medium">↑ {formatDelta(m.delta)}</span>
-                        <span className="ml-2 text-muted-foreground">{m.currentScore.toFixed(1)}</span>
-                      </span>
+                      <span className="text-right font-mono tabular-nums text-red-500 font-medium">↑ {formatDelta(m.delta)}</span>
+                      <span className="text-right font-mono tabular-nums text-muted-foreground">{m.currentScore.toFixed(1)}</span>
                     </li>
                   ))}
                 </ul>
@@ -440,16 +443,19 @@ export default async function HomePage() {
                 <div className="bg-muted border-b border-border px-3 py-2 text-sm font-medium text-muted-foreground">
                   ↓ Improving
                 </div>
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 border-b border-border px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                  <span>Company</span>
+                  <span className="text-right">7-day change</span>
+                  <span className="text-right">Current score</span>
+                </div>
                 <ul className="divide-y divide-border">
                   {biggestMovers.decreases.map((m) => (
-                    <li key={m.companyId} className="flex items-center justify-between px-3 py-2 text-sm odd:bg-surface even:bg-surface-2 hover:bg-muted">
-                      <Link href={`/company/${m.companySlug}`} className="font-medium text-accent hover:underline truncate mr-2">
+                    <li key={m.companyId} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-3 py-2 text-sm odd:bg-surface even:bg-surface-2 hover:bg-muted">
+                      <Link href={`/company/${m.companySlug}`} className="min-w-0 truncate font-medium text-accent hover:underline">
                         {m.companyName}
                       </Link>
-                      <span className="shrink-0 font-mono tabular-nums">
-                        <span className="text-green-600 font-medium">↓ {formatDelta(m.delta)}</span>
-                        <span className="ml-2 text-muted-foreground">{m.currentScore.toFixed(1)}</span>
-                      </span>
+                      <span className="text-right font-mono tabular-nums text-green-600 font-medium">↓ {formatDelta(m.delta)}</span>
+                      <span className="text-right font-mono tabular-nums text-muted-foreground">{m.currentScore.toFixed(1)}</span>
                     </li>
                   ))}
                 </ul>

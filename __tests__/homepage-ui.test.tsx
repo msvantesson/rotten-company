@@ -174,6 +174,8 @@ describe("Homepage UI updates", () => {
     const html = renderToStaticMarkup(await HomePage());
 
     expect(html).toContain("Biggest movers this week");
+    expect(html).toMatch(/↑ Worsening[\s\S]*Company[\s\S]*7-day change[\s\S]*Current score[\s\S]*Worsen 1/);
+    expect(html).toMatch(/↓ Improving[\s\S]*Company[\s\S]*7-day change[\s\S]*Current score[\s\S]*Improve 1/);
 
     expect(html).toContain("Worsen 1");
     expect(html).toContain("Worsen 5");
