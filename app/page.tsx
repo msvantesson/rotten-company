@@ -424,7 +424,7 @@ export default async function HomePage() {
                   {biggestMovers.increases.map((m) => (
                     <li
                       key={m.companyId}
-                      className="grid grid-cols-[minmax(0,1fr)_auto_auto_minmax(0,1fr)] items-center gap-x-3 px-3 py-2 text-sm odd:bg-surface even:bg-surface-2 hover:bg-muted"
+                      className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-3 py-2 text-sm odd:bg-surface even:bg-surface-2 hover:bg-muted"
                     >
                       <Link href={`/company/${m.companySlug}`} className="min-w-0 truncate font-medium text-accent hover:underline">
                         {m.companyName}
@@ -433,9 +433,6 @@ export default async function HomePage() {
                         ↑ {formatDelta(m.delta)} this week
                       </span>
                       <span className="text-right font-mono tabular-nums text-muted-foreground">{m.currentScore.toFixed(1)}</span>
-                      <span className="min-w-0 truncate text-right text-muted-foreground">
-                        <MacroTierBadge score={m.currentScore} />
-                      </span>
                     </li>
                   ))}
                 </ul>
@@ -450,7 +447,7 @@ export default async function HomePage() {
                   {biggestMovers.decreases.map((m) => (
                     <li
                       key={m.companyId}
-                      className="grid grid-cols-[minmax(0,1fr)_auto_auto_minmax(0,1fr)] items-center gap-x-3 px-3 py-2 text-sm odd:bg-surface even:bg-surface-2 hover:bg-muted"
+                      className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 px-3 py-2 text-sm odd:bg-surface even:bg-surface-2 hover:bg-muted"
                     >
                       <Link href={`/company/${m.companySlug}`} className="min-w-0 truncate font-medium text-accent hover:underline">
                         {m.companyName}
@@ -459,9 +456,6 @@ export default async function HomePage() {
                         ↓ {formatDelta(m.delta)} this week
                       </span>
                       <span className="text-right font-mono tabular-nums text-muted-foreground">{m.currentScore.toFixed(1)}</span>
-                      <span className="min-w-0 truncate text-right text-muted-foreground">
-                        <MacroTierBadge score={m.currentScore} />
-                      </span>
                     </li>
                   ))}
                 </ul>
