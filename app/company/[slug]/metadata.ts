@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { getMacroTier } from "@/lib/flavor-engine";
 import { supabaseServer } from "@/lib/supabase-server";
 import { isTestCompany } from "@/lib/test-company";
 import { canonicalUrl, SITE_ORIGIN } from "@/lib/seo";
@@ -31,8 +32,10 @@ export async function generateMetadata(
 
   const rottenScore = scoreRow?.rotten_score ?? null;
 
-  const title = `${company.name} — Rotten Score ${rottenScore !== null ? rottenScore.toFixed(1) : "—"}`;
-  const description = `See the Rotten Score, category breakdown, evidence, and ratings for ${company.name}.`;
+  const scoreLabel = rottenScore !== null ? rottenScore.toFixed(1) : "—";
+  const macroTier = rottenScore !== null ? getMacroTier(rottenScore) : "—";
+  const title = `${company.name} — Rotten Score ${scoreLabel} — ${macroTier}`;
+  const description = `${company.name}: Rotten Score ${scoreLabel} — ${macroTier}. See category breakdown, evidence, and ratings.`;
 
   const url = canonicalUrl(`/company/${company.slug}`);
 
@@ -42,6 +45,15 @@ export async function generateMetadata(
       title,
       description,
       robots: { index: false, follow: false },
+      openGraph: {
+        title,
+        description,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+      },
     };
   }
 
