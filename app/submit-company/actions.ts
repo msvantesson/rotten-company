@@ -93,6 +93,24 @@ export async function submitCompany(formData: FormData) {
 
   if (!user) redirect("/login");
 
+  // Server-side deduplication: if this user already has an identical pending
+  // request submitted within the last 60 seconds, treat it as the same
+  // submission and skip the insert to prevent duplicate rows.
+  const dedupeWindowStart = new Date(Date.now() - 60_000).toISOString();
+  const { data: existingRequest } = await supabase
+    .from("company_requests")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("name", name)
+    .eq("status", "pending")
+    .gte("created_at", dedupeWindowStart)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingRequest) {
+    redirect("/submit-company/thank-you");
+  }
+
   const { data: requestData, error } = await supabase
     .from("company_requests")
     .insert({
