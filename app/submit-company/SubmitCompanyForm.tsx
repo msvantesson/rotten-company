@@ -1,9 +1,32 @@
 "use client";
 
+import { useFormStatus } from "react-dom";
 import { submitCompany } from "./actions";
 import PrivateEquitySection from "@/components/PrivateEquitySection";
 import { INDUSTRIES, EMPLOYEE_RANGES } from "./constants";
 import { COUNTRIES } from "./countries";
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      style={{
+        width: "100%",
+        padding: "0.75rem",
+        backgroundColor: pending ? "#555" : "black",
+        color: "white",
+        borderRadius: "4px",
+        border: "none",
+        cursor: pending ? "not-allowed" : "pointer",
+        fontSize: "1rem",
+      }}
+    >
+      {pending ? "Submitting…" : "Submit Company for Review"}
+    </button>
+  );
+}
 
 type Props = {
   userEmail: string;
@@ -245,21 +268,7 @@ export default function SubmitCompanyForm({ userEmail, error, prefillName }: Pro
 
         <PrivateEquitySection />
 
-        <button
-          type="submit"
-          style={{
-            width: "100%",
-            padding: "0.75rem",
-            backgroundColor: "black",
-            color: "white",
-            borderRadius: "4px",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "1rem",
-          }}
-        >
-          Submit Company for Review
-        </button>
+        <SubmitButton />
       </form>
     </div>
   );
