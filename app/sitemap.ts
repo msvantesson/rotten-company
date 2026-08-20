@@ -4,6 +4,50 @@ import { isTestCompany } from "@/lib/test-company";
 import { SITE_ORIGIN } from "@/lib/seo";
 
 export const revalidate = 300;
+export const COMPANY_SITEMAP_PAGE_SIZE = 500;
+
+const EXCLUDED_COMPANY_SLUGS = new Set(["test1"]);
+const EXCLUDED_LEADER_SLUGS = new Set(["demo-leader"]);
+
+type CompanySitemapRow = {
+  id: number;
+  slug: string | null;
+  name: string;
+  updated_at: string | null;
+};
+
+function normalizeSlug(slug: string | null | undefined): string | null {
+  if (typeof slug !== "string") return null;
+  const normalized = slug.trim();
+  return normalized ? normalized : null;
+}
+
+function parseLastModified(updatedAt: string | null | undefined): Date | undefined {
+  if (!updatedAt) return undefined;
+  const parsed = new Date(updatedAt);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+async function fetchCompaniesForSitemap(supabase: ReturnType<typeof supabaseService>) {
+  const companies: CompanySitemapRow[] = [];
+
+  for (let offset = 0; ; offset += COMPANY_SITEMAP_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("companies")
+      .select("id, slug, name, updated_at")
+      .order("id", { ascending: true })
+      .range(offset, offset + COMPANY_SITEMAP_PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (!data?.length) break;
+
+    companies.push(...(data as CompanySitemapRow[]));
+
+    if (data.length < COMPANY_SITEMAP_PAGE_SIZE) break;
+  }
+
+  return companies;
+}
 
 // Static institutional pages — always present regardless of DB availability.
 const STATIC_ENTRIES: MetadataRoute.Sitemap = [
@@ -40,18 +84,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // --- Approved companies (all rows in the companies table are approved) ---
   // Exclude test companies identified by "(test)" in the name.
-  // No `updated_at` on this table — omit lastModified rather than stamping new Date().
   try {
-    const { data: companies } = await supabase
-      .from("companies")
-      .select("slug, name");
+    const companies = await fetchCompaniesForSitemap(supabase);
 
-    for (const company of companies ?? []) {
-      if (!company.slug || isTestCompany(company.name)) continue;
+    for (const company of companies) {
+      const slug = normalizeSlug(company.slug);
+      if (!slug || EXCLUDED_COMPANY_SLUGS.has(slug) || isTestCompany(company.name)) continue;
+
+      const lastModified = parseLastModified(company.updated_at);
       entries.push({
-        url: `${SITE_ORIGIN}/company/${company.slug}`,
+        url: `${SITE_ORIGIN}/company/${slug}`,
         changeFrequency: "weekly",
         priority: 0.8,
+        ...(lastModified ? { lastModified } : {}),
       });
     }
   } catch {
@@ -66,9 +111,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .select("slug");
 
     for (const leader of leaders ?? []) {
-      if (!leader.slug) continue;
+      const slug = normalizeSlug(leader.slug);
+      if (!slug || EXCLUDED_LEADER_SLUGS.has(slug)) continue;
       entries.push({
-        url: `${SITE_ORIGIN}/leader/${leader.slug}`,
+        url: `${SITE_ORIGIN}/leader/${slug}`,
         changeFrequency: "monthly",
         priority: 0.7,
       });
@@ -85,9 +131,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .select("slug");
 
     for (const category of categories ?? []) {
-      if (!category.slug) continue;
+      const slug = normalizeSlug(category.slug);
+      if (!slug) continue;
       entries.push({
-        url: `${SITE_ORIGIN}/category/${category.slug}`,
+        url: `${SITE_ORIGIN}/category/${slug}`,
         changeFrequency: "monthly",
         priority: 0.6,
       });

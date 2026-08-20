@@ -253,7 +253,8 @@ export default async function Page({
           .select("approved_company_id")
           .eq("id", requestId)
           .maybeSingle();
-        const approvedId = (crRow as any)?.approved_company_id ?? null;
+        const approvedId =
+          (crRow as { approved_company_id?: number | null } | null)?.approved_company_id ?? null;
         if (approvedId) {
           const { data: co } = await svc
             .from("companies")
@@ -268,6 +269,7 @@ export default async function Page({
         console.warn("[admin/company-requests][approve] IndexNow lookup failed (ignored):", err);
       }
       try {
+        revalidatePath("/sitemap.xml");
         revalidatePath("/moderation/company-requests");
       } catch (_) {}
       redirect("/moderation/company-requests");
