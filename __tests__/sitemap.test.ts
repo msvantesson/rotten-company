@@ -6,6 +6,10 @@ vi.mock("@/lib/supabase-service", () => ({
   supabaseService: supabaseServiceMock,
 }));
 
+vi.mock("@/lib/test-company", () => ({
+  isTestCompany: (name: string) => /\(test\)/i.test(name),
+}));
+
 vi.mock("@/lib/seo", () => ({
   SITE_ORIGIN: "https://example.test",
 }));
@@ -119,7 +123,7 @@ describe("sitemap", () => {
 
     supabaseServiceMock.mockReturnValue(mockSupabase);
 
-    const { COMPANY_SITEMAP_PAGE_SIZE, default: sitemap } = await import("@/app/sitemap");
+    const { COMPANY_SITEMAP_PAGE_SIZE, default: sitemap } = await import("../app/sitemap");
     const entries = await sitemap();
 
     expect(COMPANY_SITEMAP_PAGE_SIZE).toBe(500);
@@ -155,7 +159,10 @@ describe("sitemap", () => {
 
     const companyWithDate = entries.find((entry) => entry.url === "https://example.test/company/company-1201");
     expect(companyWithDate?.lastModified).toBeInstanceOf(Date);
-    expect(companyWithDate?.lastModified?.toISOString()).toBe("2026-08-20T12:34:56.000Z");
+    if (!(companyWithDate?.lastModified instanceof Date)) {
+      throw new Error("Expected company lastModified to be a Date");
+    }
+    expect(companyWithDate.lastModified.toISOString()).toBe("2026-08-20T12:34:56.000Z");
 
     const companyWithoutValidDate = entries.find((entry) => entry.url === "https://example.test/company/trimmed-company");
     expect(companyWithoutValidDate?.lastModified).toBeUndefined();

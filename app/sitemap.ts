@@ -6,6 +6,9 @@ import { SITE_ORIGIN } from "@/lib/seo";
 export const revalidate = 300;
 export const COMPANY_SITEMAP_PAGE_SIZE = 500;
 
+const EXCLUDED_COMPANY_SLUGS = new Set(["test1"]);
+const EXCLUDED_LEADER_SLUGS = new Set(["demo-leader"]);
+
 type CompanySitemapRow = {
   id: number;
   slug: string | null;
@@ -86,7 +89,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const company of companies) {
       const slug = normalizeSlug(company.slug);
-      if (!slug || slug === "test1" || isTestCompany(company.name)) continue;
+      if (!slug || EXCLUDED_COMPANY_SLUGS.has(slug) || isTestCompany(company.name)) continue;
 
       const lastModified = parseLastModified(company.updated_at);
       entries.push({
@@ -109,7 +112,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const leader of leaders ?? []) {
       const slug = normalizeSlug(leader.slug);
-      if (!slug || slug === "demo-leader") continue;
+      if (!slug || EXCLUDED_LEADER_SLUGS.has(slug)) continue;
       entries.push({
         url: `${SITE_ORIGIN}/leader/${slug}`,
         changeFrequency: "monthly",

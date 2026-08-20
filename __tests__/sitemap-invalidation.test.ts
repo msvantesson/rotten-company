@@ -64,7 +64,7 @@ type QueryState = {
   insertPayload?: unknown;
 };
 
-function createQuery(table: string, resolver: (table: string, state: QueryState, terminal: string) => any) {
+function createQuery(table: string, resolver: (table: string, state: QueryState, terminal: string) => unknown) {
   const state: QueryState = {
     eqs: [],
     nots: [],
@@ -104,7 +104,7 @@ function createQuery(table: string, resolver: (table: string, state: QueryState,
 
 function createClientMock(options: {
   authUser?: { id: string; email?: string } | null;
-  resolver: (table: string, state: QueryState, terminal: string) => any;
+  resolver: (table: string, state: QueryState, terminal: string) => unknown;
 }) {
   return {
     auth: {
@@ -114,14 +114,16 @@ function createClientMock(options: {
   };
 }
 
-function findFormAction(node: any): ((formData: FormData) => Promise<void>) | null {
+function findFormAction(node: unknown): ((formData: FormData) => Promise<void>) | null {
   if (!node || typeof node !== "object") return null;
 
-  if (node.type === "form" && typeof node.props?.action === "function") {
-    return node.props.action;
+  const candidate = node as { type?: unknown; props?: { action?: unknown; children?: unknown } };
+
+  if (candidate.type === "form" && typeof candidate.props?.action === "function") {
+    return candidate.props.action as (formData: FormData) => Promise<void>;
   }
 
-  const children = node.props?.children;
+  const children = candidate.props?.children;
   if (Array.isArray(children)) {
     for (const child of children) {
       const found = findFormAction(child);
@@ -193,7 +195,7 @@ describe("sitemap invalidation on approval paths", () => {
       }),
     );
 
-    const { approveCompanyRequest } = await import("@/app/moderation/company-requests/actions");
+    const { approveCompanyRequest } = await import("../app/moderation/company-requests/actions");
 
     const formData = new FormData();
     formData.set("request_id", "req-1");
@@ -255,7 +257,7 @@ describe("sitemap invalidation on approval paths", () => {
       }),
     );
 
-    const { default: AdminCompanyRequestPage } = await import("@/app/admin/moderation/company-requests/[id]/page");
+    const { default: AdminCompanyRequestPage } = await import("../app/admin/moderation/company-requests/[id]/page");
     const tree = await AdminCompanyRequestPage({ params: { id: "req-1" } });
     const action = findFormAction(tree);
 
@@ -326,7 +328,7 @@ describe("sitemap invalidation on approval paths", () => {
       }),
     );
 
-    const { POST } = await import("@/app/api/moderation/company-requests/approve/route");
+    const { POST } = await import("../app/api/moderation/company-requests/approve/route");
     const response = await POST(
       new Request("https://example.test/api/moderation/company-requests/approve", {
         method: "POST",
@@ -397,7 +399,7 @@ describe("sitemap invalidation on approval paths", () => {
       }),
     );
 
-    const { POST } = await import("@/app/api/moderation/company-edits/approve/route");
+    const { POST } = await import("../app/api/moderation/company-edits/approve/route");
     const response = await POST(
       new Request("https://example.test/api/moderation/company-edits/approve", {
         method: "POST",
