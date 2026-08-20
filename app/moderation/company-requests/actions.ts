@@ -303,6 +303,7 @@ export async function approveCompanyRequest(formData: FormData) {
     void notifyIndexNow(companyIndexNowUrl(companySlug));
   }
 
+  revalidatePath("/sitemap.xml");
   revalidatePath("/moderation");
   redirect("/moderation");
 }

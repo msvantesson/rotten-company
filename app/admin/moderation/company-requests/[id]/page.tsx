@@ -268,6 +268,7 @@ export default async function Page({
         console.warn("[admin/company-requests][approve] IndexNow lookup failed (ignored):", err);
       }
       try {
+        revalidatePath("/sitemap.xml");
         revalidatePath("/moderation/company-requests");
       } catch (_) {}
       redirect("/moderation/company-requests");
