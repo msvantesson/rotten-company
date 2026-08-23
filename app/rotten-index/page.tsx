@@ -115,20 +115,6 @@ function buildIndexJsonLd(rows: IndexedRow[], type: IndexType, selectedCountry: 
   };
 }
 
-function normalizeCountryOption(value: string | null | undefined) {
-  return value?.trim() || null;
-}
-
-function buildCountryOptions(rows: Array<{ country: string | null }>) {
-  return Array.from(
-    new Set(
-      rows
-        .map((r) => normalizeCountryOption(r.country))
-        .filter((country): country is string => Boolean(country)),
-    ),
-  ).sort((a, b) => a.localeCompare(b));
-}
-
 export default async function RottenIndexPage({ searchParams }: { searchParams?: SearchParams | Promise<SearchParams> }) {
   const sp = await Promise.resolve(searchParams ?? {});
   const rawType = getFirstString(sp.type);
@@ -141,10 +127,7 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
   const sort: CompanySortField = (COMPANY_SORT_FIELDS as readonly string[]).includes(rawSort) ? (rawSort as CompanySortField) : "rotten_score";
   const dir: "asc" | "desc" = rawDir === "asc" || rawDir === "desc" ? rawDir : DEFAULT_SORT_DIRS[sort];
 
-  const [result, countryResult] = await Promise.all([
-    getRottenIndexData({ type, limit: 1000, q, sort, dir }),
-    getRottenIndexData({ type: "company", limit: 100000 }),
-  ]);
+  const result = await getRottenIndexData({ type, limit: 1000, q, sort, dir });
 
   if ("error" in result) {
     return <p className="mt-6">Failed to load Rotten Index.</p>;
@@ -170,7 +153,7 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
   }
   rows = rows.slice(0, limit);
 
-  const countryOptions = "error" in countryResult ? [] : buildCountryOptions(countryResult.rows);
+  const countryOptions = result.countries;
 
   const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
 
