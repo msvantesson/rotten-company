@@ -127,7 +127,7 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
   const sort: CompanySortField = (COMPANY_SORT_FIELDS as readonly string[]).includes(rawSort) ? (rawSort as CompanySortField) : "rotten_score";
   const dir: "asc" | "desc" = rawDir === "asc" || rawDir === "desc" ? rawDir : DEFAULT_SORT_DIRS[sort];
 
-  const result = await getRottenIndexData({ type, limit: 1000, q, sort, dir });
+  const result = await getRottenIndexData({ type, country: selectedCountry, limit, q, sort, dir });
 
   if ("error" in result) {
     return <p className="mt-6">Failed to load Rotten Index.</p>;

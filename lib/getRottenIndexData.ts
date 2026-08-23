@@ -52,14 +52,29 @@ export type GetRottenIndexParams = {
 async function fetchAllCompanyCountries(
   supabase: SupabaseClient<any>,
 ): Promise<string[]> {
-  const { data } = await supabase.from("companies").select("country").not("country", "is", null);
-  return Array.from(
-    new Set(
-      (data ?? [])
-        .map((row: { country: string | null }) => row.country?.trim())
-        .filter((c): c is string => Boolean(c)),
-    ),
-  ).sort((a, b) => a.localeCompare(b));
+  const countries = new Set<string>();
+  const pageSize = 1000;
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("companies")
+      .select("country")
+      .not("country", "is", null)
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+
+    for (const row of data ?? []) {
+      const country = row.country?.trim();
+      if (country) countries.add(country);
+    }
+
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return Array.from(countries).sort((a, b) => a.localeCompare(b));
 }
 
 export async function getRottenIndexData(
@@ -69,7 +84,8 @@ export async function getRottenIndexData(
 
   const type: "company" | "leader" = params.type === "leader" ? "leader" : "company";
   const limit = Number(params.limit ?? 10);
-  const country = params.country ?? null;
+  const country = typeof params.country === "string" ? params.country.trim() || null : null;
+  const q = typeof params.q === "string" ? params.q.trim() || null : null;
 
   try {
     if (type === "company") {
@@ -84,13 +100,10 @@ export async function getRottenIndexData(
 
       let query = supabase
         .from("global_rotten_index")
-        .select("id, name, slug, country, rotten_score, industry, approved_evidence_count")
-        .order(sortField, { ascending, nullsFirst: false })
-        .limit(limit);
+        .select("id, name, slug, country, rotten_score, industry, approved_evidence_count");
 
       if (country) query = query.eq("country", country);
 
-      const q = params.q;
       if (q) {
         const safeQ = q
           .replace(/\\/g, "\\\\")
@@ -100,6 +113,8 @@ export async function getRottenIndexData(
           `name.ilike.%${safeQ}%,industry.ilike.%${safeQ}%,country.ilike.%${safeQ}%`,
         );
       }
+
+      query = query.order(sortField, { ascending, nullsFirst: false }).limit(limit);
 
       const { data, error } = await query;
 
