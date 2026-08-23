@@ -73,9 +73,6 @@ export async function getRottenIndexData(
 
       const q = params.q;
       if (q) {
-        // Escape backslashes first so they don't double-escape what follows,
-        // then escape LIKE wildcards (% _) so they match literally,
-        // and strip characters (, ( )) that could inject PostgREST filter conditions.
         const safeQ = q
           .replace(/\\/g, "\\\\")
           .replace(/[%_]/g, "\\$&")
@@ -104,14 +101,6 @@ export async function getRottenIndexData(
 
       return { rows };
     } else {
-      // Leaders — fetch leaders (no legacy leader_rotten_score join; score is
-      // derived from the primary company's company_rotten_score_v2 row instead).
-      // We fetch up to 1000 leaders without a DB-level limit so we can sort by
-      // company score in JS and then slice to `limit` (applying the DB limit
-      // before scoring would yield an arbitrary subset, not the top-N by score).
-      //
-      // Country filtering is deferred to JS (post-fetch) so we can match on the
-      // company's country rather than the leader's own (often-empty) country field.
       const leadersQuery = supabase
         .from("leaders")
         .select("id, name, slug, country")
@@ -132,7 +121,6 @@ export async function getRottenIndexData(
 
       const leaderIds = leaders.map((l: any) => l.id);
 
-      // Fetch all tenures for these leaders in one query (batch, no N+1)
       const { data: tenuresData } = await supabase
         .from("leader_tenures")
         .select("id, leader_id, started_at, ended_at, companies(id, name, slug)")
@@ -141,7 +129,6 @@ export async function getRottenIndexData(
 
       const allTenures: any[] = tenuresData ?? [];
 
-      // Group tenures by leader_id (already ordered ascending by started_at)
       const tenuresByLeader = new Map<number, any[]>();
       for (const tenure of allTenures) {
         const list = tenuresByLeader.get(tenure.leader_id) ?? [];
@@ -149,14 +136,12 @@ export async function getRottenIndexData(
         tenuresByLeader.set(tenure.leader_id, list);
       }
 
-      // Collect all unique company IDs referenced by any tenure
       const companyIds = new Set<number>();
       for (const tenure of allTenures) {
         const company = tenure.companies as any;
         if (company?.id != null) companyIds.add(company.id);
       }
 
-      // Fetch all company scores in one batch query (no N+1)
       const companyScoreMap = new Map<number, number>();
       if (companyIds.size > 0) {
         const { data: scoreRows } = await supabase
@@ -169,7 +154,6 @@ export async function getRottenIndexData(
         }
       }
 
-      // Fetch company countries in one batch query — same source used by Rotten Index
       const companyCountryMap = new Map<number, string>();
       if (companyIds.size > 0) {
         const { data: countryRows } = await supabase
@@ -181,20 +165,15 @@ export async function getRottenIndexData(
         }
       }
 
-      // Pick the best (primary) tenure per leader: active > past, then most recent started_at
       const primaryTenureMap = new Map<number, any>();
       for (const tenures of tenuresByLeader.values()) {
-        // tenures are already sorted ascending by started_at
         let primary = tenures[0];
         for (const t of tenures) {
           const tActive = !t.ended_at;
           const pActive = !primary.ended_at;
           if (tActive && !pActive) {
             primary = t;
-          } else if (!tActive && pActive) {
-            // keep primary
-          } else {
-            // both active or both past — prefer more recent started_at
+          } else if (tActive === pActive) {
             const tTime = new Date(t.started_at).getTime();
             const pTime = new Date(primary.started_at).getTime();
             if (tTime > pTime) primary = t;
@@ -211,7 +190,6 @@ export async function getRottenIndexData(
           const rotten_score: number | null =
             companyId != null ? (companyScoreMap.get(companyId) ?? null) : null;
 
-          // Compute escalation_score from all tenures ordered by started_at asc
           const leaderTenures = tenuresByLeader.get(l.id) ?? [];
           const orderedScores = leaderTenures.map((t: any) => {
             const cId: number | null = (t.companies as any)?.id ?? null;
@@ -223,8 +201,6 @@ export async function getRottenIndexData(
             id: l.id,
             name: l.name,
             slug: l.slug,
-            // Prefer company headquarters country; fall back to leader's own country field
-            // for standalone leaders without an associated company.
             country: (companyId != null ? companyCountryMap.get(companyId) ?? null : null) ?? l.country ?? null,
             rotten_score,
             tenure_id: tenure?.id ?? null,
@@ -236,12 +212,10 @@ export async function getRottenIndexData(
             escalation_score,
           };
         })
-        // Apply country filter based on the resolved country (company or leader)
         .filter((r) => {
           if (!country) return true;
           return r.country === country;
         })
-        // Sort by computed score descending, nulls last
         .sort((a, b) => {
           if (a.rotten_score == null && b.rotten_score == null) return 0;
           if (a.rotten_score == null) return 1;

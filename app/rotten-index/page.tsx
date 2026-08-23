@@ -42,10 +42,8 @@ type IndexedRow = {
   slug: string;
   country?: string | null;
   rotten_score: number | null;
-  // company-only fields
   industry?: string | null;
   approved_evidence_count?: number;
-  // leader tenure fields (present when type === "leader")
   leader_id?: number;
   tenure_id?: number | null;
   company_name?: string | null;
@@ -54,12 +52,7 @@ type IndexedRow = {
   ended_at?: string | null;
 };
 
-const COMPANY_SORT_FIELDS = [
-  "rotten_score",
-  "approved_evidence_count",
-  "name",
-  "industry",
-] as const;
+const COMPANY_SORT_FIELDS = ["rotten_score", "approved_evidence_count", "name", "industry"] as const;
 type CompanySortField = (typeof COMPANY_SORT_FIELDS)[number];
 
 const DEFAULT_SORT_DIRS: Record<CompanySortField, "asc" | "desc"> = {
@@ -72,10 +65,7 @@ const DEFAULT_SORT_DIRS: Record<CompanySortField, "asc" | "desc"> = {
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
   try {
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-    });
+    return new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "short" });
   } catch {
     return dateStr;
   }
@@ -96,11 +86,7 @@ function formatCountry(value: string) {
     .join(" ");
 }
 
-function buildIndexJsonLd(
-  rows: IndexedRow[],
-  type: IndexType,
-  selectedCountry: string | null
-) {
+function buildIndexJsonLd(rows: IndexedRow[], type: IndexType, selectedCountry: string | null) {
   const baseUrl = "https://rotten-company.com";
   const entityType = type === "leader" ? "Person" : "Organization";
   const path = type === "leader" ? "leader" : "company";
@@ -108,10 +94,7 @@ function buildIndexJsonLd(
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name:
-      type === "leader"
-        ? "Leaders under whose watch the most corporate damage occurred"
-        : "Global Rotten Index",
+    name: type === "leader" ? "Leaders under whose watch the most corporate damage occurred" : "Global Rotten Index",
     itemListOrder: "Descending",
     numberOfItems: rows.length,
     ...(selectedCountry && {
@@ -132,38 +115,36 @@ function buildIndexJsonLd(
   };
 }
 
-export default async function RottenIndexPage({
-  searchParams,
-}: {
-  searchParams?: SearchParams | Promise<SearchParams>;
-}) {
+function normalizeCountryOption(value: string | null | undefined) {
+  return value?.trim() || null;
+}
+
+function buildCountryOptions(rows: Array<{ country: string | null }>) {
+  return Array.from(
+    new Set(
+      rows
+        .map((r) => normalizeCountryOption(r.country))
+        .filter((country): country is string => Boolean(country)),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+}
+
+export default async function RottenIndexPage({ searchParams }: { searchParams?: SearchParams | Promise<SearchParams> }) {
   const sp = await Promise.resolve(searchParams ?? {});
   const rawType = getFirstString(sp.type);
-  const type: IndexType =
-    rawType === "leader" ? "leader" : "company";
+  const type: IndexType = rawType === "leader" ? "leader" : "company";
   const limit = Number(getFirstString(sp.limit) ?? 10);
   const selectedCountry = getFirstString(sp.country);
   const q = getFirstString(sp.q);
   const rawSort = getFirstString(sp.sort) ?? "rotten_score";
   const rawDir = getFirstString(sp.dir);
-  const sort: CompanySortField = (
-    COMPANY_SORT_FIELDS as readonly string[]
-  ).includes(rawSort)
-    ? (rawSort as CompanySortField)
-    : "rotten_score";
-  const dir: "asc" | "desc" =
-    rawDir === "asc" || rawDir === "desc"
-      ? rawDir
-      : DEFAULT_SORT_DIRS[sort];
+  const sort: CompanySortField = (COMPANY_SORT_FIELDS as readonly string[]).includes(rawSort) ? (rawSort as CompanySortField) : "rotten_score";
+  const dir: "asc" | "desc" = rawDir === "asc" || rawDir === "desc" ? rawDir : DEFAULT_SORT_DIRS[sort];
 
-  const result = await getRottenIndexData({
-    type,
-    limit,
-    country: selectedCountry,
-    q,
-    sort,
-    dir,
-  });
+  const [result, countryResult] = await Promise.all([
+    getRottenIndexData({ type, limit: 1000, q, sort, dir }),
+    getRottenIndexData({ type: "company", limit: 100000 }),
+  ]);
 
   if ("error" in result) {
     return <p className="mt-6">Failed to load Rotten Index.</p>;
@@ -184,84 +165,43 @@ export default async function RottenIndexPage({
     ended_at: r.ended_at ?? null,
   }));
 
-  // For the company index, filter out rows with no score (unscored companies).
-  // For the leader index, keep all leaders even when score is unknown.
   if (type === "company") {
     rows = rows.filter((r) => r.rotten_score != null);
   }
   rows = rows.slice(0, limit);
 
-  const countryResult = await getRottenIndexData({ type, limit: 1000 });
-
-  const countryOptions = Array.from(
-    new Set<string>(
-      !("error" in countryResult)
-        ? countryResult.rows
-            .map((r) => (r.country ?? "").trim())
-            .filter(Boolean)
-        : []
-    )
-  ).sort((a, b) => a.localeCompare(b));
+  const countryOptions = "error" in countryResult ? [] : buildCountryOptions(countryResult.rows);
 
   const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
 
-  const safeCountry = (selectedCountry ?? "all-countries")
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9\-]/g, "");
+  const safeCountry = (selectedCountry ?? "all-countries").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
   const fileName = `rotten-index_${type}_${safeCountry}_top${limit}.csv`;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 space-y-8">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-
-      {process.env.NODE_ENV !== "production" && (
-        <JsonLdDebugPanel data={jsonLd} />
-      )}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {process.env.NODE_ENV !== "production" && <JsonLdDebugPanel data={jsonLd} />}
 
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">Rotten Index</h1>
-        <p className="text-sm text-muted-foreground">
-          Ranked by severity of verified misconduct. Higher scores indicate
-          greater documented harm.
-        </p>
+        <p className="text-sm text-muted-foreground">Ranked by severity of verified misconduct. Higher scores indicate greater documented harm.</p>
       </div>
 
-      {/* FIND A COMPANY */}
       {type === "company" && <FindCompanyInline />}
 
-      {/* FILTER CONTROLS */}
-      <form
-        method="get"
-        className="rounded-lg border border-border bg-surface-2 p-4 space-y-4"
-      >
+      <form method="get" className="rounded-lg border border-border bg-surface-2 p-4 space-y-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           <div className="flex flex-col">
-            <label className="text-xs font-semibold text-muted-foreground mb-1">
-              Entity
-            </label>
-            <select
-              name="type"
-              defaultValue={type}
-              className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
+            <label className="text-xs font-semibold text-muted-foreground mb-1">Entity</label>
+            <select name="type" defaultValue={type} className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <option value="company">Companies</option>
               <option value="leader">Leaders</option>
             </select>
           </div>
 
           <div className="flex flex-col">
-            <label className="text-xs font-semibold text-muted-foreground mb-1">
-              Country
-            </label>
-            <select
-              name="country"
-              defaultValue={selectedCountry ?? ""}
-              className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
+            <label className="text-xs font-semibold text-muted-foreground mb-1">Country</label>
+            <select name="country" defaultValue={selectedCountry ?? ""} className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <option value="">All countries</option>
               {countryOptions.map((c) => (
                 <option key={c} value={c}>
@@ -272,14 +212,8 @@ export default async function RottenIndexPage({
           </div>
 
           <div className="flex flex-col">
-            <label className="text-xs font-semibold text-muted-foreground mb-1">
-              Results
-            </label>
-            <select
-              name="limit"
-              defaultValue={String(limit)}
-              className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
+            <label className="text-xs font-semibold text-muted-foreground mb-1">Results</label>
+            <select name="limit" defaultValue={String(limit)} className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <option value="10">Top 10</option>
               <option value="25">Top 25</option>
               <option value="50">Top 50</option>
@@ -289,27 +223,13 @@ export default async function RottenIndexPage({
           {type === "company" && (
             <>
               <div className="flex flex-col col-span-2 sm:col-span-1">
-                <label className="text-xs font-semibold text-muted-foreground mb-1">
-                  Search
-                </label>
-                <input
-                  type="search"
-                  name="q"
-                  defaultValue={q ?? ""}
-                  placeholder="Name, industry, country…"
-                  className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
+                <label className="text-xs font-semibold text-muted-foreground mb-1">Search</label>
+                <input type="search" name="q" defaultValue={q ?? ""} placeholder="Name, industry, country…" className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
               </div>
 
               <div className="flex flex-col">
-                <label className="text-xs font-semibold text-muted-foreground mb-1">
-                  Sort by
-                </label>
-                <select
-                  name="sort"
-                  defaultValue={sort}
-                  className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
+                <label className="text-xs font-semibold text-muted-foreground mb-1">Sort by</label>
+                <select name="sort" defaultValue={sort} className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <option value="rotten_score">Rotten Score</option>
                   <option value="approved_evidence_count">Evidence Count</option>
                   <option value="name">Name</option>
@@ -320,26 +240,18 @@ export default async function RottenIndexPage({
           )}
         </div>
 
-        {/* Actions row */}
         <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
           <ExportCsvButton tableId="rotten-index-table" filename={fileName} />
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center rounded-md bg-foreground px-5 py-2 text-sm font-semibold text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Apply
-          </button>
+          <button type="submit" className="inline-flex items-center justify-center rounded-md bg-foreground px-5 py-2 text-sm font-semibold text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">Apply</button>
         </div>
       </form>
 
-      {/* MOBILE CARD LIST (company view only, shown on small screens) */}
       {type === "company" && (
         <div className="md:hidden">
           <CompanyCardList rows={rows} />
         </div>
       )}
 
-      {/* TABLE (always on desktop; always shown for leader view) */}
       <div className={`overflow-x-auto rounded-lg border border-border${type === "company" ? " hidden md:block" : ""}`}>
         <table id="rotten-index-table" className="w-full border-collapse text-sm">
           <thead className="bg-muted border-b border-border">
@@ -351,9 +263,7 @@ export default async function RottenIndexPage({
                 <th className="py-3 pr-4 text-left">Country</th>
                 <th className="py-3 pr-4 text-left">Started</th>
                 <th className="py-3 pr-4 text-left">Ended</th>
-                <th className="py-3 pr-4 text-right">
-                  Rotten Score
-                </th>
+                <th className="py-3 pr-4 text-right">Rotten Score</th>
               </tr>
             ) : (
               <tr className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -362,9 +272,7 @@ export default async function RottenIndexPage({
                 <th className="py-3 pr-4 text-left">Country</th>
                 <th className="py-3 pr-4 text-left">Industry</th>
                 <th className="py-3 pr-4 text-right">Evidence</th>
-                <th className="py-3 pr-4 text-right">
-                  Rotten Score
-                </th>
+                <th className="py-3 pr-4 text-right">Rotten Score</th>
                 <th className="px-4 py-3 text-center min-w-[240px]">Status</th>
               </tr>
             )}
@@ -372,82 +280,26 @@ export default async function RottenIndexPage({
           <tbody>
             {rows.map((r, i) =>
               type === "leader" ? (
-                <tr
-                  key={`leader-${r.id}`}
-                  className="border-b border-border hover:bg-muted last:border-0 transition-colors"
-                >
-                  <td className="py-3 pr-2 pl-4 text-muted-foreground">
-                    {i + 1}
-                  </td>
-                  <td className="py-3 pr-4 font-medium">
-                    <Link href={`/leader/${r.slug}`} className="text-accent hover:underline">
-                      {r.name}
-                    </Link>
-                  </td>
-                  <td className="py-3 pr-4 text-muted-foreground">
-                    {r.company_slug ? (
-                      <Link href={`/company/${r.company_slug}`} className="text-accent hover:underline">
-                        {r.company_name ?? "—"}
-                      </Link>
-                    ) : (
-                      r.company_name ?? "—"
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 text-muted-foreground">
-                    {r.country ?? "—"}
-                  </td>
-                  <td className="py-3 pr-4 text-muted-foreground">
-                    {formatDate(r.started_at)}
-                  </td>
-                  <td className="py-3 pr-4 text-muted-foreground">
-                    {r.ended_at ? (
-                      formatDate(r.ended_at)
-                    ) : r.started_at ? (
-                      <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                        Current
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 text-right font-mono tabular-nums">
-                    {r.rotten_score != null ? r.rotten_score.toFixed(2) : "—"}
-                  </td>
+                <tr key={`leader-${r.id}`} className="border-b border-border hover:bg-muted last:border-0 transition-colors">
+                  <td className="py-3 pr-2 pl-4 text-muted-foreground">{i + 1}</td>
+                  <td className="py-3 pr-4 font-medium"><Link href={`/leader/${r.slug}`} className="text-accent hover:underline">{r.name}</Link></td>
+                  <td className="py-3 pr-4 text-muted-foreground">{r.company_slug ? <Link href={`/company/${r.company_slug}`} className="text-accent hover:underline">{r.company_name ?? "—"}</Link> : (r.company_name ?? "—")}</td>
+                  <td className="py-3 pr-4 text-muted-foreground">{r.country ?? "—"}</td>
+                  <td className="py-3 pr-4 text-muted-foreground">{formatDate(r.started_at)}</td>
+                  <td className="py-3 pr-4 text-muted-foreground">{r.ended_at ? formatDate(r.ended_at) : r.started_at ? <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Current</span> : "—"}</td>
+                  <td className="py-3 pr-4 text-right font-mono tabular-nums">{r.rotten_score != null ? r.rotten_score.toFixed(2) : "—"}</td>
                 </tr>
               ) : (
-                <tr
-                  key={`company-${r.id}`}
-                  className="border-b border-border hover:bg-muted last:border-0 transition-colors"
-                >
-                  <td className="py-3 pr-2 pl-4 text-muted-foreground">
-                    {i + 1}
-                  </td>
-                  <td className="py-3 pr-4 font-medium">
-                    <Link href={`/${type}/${r.slug}`} className="text-accent hover:underline">
-                      {r.name}
-                    </Link>
-                  </td>
-                  <td className="py-3 pr-4 text-muted-foreground">
-                    {r.country ?? "—"}
-                  </td>
-                  <td className="py-3 pr-4 text-muted-foreground">
-                    {r.industry ?? "—"}
-                  </td>
-                  <td className="py-3 pr-4 text-right font-mono tabular-nums text-muted-foreground">
-                    {r.approved_evidence_count ?? 0}
-                  </td>
-                  <td className="py-3 pr-4 text-right font-mono tabular-nums">
-                    {r.rotten_score != null ? r.rotten_score.toFixed(2) : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-center align-middle min-w-[240px]">
-                    {r.rotten_score != null ? (
-                      <MacroTierBadge score={r.rotten_score} />
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
+                <tr key={`company-${r.id}`} className="border-b border-border hover:bg-muted last:border-0 transition-colors">
+                  <td className="py-3 pr-2 pl-4 text-muted-foreground">{i + 1}</td>
+                  <td className="py-3 pr-4 font-medium"><Link href={`/${type}/${r.slug}`} className="text-accent hover:underline">{r.name}</Link></td>
+                  <td className="py-3 pr-4 text-muted-foreground">{r.country ?? "—"}</td>
+                  <td className="py-3 pr-4 text-muted-foreground">{r.industry ?? "—"}</td>
+                  <td className="py-3 pr-4 text-right font-mono tabular-nums text-muted-foreground">{r.approved_evidence_count ?? 0}</td>
+                  <td className="py-3 pr-4 text-right font-mono tabular-nums">{r.rotten_score != null ? r.rotten_score.toFixed(2) : "—"}</td>
+                  <td className="px-4 py-3 text-center align-middle min-w-[240px]">{r.rotten_score != null ? <MacroTierBadge score={r.rotten_score} /> : <span className="text-muted-foreground">—</span>}</td>
                 </tr>
-              )
+              ),
             )}
           </tbody>
         </table>
