@@ -252,3 +252,169 @@ describe("buildCountryOptions – All countries default", () => {
     expect(withDefault.slice(1)).toEqual(["Germany", "Italy"]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// fetchAllCompanyCountries logic – mirrors getRottenIndexData's new source
+// ---------------------------------------------------------------------------
+
+describe("fetchAllCompanyCountries logic (mirrors getRottenIndexData's companies-table query)", () => {
+  /**
+   * The root cause of the regression:
+   *
+   * Previously the dropdown was built from `global_rotten_index`, a Supabase
+   * view that only contains companies with at least one piece of approved
+   * evidence and a non-null rotten_score.
+   *
+   * Italy / Spain / Portugal companies had rotten_score 0 and no evidence, so
+   * they were absent from the view → absent from the dropdown.
+   *
+   * The fix: fetch all distinct countries directly from `public.companies`,
+   * which holds every company regardless of evidence or score.
+   *
+   * These tests exercise that exact logic in isolation so we can guard the
+   * contract without a live database.
+   */
+
+  /**
+   * Replicate the fetchAllCompanyCountries logic from getRottenIndexData.ts
+   * so it can be unit-tested without Supabase.
+   */
+  function simulateFetchAllCompanyCountries(
+    companiesTableRows: Array<{ country: string | null }>,
+  ): string[] {
+    return Array.from(
+      new Set(
+        companiesTableRows
+          .map((row) => row.country?.trim())
+          .filter((c): c is string => Boolean(c)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+  }
+
+  // -------------------------------------------------------------------------
+  // Regression scenario: zero-score, zero-evidence companies
+  // -------------------------------------------------------------------------
+
+  const companiesTable: Array<{ country: string | null; rotten_score: number | null; approved_evidence_count: number }> = [
+    // high-scoring companies present in global_rotten_index
+    { country: "United States", rotten_score: 90, approved_evidence_count: 15 },
+    { country: "United Kingdom", rotten_score: 85, approved_evidence_count: 12 },
+    { country: "Germany",        rotten_score: 70, approved_evidence_count: 8  },
+    { country: "France",         rotten_score: 65, approved_evidence_count: 6  },
+    // regression countries – rotten_score 0, no evidence → NOT in global_rotten_index
+    { country: "Italy",          rotten_score: 0,  approved_evidence_count: 0  },
+    { country: "Spain",          rotten_score: 0,  approved_evidence_count: 0  },
+    { country: "Portugal",       rotten_score: 0,  approved_evidence_count: 0  },
+  ];
+
+  // What global_rotten_index (the old source) would return
+  const globalRottenIndexRows = companiesTable.filter(
+    (c) => c.rotten_score != null && c.rotten_score > 0 && c.approved_evidence_count > 0,
+  );
+
+  it("global_rotten_index (old source) does NOT contain Italy", () => {
+    const options = buildCountryOptions(globalRottenIndexRows);
+    expect(options).not.toContain("Italy");
+  });
+
+  it("global_rotten_index (old source) does NOT contain Spain", () => {
+    const options = buildCountryOptions(globalRottenIndexRows);
+    expect(options).not.toContain("Spain");
+  });
+
+  it("global_rotten_index (old source) does NOT contain Portugal", () => {
+    const options = buildCountryOptions(globalRottenIndexRows);
+    expect(options).not.toContain("Portugal");
+  });
+
+  it("companies table (new source) DOES contain Italy", () => {
+    expect(simulateFetchAllCompanyCountries(companiesTable)).toContain("Italy");
+  });
+
+  it("companies table (new source) DOES contain Spain", () => {
+    expect(simulateFetchAllCompanyCountries(companiesTable)).toContain("Spain");
+  });
+
+  it("companies table (new source) DOES contain Portugal", () => {
+    expect(simulateFetchAllCompanyCountries(companiesTable)).toContain("Portugal");
+  });
+
+  it("companies-table source includes all countries regardless of rotten_score", () => {
+    const options = simulateFetchAllCompanyCountries(companiesTable);
+    expect(options).toContain("United States");
+    expect(options).toContain("Italy");
+    expect(options).toContain("Spain");
+    expect(options).toContain("Portugal");
+  });
+
+  // -------------------------------------------------------------------------
+  // A country absent from the current Top 10 still appears
+  // -------------------------------------------------------------------------
+
+  it("a country not in the Top 10 table still appears in the dropdown", () => {
+    const top10 = companiesTable.slice(0, 4); // only United States, UK, Germany, France
+    const allCountriesSource = companiesTable; // full companies table
+
+    const dropdownFromTop10 = buildCountryOptions(top10);
+    const dropdownFromAll   = simulateFetchAllCompanyCountries(allCountriesSource);
+
+    expect(dropdownFromTop10).not.toContain("Italy");
+    expect(dropdownFromAll).toContain("Italy");
+    expect(dropdownFromAll).toContain("Spain");
+    expect(dropdownFromAll).toContain("Portugal");
+  });
+
+  // -------------------------------------------------------------------------
+  // Option-building rules still apply to the companies-table source
+  // -------------------------------------------------------------------------
+
+  it("deduplicates when companies table has multiple rows per country", () => {
+    const rows = [
+      { country: "Italy" },
+      { country: "Italy" },
+      { country: "Spain" },
+    ];
+    const options = simulateFetchAllCompanyCountries(rows);
+    expect(options.filter((c) => c === "Italy")).toHaveLength(1);
+  });
+
+  it("excludes null country rows", () => {
+    const rows = [{ country: "Italy" }, { country: null }, { country: "Spain" }];
+    const options = simulateFetchAllCompanyCountries(rows);
+    expect(options).not.toContain(null);
+    expect(options.every(Boolean)).toBe(true);
+  });
+
+  it("excludes blank/whitespace country values", () => {
+    const rows = [{ country: "Italy" }, { country: "   " }, { country: "" }, { country: "Spain" }];
+    const options = simulateFetchAllCompanyCountries(rows);
+    expect(options).not.toContain("");
+    expect(options).not.toContain("   ");
+  });
+
+  it("trims whitespace and then deduplicates", () => {
+    const rows = [{ country: "  Italy  " }, { country: "Italy" }];
+    const options = simulateFetchAllCompanyCountries(rows);
+    expect(options).toEqual(["Italy"]);
+  });
+
+  it("sorts the resulting list alphabetically", () => {
+    const rows = [
+      { country: "Spain" },
+      { country: "Italy" },
+      { country: "Portugal" },
+      { country: "Germany" },
+    ];
+    const options = simulateFetchAllCompanyCountries(rows);
+    expect(options).toEqual(["Germany", "Italy", "Portugal", "Spain"]);
+  });
+
+  it('"All countries" is not injected by the countries source', () => {
+    const rows = [{ country: "Italy" }];
+    const options = simulateFetchAllCompanyCountries(rows);
+    expect(options).not.toContain("");
+    // The page renders <option value="">All countries</option> separately
+    const withDefault = ["", ...options];
+    expect(withDefault[0]).toBe("");
+  });
+});

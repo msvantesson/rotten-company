@@ -11,7 +11,6 @@ import ExportCsvButton from "./ExportCsvButton";
 import CompanyCardList from "./CompanyCardList";
 import FindCompanyInline from "./FindCompanyInline";
 import { canonicalUrl } from "@/lib/seo";
-import { buildCountryOptions } from "@/lib/buildCountryOptions";
 
 export const metadata: Metadata = {
   title: "Rotten Index — Companies Ranked by Documented Misconduct",
@@ -128,10 +127,7 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
   const sort: CompanySortField = (COMPANY_SORT_FIELDS as readonly string[]).includes(rawSort) ? (rawSort as CompanySortField) : "rotten_score";
   const dir: "asc" | "desc" = rawDir === "asc" || rawDir === "desc" ? rawDir : DEFAULT_SORT_DIRS[sort];
 
-  const [result, countryResult] = await Promise.all([
-    getRottenIndexData({ type, limit: 1000, q, sort, dir }),
-    getRottenIndexData({ type: "company", limit: 100000 }),
-  ]);
+  const result = await getRottenIndexData({ type, limit: 1000, q, sort, dir });
 
   if ("error" in result) {
     return <p className="mt-6">Failed to load Rotten Index.</p>;
@@ -157,7 +153,10 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
   }
   rows = rows.slice(0, limit);
 
-  const countryOptions = "error" in countryResult ? [] : buildCountryOptions(countryResult.rows);
+  // countries comes from a direct query to public.companies, independent of
+  // scoring views, evidence counts, or pagination – so every country that has
+  // at least one company always appears in the dropdown.
+  const countryOptions = result.countries;
 
   const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
 
