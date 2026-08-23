@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeEscalationScore } from "./leader-escalation";
 
 function getSupabase() {
@@ -43,9 +44,27 @@ export type GetRottenIndexParams = {
   dir?: string | null;
 };
 
+/**
+ * Fetch every distinct non-null/non-empty country directly from the
+ * `companies` table, independent of scoring views, evidence counts, or
+ * pagination.  This is the authoritative source for the country dropdown.
+ */
+async function fetchAllCompanyCountries(
+  supabase: SupabaseClient<any>,
+): Promise<string[]> {
+  const { data } = await supabase.from("companies").select("country").not("country", "is", null);
+  return Array.from(
+    new Set(
+      (data ?? [])
+        .map((row: { country: string | null }) => row.country?.trim())
+        .filter((c): c is string => Boolean(c)),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+}
+
 export async function getRottenIndexData(
   params: GetRottenIndexParams,
-): Promise<{ rows: RottenIndexRow[] } | { error: string }> {
+): Promise<{ rows: RottenIndexRow[]; countries: string[] } | { error: string }> {
   const supabase = getSupabase();
 
   const type: "company" | "leader" = params.type === "leader" ? "leader" : "company";
@@ -99,7 +118,8 @@ export async function getRottenIndexData(
         approved_evidence_count: Number(r.approved_evidence_count) || 0,
       }));
 
-      return { rows };
+      const countries = await fetchAllCompanyCountries(supabase);
+      return { rows, countries };
     } else {
       const leadersQuery = supabase
         .from("leaders")
@@ -116,7 +136,8 @@ export async function getRottenIndexData(
       const leaders = leadersData ?? [];
 
       if (leaders.length === 0) {
-        return { rows: [] };
+        const countries = await fetchAllCompanyCountries(supabase);
+        return { rows: [], countries };
       }
 
       const leaderIds = leaders.map((l: any) => l.id);
@@ -224,7 +245,8 @@ export async function getRottenIndexData(
         })
         .slice(0, limit);
 
-      return { rows };
+      const countries = await fetchAllCompanyCountries(supabase);
+      return { rows, countries };
     }
   } catch (err) {
     console.error("Error in getRottenIndexData:", err);
