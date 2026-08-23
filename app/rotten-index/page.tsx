@@ -11,6 +11,7 @@ import ExportCsvButton from "./ExportCsvButton";
 import CompanyCardList from "./CompanyCardList";
 import FindCompanyInline from "./FindCompanyInline";
 import { canonicalUrl } from "@/lib/seo";
+import { buildCountryOptions } from "@/lib/buildCountryOptions";
 
 export const metadata: Metadata = {
   title: "Rotten Index — Companies Ranked by Documented Misconduct",
@@ -113,20 +114,6 @@ function buildIndexJsonLd(rows: IndexedRow[], type: IndexType, selectedCountry: 
       },
     })),
   };
-}
-
-function normalizeCountryOption(value: string | null | undefined) {
-  return value?.trim() || null;
-}
-
-function buildCountryOptions(rows: Array<{ country: string | null }>) {
-  return Array.from(
-    new Set(
-      rows
-        .map((r) => normalizeCountryOption(r.country))
-        .filter((country): country is string => Boolean(country)),
-    ),
-  ).sort((a, b) => a.localeCompare(b));
 }
 
 export default async function RottenIndexPage({ searchParams }: { searchParams?: SearchParams | Promise<SearchParams> }) {
