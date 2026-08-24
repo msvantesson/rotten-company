@@ -4,20 +4,7 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
 import { companyInsertFromRequest } from "@/lib/company/companyInsertFromRequest";
-
-/* ─────────────────────────────────────────────
-   Utilities
-───────────────────────────────────────────── */
-
-function slugify(input: string) {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/['"]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
+import { slugify } from "@/lib/slugify";
 
 async function requireModerator(cookieClient: any) {
   const {

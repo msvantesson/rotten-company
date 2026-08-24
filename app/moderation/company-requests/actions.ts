@@ -9,6 +9,7 @@ import { getModerationGateStatus } from "@/lib/moderation-guards";
 import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
 import { companyInsertFromRequest } from "@/lib/company/companyInsertFromRequest";
 import { notifyIndexNow, companyIndexNowUrl } from "@/lib/indexnow";
+import { slugify } from "@/lib/slugify";
 
 function adminClient() {
   return createClient(
@@ -138,15 +139,6 @@ async function enqueueCompanyRequestNotification(
   }
 }
 
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/['"]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
 
 /**
  * Approve a company request assigned to the currently signed-in user.
