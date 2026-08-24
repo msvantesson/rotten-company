@@ -4,6 +4,7 @@ export const revalidate = 300;
 export const dynamicParams = true;
 
 // Re-export generateMetadata so Next.js picks it up from this route file.
+export { generateMetadata } from "./metadata";
 
 import { supabaseServer } from "@/lib/supabase-server";
 import { resolveCompanySlug } from "@/lib/company-slug";
