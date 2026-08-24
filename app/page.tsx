@@ -1,35 +1,14 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import type { Metadata } from "next";
 import { supabaseServer } from "@/lib/supabase-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Link from "next/link";
-import { canonicalUrl } from "@/lib/seo";
 import MacroTierBadge from "@/components/MacroTierBadge";
 import FindCompanySection from "@/components/FindCompanySection";
+import { homepageMetadata } from "@/lib/homepage-seo";
 
-export const metadata: Metadata = {
-  title: "Rotten Company — Evidence-Based Corporate Accountability",
-  description:
-    "Expose and track corporate wrongdoing backed by verified evidence. Browse Rotten Scores, misconduct records, and leadership accountability for companies worldwide.",
-  alternates: {
-    canonical: canonicalUrl("/"),
-  },
-  openGraph: {
-    title: "Rotten Company — Evidence-Based Corporate Accountability",
-    description:
-      "Expose and track corporate wrongdoing backed by verified evidence. Browse Rotten Scores, misconduct records, and leadership accountability for companies worldwide.",
-    url: canonicalUrl("/"),
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Rotten Company — Evidence-Based Corporate Accountability",
-    description:
-      "Expose and track corporate wrongdoing backed by verified evidence. Browse Rotten Scores, misconduct records, and leadership accountability for companies worldwide.",
-  },
-};
+export const metadata = homepageMetadata;
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", {
