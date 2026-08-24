@@ -30,7 +30,7 @@ export async function generateMetadata(
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, industry")
+    .select("id, name, slug, industry, updated_at")
     .eq("id", slugResolution.companyId)
     .maybeSingle();
 

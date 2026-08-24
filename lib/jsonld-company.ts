@@ -24,6 +24,7 @@ type JsonLdInput = {
     name: string;
     slug: string;
     industry?: string;
+    updated_at?: string | null;
   };
   rottenScore: number | null;
   breakdown: CategoryBreakdownJsonLd[];
@@ -152,6 +153,6 @@ export function buildCompanyJsonLd({
     microFlavor,
     confidenceLevel,
     totalSignals,
-    dateModified: new Date().toISOString(),
+    dateModified: company.updated_at ?? new Date().toISOString(),
   };
 }

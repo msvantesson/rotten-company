@@ -36,7 +36,7 @@ export function buildOverviewTitle(
 
   // As last resort truncate name to fit the minimal label (but keep >= 15 chars total)
   const suffix = " | Rotten Score";
-  const maxNameLen = Math.max(70 - suffix.length, 15 - suffix.length);
+  const maxNameLen = 70 - suffix.length;
   const truncated = companyName.slice(0, Math.max(maxNameLen, 1)) + suffix;
   return truncated.length >= 15 ? truncated : companyName.slice(0, 15);
 }
@@ -59,7 +59,7 @@ export function buildBreakdownTitle(companyName: string): string {
   if (minimal.length <= 70) return minimal;
 
   const suffix = " | Rotten Breakdown";
-  const maxNameLen = Math.max(70 - suffix.length, 15 - suffix.length);
+  const maxNameLen = 70 - suffix.length;
   const truncated = companyName.slice(0, Math.max(maxNameLen, 1)) + suffix;
   return truncated.length >= 15 ? truncated : companyName.slice(0, 15);
 }

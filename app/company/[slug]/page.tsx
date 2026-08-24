@@ -79,7 +79,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select(
-      "id, name, slug, industry, size_employees_range, country, hq_region, hq_city, website, description",
+      "id, name, slug, industry, size_employees_range, country, hq_region, hq_city, website, description, updated_at",
     )
     .eq("id", slugResolution.companyId)
     .maybeSingle();
