@@ -83,7 +83,7 @@ export function CategoryBreakdown({
       {/* Company header (optional) */}
       {showHeader && (
         <div>
-          <h1 className="text-3xl font-bold">{company.name}</h1>
+          <h2 className="text-3xl font-bold">{company.name}</h2>
           <p className="text-neutral-600 text-sm">
             Category breakdown and supporting evidence
           </p>
