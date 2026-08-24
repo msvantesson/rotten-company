@@ -38,6 +38,8 @@ vi.mock("@/lib/supabase-service", () => ({
   supabaseService: supabaseServiceMock,
 }));
 
+vi.mock("@/lib/company-slug", async () => await import("../lib/company-slug"));
+
 vi.mock("@/lib/moderation-guards", () => ({
   canModerate: canModerateMock,
   getModerationGateStatus: vi.fn(async () => ({ allowed: true })),
@@ -46,6 +48,10 @@ vi.mock("@/lib/moderation-guards", () => ({
 vi.mock("@/lib/indexnow", () => ({
   notifyIndexNow: notifyIndexNowMock,
   companyIndexNowUrl: companyIndexNowUrlMock,
+}));
+
+vi.mock("@/lib/slugify", () => ({
+  slugify: (input: string) => input.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
 }));
 
 vi.mock("@/lib/company-edit-patch", () => ({
@@ -347,6 +353,8 @@ describe("sitemap invalidation on approval paths", () => {
   });
 
   it("existing API company-edit approval route still returns success and invalidates /sitemap.xml", async () => {
+    let companyUpdatePayload: unknown = null;
+
     supabaseServerMock.mockResolvedValue({
       auth: {
         getUser: vi.fn(async () => ({ data: { user: { id: "mod-1" } } })),
@@ -383,6 +391,7 @@ describe("sitemap invalidation on approval paths", () => {
           }
 
           if (table === "companies" && terminal === "then" && state.updatePayload) {
+            companyUpdatePayload = state.updatePayload;
             return { error: null };
           }
 
@@ -411,5 +420,7 @@ describe("sitemap invalidation on approval paths", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
     expect(revalidatePathMock).toHaveBeenCalledWith("/sitemap.xml");
+    expect(companyUpdatePayload).toEqual({ website: "https://example.test" });
+    expect(companyUpdatePayload).not.toHaveProperty("slug");
   });
 });

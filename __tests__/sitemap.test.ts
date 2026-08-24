@@ -91,6 +91,7 @@ describe("sitemap", () => {
 
   it("fetches companies in deterministic ordered batches and preserves expected sitemap behavior", async () => {
     const orderedCompanies: CompanyRow[] = [
+      { id: 0, slug: "nestl", name: "Nestlé", updated_at: "2026-08-20T00:00:00.000Z" },
       { id: 1, slug: "duplicate-company", name: "Duplicate Company A", updated_at: "2026-08-20T00:00:00.000Z" },
       { id: 2, slug: "duplicate-company", name: "Duplicate Company B", updated_at: "2026-08-20T00:00:00.000Z" },
       { id: 3, slug: null, name: "Null Slug Co", updated_at: "2026-08-20T00:00:00.000Z" },
@@ -144,9 +145,11 @@ describe("sitemap", () => {
     const categoryUrls = urls.filter((url) => url.includes("/category/"));
 
     expect(companyUrls).toContain("https://example.test/company/newly-created-company");
+    expect(companyUrls).toContain("https://example.test/company/nestl");
+    expect(companyUrls).not.toContain("https://example.test/company/nestle");
     expect(companyUrls).toContain("https://example.test/company/company-1201");
     expect(companyUrls).toContain("https://example.test/company/trimmed-company");
-    expect(companyUrls).toHaveLength(1197);
+    expect(companyUrls).toHaveLength(1198);
     expect(companyUrls.filter((url) => url === "https://example.test/company/duplicate-company")).toHaveLength(1);
     expect(companyUrls).not.toContain("https://example.test/company/test1");
     expect(companyUrls).not.toContain("https://example.test/company/acme-test");

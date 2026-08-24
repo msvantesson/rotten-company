@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
 
 const supabaseServerMock = vi.fn();
 
@@ -12,7 +13,7 @@ vi.mock("@/lib/seo", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...rest }: { href: string; children: unknown; [key: string]: unknown }) => (
+  default: ({ href, children, ...rest }: { href: string; children: ReactNode; [key: string]: unknown }) => (
     <a href={href} {...rest}>
       {children}
     </a>
@@ -38,8 +39,8 @@ type TableState = Record<string, unknown>;
 function createMockSupabase(nowIsoDate: string, weekAgoIsoDate: string) {
   const topCompanies = Array.from({ length: 10 }, (_, idx) => ({
     id: 101 + idx,
-    name: `Index Co ${idx + 1}`,
-    slug: `index-co-${idx + 1}`,
+    name: idx === 0 ? "Nestlé" : `Index Co ${idx + 1}`,
+    slug: idx === 0 ? "nestl" : `index-co-${idx + 1}`,
     industry: "Tech",
     country: "US",
     rotten_score: 90 - idx,
@@ -185,6 +186,7 @@ describe("Homepage UI updates", () => {
     expect(html).toContain("Worsen 1");
     expect(html).toContain("Worsen 5");
     expect(html).not.toContain("Worsen 6");
+    expect(html).toContain('href="/company/nestl"');
 
     expect(html).toContain("Improve 1");
     expect(html).toContain("Improve 5");

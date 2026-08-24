@@ -4,9 +4,23 @@ import { supabaseServer } from "@/lib/supabase-server";
 import { supabaseService } from "@/lib/supabase-service";
 import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
 import { companyInsertFromRequest } from "@/lib/company/companyInsertFromRequest";
+import { ensureCompanySlugAvailable } from "@/lib/company-slug";
 import { slugify } from "@/lib/slugify";
 
-async function requireModerator(cookieClient: any) {
+type ModeratorLookupClient = {
+  auth: {
+    getUser: () => Promise<{ data: { user: { id?: string | null } | null } }>;
+  };
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (column: string, value: unknown) => {
+        maybeSingle: () => Promise<{ data: { user_id?: string | null } | null }>;
+      };
+    };
+  };
+};
+
+async function requireModerator(cookieClient: ModeratorLookupClient) {
   const {
     data: { user },
   } = await cookieClient.auth.getUser();
@@ -39,7 +53,9 @@ export async function POST(req: Request) {
   // Service‑role client for all mutations
   const service = supabaseService();
 
-  const guard = await requireModerator(cookieClient);
+  const guard = await requireModerator(
+    cookieClient as unknown as ModeratorLookupClient,
+  );
   if (!guard.ok) {
     return new NextResponse(guard.error, { status: 401 });
   }
@@ -124,22 +140,18 @@ export async function POST(req: Request) {
   } else {
     // NEW COMPANY: create company (slug‑safe, idempotent)
     const baseSlug = slugify(cr.name);
-    let slug = baseSlug || `company-${id.slice(0, 8)}`;
+    const slugAvailability = await ensureCompanySlugAvailable(
+      service as unknown as Parameters<typeof ensureCompanySlugAvailable>[0],
+      baseSlug || `company-${id.slice(0, 8)}`,
+    );
 
-    for (let i = 0; i < 10; i++) {
-      const { data: existing } = await service
-        .from("companies")
-        .select("id")
-        .eq("slug", slug)
-        .maybeSingle();
-
-      if (!existing) break;
-      slug = `${baseSlug}-${i + 2}`;
+    if (!slugAvailability.available) {
+      return new NextResponse(slugAvailability.message, { status: 409 });
     }
 
     const { data: company, error: companyErr } = await service
       .from("companies")
-      .insert(companyInsertFromRequest(cr, slug))
+      .insert(companyInsertFromRequest(cr, slugAvailability.slug))
       .select("id, slug")
       .single();
 

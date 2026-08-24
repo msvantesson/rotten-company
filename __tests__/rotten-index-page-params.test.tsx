@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
 
 const getRottenIndexDataMock = vi.fn();
 
@@ -12,7 +13,7 @@ vi.mock("@/lib/seo", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...rest }: { href: string; children: unknown; [key: string]: unknown }) => (
+  default: ({ href, children, ...rest }: { href: string; children: ReactNode; [key: string]: unknown }) => (
     <a href={href} {...rest}>
       {children}
     </a>
