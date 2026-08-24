@@ -156,7 +156,6 @@ export async function generateMetadata(
   }
 
   let evidenceCount: number | null = null;
-  let hasEvidence = false;
   try {
     const { data: breakdownRows, error: breakdownError } = await supabase
       .from("company_category_full_breakdown")
@@ -174,7 +173,6 @@ export async function generateMetadata(
           sum + (row.evidence_count ?? 0),
         0,
       );
-      hasEvidence = true;
     }
   } catch (error) {
     console.error("Company metadata evidence lookup failed", {
@@ -186,7 +184,7 @@ export async function generateMetadata(
   const title = rottenScore !== null
     ? buildOverviewTitle(company.name, rottenScore)
     : buildCompanyFallbackTitle(company.name);
-  const description = rottenScore !== null && hasEvidence && evidenceCount !== null
+  const description = rottenScore !== null && evidenceCount !== null
     ? buildSuccessDescription(company.name, rottenScore, evidenceCount)
     : buildCompanyFallbackDescription(company.name);
 

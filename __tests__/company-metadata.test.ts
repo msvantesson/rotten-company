@@ -332,27 +332,31 @@ describe("company overview metadata regression", () => {
   it("returns generic fallback metadata on company query DB error without throwing", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const result = await loadOverviewMetadata({
-      overrides: [
-        {
-          table: "companies",
-          eqs: [["id", 1]],
-          mode: "single",
-          result: { data: null, error: { message: "db unavailable" } },
-        },
-      ],
-    });
+    try {
+      const result = await loadOverviewMetadata({
+        overrides: [
+          {
+            table: "companies",
+            eqs: [["id", 1]],
+            mode: "single",
+            result: { data: null, error: { message: "db unavailable" } },
+          },
+        ],
+      });
 
-    expect(result.title).toBe("Company Rotten Score & Evidence | Rotten Company");
-    expect(result.description).toBe(
-      "Review company Rotten Scores, documented evidence, misconduct cases and sources on Rotten Company.",
-    );
-    expect(result.alternates).toBeUndefined();
-    expect(notFoundMock).not.toHaveBeenCalled();
-    expect(consoleErrorSpy).toHaveBeenCalledWith("Company metadata lookup failed", {
-      slug: "boeing",
-      error: "db unavailable",
-    });
+      expect(result.title).toBe("Company Rotten Score & Evidence | Rotten Company");
+      expect(result.description).toBe(
+        "Review company Rotten Scores, documented evidence, misconduct cases and sources on Rotten Company.",
+      );
+      expect(result.alternates).toBeUndefined();
+      expect(notFoundMock).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Company metadata lookup failed", {
+        slug: "boeing",
+        error: "db unavailable",
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it("returns generic fallback metadata when slug resolution throws", async () => {
