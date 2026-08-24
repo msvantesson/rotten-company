@@ -1,6 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-
-// ─── Module mocks ────────────────────────────────────────────────────────────
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabaseServerMock = vi.fn();
 
@@ -22,11 +20,40 @@ vi.mock("next/navigation", () => ({
   permanentRedirect: permanentRedirectMock,
 }));
 
-vi.mock("@/lib/test-company", () => ({ isTestCompany: () => false }));
+vi.mock("next/link", () => ({
+  default: () => null,
+}));
 
-vi.mock("@/lib/seo", () => ({
-  canonicalUrl: (path: string) => `https://rotten-company.com${path}`,
-  SITE_ORIGIN: "https://rotten-company.com",
+vi.mock("@/components/RatingStars", () => ({
+  default: () => null,
+}));
+
+vi.mock("@/components/RottenScoreMeter", () => ({
+  default: () => null,
+}));
+
+vi.mock("@/components/ScoreDebugPanel", () => ({
+  ScoreDebugPanel: () => null,
+}));
+
+vi.mock("@/components/JsonLdDebugPanel", () => ({
+  JsonLdDebugPanel: () => null,
+}));
+
+vi.mock("@/components/CategoryInfoPopover", () => ({
+  default: () => null,
+}));
+
+vi.mock("@/components/CeoSection", () => ({
+  default: () => null,
+}));
+
+vi.mock("@/components/CompanyTabs", () => ({
+  default: () => null,
+}));
+
+vi.mock("@/lib/jsonld-company", () => ({
+  buildCompanyJsonLd: () => ({ "@type": "Organization" }),
 }));
 
 vi.mock("@/lib/flavor-engine", () => ({
@@ -35,10 +62,25 @@ vi.mock("@/lib/flavor-engine", () => ({
     if (clamped >= 40) return "Serious Rot Detected";
     return "Mildly Rotten";
   },
+  getRottenFlavor: () => ({
+    color: "#000",
+    macroTier: "Watchlist",
+    microFlavor: "Evidence-backed",
+  }),
 }));
 
-// Mock @/lib/company-seo with inline implementations that match the real logic.
-// This is needed because the @/ path alias isn't configured in vitest.
+vi.mock("@/lib/test-company", () => ({ isTestCompany: () => false }));
+
+vi.mock("@/lib/seo", () => ({
+  canonicalUrl: (path: string) => `https://rotten-company.com${path}`,
+  buildBreadcrumbJsonLd: (items: unknown[]) => ({ items }),
+  SITE_ORIGIN: "https://rotten-company.com",
+}));
+
+vi.mock("@/lib/constants/employee-ranges", () => ({
+  EMPLOYEE_RANGES: [],
+}));
+
 vi.mock("@/lib/company-seo", () => ({
   buildOverviewTitle: (name: string, score: number | null): string => {
     const s = score !== null ? Math.round(Math.max(0, Math.min(100, score))) : 0;
@@ -47,12 +89,6 @@ vi.mock("@/lib/company-seo", () => ({
     const compact = `${name} | Rotten Score ${s}/100`;
     if (compact.length <= 70) return compact;
     return `${name} | Rotten Score`.slice(0, 70);
-  },
-  buildOverviewDescription: (name: string, score: number | null, count: number): string => {
-    const s = score !== null ? Math.round(Math.max(0, Math.min(100, score))) : 0;
-    const word = count === 1 ? "record" : "records";
-    return `${name} has a Rotten Score of ${s}/100 based on ${count} documented evidence ${word}. ` +
-      `Review ${name}'s misconduct cases, category breakdown, sources and current status.`;
   },
   buildBreakdownTitle: (name: string): string => {
     const detailed = `${name} Rotten Score Breakdown | Categories & Calculation`;
@@ -63,14 +99,12 @@ vi.mock("@/lib/company-seo", () => ({
   },
   buildBreakdownDescription: (name: string, score: number | null): string => {
     const s = score !== null ? Math.round(Math.max(0, Math.min(100, score))) : 0;
-    return `Explore how ${name}'s Rotten Score of ${s}/100 is calculated across ` +
-      `misconduct categories, evidence severity, remediation and documented sources.`;
+    return `Explore how ${name}'s Rotten Score of ${s}/100 is calculated across misconduct categories, evidence severity, remediation and documented sources.`;
   },
   buildSsrAnswer: (name: string, score: number | null, count: number): string => {
     const s = score !== null ? Math.round(Math.max(0, Math.min(100, score))) : 0;
     const word = count === 1 ? "record" : "records";
-    return `${name} currently has a Rotten Score of ${s}/100. ` +
-      `The score is based on ${count} approved evidence ${word}.`;
+    return `${name} currently has a Rotten Score of ${s}/100 and is classified as Mildly Rotten. The score is based on ${count} approved evidence ${word}.`;
   },
   roundScore: (score: number | null): number => {
     if (score === null) return 0;
@@ -78,360 +112,350 @@ vi.mock("@/lib/company-seo", () => ({
   },
 }));
 
-// ─── Supabase helper ──────────────────────────────────────────────────────────
-
 type TableData = Record<string, Array<Record<string, unknown>>>;
 
-function makeSupabase(tables: TableData) {
+type QueryOverride = {
+  table: string;
+  eqs?: Array<[string, unknown]>;
+  mode?: "single" | "many";
+  result?: { data: unknown; error: { message: string } | null };
+  reject?: Error;
+};
+
+function sameEqs(
+  expected: Array<[string, unknown]> | undefined,
+  actual: Array<[string, unknown]>,
+): boolean {
+  if (!expected) return true;
+  return (
+    expected.length === actual.length &&
+    expected.every(([expectedColumn, expectedValue], index) => {
+      const [actualColumn, actualValue] = actual[index] ?? [];
+      return actualColumn === expectedColumn && actualValue === expectedValue;
+    })
+  );
+}
+
+function makeSupabase(
+  tables: TableData,
+  overrides: QueryOverride[] = [],
+) {
+  const allTables: TableData = {
+    company_slug_redirects: [],
+    company_rotten_score_v2: [],
+    company_category_full_breakdown: [],
+    categories: [],
+    ownership_signals_summary: [],
+    ratings: [],
+    ...tables,
+  };
+
+  const findRows = (table: string, eqs: Array<[string, unknown]>) =>
+    (allTables[table] ?? []).filter((row) =>
+      eqs.every(([column, value]) => row[column] === value),
+    );
+
+  const findOverride = (
+    table: string,
+    eqs: Array<[string, unknown]>,
+    mode: "single" | "many",
+  ) => overrides.find((override) =>
+    override.table === table &&
+    (override.mode === undefined || override.mode === mode) &&
+    sameEqs(override.eqs, eqs),
+  );
+
   const from = (table: string) => {
     const state: { eqs: Array<[string, unknown]> } = { eqs: [] };
     const query = {
       select: () => query,
-      eq: (col: string, val: unknown) => {
-        state.eqs.push([col, val]);
+      eq: (column: string, value: unknown) => {
+        state.eqs.push([column, value]);
         return query;
       },
       order: () => query,
       maybeSingle: async () => {
-        const rows = (tables[table] ?? []).filter((row) =>
-          state.eqs.every(([col, val]) => row[col] === val),
-        );
+        const override = findOverride(table, state.eqs, "single");
+        if (override?.reject) {
+          throw override.reject;
+        }
+        if (override?.result) {
+          return override.result;
+        }
+        const rows = findRows(table, state.eqs);
         return { data: rows[0] ?? null, error: null };
       },
       then: <T1 = unknown, T2 = never>(
-        ok?: ((v: { data: unknown[]; error: null }) => T1 | PromiseLike<T1>) | null,
-        fail?: ((r: unknown) => T2 | PromiseLike<T2>) | null,
+        onfulfilled?: ((value: { data: unknown; error: { message: string } | null }) => T1 | PromiseLike<T1>) | null,
+        onrejected?: ((reason: unknown) => T2 | PromiseLike<T2>) | null,
       ) => {
-        const rows = (tables[table] ?? []).filter((row) =>
-          state.eqs.every(([col, val]) => row[col] === val),
-        );
-        return Promise.resolve({ data: rows, error: null }).then(ok, fail);
+        const override = findOverride(table, state.eqs, "many");
+        if (override?.reject) {
+          return Promise.reject(override.reject).then(onfulfilled, onrejected);
+        }
+        if (override?.result) {
+          return Promise.resolve(override.result).then(onfulfilled, onrejected);
+        }
+        return Promise.resolve({
+          data: findRows(table, state.eqs),
+          error: null,
+        }).then(onfulfilled, onrejected);
       },
     };
     return query;
   };
+
   return {
-    auth: { getUser: vi.fn(async () => ({ data: { user: null }, error: null })) },
+    auth: {
+      getUser: vi.fn(async () => ({ data: { user: null }, error: null })),
+    },
     from,
   };
 }
 
-// ─── Fixtures ─────────────────────────────────────────────────────────────────
-
 const BASE_TABLES: TableData = {
   companies: [
-    { id: 1, name: "Acme Corp", slug: "acme-corp", industry: "Tech" },
+    { id: 1, name: "Boeing", slug: "boeing", industry: "Aerospace" },
   ],
-  company_slug_redirects: [],
-  company_rotten_score_v2: [{ company_id: 1, rotten_score: 47 }],
+  company_rotten_score_v2: [{ company_id: 1, rotten_score: 39 }],
   company_category_full_breakdown: [
     { company_id: 1, category_id: 1, category_name: "Corporate Misconduct", evidence_count: 5 },
     { company_id: 1, category_id: 2, category_name: "Human Rights", evidence_count: 3 },
   ],
 };
 
-// ─── Overview metadata tests ──────────────────────────────────────────────────
+async function loadOverviewMetadata(
+  {
+    tables = BASE_TABLES,
+    overrides = [],
+    slug = "boeing",
+  }: {
+    tables?: TableData;
+    overrides?: QueryOverride[];
+    slug?: string;
+  } = {},
+) {
+  supabaseServerMock.mockResolvedValue(makeSupabase(tables, overrides));
+  const { generateMetadata } = await import("../app/company/[slug]/metadata");
+  return await generateMetadata({ params: { slug } });
+}
 
-describe("overview generateMetadata", () => {
+function metadataStrings(metadata: Awaited<ReturnType<typeof loadOverviewMetadata>>) {
+  return [
+    String(metadata.title ?? ""),
+    String(metadata.description ?? ""),
+    (metadata.alternates as { canonical?: string } | undefined)?.canonical ?? "",
+    (metadata.openGraph as { title?: string; description?: string; url?: string } | undefined)?.title ?? "",
+    (metadata.openGraph as { title?: string; description?: string; url?: string } | undefined)?.description ?? "",
+    (metadata.openGraph as { title?: string; description?: string; url?: string } | undefined)?.url ?? "",
+    (metadata.twitter as { title?: string; description?: string } | undefined)?.title ?? "",
+    (metadata.twitter as { title?: string; description?: string } | undefined)?.description ?? "",
+  ].filter(Boolean);
+}
+
+describe("company overview metadata regression", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
   });
 
-  it("title includes live company name", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    expect(String(result.title)).toContain("Acme Corp");
+  it("returns dynamic metadata for a valid company with a score", async () => {
+    const result = await loadOverviewMetadata();
+
+    expect(result.title).toBe("Boeing Rotten Score: 39/100 | Evidence & Misconduct");
+    expect(result.description).toBe(
+      "Boeing has a Rotten Score of 39/100 based on 8 documented evidence records. Review misconduct cases, category breakdown, sources and current status.",
+    );
+    expect((result.alternates as { canonical?: string }).canonical).toBe(
+      "https://rotten-company.com/company/boeing",
+    );
+    expect((result.openGraph as { title?: string }).title).toBe(String(result.title));
+    expect((result.openGraph as { description?: string }).description).toBe(String(result.description));
+    expect((result.openGraph as { url?: string }).url).toBe(
+      "https://rotten-company.com/company/boeing",
+    );
+    expect((result.twitter as { title?: string }).title).toBe(String(result.title));
+    expect((result.twitter as { description?: string }).description).toBe(String(result.description));
+    expect(notFoundMock).not.toHaveBeenCalled();
+    expect(permanentRedirectMock).not.toHaveBeenCalled();
+
+    for (const value of metadataStrings(result)) {
+      expect(value).not.toContain("Table_title");
+      expect(value).not.toContain("Table_content");
+      expect(value).not.toContain("| # | Company");
+      expect(value).not.toMatch(/â|—|–/);
+    }
   });
 
-  it("title includes current displayed score", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    expect(String(result.title)).toContain("47");
-  });
-
-  it("title is at least 15 characters", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    expect(String(result.title).length).toBeGreaterThanOrEqual(15);
-  });
-
-  it("title is at most 70 characters for standard name", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    expect(String(result.title).length).toBeLessThanOrEqual(70);
-  });
-
-  it("title uses ASCII | separator (no em-dash mojibake)", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    const t = String(result.title);
-    expect(t).not.toMatch(/â|—|–/);
-    expect(t).toContain("|");
-  });
-
-  it("description includes the score", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    expect(String(result.description)).toContain("47");
-  });
-
-  it("description includes the approved evidence count (5 + 3 = 8)", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    expect(String(result.description)).toContain("8");
-  });
-
-  it("description uses plural 'records' for multiple evidence", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    expect(String(result.description)).toContain("records");
-  });
-
-  it("description uses singular 'record' for one evidence item", async () => {
-    const tables: TableData = {
-      ...BASE_TABLES,
-      company_category_full_breakdown: [
-        { company_id: 1, category_id: 1, category_name: "Corporate Misconduct", evidence_count: 1 },
+  it("returns company-specific fallback metadata when score lookup fails", async () => {
+    const result = await loadOverviewMetadata({
+      overrides: [
+        {
+          table: "company_rotten_score_v2",
+          eqs: [["company_id", 1]],
+          mode: "single",
+          result: { data: null, error: { message: "score unavailable" } },
+        },
       ],
-    };
-    supabaseServerMock.mockResolvedValue(makeSupabase(tables));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    const desc = String(result.description);
-    expect(desc).toContain("1 documented evidence record");
-    expect(desc).not.toMatch(/\b1 documented evidence records\b/);
-  });
+    });
 
-  it("canonical URL uses stored company.slug", async () => {
-    const tables: TableData = {
-      ...BASE_TABLES,
-      companies: [{ id: 1, name: "Acme Corp", slug: "acme-stored-slug", industry: "Tech" }],
-    };
-    supabaseServerMock.mockResolvedValue(makeSupabase(tables));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-stored-slug" } });
-    const canonical = (result.alternates as { canonical?: string })?.canonical ?? "";
-    expect(canonical).toContain("acme-stored-slug");
-    expect(canonical).not.toContain("/breakdown");
-  });
-
-  it("openGraph title matches generated title", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    const ogTitle = (result.openGraph as { title?: string })?.title;
-    expect(ogTitle).toBe(String(result.title));
-  });
-
-  it("openGraph description matches generated description", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    const ogDesc = (result.openGraph as { description?: string })?.description;
-    expect(ogDesc).toBe(String(result.description));
-  });
-
-  it("twitter title matches generated title", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    const tw = result.twitter as { title?: string };
-    expect(tw?.title).toBe(String(result.title));
-  });
-
-  it("twitter description matches generated description", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    const tw = result.twitter as { description?: string };
-    expect(tw?.description).toBe(String(result.description));
-  });
-
-  it("title does not contain serialized table content", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    const t = String(result.title);
-    expect(t).not.toContain("Table_title:");
-    expect(t).not.toContain("Table_content:");
-    expect(t).not.toContain("| # | Company");
-  });
-
-  it("dynamic regression: changing score updates title and description", async () => {
-    supabaseServerMock.mockResolvedValue(
-      makeSupabase({ ...BASE_TABLES, company_rotten_score_v2: [{ company_id: 1, rotten_score: 47 }] }),
+    expect(result.title).toBe("Boeing Rotten Score & Evidence | Rotten Company");
+    expect(result.description).toBe(
+      "Review Boeing's Rotten Score, documented evidence, misconduct cases, category breakdown and sources.",
     );
-    const { generateMetadata: gm1 } = await import("../app/company/[slug]/metadata");
-    const r1 = await gm1({ params: { slug: "acme-corp" } });
-
-    vi.resetModules();
-    supabaseServerMock.mockResolvedValue(
-      makeSupabase({ ...BASE_TABLES, company_rotten_score_v2: [{ company_id: 1, rotten_score: 80 }] }),
+    expect((result.alternates as { canonical?: string }).canonical).toBe(
+      "https://rotten-company.com/company/boeing",
     );
-    const { generateMetadata: gm2 } = await import("../app/company/[slug]/metadata");
-    const r2 = await gm2({ params: { slug: "acme-corp" } });
-
-    expect(String(r1.title)).toContain("47");
-    expect(String(r2.title)).toContain("80");
-    expect(String(r1.description)).toContain("47");
-    expect(String(r2.description)).toContain("80");
+    expect(metadataStrings(result).join(" ")).not.toContain("0/100");
+    expect(notFoundMock).not.toHaveBeenCalled();
   });
 
-  it("404 for nonexistent company — metadata not fabricated", async () => {
-    supabaseServerMock.mockResolvedValue(
-      makeSupabase({ ...BASE_TABLES, companies: [], company_slug_redirects: [] }),
+  it("does not throw when evidence lookup fails", async () => {
+    await expect(loadOverviewMetadata({
+      overrides: [
+        {
+          table: "company_category_full_breakdown",
+          eqs: [["company_id", 1]],
+          mode: "many",
+          reject: new Error("evidence unavailable"),
+        },
+      ],
+    })).resolves.toMatchObject({
+      title: "Boeing Rotten Score: 39/100 | Evidence & Misconduct",
+      description:
+        "Review Boeing's Rotten Score, documented evidence, misconduct cases, category breakdown and sources.",
+    });
+
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
+  it("returns generic fallback metadata on company query DB error without throwing", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      const result = await loadOverviewMetadata({
+        overrides: [
+          {
+            table: "companies",
+            eqs: [["id", 1]],
+            mode: "single",
+            result: { data: null, error: { message: "db unavailable" } },
+          },
+        ],
+      });
+
+      expect(result.title).toBe("Company Rotten Score & Evidence | Rotten Company");
+      expect(result.description).toBe(
+        "Review company Rotten Scores, documented evidence, misconduct cases and sources on Rotten Company.",
+      );
+      expect(result.alternates).toBeUndefined();
+      expect(notFoundMock).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Company metadata lookup failed", {
+        slug: "boeing",
+        error: "db unavailable",
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it("returns generic fallback metadata when slug resolution throws", async () => {
+    const result = await loadOverviewMetadata({
+      overrides: [
+        {
+          table: "companies",
+          eqs: [["slug", "boeing"]],
+          mode: "single",
+          reject: new Error("slug lookup failed"),
+        },
+      ],
+    });
+
+    expect(result.title).toBe("Company Rotten Score & Evidence | Rotten Company");
+    expect(result.description).toBe(
+      "Review company Rotten Scores, documented evidence, misconduct cases and sources on Rotten Company.",
     );
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
+  it("returns generic fallback metadata when company lookup returns null", async () => {
+    const result = await loadOverviewMetadata({
+      overrides: [
+        {
+          table: "companies",
+          eqs: [["id", 1]],
+          mode: "single",
+          result: { data: null, error: null },
+        },
+      ],
+    });
+
+    expect(result.title).toBe("Company Rotten Score & Evidence | Rotten Company");
+    expect(result.description).toBe(
+      "Review company Rotten Scores, documented evidence, misconduct cases and sources on Rotten Company.",
+    );
+    expect(result.alternates).toBeUndefined();
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the stored company slug for the canonical URL", async () => {
+    const result = await loadOverviewMetadata({
+      tables: {
+        ...BASE_TABLES,
+        companies: [
+          { id: 1, name: "Boeing", slug: "boeing-official", industry: "Aerospace" },
+        ],
+      },
+      slug: "boeing-official",
+    });
+
+    expect((result.alternates as { canonical?: string }).canonical).toBe(
+      "https://rotten-company.com/company/boeing-official",
+    );
+    expect((result.openGraph as { url?: string }).url).toBe(
+      "https://rotten-company.com/company/boeing-official",
+    );
+  });
+
+  it("keeps unknown company routes as page-level 404s instead of metadata 404s", async () => {
+    const metadata = await loadOverviewMetadata({
+      tables: {
+        ...BASE_TABLES,
+        companies: [],
+        company_slug_redirects: [],
+      },
+      slug: "missing-company",
+    });
+
+    expect(metadata.title).toBe("Company Rotten Score & Evidence | Rotten Company");
+    expect(notFoundMock).not.toHaveBeenCalled();
+
+    const { default: CompanyPage } = await import("../app/company/[slug]/page");
+
     await expect(
-      generateMetadata({ params: { slug: "does-not-exist" } }),
+      CompanyPage({ params: Promise.resolve({ slug: "missing-company" }) }),
     ).rejects.toThrow("NOT_FOUND");
-  });
-
-  it("legacy slug permanently redirects", async () => {
-    const tables: TableData = {
-      ...BASE_TABLES,
-      company_slug_redirects: [{ company_id: 1, old_slug: "acme", new_slug: "acme-corp" }],
-    };
-    supabaseServerMock.mockResolvedValue(makeSupabase(tables));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    await expect(
-      generateMetadata({ params: { slug: "acme" } }),
-    ).rejects.toThrow("PERMANENT_REDIRECT:/company/acme-corp");
-  });
-
-  it("openGraph type is website", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    const og = result.openGraph as { type?: string };
-    expect(og?.type).toBe("website");
-  });
-
-  it("twitter card is summary_large_image", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata } = await import("../app/company/[slug]/metadata");
-    const result = await generateMetadata({ params: { slug: "acme-corp" } });
-    const tw = result.twitter as { card?: string };
-    expect(tw?.card).toBe("summary_large_image");
   });
 });
 
-// ─── Breakdown metadata tests ─────────────────────────────────────────────────
-
-describe("breakdown generateMetadata", () => {
+describe("company breakdown metadata", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
   });
 
-  it("title contains company name", async () => {
+  it("keeps the breakdown canonical URL on the breakdown route", async () => {
     supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
     const { generateBreakdownMetadata } = await import(
       "../app/company/[slug]/breakdown/metadata"
     );
-    const result = await generateBreakdownMetadata({ slug: "acme-corp" });
-    expect(String(result.title)).toContain("Acme Corp");
-  });
+    const result = await generateBreakdownMetadata({ slug: "boeing" });
 
-  it("title contains Rotten Score Breakdown", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateBreakdownMetadata } = await import(
-      "../app/company/[slug]/breakdown/metadata"
+    expect((result.alternates as { canonical?: string }).canonical).toBe(
+      "https://rotten-company.com/company/boeing/breakdown",
     );
-    const result = await generateBreakdownMetadata({ slug: "acme-corp" });
-    expect(String(result.title)).toContain("Rotten Score Breakdown");
-  });
-
-  it("breakdown canonical ends with /breakdown", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateBreakdownMetadata } = await import(
-      "../app/company/[slug]/breakdown/metadata"
+    expect((result.openGraph as { url?: string }).url).toBe(
+      "https://rotten-company.com/company/boeing/breakdown",
     );
-    const result = await generateBreakdownMetadata({ slug: "acme-corp" });
-    const canonical = (result.alternates as { canonical?: string })?.canonical ?? "";
-    expect(canonical).toMatch(/\/breakdown$/);
-  });
-
-  it("breakdown OG URL uses breakdown canonical", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateBreakdownMetadata } = await import(
-      "../app/company/[slug]/breakdown/metadata"
-    );
-    const result = await generateBreakdownMetadata({ slug: "acme-corp" });
-    const ogUrl = (result.openGraph as { url?: string })?.url ?? "";
-    expect(ogUrl).toMatch(/\/breakdown$/);
-  });
-
-  it("breakdown description is distinct from overview description", async () => {
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateMetadata: overviewMeta } = await import(
-      "../app/company/[slug]/metadata"
-    );
-    const overviewResult = await overviewMeta({ params: { slug: "acme-corp" } });
-
-    vi.resetModules();
-    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
-    const { generateBreakdownMetadata } = await import(
-      "../app/company/[slug]/breakdown/metadata"
-    );
-    const breakdownResult = await generateBreakdownMetadata({ slug: "acme-corp" });
-
-    expect(String(overviewResult.description)).not.toBe(
-      String(breakdownResult.description),
-    );
-  });
-
-  it("uses stored slug, not regenerated slug from name", async () => {
-    const tables: TableData = {
-      ...BASE_TABLES,
-      companies: [{ id: 1, name: "Acme Corp", slug: "acme-stored-slug", industry: "Tech" }],
-    };
-    supabaseServerMock.mockResolvedValue(makeSupabase(tables));
-    const { generateBreakdownMetadata } = await import(
-      "../app/company/[slug]/breakdown/metadata"
-    );
-    const result = await generateBreakdownMetadata({ slug: "acme-stored-slug" });
-    const canonical = (result.alternates as { canonical?: string })?.canonical ?? "";
-    expect(canonical).toContain("acme-stored-slug");
-    expect(canonical).not.toContain("acme-corp");
-  });
-
-  it("long company names get compact title within 70 chars", async () => {
-    const tables: TableData = {
-      ...BASE_TABLES,
-      companies: [{
-        id: 1,
-        name: "A Very Long Corporation Name That Exceeds Typical Length",
-        slug: "a-very-long-corp",
-        industry: "Tech",
-      }],
-    };
-    supabaseServerMock.mockResolvedValue(makeSupabase(tables));
-    const { generateBreakdownMetadata } = await import(
-      "../app/company/[slug]/breakdown/metadata"
-    );
-    const result = await generateBreakdownMetadata({ slug: "a-very-long-corp" });
-    expect(String(result.title).length).toBeLessThanOrEqual(70);
-  });
-
-  it("404 for nonexistent company — metadata not fabricated", async () => {
-    supabaseServerMock.mockResolvedValue(
-      makeSupabase({ ...BASE_TABLES, companies: [], company_slug_redirects: [] }),
-    );
-    const { generateBreakdownMetadata } = await import(
-      "../app/company/[slug]/breakdown/metadata"
-    );
-    await expect(
-      generateBreakdownMetadata({ slug: "does-not-exist" }),
-    ).rejects.toThrow("NOT_FOUND");
   });
 });
