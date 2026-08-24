@@ -159,6 +159,7 @@ function createMockSupabase(nowIsoDate: string, weekAgoIsoDate: string) {
 
 describe("Homepage UI updates", () => {
   beforeAll(() => {
+    vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-18T05:52:32.163Z"));
   });
 
