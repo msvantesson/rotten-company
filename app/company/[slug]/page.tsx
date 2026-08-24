@@ -4,17 +4,18 @@ export const revalidate = 300;
 export const dynamicParams = true;
 
 import { supabaseServer } from "@/lib/supabase-server";
+import { resolveCompanySlug } from "@/lib/company-slug";
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
 import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
-import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 import { getRottenFlavor } from "@/lib/flavor-engine";
 import CategoryInfoPopover from "@/components/CategoryInfoPopover";
 import CeoSection from "@/components/CeoSection";
 import CompanyTabs from "@/components/CompanyTabs";
 import Link from "next/link";
+import { notFound, permanentRedirect } from "next/navigation";
 import { isTestCompany } from "@/lib/test-company";
 import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
@@ -39,6 +40,15 @@ function getCategoryIcon(categoryId: number): string {
   return CATEGORY_ICON_MAP[categoryId] ?? "⚠️";
 }
 
+type CompanyJsonLdInput = Parameters<typeof buildCompanyJsonLd>[0];
+type CompanyBreakdownRow = Omit<CompanyJsonLdInput["breakdown"][number], "final_score"> & {
+  final_score: number | null;
+};
+type JsonLdBreakdownRow = CompanyJsonLdInput["breakdown"][number];
+type OwnershipSignalRow = NonNullable<CompanyJsonLdInput["ownershipSignals"]>[number];
+type DestructionLeverRow = NonNullable<CompanyJsonLdInput["destructionLever"]>;
+type ScoreDebugBreakdownRow = Parameters<typeof ScoreDebugPanel>[0]["breakdown"][number];
+
 type Params = Promise<{ slug: string }> | { slug: string };
 
 export default async function CompanyPage({ params }: { params: Params }) {
@@ -48,6 +58,18 @@ export default async function CompanyPage({ params }: { params: Params }) {
     : "";
 
   const supabase = await supabaseServer();
+  const slugResolution = await resolveCompanySlug(
+    supabase as unknown as Parameters<typeof resolveCompanySlug>[0],
+    rawSlug,
+  );
+
+  if (slugResolution.kind === "not_found") {
+    notFound();
+  }
+
+  if (slugResolution.kind === "redirect") {
+    permanentRedirect(`/company/${slugResolution.canonicalSlug}`);
+  }
 
   // 1) Core company fetch — include country, website, description so they can be displayed
   const { data: company, error: companyError } = await supabase
@@ -55,86 +77,19 @@ export default async function CompanyPage({ params }: { params: Params }) {
     .select(
       "id, name, slug, industry, size_employees_range, country, hq_region, hq_city, website, description",
     )
-    .eq("slug", rawSlug)
+    .eq("id", slugResolution.companyId)
     .maybeSingle();
 
   if (companyError) {
-    console.error("Error loading company:", rawSlug, companyError);
-  }
-
-  // If no company found and a DB error occurred, attempt a fallback select('*') for the same slug
-  // (only when SHOW_DEBUG is enabled — does not affect the production experience)
-  let fallbackCompany: any = null;
-  let fallbackError: any = null;
-  if (!company && companyError && SHOW_DEBUG) {
-    const { data: fbData, error: fbError } = await supabase
-      .from("companies")
-      .select("*")
-      .eq("slug", rawSlug)
-      .maybeSingle();
-    fallbackCompany = fbData ?? null;
-    fallbackError = fbError ?? null;
-    if (fallbackError) {
-      console.error("Fallback select('*') also failed:", rawSlug, fallbackError);
-    }
+    console.error("Error loading company:", slugResolution.companyId, companyError);
   }
 
   if (!company) {
-    // When SHOW_DEBUG is enabled and there was a DB error, surface the error details to the maintainer
-    if (SHOW_DEBUG && (companyError || fallbackError)) {
-      return (
-        <div className="max-w-3xl mx-auto py-16 px-4">
-          <h1 className="text-2xl font-semibold">No company found</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            <strong>Slug</strong>: {rawSlug || "null"}
-          </p>
-          {/* Debug error panel — only rendered when SHOW_DEBUG is enabled */}
-          <div className="mt-4 p-4 bg-red-50 border border-red-300 rounded text-xs text-red-800 font-mono whitespace-pre-wrap">
-            <p className="font-bold mb-1">[DEBUG] Company query error:</p>
-            <p>{JSON.stringify(companyError, null, 2)}</p>
-            {fallbackError && (
-              <>
-                <p className="font-bold mt-2 mb-1">
-                  [DEBUG] Fallback select(&apos;*&apos;) error:
-                </p>
-                <p>{JSON.stringify(fallbackError, null, 2)}</p>
-              </>
-            )}
-            {fallbackCompany && (
-              <>
-                <p className="font-bold mt-2 mb-1">
-                  [DEBUG] Fallback select(&apos;*&apos;) result:
-                </p>
-                <p>{JSON.stringify(fallbackCompany, null, 2)}</p>
-              </>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    // Default: keep the 'No company found' state as before
-    return (
-      <div className="max-w-3xl mx-auto py-16 px-4">
-        <h1 className="text-2xl font-semibold">No company found</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          <strong>Slug</strong>: {rawSlug || "null"}
-        </p>
-      </div>
-    );
-  }
-
-  // Evidence (still loaded for JSON-LD / debug panel if needed)
-  let evidence: any[] = [];
-  try {
-    evidence = (await getEvidenceWithManagers(company.id)) ?? [];
-  } catch (e) {
-    console.error("Error loading evidence for company:", company.id, e);
-    evidence = [];
+    notFound();
   }
 
   // Category breakdown (still loaded for JSON-LD / debug panel if needed)
-  let breakdownWithFlavor: any[] = [];
+  let breakdownWithFlavor: CompanyBreakdownRow[] = [];
   try {
     const { data: mergedBreakdown, error: breakdownError } = await supabase
       .from("company_category_full_breakdown")
@@ -151,7 +106,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
       );
     }
 
-    breakdownWithFlavor = mergedBreakdown ?? [];
+    breakdownWithFlavor = (mergedBreakdown ?? []) as CompanyBreakdownRow[];
   } catch (e) {
     console.error(
       "Unexpected error building breakdown for company:",
@@ -190,6 +145,13 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
   // Flavor (canonical)
   const flavor = getRottenFlavor(liveRottenScore ?? 0);
+  const jsonLdBreakdown = breakdownWithFlavor.filter(
+    (row): row is JsonLdBreakdownRow => typeof row.final_score === "number",
+  );
+  const scoreDebugBreakdown: ScoreDebugBreakdownRow[] = jsonLdBreakdown.map((row) => ({
+    ...row,
+    evidence_score: row.severity_score,
+  }));
 
   // Main driver: category with the highest final_score (contribution points)
   const mainDriver = (() => {
@@ -283,7 +245,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   }
 
   // Ownership signals
-  let ownershipSignals: any[] = [];
+  let ownershipSignals: OwnershipSignalRow[] = [];
   try {
     const { data: ownershipSignalsData, error: ownershipError } = await supabase
       .from("ownership_signals_summary")
@@ -298,14 +260,14 @@ export default async function CompanyPage({ params }: { params: Params }) {
       );
     }
 
-    ownershipSignals = ownershipSignalsData ?? [];
+    ownershipSignals = (ownershipSignalsData ?? []) as OwnershipSignalRow[];
   } catch (e) {
     console.error("Unexpected error loading ownership_signals_summary:", e);
     ownershipSignals = [];
   }
 
   // Destruction lever
-  let destructionLever: any | null = null;
+  let destructionLever: DestructionLeverRow | null = null;
   try {
     const { data: destructionLeverData, error: destructionError } = await supabase
       .from("company_destruction_lever")
@@ -321,20 +283,20 @@ export default async function CompanyPage({ params }: { params: Params }) {
       );
     }
 
-    destructionLever = destructionLeverData ?? null;
+    destructionLever = (destructionLeverData as DestructionLeverRow | null) ?? null;
   } catch (e) {
     console.error("Unexpected error loading company_destruction_lever:", e);
     destructionLever = null;
   }
 
   // JSON-LD — suppressed for test companies to avoid polluting search indexes
-  let jsonLd: any = null;
+  let jsonLd: ReturnType<typeof buildCompanyJsonLd> | null = null;
   if (!isTestCompany(company.name)) {
     try {
       jsonLd = buildCompanyJsonLd({
         company,
         rottenScore: liveRottenScore,
-        breakdown: breakdownWithFlavor,
+        breakdown: jsonLdBreakdown,
         ownershipSignals,
         destructionLever,
       });
@@ -568,7 +530,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
           <div className="mt-8">
             <ScoreDebugPanel
               score={liveRottenScore}
-              breakdown={breakdownWithFlavor}
+              breakdown={scoreDebugBreakdown}
             />
           </div>
         )}

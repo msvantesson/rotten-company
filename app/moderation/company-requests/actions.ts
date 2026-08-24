@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getModerationGateStatus } from "@/lib/moderation-guards";
 import { buildCompanyEditPatch } from "@/lib/company-edit-patch";
 import { companyInsertFromRequest } from "@/lib/company/companyInsertFromRequest";
+import { ensureCompanySlugAvailable } from "@/lib/company-slug";
 import { notifyIndexNow, companyIndexNowUrl } from "@/lib/indexnow";
 import { slugify } from "@/lib/slugify";
 
@@ -227,22 +228,20 @@ export async function approveCompanyRequest(formData: FormData) {
     companySlug = existingCompany?.slug ?? "";
   } else {
     const baseSlug = slugify(cr.name) || `company-${requestId.slice(0, 8)}`;
-    let slug = baseSlug;
+    const slugAvailability = await ensureCompanySlugAvailable(
+      service as unknown as Parameters<typeof ensureCompanySlugAvailable>[0],
+      baseSlug,
+    );
 
-    for (let i = 0; i < 10; i++) {
-      const { data: existing } = await service
-        .from("companies")
-        .select("id")
-        .eq("slug", slug)
-        .maybeSingle();
-
-      if (!existing) break;
-      slug = `${baseSlug}-${i + 2}`;
+    if (!slugAvailability.available) {
+      redirect(
+        `/moderation/company-requests/${requestId}?error=${encodeURIComponent(slugAvailability.message)}`,
+      );
     }
 
     const { data: company, error: companyInsertErr } = await service
       .from("companies")
-      .insert(companyInsertFromRequest(cr, slug))
+      .insert(companyInsertFromRequest(cr, slugAvailability.slug))
       .select("id, slug")
       .single();
 

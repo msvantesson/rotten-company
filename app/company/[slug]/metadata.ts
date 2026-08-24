@@ -1,8 +1,10 @@
 import { Metadata } from "next";
 import { getMacroTier } from "@/lib/flavor-engine";
+import { resolveCompanySlug } from "@/lib/company-slug";
 import { supabaseServer } from "@/lib/supabase-server";
 import { isTestCompany } from "@/lib/test-company";
 import { canonicalUrl, SITE_ORIGIN } from "@/lib/seo";
+import { notFound, permanentRedirect } from "next/navigation";
 
 type Params = { slug: string };
 
@@ -10,18 +12,27 @@ export async function generateMetadata(
   { params }: { params: Params }
 ): Promise<Metadata> {
   const supabase = await supabaseServer();
+  const slugResolution = await resolveCompanySlug(
+    supabase as unknown as Parameters<typeof resolveCompanySlug>[0],
+    params.slug,
+  );
+
+  if (slugResolution.kind === "not_found") {
+    notFound();
+  }
+
+  if (slugResolution.kind === "redirect") {
+    permanentRedirect(`/company/${slugResolution.canonicalSlug}`);
+  }
 
   const { data: company } = await supabase
     .from("companies")
     .select("id, name, slug, industry")
-    .eq("slug", params.slug)
+    .eq("id", slugResolution.companyId)
     .maybeSingle();
 
   if (!company) {
-    return {
-      title: "Company Not Found",
-      description: "This company does not exist in the Rotten Company database.",
-    };
+    notFound();
   }
 
   const { data: scoreRow } = await supabase
