@@ -2,11 +2,23 @@
 // while still serving reasonably fresh data. Increase for lower load or decrease for fresher data.
 export const revalidate = 300;
 
+import { type Metadata } from "next";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 import CompanyTabs from "@/components/CompanyTabs";
+import { generateBreakdownMetadata } from "./metadata";
+
+// Re-export generateMetadata so Next.js picks it up from this route file.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug?: string }> | { slug?: string };
+}): Promise<Metadata> {
+  const resolvedParams = await Promise.resolve(params);
+  return generateBreakdownMetadata({ slug: resolvedParams?.slug });
+}
 
 export default async function BreakdownPage({
   params,

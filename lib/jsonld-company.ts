@@ -152,5 +152,6 @@ export function buildCompanyJsonLd({
     microFlavor,
     confidenceLevel,
     totalSignals,
+    dateModified: new Date().toISOString(),
   };
 }
