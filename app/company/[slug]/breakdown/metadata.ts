@@ -1,23 +1,27 @@
-import { Metadata } from "next";
-import { resolveCompanySlug } from "@/lib/company-slug";
+import { type Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase-server";
+import { resolveCompanySlug } from "@/lib/company-slug";
 import { isTestCompany } from "@/lib/test-company";
 import { canonicalUrl, SITE_ORIGIN } from "@/lib/seo";
-import { notFound, permanentRedirect } from "next/navigation";
 import {
-  buildOverviewTitle,
-  buildOverviewDescription,
+  buildBreakdownTitle,
+  buildBreakdownDescription,
 } from "@/lib/company-seo";
 
-type Params = { slug: string };
+type Params = { slug?: string };
 
-export async function generateMetadata(
-  { params }: { params: Params }
+export async function generateBreakdownMetadata(
+  params: Params,
 ): Promise<Metadata> {
+  const rawSlug = params.slug
+    ? decodeURIComponent(params.slug)
+    : "";
+
   const supabase = await supabaseServer();
   const slugResolution = await resolveCompanySlug(
     supabase as unknown as Parameters<typeof resolveCompanySlug>[0],
-    params.slug,
+    rawSlug,
   );
 
   if (slugResolution.kind === "not_found") {
@@ -25,12 +29,12 @@ export async function generateMetadata(
   }
 
   if (slugResolution.kind === "redirect") {
-    permanentRedirect(`/company/${slugResolution.canonicalSlug}`);
+    permanentRedirect(`/company/${slugResolution.canonicalSlug}/breakdown`);
   }
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, name, slug, industry, updated_at")
+    .select("id, name, slug")
     .eq("id", slugResolution.companyId)
     .maybeSingle();
 
@@ -46,51 +50,24 @@ export async function generateMetadata(
 
   const rottenScore = scoreRow?.rotten_score ?? null;
 
-  // Sum approved evidence count from category breakdown view
-  const { data: breakdownRows } = await supabase
-    .from("company_category_full_breakdown")
-    .select("evidence_count")
-    .eq("company_id", company.id);
+  const title = buildBreakdownTitle(company.name);
+  const description = buildBreakdownDescription(company.name, rottenScore);
+  const url = canonicalUrl(`/company/${company.slug}/breakdown`);
 
-  const evidenceCount = (breakdownRows ?? []).reduce(
-    (sum: number, row: { evidence_count?: number | null }) =>
-      sum + (row.evidence_count ?? 0),
-    0,
-  );
-
-  const title = buildOverviewTitle(company.name, rottenScore);
-  const description = buildOverviewDescription(
-    company.name,
-    rottenScore,
-    evidenceCount,
-  );
-
-  const url = canonicalUrl(`/company/${company.slug}`);
-
-  // Prevent test companies from being indexed.
   if (isTestCompany(company.name)) {
     return {
       title,
       description,
       robots: { index: false, follow: false },
-      openGraph: {
-        title,
-        description,
-      },
-      twitter: {
-        card: "summary_large_image",
-        title,
-        description,
-      },
+      openGraph: { title, description },
+      twitter: { card: "summary_large_image", title, description },
     };
   }
 
   return {
     title,
     description,
-    alternates: {
-      canonical: url,
-    },
+    alternates: { canonical: url },
     openGraph: {
       title,
       description,
@@ -102,7 +79,7 @@ export async function generateMetadata(
           url: `${SITE_ORIGIN}/api/og/company?slug=${company.slug}`,
           width: 1200,
           height: 630,
-          alt: `${company.name} Rotten Score`,
+          alt: `${company.name} Rotten Score Breakdown`,
         },
       ],
     },

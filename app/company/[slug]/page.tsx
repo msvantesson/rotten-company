@@ -3,6 +3,9 @@
 export const revalidate = 300;
 export const dynamicParams = true;
 
+// Re-export generateMetadata so Next.js picks it up from this route file.
+export { generateMetadata } from "./metadata";
+
 import { supabaseServer } from "@/lib/supabase-server";
 import { resolveCompanySlug } from "@/lib/company-slug";
 import RatingStars from "@/components/RatingStars";
@@ -19,6 +22,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { isTestCompany } from "@/lib/test-company";
 import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
+import { buildSsrAnswer } from "@/lib/company-seo";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -75,7 +79,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .select(
-      "id, name, slug, industry, size_employees_range, country, hq_region, hq_city, website, description",
+      "id, name, slug, industry, size_employees_range, country, hq_region, hq_city, website, description, updated_at",
     )
     .eq("id", slugResolution.companyId)
     .maybeSingle();
@@ -148,6 +152,13 @@ export default async function CompanyPage({ params }: { params: Params }) {
   const jsonLdBreakdown = breakdownWithFlavor.filter(
     (row): row is JsonLdBreakdownRow => typeof row.final_score === "number",
   );
+
+  // Total approved evidence count (used by SSR answer)
+  const totalEvidenceCount = breakdownWithFlavor.reduce(
+    (sum, row) => sum + (typeof row.evidence_count === "number" ? row.evidence_count : 0),
+    0,
+  );
+
   const scoreDebugBreakdown: ScoreDebugBreakdownRow[] = jsonLdBreakdown.map((row) => ({
     ...row,
     evidence_score: row.severity_score,
@@ -352,6 +363,11 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
           <CompanyTabs slug={company.slug} />
         </header>
+
+        {/* Server-rendered SEO answer — present in initial HTML, uses live DB values */}
+        <p className="mt-2 text-sm text-gray-700" data-testid="ssr-answer">
+          {buildSsrAnswer(company.name, liveRottenScore, totalEvidenceCount)}
+        </p>
 
         <section className="space-y-3">
           <div className="flex items-center gap-3">
