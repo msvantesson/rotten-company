@@ -52,6 +52,23 @@ vi.mock("@/lib/getEvidenceWithManagers", () => ({
   getEvidenceWithManagers: vi.fn(async () => []),
 }));
 
+vi.mock("@/lib/company-slug", async () => await import("../lib/company-slug"));
+
+vi.mock("@/lib/test-company", () => ({
+  isTestCompany: () => false,
+}));
+
+vi.mock("@/lib/seo", () => ({
+  canonicalUrl: (path: string) => `https://example.test${path}`,
+  buildBreadcrumbJsonLd: (items: unknown[]) => ({ items }),
+  SITE_ORIGIN: "https://example.test",
+}));
+
+vi.mock("@/lib/company-seo", () => ({
+  buildBreakdownTitle: (name: string) => `${name} Rotten Score Breakdown | Categories & Calculation`,
+  buildBreakdownDescription: () => "Breakdown description.",
+}));
+
 function makeSupabase(
   company: Record<string, unknown> | null,
   breakdown: Array<Record<string, unknown>> = [],
