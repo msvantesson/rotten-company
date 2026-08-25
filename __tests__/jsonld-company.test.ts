@@ -12,6 +12,8 @@ vi.mock("@/lib/flavor-engine", () => ({
   getCategoryFlavor: (id: number) => `flavor-${id}`,
 }));
 
+vi.mock("@/lib/company-modified-at", async () => await import("../lib/company-modified-at"));
+
 import { buildCompanyJsonLd } from "../lib/jsonld-company";
 
 const baseCompany = {
@@ -83,7 +85,16 @@ describe("buildCompanyJsonLd – Organization JSON-LD", () => {
 
   it("preserves dateModified", () => {
     const ld = buildCompanyJsonLd({ company: baseCompany, rottenScore: 50, breakdown: baseBreakdown });
-    expect(ld.dateModified).toBe("2024-01-01T00:00:00Z");
+    expect(ld.dateModified).toBe("2024-01-01T00:00:00.000Z");
+  });
+
+  it("omits invalid dateModified safely", () => {
+    const ld = buildCompanyJsonLd({
+      company: { ...baseCompany, updated_at: "not-a-date" },
+      rottenScore: 50,
+      breakdown: baseBreakdown,
+    });
+    expect(ld.dateModified).toBeUndefined();
   });
 
   it("preserves description", () => {

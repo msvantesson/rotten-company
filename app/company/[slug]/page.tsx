@@ -23,6 +23,7 @@ import { isTestCompany } from "@/lib/test-company";
 import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
 import { buildSsrAnswer } from "@/lib/company-seo";
+import { calculateCompanyModifiedAt, latestValidIsoDate } from "@/lib/company-modified-at";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -91,6 +92,38 @@ export default async function CompanyPage({ params }: { params: Params }) {
   if (!company) {
     notFound();
   }
+
+  let approvedEvidenceUpdatedAt: string | null = null;
+  try {
+    const { data: approvedEvidenceRows, error: approvedEvidenceError } = await supabase
+      .from("evidence")
+      .select("created_at")
+      .eq("company_id", company.id)
+      .eq("status", "approved");
+
+    if (approvedEvidenceError) {
+      console.error(
+        "Error loading approved evidence timestamps for company:",
+        company.id,
+        approvedEvidenceError,
+      );
+    } else {
+      approvedEvidenceUpdatedAt = latestValidIsoDate(
+        ...(approvedEvidenceRows ?? []).map((row: { created_at?: string | null }) => row.created_at ?? null),
+      );
+    }
+  } catch (e) {
+    console.error(
+      "Unexpected error loading approved evidence timestamps for company:",
+      company.id,
+      e,
+    );
+  }
+
+  const companyModifiedAt = calculateCompanyModifiedAt({
+    companyUpdatedAt: company.updated_at,
+    approvedEvidenceUpdatedAt: approvedEvidenceUpdatedAt,
+  });
 
   // Category breakdown (still loaded for JSON-LD / debug panel if needed)
   let breakdownWithFlavor: CompanyBreakdownRow[] = [];
@@ -305,7 +338,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
   if (!isTestCompany(company.name)) {
     try {
       jsonLd = buildCompanyJsonLd({
-        company,
+        company: {
+          ...company,
+          updated_at: companyModifiedAt ?? company.updated_at,
+        },
         rottenScore: liveRottenScore,
         breakdown: jsonLdBreakdown,
         ownershipSignals,
