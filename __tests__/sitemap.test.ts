@@ -21,24 +21,35 @@ type CompanyRow = {
   updated_at: string | null;
 };
 
+type EvidenceRow = {
+  company_id: number;
+  created_at: string;
+};
+
 function createSitemapSupabase(params: {
   companies: CompanyRow[];
   leaders?: Array<{ slug: string | null }>;
   categories?: Array<{ slug: string | null }>;
+  evidence?: EvidenceRow[];
 }) {
   const companyRanges: Array<{ from: number; to: number }> = [];
   const companyOrders: Array<{ column: string; ascending: boolean | undefined }> = [];
+  let evidenceQueryCount = 0;
 
   const leaders = params.leaders ?? [];
   const categories = params.categories ?? [];
+  const evidence = params.evidence ?? [];
 
   const from = (table: string) => {
     const state: {
       range?: { from: number; to: number };
     } = {};
 
+    if (table === "evidence") evidenceQueryCount++;
+
     const query = {
       select: () => query,
+      eq: () => query,
       order: (column: string, options?: { ascending?: boolean }) => {
         if (table === "companies") {
           companyOrders.push({ column, ascending: options?.ascending });
@@ -68,6 +79,8 @@ function createSitemapSupabase(params: {
           data = leaders;
         } else if (table === "categories") {
           data = categories;
+        } else if (table === "evidence") {
+          data = evidence;
         }
 
         return Promise.resolve({ data, error: null }).then(onfulfilled, onrejected);
@@ -81,6 +94,7 @@ function createSitemapSupabase(params: {
     from,
     companyRanges,
     companyOrders,
+    get evidenceQueryCount() { return evidenceQueryCount; },
   };
 }
 
@@ -175,5 +189,84 @@ describe("sitemap", () => {
     expect(urls).not.toContain("https://example.test/company/");
     expect(urls).not.toContain("https://example.test/leader/");
     expect(urls).not.toContain("https://example.test/category/");
+
+    // Bulk evidence query: exactly one query to the evidence table (no N+1).
+    expect(mockSupabase.evidenceQueryCount).toBe(1);
+  });
+
+  it("uses newer approved evidence created_at as lastModified when it beats company.updated_at", async () => {
+    const companies: CompanyRow[] = [
+      { id: 10, slug: "acme", name: "Acme Corp", updated_at: "2024-01-01T00:00:00.000Z" },
+    ];
+    const evidence: EvidenceRow[] = [
+      { company_id: 10, created_at: "2025-06-15T12:00:00.000Z" },
+    ];
+
+    const mockSupabase = createSitemapSupabase({ companies, evidence });
+    supabaseServiceMock.mockReturnValue(mockSupabase);
+
+    const { default: sitemap } = await import("../app/sitemap");
+    const entries = await sitemap();
+
+    const acme = entries.find((e) => e.url === "https://example.test/company/acme");
+    expect(acme).toBeDefined();
+    expect(acme?.lastModified).toBeInstanceOf(Date);
+    expect((acme?.lastModified as Date).toISOString()).toBe("2025-06-15T12:00:00.000Z");
+  });
+
+  it("keeps company.updated_at when it is more recent than the evidence timestamp", async () => {
+    const companies: CompanyRow[] = [
+      { id: 20, slug: "beta", name: "Beta Inc", updated_at: "2026-01-01T00:00:00.000Z" },
+    ];
+    const evidence: EvidenceRow[] = [
+      { company_id: 20, created_at: "2025-06-15T12:00:00.000Z" },
+    ];
+
+    const mockSupabase = createSitemapSupabase({ companies, evidence });
+    supabaseServiceMock.mockReturnValue(mockSupabase);
+
+    const { default: sitemap } = await import("../app/sitemap");
+    const entries = await sitemap();
+
+    const beta = entries.find((e) => e.url === "https://example.test/company/beta");
+    expect(beta).toBeDefined();
+    expect((beta?.lastModified as Date).toISOString()).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("falls back to company.updated_at when no evidence exists for company", async () => {
+    const companies: CompanyRow[] = [
+      { id: 30, slug: "gamma", name: "Gamma LLC", updated_at: "2025-03-15T08:00:00.000Z" },
+    ];
+    const evidence: EvidenceRow[] = [];
+
+    const mockSupabase = createSitemapSupabase({ companies, evidence });
+    supabaseServiceMock.mockReturnValue(mockSupabase);
+
+    const { default: sitemap } = await import("../app/sitemap");
+    const entries = await sitemap();
+
+    const gamma = entries.find((e) => e.url === "https://example.test/company/gamma");
+    expect(gamma).toBeDefined();
+    expect((gamma?.lastModified as Date).toISOString()).toBe("2025-03-15T08:00:00.000Z");
+
+    // Evidence query is still sent once (bulk, not per-company).
+    expect(mockSupabase.evidenceQueryCount).toBe(1);
+  });
+
+  it("sitemap retains stored canonical slugs unchanged", async () => {
+    const companies: CompanyRow[] = [
+      { id: 40, slug: "boeing", name: "Boeing", updated_at: "2025-01-01T00:00:00.000Z" },
+      { id: 41, slug: "amazon", name: "Amazon", updated_at: "2025-01-02T00:00:00.000Z" },
+    ];
+
+    const mockSupabase = createSitemapSupabase({ companies });
+    supabaseServiceMock.mockReturnValue(mockSupabase);
+
+    const { default: sitemap } = await import("../app/sitemap");
+    const entries = await sitemap();
+    const companyUrls = entries.map((e) => e.url).filter((u) => u.includes("/company/"));
+
+    expect(companyUrls).toContain("https://example.test/company/boeing");
+    expect(companyUrls).toContain("https://example.test/company/amazon");
   });
 });

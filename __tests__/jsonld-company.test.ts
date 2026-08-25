@@ -83,7 +83,62 @@ describe("buildCompanyJsonLd – Organization JSON-LD", () => {
 
   it("preserves dateModified", () => {
     const ld = buildCompanyJsonLd({ company: baseCompany, rottenScore: 50, breakdown: baseBreakdown });
-    expect(ld.dateModified).toBe("2024-01-01T00:00:00Z");
+    // latestValidIsoDate normalizes to full ISO format
+    expect(ld.dateModified).toBe("2024-01-01T00:00:00.000Z");
+  });
+
+  it("uses newer evidenceTimestamp as dateModified when it is more recent", () => {
+    const ld = buildCompanyJsonLd({
+      company: baseCompany,
+      rottenScore: 50,
+      breakdown: baseBreakdown,
+      evidenceTimestamp: "2025-06-15T12:00:00.000Z",
+    });
+    expect(ld.dateModified).toBe("2025-06-15T12:00:00.000Z");
+  });
+
+  it("keeps company.updated_at as dateModified when evidenceTimestamp is older", () => {
+    const ld = buildCompanyJsonLd({
+      company: { ...baseCompany, updated_at: "2026-01-01T00:00:00.000Z" },
+      rottenScore: 50,
+      breakdown: baseBreakdown,
+      evidenceTimestamp: "2025-06-15T12:00:00.000Z",
+    });
+    expect(ld.dateModified).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("ignores null evidenceTimestamp and uses company.updated_at", () => {
+    const ld = buildCompanyJsonLd({
+      company: baseCompany,
+      rottenScore: 50,
+      breakdown: baseBreakdown,
+      evidenceTimestamp: null,
+    });
+    expect(ld.dateModified).toBe("2024-01-01T00:00:00.000Z");
+  });
+
+  it("falls back to company.updated_at when evidenceTimestamp is malformed", () => {
+    const ld = buildCompanyJsonLd({
+      company: baseCompany,
+      rottenScore: 50,
+      breakdown: baseBreakdown,
+      evidenceTimestamp: "not-a-date",
+    });
+    expect(ld.dateModified).toBe("2024-01-01T00:00:00.000Z");
+  });
+
+  it("dateModified is undefined (not current time) when both timestamps are null/undefined", () => {
+    const before = Date.now();
+    const ld = buildCompanyJsonLd({
+      company: { ...baseCompany, updated_at: null },
+      rottenScore: 50,
+      breakdown: baseBreakdown,
+      evidenceTimestamp: null,
+    });
+    // Must NOT be current time — if dateModified exists it must be in the past
+    if (ld.dateModified != null) {
+      expect(new Date(ld.dateModified).getTime()).toBeLessThan(before);
+    }
   });
 
   it("preserves description", () => {

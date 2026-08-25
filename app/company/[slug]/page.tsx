@@ -300,6 +300,33 @@ export default async function CompanyPage({ params }: { params: Params }) {
     destructionLever = null;
   }
 
+  // Latest approved evidence timestamp — used for accurate dateModified in JSON-LD.
+  // Failure must not affect the page render: fall back to null (company.updated_at is the baseline).
+  let latestEvidenceTimestamp: string | null = null;
+  try {
+    const { data: latestEvidenceRow, error: latestEvidenceError } = await supabase
+      .from("evidence")
+      .select("created_at")
+      .eq("company_id", company.id)
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestEvidenceError) {
+      console.error(
+        "Error loading latest evidence timestamp for company:",
+        company.id,
+        latestEvidenceError,
+      );
+    }
+
+    latestEvidenceTimestamp = latestEvidenceRow?.created_at ?? null;
+  } catch (e) {
+    console.error("Unexpected error loading latest evidence timestamp for company:", company.id, e);
+    latestEvidenceTimestamp = null;
+  }
+
   // JSON-LD — suppressed for test companies to avoid polluting search indexes
   let jsonLd: ReturnType<typeof buildCompanyJsonLd> | null = null;
   if (!isTestCompany(company.name)) {
@@ -310,6 +337,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
         breakdown: jsonLdBreakdown,
         ownershipSignals,
         destructionLever,
+        evidenceTimestamp: latestEvidenceTimestamp,
       });
     } catch (e) {
       console.error(

@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { supabaseService } from "@/lib/supabase-service";
 import { isTestCompany } from "@/lib/test-company";
 import { SITE_ORIGIN } from "@/lib/seo";
+import { latestValidIsoDate } from "@/lib/latest-valid-iso-date";
 
 export const revalidate = 300;
 export const COMPANY_SITEMAP_PAGE_SIZE = 500;
@@ -22,10 +23,35 @@ function normalizeSlug(slug: string | null | undefined): string | null {
   return normalized ? normalized : null;
 }
 
-function parseLastModified(updatedAt: string | null | undefined): Date | undefined {
-  if (!updatedAt) return undefined;
-  const parsed = new Date(updatedAt);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+/**
+ * Bulk-fetches the latest approved evidence created_at per company_id.
+ * Returns a Map<company_id, created_at_string>.
+ * A single query — no N+1.
+ */
+async function fetchLatestEvidenceTimestamps(
+  supabase: ReturnType<typeof supabaseService>,
+): Promise<Map<number, string>> {
+  const map = new Map<number, string>();
+  try {
+    const { data, error } = await supabase
+      .from("evidence")
+      .select("company_id, created_at")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return map;
+
+    for (const row of data as Array<{ company_id: number | null; created_at: string | null }>) {
+      const id = row.company_id;
+      const ts = row.created_at;
+      if (id == null || ts == null) continue;
+      // First occurrence is the latest because rows are ordered desc.
+      if (!map.has(id)) map.set(id, ts);
+    }
+  } catch {
+    // Non-fatal: sitemap falls back to company.updated_at only.
+  }
+  return map;
 }
 
 async function fetchCompaniesForSitemap(supabase: ReturnType<typeof supabaseService>) {
@@ -85,13 +111,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // --- Approved companies (all rows in the companies table are approved) ---
   // Exclude test companies identified by "(test)" in the name.
   try {
-    const companies = await fetchCompaniesForSitemap(supabase);
+    const [companies, evidenceTimestamps] = await Promise.all([
+      fetchCompaniesForSitemap(supabase),
+      fetchLatestEvidenceTimestamps(supabase),
+    ]);
 
     for (const company of companies) {
       const slug = normalizeSlug(company.slug);
       if (!slug || EXCLUDED_COMPANY_SLUGS.has(slug) || isTestCompany(company.name)) continue;
 
-      const lastModified = parseLastModified(company.updated_at);
+      const isoDate = latestValidIsoDate(
+        company.updated_at,
+        evidenceTimestamps.get(company.id) ?? null,
+      );
+      const lastModified = isoDate ? new Date(isoDate) : undefined;
       entries.push({
         url: `${SITE_ORIGIN}/company/${slug}`,
         changeFrequency: "weekly",

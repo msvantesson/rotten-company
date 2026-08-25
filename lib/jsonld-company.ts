@@ -1,6 +1,7 @@
 // /lib/jsonld-company.ts
 
 import { getRottenFlavor, getCategoryFlavor } from "@/lib/flavor-engine";
+import { latestValidIsoDate } from "@/lib/latest-valid-iso-date";
 
 type CategoryBreakdownJsonLd = {
   category_id: number;
@@ -39,6 +40,8 @@ type JsonLdInput = {
     destruction_lever_score?: number | null;
     is_pe_destructive?: boolean | null;
   } | null;
+  /** Latest approved evidence created_at, if available. Used to compute dateModified. */
+  evidenceTimestamp?: string | null;
 };
 
 export function buildCompanyJsonLd({
@@ -47,6 +50,7 @@ export function buildCompanyJsonLd({
   breakdown,
   ownershipSignals = [],
   destructionLever = null,
+  evidenceTimestamp = null,
 }: JsonLdInput) {
   const score = rottenScore ?? 0;
 
@@ -164,6 +168,6 @@ export function buildCompanyJsonLd({
     microFlavor,
     confidenceLevel,
     totalSignals,
-    dateModified: company.updated_at ?? new Date().toISOString(),
+    dateModified: latestValidIsoDate(company.updated_at, evidenceTimestamp) ?? company.updated_at ?? undefined,
   };
 }
