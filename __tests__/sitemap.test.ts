@@ -14,6 +14,8 @@ vi.mock("@/lib/seo", () => ({
   SITE_ORIGIN: "https://example.test",
 }));
 
+vi.mock("@/lib/company-modified-at", async () => await import("../lib/company-modified-at"));
+
 type CompanyRow = {
   id: number;
   slug: string | null;
@@ -21,20 +23,32 @@ type CompanyRow = {
   updated_at: string | null;
 };
 
+type EvidenceRow = {
+  company_id: number | null;
+  status: string | null;
+  created_at: string | null;
+};
+
 function createSitemapSupabase(params: {
   companies: CompanyRow[];
+  evidence?: EvidenceRow[];
+  failEvidenceLookup?: boolean;
   leaders?: Array<{ slug: string | null }>;
   categories?: Array<{ slug: string | null }>;
 }) {
   const companyRanges: Array<{ from: number; to: number }> = [];
   const companyOrders: Array<{ column: string; ascending: boolean | undefined }> = [];
+  const evidenceInFilters: number[][] = [];
 
   const leaders = params.leaders ?? [];
   const categories = params.categories ?? [];
+  const evidence = params.evidence ?? [];
 
   const from = (table: string) => {
     const state: {
       range?: { from: number; to: number };
+      eqs?: Array<[string, unknown]>;
+      inFilters?: Array<[string, unknown[]]>;
     } = {};
 
     const query = {
@@ -45,6 +59,17 @@ function createSitemapSupabase(params: {
         }
         return query;
       },
+      eq: (column: string, value: unknown) => {
+        state.eqs = [...(state.eqs ?? []), [column, value]];
+        return query;
+      },
+      in: (column: string, values: unknown[]) => {
+        state.inFilters = [...(state.inFilters ?? []), [column, values]];
+        if (table === "evidence" && column === "company_id") {
+          evidenceInFilters.push(values.map((value) => Number(value)));
+        }
+        return query;
+      },
       range: (from: number, to: number) => {
         if (table === "companies") {
           state.range = { from, to };
@@ -52,11 +77,12 @@ function createSitemapSupabase(params: {
         }
         return query;
       },
-      then: <TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
-        onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
+      then: <TResult1 = { data: unknown[]; error: Error | null }, TResult2 = never>(
+        onfulfilled?: ((value: { data: unknown[]; error: Error | null }) => TResult1 | PromiseLike<TResult1>) | null,
         onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
       ) => {
         let data: unknown[] = [];
+        let error: Error | null = null;
 
         if (table === "companies") {
           const range = state.range ?? {
@@ -64,13 +90,24 @@ function createSitemapSupabase(params: {
             to: params.companies.length ? params.companies.length - 1 : -1,
           };
           data = params.companies.slice(range.from, range.to + 1);
+        } else if (table === "evidence") {
+          if (params.failEvidenceLookup) {
+            error = new Error("evidence lookup failed");
+          }
+          data = evidence
+            .filter((row) =>
+              (state.eqs ?? []).every(([column, value]) => (row as Record<string, unknown>)[column] === value),
+            )
+            .filter((row) =>
+              (state.inFilters ?? []).every(([column, values]) => values.includes((row as Record<string, unknown>)[column])),
+            );
         } else if (table === "leaders") {
           data = leaders;
         } else if (table === "categories") {
           data = categories;
         }
 
-        return Promise.resolve({ data, error: null }).then(onfulfilled, onrejected);
+        return Promise.resolve({ data, error }).then(onfulfilled, onrejected);
       },
     };
 
@@ -81,6 +118,7 @@ function createSitemapSupabase(params: {
     from,
     companyRanges,
     companyOrders,
+    evidenceInFilters,
   };
 }
 
@@ -113,6 +151,12 @@ describe("sitemap", () => {
 
     const mockSupabase = createSitemapSupabase({
       companies: orderedCompanies,
+      evidence: [
+        { company_id: 1201, status: "approved", created_at: "2026-08-21T12:34:56.000Z" },
+        { company_id: 1201, status: "approved", created_at: "2026-08-20T12:34:56.000Z" },
+        { company_id: 1202, status: "approved", created_at: "2026-08-19T10:00:00.000Z" },
+        { company_id: 1202, status: "pending", created_at: "2026-08-22T10:00:00.000Z" },
+      ],
       leaders: [
         { slug: "leader-one" },
         { slug: " demo-leader " },
@@ -138,6 +182,7 @@ describe("sitemap", () => {
       { column: "id", ascending: true },
       { column: "id", ascending: true },
     ]);
+    expect(mockSupabase.evidenceInFilters.map((batch) => batch.length)).toEqual([500, 500, 203]);
 
     const urls = entries.map((entry) => entry.url);
     const companyUrls = urls.filter((url) => url.includes("/company/"));
@@ -165,7 +210,7 @@ describe("sitemap", () => {
     if (!(companyWithDate?.lastModified instanceof Date)) {
       throw new Error("Expected company lastModified to be a Date");
     }
-    expect(companyWithDate.lastModified.toISOString()).toBe("2026-08-20T12:34:56.000Z");
+    expect(companyWithDate.lastModified.toISOString()).toBe("2026-08-21T12:34:56.000Z");
 
     const companyWithoutValidDate = entries.find((entry) => entry.url === "https://example.test/company/trimmed-company");
     expect(companyWithoutValidDate?.lastModified).toBeUndefined();
@@ -175,5 +220,26 @@ describe("sitemap", () => {
     expect(urls).not.toContain("https://example.test/company/");
     expect(urls).not.toContain("https://example.test/leader/");
     expect(urls).not.toContain("https://example.test/category/");
+  });
+
+  it("falls back to company.updated_at when approved evidence timestamp lookup fails", async () => {
+    const mockSupabase = createSitemapSupabase({
+      companies: [
+        { id: 1, slug: "boeing", name: "Boeing", updated_at: "2026-08-20T12:34:56.000Z" },
+      ],
+      failEvidenceLookup: true,
+    });
+
+    supabaseServiceMock.mockReturnValue(mockSupabase);
+
+    const { default: sitemap } = await import("../app/sitemap");
+    const entries = await sitemap();
+
+    const boeingEntry = entries.find((entry) => entry.url === "https://example.test/company/boeing");
+    expect(boeingEntry?.lastModified).toBeInstanceOf(Date);
+    if (!(boeingEntry?.lastModified instanceof Date)) {
+      throw new Error("Expected Boeing lastModified to be a Date");
+    }
+    expect(boeingEntry.lastModified.toISOString()).toBe("2026-08-20T12:34:56.000Z");
   });
 });

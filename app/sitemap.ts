@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { supabaseService } from "@/lib/supabase-service";
 import { isTestCompany } from "@/lib/test-company";
 import { SITE_ORIGIN } from "@/lib/seo";
+import { calculateCompanyModifiedAt, latestValidIsoDate } from "@/lib/company-modified-at";
 
 export const revalidate = 300;
 export const COMPANY_SITEMAP_PAGE_SIZE = 500;
@@ -14,6 +15,11 @@ type CompanySitemapRow = {
   slug: string | null;
   name: string;
   updated_at: string | null;
+};
+
+type ApprovedEvidenceTimestampRow = {
+  company_id: number | null;
+  created_at: string | null;
 };
 
 function normalizeSlug(slug: string | null | undefined): string | null {
@@ -47,6 +53,41 @@ async function fetchCompaniesForSitemap(supabase: ReturnType<typeof supabaseServ
   }
 
   return companies;
+}
+
+async function fetchLatestApprovedEvidenceTimestamps(
+  supabase: ReturnType<typeof supabaseService>,
+  companyIds: number[],
+) {
+  const latestByCompanyId = new Map<number, string>();
+
+  for (let offset = 0; offset < companyIds.length; offset += COMPANY_SITEMAP_PAGE_SIZE) {
+    const idBatch = companyIds.slice(offset, offset + COMPANY_SITEMAP_PAGE_SIZE);
+    if (idBatch.length === 0) continue;
+
+    const { data, error } = await supabase
+      .from("evidence")
+      .select("company_id, created_at")
+      .in("company_id", idBatch)
+      .eq("status", "approved");
+
+    if (error) throw error;
+
+    for (const row of (data ?? []) as ApprovedEvidenceTimestampRow[]) {
+      if (typeof row.company_id !== "number") continue;
+
+      const latest = latestValidIsoDate(
+        latestByCompanyId.get(row.company_id) ?? null,
+        row.created_at,
+      );
+
+      if (latest) {
+        latestByCompanyId.set(row.company_id, latest);
+      }
+    }
+  }
+
+  return latestByCompanyId;
 }
 
 // Static institutional pages — always present regardless of DB availability.
@@ -86,12 +127,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Exclude test companies identified by "(test)" in the name.
   try {
     const companies = await fetchCompaniesForSitemap(supabase);
+    const companyIds = companies.map((company) => company.id);
+
+    let approvedEvidenceUpdatedAtByCompanyId = new Map<number, string>();
+    try {
+      approvedEvidenceUpdatedAtByCompanyId = await fetchLatestApprovedEvidenceTimestamps(
+        supabase,
+        companyIds,
+      );
+    } catch {
+      approvedEvidenceUpdatedAtByCompanyId = new Map<number, string>();
+    }
 
     for (const company of companies) {
       const slug = normalizeSlug(company.slug);
       if (!slug || EXCLUDED_COMPANY_SLUGS.has(slug) || isTestCompany(company.name)) continue;
 
-      const lastModified = parseLastModified(company.updated_at);
+      const computedModifiedAt = calculateCompanyModifiedAt({
+        companyUpdatedAt: company.updated_at,
+        approvedEvidenceUpdatedAt: approvedEvidenceUpdatedAtByCompanyId.get(company.id),
+      });
+      const lastModified = parseLastModified(computedModifiedAt);
       entries.push({
         url: `${SITE_ORIGIN}/company/${slug}`,
         changeFrequency: "weekly",

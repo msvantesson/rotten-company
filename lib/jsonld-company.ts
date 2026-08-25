@@ -1,6 +1,7 @@
 // /lib/jsonld-company.ts
 
 import { getRottenFlavor, getCategoryFlavor } from "@/lib/flavor-engine";
+import { latestValidIsoDate } from "@/lib/company-modified-at";
 
 type CategoryBreakdownJsonLd = {
   category_id: number;
@@ -164,6 +165,6 @@ export function buildCompanyJsonLd({
     microFlavor,
     confidenceLevel,
     totalSignals,
-    dateModified: company.updated_at ?? new Date().toISOString(),
+    dateModified: latestValidIsoDate(company.updated_at) ?? undefined,
   };
 }

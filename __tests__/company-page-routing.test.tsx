@@ -9,12 +9,14 @@ const notFoundMock = vi.fn(() => {
 const permanentRedirectMock = vi.fn((url: string) => {
   throw new Error(`PERMANENT_REDIRECT:${url}`);
 });
+const buildCompanyJsonLdMock = vi.fn(() => ({ "@type": "Organization" }));
 
 vi.mock("@/lib/supabase-server", () => ({
   supabaseServer: supabaseServerMock,
 }));
 
 vi.mock("@/lib/company-slug", async () => await import("../lib/company-slug"));
+vi.mock("@/lib/company-modified-at", async () => await import("../lib/company-modified-at"));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
@@ -56,7 +58,7 @@ vi.mock("@/components/CompanyTabs", () => ({
 }));
 
 vi.mock("@/lib/jsonld-company", () => ({
-  buildCompanyJsonLd: () => ({ "@type": "Organization" }),
+  buildCompanyJsonLd: buildCompanyJsonLdMock,
 }));
 
 vi.mock("@/lib/getEvidenceWithManagers", () => ({
@@ -96,10 +98,13 @@ type QueryState = {
 function createCompanyPageSupabase(data: {
   companies: Array<Record<string, unknown>>;
   company_slug_redirects?: Array<Record<string, unknown>>;
+  evidence?: Array<Record<string, unknown>>;
+  failEvidenceLookup?: boolean;
 }) {
   const tables: Record<string, Array<Record<string, unknown>>> = {
     companies: data.companies,
     company_slug_redirects: data.company_slug_redirects ?? [],
+    evidence: data.evidence ?? [],
     company_category_full_breakdown: [],
     categories: [],
     ownership_signals_summary: [],
@@ -129,7 +134,13 @@ function createCompanyPageSupabase(data: {
       then: <TResult1 = unknown, TResult2 = never>(
         onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
         onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-      ) => Promise.resolve({ data: findRows(table, state), error: null }).then(onfulfilled, onrejected),
+      ) => {
+        if (table === "evidence" && data.failEvidenceLookup) {
+          return Promise.reject(new Error("evidence lookup failed")).then(onfulfilled, onrejected);
+        }
+
+        return Promise.resolve({ data: findRows(table, state), error: null }).then(onfulfilled, onrejected);
+      },
     };
 
     return query;
@@ -212,5 +223,44 @@ describe("company page slug routing", () => {
     await expect(
       CompanyPage({ params: Promise.resolve({ slug: "missing-company" }) }),
     ).rejects.toThrow("NOT_FOUND");
+  });
+
+  it("falls back safely when approved evidence timestamp lookup fails", async () => {
+    supabaseServerMock.mockResolvedValue(
+      createCompanyPageSupabase({
+        companies: [
+          {
+            id: 1,
+            name: "Boeing",
+            slug: "boeing",
+            industry: "Aerospace",
+            size_employees_range: null,
+            country: "US",
+            hq_region: null,
+            hq_city: null,
+            website: null,
+            description: "Planes",
+            updated_at: "2026-08-20T12:34:56.000Z",
+          },
+        ],
+        failEvidenceLookup: true,
+      }),
+    );
+
+    const { default: CompanyPage } = await import("../app/company/[slug]/page");
+    const html = renderToStaticMarkup(
+      await CompanyPage({ params: Promise.resolve({ slug: "boeing" }) }),
+    );
+
+    expect(html).toContain("Boeing");
+    expect(permanentRedirectMock).not.toHaveBeenCalled();
+    expect(notFoundMock).not.toHaveBeenCalled();
+    expect(buildCompanyJsonLdMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        company: expect.objectContaining({
+          updated_at: "2026-08-20T12:34:56.000Z",
+        }),
+      }),
+    );
   });
 });
