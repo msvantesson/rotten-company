@@ -50,7 +50,8 @@ export async function generateBreakdownMetadata(
 
   const rottenScore = scoreRow?.rotten_score ?? null;
 
-  const title = buildBreakdownTitle(company.name);
+  const titleString = buildBreakdownTitle(company.name);
+  const title = { absolute: titleString };
   const description = buildBreakdownDescription(company.name, rottenScore);
   const url = canonicalUrl(`/company/${company.slug}/breakdown`);
 
@@ -59,8 +60,8 @@ export async function generateBreakdownMetadata(
       title,
       description,
       robots: { index: false, follow: false },
-      openGraph: { title, description },
-      twitter: { card: "summary_large_image", title, description },
+      openGraph: { title: titleString, description },
+      twitter: { card: "summary_large_image", title: titleString, description },
     };
   }
 
@@ -69,7 +70,7 @@ export async function generateBreakdownMetadata(
     description,
     alternates: { canonical: url },
     openGraph: {
-      title,
+      title: titleString,
       description,
       url,
       siteName: "Rotten Company",
@@ -85,7 +86,7 @@ export async function generateBreakdownMetadata(
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: titleString,
       description,
       images: [`${SITE_ORIGIN}/api/og/company?slug=${company.slug}`],
     },

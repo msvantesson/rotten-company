@@ -181,7 +181,7 @@ export async function generateMetadata(
     });
   }
 
-  const title = rottenScore !== null
+  const rawTitle = rottenScore !== null
     ? buildOverviewTitle(company.name, rottenScore)
     : buildCompanyFallbackTitle(company.name);
   const description = rottenScore !== null && evidenceCount !== null
@@ -190,6 +190,10 @@ export async function generateMetadata(
 
   const url = canonicalUrl(`/company/${company.slug}`);
 
+  const title = rottenScore !== null
+    ? { absolute: rawTitle }
+    : rawTitle;
+
   const metadata: Metadata = {
     title,
     description,
@@ -197,7 +201,7 @@ export async function generateMetadata(
       canonical: url,
     },
     openGraph: {
-      title,
+      title: rawTitle,
       description,
       url,
       siteName: "Rotten Company",
@@ -213,7 +217,7 @@ export async function generateMetadata(
     },
     twitter: {
       card: "summary_large_image",
-      title,
+      title: rawTitle,
       description,
       images: [`${SITE_ORIGIN}/api/og/company?slug=${company.slug}`],
     },

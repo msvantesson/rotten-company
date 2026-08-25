@@ -10,29 +10,9 @@ import Link from "next/link";
 import ExportCsvButton from "./ExportCsvButton";
 import CompanyCardList from "./CompanyCardList";
 import FindCompanyInline from "./FindCompanyInline";
-import { canonicalUrl } from "@/lib/seo";
+import { rottenIndexMetadata } from "./metadata";
 
-export const metadata: Metadata = {
-  title: "Rotten Index — Companies Ranked by Documented Misconduct",
-  description:
-    "Browse the global Rotten Index: companies and leaders ranked by severity of verified misconduct. Filter by country, industry, and evidence count.",
-  alternates: {
-    canonical: canonicalUrl("/rotten-index"),
-  },
-  openGraph: {
-    title: "Rotten Index — Companies Ranked by Documented Misconduct",
-    description:
-      "Browse the global Rotten Index: companies and leaders ranked by severity of verified misconduct. Filter by country, industry, and evidence count.",
-    url: canonicalUrl("/rotten-index"),
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Rotten Index — Companies Ranked by Documented Misconduct",
-    description:
-      "Browse the global Rotten Index: companies and leaders ranked by severity of verified misconduct.",
-  },
-};
+export const metadata: Metadata = rottenIndexMetadata;
 
 type IndexType = "company" | "leader";
 
