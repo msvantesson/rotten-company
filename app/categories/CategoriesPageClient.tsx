@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { Category } from "@/lib/categories";
-import { supabaseBrowser } from "@/lib/supabase-browser";
+import { getAllCategoriesClient, type Category } from "../../lib/categories";
+import { supabaseBrowser } from "../../lib/supabase-browser";
 
 export default function CategoriesPageClient() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -16,16 +16,11 @@ export default function CategoriesPageClient() {
       const { auth } = supabase;
 
       try {
-        const { data, error } = await supabase
-          .from("categories")
-          .select("id, slug, name, description")
-          .order("name", { ascending: true });
-
-        if (error) {
-          throw error;
-        }
-
-        setCategories((data ?? []) as Category[]);
+        const data = await getAllCategoriesClient(supabase, {
+          column: "name",
+          throwOnError: true,
+        });
+        setCategories(data);
       } catch (error) {
         console.error("Supabase error:", error);
 

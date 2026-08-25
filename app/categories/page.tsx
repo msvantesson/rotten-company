@@ -1,7 +1,7 @@
 import CategoriesPageClient from "./CategoriesPageClient";
-import { getAllCategoriesServer } from "@/lib/categories";
-import { canonicalUrl } from "@/lib/seo";
-import { supabaseServer } from "@/lib/supabase-server";
+import { getAllCategoriesServer } from "../../lib/categories";
+import { canonicalUrl } from "../../lib/seo";
+import { supabaseServer } from "../../lib/supabase-server";
 
 function buildCategoriesJsonLd(
   categories: Awaited<ReturnType<typeof getAllCategoriesServer>>,

@@ -29,6 +29,7 @@ type CategoryOrderColumn = "id" | "name";
 type CategoryQueryOrderOptions = {
   column?: CategoryOrderColumn;
   ascending?: boolean;
+  throwOnError?: boolean;
 };
 
 function applyCategoryOrder<
@@ -65,6 +66,9 @@ export async function getAllCategoriesServer(
   );
 
   if (error) {
+    if (options?.throwOnError) {
+      throw error;
+    }
     console.error("[categories] Failed to load categories:", error.message);
     return [];
   }
@@ -121,6 +125,9 @@ export async function getAllCategoriesClient(
   );
 
   if (error) {
+    if (options?.throwOnError) {
+      throw error;
+    }
     console.error("[categories] Failed to load categories:", error.message);
     return [];
   }

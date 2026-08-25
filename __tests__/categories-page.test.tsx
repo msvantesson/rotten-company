@@ -4,12 +4,21 @@ import type { ReactNode } from "react";
 
 const supabaseServerMock = vi.fn();
 
-vi.mock("@/lib/supabase-server", () => ({
+vi.mock("../lib/supabase-server", () => ({
   supabaseServer: supabaseServerMock,
 }));
 
-vi.mock("@/lib/seo", () => ({
+vi.mock("../lib/seo", () => ({
   canonicalUrl: (path: string) => `https://example.test${path}`,
+}));
+
+vi.mock("../lib/supabase-browser", () => ({
+  supabaseBrowser: () => ({
+    auth: {
+      signOut: vi.fn(),
+    },
+    from: vi.fn(),
+  }),
 }));
 
 vi.mock("next/link", () => ({
@@ -141,4 +150,4 @@ describe("/categories page", () => {
       },
     });
   });
-}
+});
