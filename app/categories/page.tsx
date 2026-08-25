@@ -1,99 +1,48 @@
-'use client'
+import CategoriesPageClient from "./CategoriesPageClient";
+import { getAllCategoriesServer } from "../../lib/categories";
+import { canonicalUrl } from "../../lib/seo";
+import { supabaseServer } from "../../lib/supabase-server";
 
-import { supabaseBrowser } from '@/lib/supabase-browser'
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-
-export default function CategoriesPage() {
-  const [categories, setCategories] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      const supabase = supabaseBrowser()
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name', { ascending: true })
-
-      if (error) {
-        console.error('Supabase error:', error)
-
-        const msg = (error as any)?.message ?? ''
-        if (msg.includes('refresh_token_not_found') || msg.includes('Invalid Refresh Token')) {
-          // Clear broken auth state and let the page still work as anonymous.
-          await supabase.auth.signOut()
-        }
-
-        setError(error.message)
-      } else {
-        setCategories(data ?? [])
-      }
-
-      setLoading(false)
-    }
-
-    fetchCategories()
-  }, [])
-
-  if (loading) return <div>Loading categories…</div>
-  if (error) return <div>Error loading categories: {error}</div>
-  if (!categories.length) return <div>No categories found</div>
-
-  // JSON-LD for the full category list
-  const jsonLdList = {
+function buildCategoriesJsonLd(
+  categories: Awaited<ReturnType<typeof getAllCategoriesServer>>,
+) {
+  return {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "Rotten Company Categories",
-    itemListElement: categories.map((cat, index) => ({
-      "@type": "CategoryCode",
-      position: index + 1,
-      name: cat.name,
-      description: cat.description,
-      identifier: cat.id,
-      url: `https://rotten-company.com/category/${cat.slug}`,
-    })),
-  }
+    itemListElement: categories.map((category, index) => {
+      const url = canonicalUrl(`/category/${category.slug}`);
+
+      return {
+        "@type": "ListItem",
+        position: index + 1,
+        url,
+        item: {
+          "@type": "CategoryCode",
+          identifier: category.id,
+          name: category.name,
+          description: category.description,
+          url,
+        },
+      };
+    }),
+  };
+}
+
+export default async function CategoriesPage() {
+  const supabase = await supabaseServer();
+  const categories = await getAllCategoriesServer(supabase, {
+    column: "name",
+  });
+  const jsonLd = buildCategoriesJsonLd(categories);
 
   return (
-    <div>
+    <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(jsonLdList, null, 2),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-
-      <h1>Categories</h1>
-
-      <ul>
-        {categories.map((cat) => {
-          const jsonLdCategory = {
-            "@context": "https://schema.org",
-            "@type": "CategoryCode",
-            identifier: cat.id,
-            name: cat.name,
-            description: cat.description,
-            url: `https://rotten-company.com/category/${cat.slug}`,
-          }
-
-          return (
-            <li key={cat.id} className="mb-4">
-              <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{
-                  __html: JSON.stringify(jsonLdCategory, null, 2),
-                }}
-              />
-              <Link href={`/category/${cat.slug}`} className="text-blue-600 underline">
-                {cat.name}
-              </Link>
-              {cat.description && <p className="text-sm text-gray-700">{cat.description}</p>}
-            </li>
-          )
-        })}
-      </ul>
-    </div>
-  )
+      <CategoriesPageClient />
+    </>
+  );
 }
