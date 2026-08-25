@@ -241,8 +241,11 @@ async function loadOverviewMetadata(
 }
 
 function metadataStrings(metadata: Awaited<ReturnType<typeof loadOverviewMetadata>>) {
+  const titleStr = typeof metadata.title === "object" && metadata.title !== null && "absolute" in metadata.title
+    ? (metadata.title as { absolute: string }).absolute
+    : String(metadata.title ?? "");
   return [
-    String(metadata.title ?? ""),
+    titleStr,
     String(metadata.description ?? ""),
     (metadata.alternates as { canonical?: string } | undefined)?.canonical ?? "",
     (metadata.openGraph as { title?: string; description?: string; url?: string } | undefined)?.title ?? "",
@@ -262,19 +265,19 @@ describe("company overview metadata regression", () => {
   it("returns dynamic metadata for a valid company with a score", async () => {
     const result = await loadOverviewMetadata();
 
-    expect(result.title).toBe("Boeing Rotten Score: 39/100 | Evidence & Misconduct");
+    expect(result.title).toEqual({ absolute: "Boeing Rotten Score: 39/100 | Evidence & Misconduct" });
     expect(result.description).toBe(
       "Boeing has a Rotten Score of 39/100 based on 8 documented evidence records. Review misconduct cases, category breakdown, sources and current status.",
     );
     expect((result.alternates as { canonical?: string }).canonical).toBe(
       "https://rotten-company.com/company/boeing",
     );
-    expect((result.openGraph as { title?: string }).title).toBe(String(result.title));
+    expect((result.openGraph as { title?: string }).title).toBe("Boeing Rotten Score: 39/100 | Evidence & Misconduct");
     expect((result.openGraph as { description?: string }).description).toBe(String(result.description));
     expect((result.openGraph as { url?: string }).url).toBe(
       "https://rotten-company.com/company/boeing",
     );
-    expect((result.twitter as { title?: string }).title).toBe(String(result.title));
+    expect((result.twitter as { title?: string }).title).toBe("Boeing Rotten Score: 39/100 | Evidence & Misconduct");
     expect((result.twitter as { description?: string }).description).toBe(String(result.description));
     expect(notFoundMock).not.toHaveBeenCalled();
     expect(permanentRedirectMock).not.toHaveBeenCalled();
@@ -321,7 +324,7 @@ describe("company overview metadata regression", () => {
         },
       ],
     })).resolves.toMatchObject({
-      title: "Boeing Rotten Score: 39/100 | Evidence & Misconduct",
+      title: { absolute: "Boeing Rotten Score: 39/100 | Evidence & Misconduct" },
       description:
         "Review Boeing's Rotten Score, documented evidence, misconduct cases, category breakdown and sources.",
     });
@@ -457,5 +460,116 @@ describe("company breakdown metadata", () => {
     expect((result.openGraph as { url?: string }).url).toBe(
       "https://rotten-company.com/company/boeing/breakdown",
     );
+  });
+
+  it("returns absolute title for breakdown so root template does not append suffix", async () => {
+    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
+    const { generateBreakdownMetadata } = await import(
+      "../app/company/[slug]/breakdown/metadata"
+    );
+    const result = await generateBreakdownMetadata({ slug: "boeing" });
+
+    expect(result.title).toEqual({ absolute: "Boeing Rotten Score Breakdown | Categories & Calculation" });
+    const titleStr = (result.title as { absolute: string }).absolute;
+    expect(titleStr.length).toBeGreaterThanOrEqual(15);
+    expect(titleStr.length).toBeLessThanOrEqual(70);
+  });
+});
+
+describe("absolute title: no duplicate suffix", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("overview title is an absolute object so root template does not append '| Rotten Company'", async () => {
+    const result = await loadOverviewMetadata();
+    expect(result.title).toEqual({ absolute: "Boeing Rotten Score: 39/100 | Evidence & Misconduct" });
+    expect(result.title).not.toBe(expect.stringContaining("| Rotten Company"));
+  });
+
+  it("overview title string does not end with '| Rotten Company'", async () => {
+    const result = await loadOverviewMetadata();
+    const titleStr = (result.title as { absolute: string }).absolute;
+    expect(titleStr).not.toMatch(/\| Rotten Company$/);
+  });
+
+  it("Boeing overview title is 15–70 chars", async () => {
+    const result = await loadOverviewMetadata();
+    const titleStr = (result.title as { absolute: string }).absolute;
+    expect(titleStr.length).toBeGreaterThanOrEqual(15);
+    expect(titleStr.length).toBeLessThanOrEqual(70);
+  });
+
+  it("Boeing breakdown title is 15–70 chars", async () => {
+    supabaseServerMock.mockResolvedValue(makeSupabase(BASE_TABLES));
+    const { generateBreakdownMetadata } = await import(
+      "../app/company/[slug]/breakdown/metadata"
+    );
+    const result = await generateBreakdownMetadata({ slug: "boeing" });
+    const titleStr = (result.title as { absolute: string }).absolute;
+    expect(titleStr.length).toBeGreaterThanOrEqual(15);
+    expect(titleStr.length).toBeLessThanOrEqual(70);
+  });
+
+  it("A.P. Møller - Mærsk A/S overview title is 15–70 chars", async () => {
+    const result = await loadOverviewMetadata({
+      tables: {
+        ...BASE_TABLES,
+        companies: [{ id: 1, name: "A.P. Møller - Mærsk A/S", slug: "ap-moller-maersk", industry: "Shipping" }],
+        company_rotten_score_v2: [{ company_id: 1, rotten_score: 7 }],
+      },
+      slug: "ap-moller-maersk",
+    });
+    const titleStr = (result.title as { absolute: string }).absolute;
+    expect(titleStr.length).toBeGreaterThanOrEqual(15);
+    expect(titleStr.length).toBeLessThanOrEqual(70);
+  });
+
+  it("UnitedHealth Group overview title is 15–70 chars", async () => {
+    const result = await loadOverviewMetadata({
+      tables: {
+        ...BASE_TABLES,
+        companies: [{ id: 1, name: "UnitedHealth Group", slug: "unitedhealth-group", industry: "Health Insurance" }],
+        company_rotten_score_v2: [{ company_id: 1, rotten_score: 56 }],
+      },
+      slug: "unitedhealth-group",
+    });
+    const titleStr = (result.title as { absolute: string }).absolute;
+    expect(titleStr.length).toBeGreaterThanOrEqual(15);
+    expect(titleStr.length).toBeLessThanOrEqual(70);
+  });
+
+  it("compact-title fallback works for unusually long company names", async () => {
+    const longName = "A Very Extremely Long Corporation Name That Exceeds Limits Inc";
+    const result = await loadOverviewMetadata({
+      tables: {
+        ...BASE_TABLES,
+        companies: [{ id: 1, name: longName, slug: "very-long-company", industry: null }],
+        company_rotten_score_v2: [{ company_id: 1, rotten_score: 50 }],
+      },
+      slug: "very-long-company",
+    });
+    const titleStr = (result.title as { absolute: string }).absolute;
+    expect(titleStr.length).toBeGreaterThanOrEqual(15);
+    expect(titleStr.length).toBeLessThanOrEqual(70);
+  });
+});
+
+describe("rotten-index metadata absolute title", () => {
+  it("returns absolute title so root template does not append '| Rotten Company'", async () => {
+    const { rottenIndexMetadata } = await import("../app/rotten-index/metadata");
+    expect(rottenIndexMetadata.title).toEqual({ absolute: "Rotten Index | Companies Ranked by Documented Misconduct" });
+    const titleStr = (rottenIndexMetadata.title as { absolute: string }).absolute;
+    expect(titleStr).not.toMatch(/\| Rotten Company$/);
+    expect(titleStr.length).toBeGreaterThanOrEqual(15);
+    expect(titleStr.length).toBeLessThanOrEqual(70);
+  });
+
+  it("uses ASCII pipe separator not em dash in rotten-index title", async () => {
+    const { rottenIndexMetadata } = await import("../app/rotten-index/metadata");
+    const titleStr = (rottenIndexMetadata.title as { absolute: string }).absolute;
+    expect(titleStr).not.toContain("—");
+    expect(titleStr).toContain("|");
   });
 });
