@@ -11,6 +11,7 @@ import ExportCsvButton from "./ExportCsvButton";
 import CompanyCardList from "./CompanyCardList";
 import FindCompanyInline from "./FindCompanyInline";
 import { rottenIndexMetadata } from "./metadata";
+import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = rottenIndexMetadata;
 
@@ -137,12 +138,18 @@ export default async function RottenIndexPage({ searchParams }: { searchParams?:
 
   const jsonLd = buildIndexJsonLd(rows, type, selectedCountry);
 
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Home", url: canonicalUrl("/") },
+    { name: "Rotten Index", url: canonicalUrl("/rotten-index") },
+  ]);
+
   const safeCountry = (selectedCountry ?? "all-countries").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
   const fileName = `rotten-index_${type}_${safeCountry}_top${limit}.csv`;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 space-y-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       {process.env.NODE_ENV !== "production" && <JsonLdDebugPanel data={jsonLd} />}
 
       <div className="space-y-2">

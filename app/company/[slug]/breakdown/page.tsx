@@ -9,6 +9,7 @@ import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 import CompanyTabs from "@/components/CompanyTabs";
 import { generateBreakdownMetadata } from "./metadata";
+import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 
 // Re-export generateMetadata so Next.js picks it up from this route file.
 export async function generateMetadata({
@@ -81,8 +82,20 @@ export default async function BreakdownPage({
   }
 
   // 4) Render
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Home", url: canonicalUrl("/") },
+    { name: "Rotten Index", url: canonicalUrl("/rotten-index") },
+    { name: company.name, url: canonicalUrl(`/company/${company.slug}`) },
+    { name: "Breakdown", url: canonicalUrl(`/company/${company.slug}/breakdown`) },
+  ]);
+
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <div className="max-w-3xl mx-auto py-8 px-4">
       <header>
         <h1 className="text-3xl font-semibold">{company.name} Rotten Score Breakdown</h1>
         <CompanyTabs slug={company.slug} />
@@ -92,5 +105,6 @@ export default async function BreakdownPage({
         <CategoryBreakdown company={company} breakdown={breakdown} evidence={evidence} showHeader={false} />
       </section>
     </div>
+    </>
   );
 }
