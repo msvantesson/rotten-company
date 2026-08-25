@@ -290,7 +290,7 @@ describe("company overview metadata regression", () => {
     }
   });
 
-  it("returns company-specific fallback metadata when score lookup fails", async () => {
+  it("returns absolute company-specific fallback metadata when score lookup fails", async () => {
     const result = await loadOverviewMetadata({
       overrides: [
         {
@@ -302,7 +302,7 @@ describe("company overview metadata regression", () => {
       ],
     });
 
-    expect(result.title).toBe("Boeing Rotten Score & Evidence | Rotten Company");
+    expect(result.title).toEqual({ absolute: "Boeing Rotten Score & Evidence | Rotten Company" });
     expect(result.description).toBe(
       "Review Boeing's Rotten Score, documented evidence, misconduct cases, category breakdown and sources.",
     );
@@ -347,7 +347,7 @@ describe("company overview metadata regression", () => {
         ],
       });
 
-      expect(result.title).toBe("Company Rotten Score & Evidence | Rotten Company");
+      expect(result.title).toEqual({ absolute: "Company Rotten Score & Evidence | Rotten Company" });
       expect(result.description).toBe(
         "Review company Rotten Scores, documented evidence, misconduct cases and sources on Rotten Company.",
       );
@@ -374,7 +374,7 @@ describe("company overview metadata regression", () => {
       ],
     });
 
-    expect(result.title).toBe("Company Rotten Score & Evidence | Rotten Company");
+    expect(result.title).toEqual({ absolute: "Company Rotten Score & Evidence | Rotten Company" });
     expect(result.description).toBe(
       "Review company Rotten Scores, documented evidence, misconduct cases and sources on Rotten Company.",
     );
@@ -393,7 +393,7 @@ describe("company overview metadata regression", () => {
       ],
     });
 
-    expect(result.title).toBe("Company Rotten Score & Evidence | Rotten Company");
+    expect(result.title).toEqual({ absolute: "Company Rotten Score & Evidence | Rotten Company" });
     expect(result.description).toBe(
       "Review company Rotten Scores, documented evidence, misconduct cases and sources on Rotten Company.",
     );
@@ -430,7 +430,7 @@ describe("company overview metadata regression", () => {
       slug: "missing-company",
     });
 
-    expect(metadata.title).toBe("Company Rotten Score & Evidence | Rotten Company");
+    expect(metadata.title).toEqual({ absolute: "Company Rotten Score & Evidence | Rotten Company" });
     expect(notFoundMock).not.toHaveBeenCalled();
 
     const { default: CompanyPage } = await import("../app/company/[slug]/page");

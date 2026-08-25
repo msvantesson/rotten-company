@@ -43,7 +43,7 @@ function buildFallbackMetadata(company?: FallbackCompany): Metadata {
     : "Review company Rotten Scores, documented evidence, misconduct cases and sources on Rotten Company.";
   const url = company ? canonicalUrl(`/company/${company.slug}`) : null;
   const metadata: Metadata = {
-    title,
+    title: { absolute: title },
     description,
     openGraph: {
       title,
@@ -190,12 +190,8 @@ export async function generateMetadata(
 
   const url = canonicalUrl(`/company/${company.slug}`);
 
-  const title = rottenScore !== null
-    ? { absolute: rawTitle }
-    : rawTitle;
-
   const metadata: Metadata = {
-    title,
+    title: { absolute: rawTitle },
     description,
     alternates: {
       canonical: url,
