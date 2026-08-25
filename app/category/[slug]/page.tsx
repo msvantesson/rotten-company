@@ -5,8 +5,8 @@ export const fetchCache = "force-no-store";
 import type { Metadata } from "next";
 import React from "react";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import {
-  fetchEntityBySlug,
   fetchApprovedEvidence,
   supabase,
 } from "@/app/lib/data";
@@ -35,7 +35,16 @@ export async function generateMetadata({
     return { title: "Category Not Found", robots: { index: false, follow: false } };
   }
 
-  const category = await fetchEntityBySlug("category", slug);
+  const { data: category, error } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) {
+    console.error(`Error fetching category metadata for slug ${slug}:`, error);
+    return { title: "Category Not Found", robots: { index: false, follow: false } };
+  }
 
   if (!category) {
     return { title: "Category Not Found", robots: { index: false, follow: false } };
@@ -71,21 +80,23 @@ export default async function CategoryPage({ params }: { params: Params }) {
   const slug = resolvedParams?.slug as string | undefined;
 
   if (!slug) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h1>No category found for slug</h1>
-      </div>
-    );
+    notFound();
   }
 
-  // 1. Fetch category metadata
-  const category = await fetchEntityBySlug("category", slug);
+  // 1. Fetch category metadata — distinguish DB error from missing record
+  const { data: category, error: categoryError } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (categoryError) {
+    console.error(`Error fetching category with slug ${slug}:`, categoryError);
+    throw categoryError;
+  }
+
   if (!category) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h1>No category found for slug: {slug}</h1>
-      </div>
-    );
+    notFound();
   }
 
   const categoryFlavor = getCategoryFlavor(category.id);
