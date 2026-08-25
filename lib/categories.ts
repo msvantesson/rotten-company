@@ -24,12 +24,29 @@ export type Category = {
   description: string | null;
 };
 
+type CategoryOrderColumn = "id" | "name";
+
+type CategoryQueryOrderOptions = {
+  column?: CategoryOrderColumn;
+  ascending?: boolean;
+};
+
+function applyCategoryOrder<
+  TQuery extends {
+    order(column: string, options?: { ascending?: boolean }): TQuery;
+  },
+>(query: TQuery, options?: CategoryQueryOrderOptions): TQuery {
+  const column = options?.column ?? "id";
+  const ascending = options?.ascending ?? true;
+  return query.order(column, { ascending });
+}
+
 // ---------------------------------------------------------------------------
 // Server-side helpers (use in Next.js Server Components / Route Handlers)
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch all categories ordered by id, using the provided Supabase server
+ * Fetch all categories using the provided Supabase server
  * client.  Returns an empty array on error so callers can handle gracefully.
  *
  * @example
@@ -38,11 +55,14 @@ export type Category = {
  */
 export async function getAllCategoriesServer(
   supabase: import("@supabase/supabase-js").SupabaseClient,
+  options?: CategoryQueryOrderOptions,
 ): Promise<Category[]> {
-  const { data, error } = await supabase
-    .from("categories")
-    .select("id, slug, name, description")
-    .order("id", { ascending: true });
+  const { data, error } = await applyCategoryOrder(
+    supabase
+      .from("categories")
+      .select("id, slug, name, description"),
+    options,
+  );
 
   if (error) {
     console.error("[categories] Failed to load categories:", error.message);
@@ -82,7 +102,7 @@ export async function getCategoryBySlugServer(
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch all categories ordered by id, using the provided Supabase browser
+ * Fetch all categories using the provided Supabase browser
  * client.  Returns an empty array on error.
  *
  * @example
@@ -91,11 +111,14 @@ export async function getCategoryBySlugServer(
  */
 export async function getAllCategoriesClient(
   supabase: import("@supabase/supabase-js").SupabaseClient,
+  options?: CategoryQueryOrderOptions,
 ): Promise<Category[]> {
-  const { data, error } = await supabase
-    .from("categories")
-    .select("id, slug, name, description")
-    .order("id", { ascending: true });
+  const { data, error } = await applyCategoryOrder(
+    supabase
+      .from("categories")
+      .select("id, slug, name, description"),
+    options,
+  );
 
   if (error) {
     console.error("[categories] Failed to load categories:", error.message);
