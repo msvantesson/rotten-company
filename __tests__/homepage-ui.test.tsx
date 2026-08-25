@@ -12,6 +12,10 @@ vi.mock("@/lib/seo", () => ({
   canonicalUrl: (path: string) => `https://example.test${path}`,
 }));
 
+vi.mock("@/lib/homepage-seo", () => ({
+  homepageMetadata: { title: "Rotten Company" },
+}));
+
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode; [key: string]: unknown }) => (
     <a href={href} {...rest}>

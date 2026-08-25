@@ -10,6 +10,7 @@ vi.mock("@/lib/getRottenIndexData", () => ({
 
 vi.mock("@/lib/seo", () => ({
   canonicalUrl: (path: string) => `https://example.test${path}`,
+  buildBreadcrumbJsonLd: (items: unknown[]) => ({ items }),
 }));
 
 vi.mock("next/link", () => ({

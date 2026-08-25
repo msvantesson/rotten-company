@@ -85,6 +85,10 @@ vi.mock("@/lib/constants/employee-ranges", () => ({
   EMPLOYEE_RANGES: [],
 }));
 
+vi.mock("@/lib/company-seo", () => ({
+  buildSsrAnswer: () => "Test SSR answer.",
+}));
+
 type QueryState = {
   eqs: Array<[string, unknown]>;
 };
