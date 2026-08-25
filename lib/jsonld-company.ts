@@ -81,35 +81,46 @@ export function buildCompanyJsonLd({
     description: microFlavor,
     industry: company.industry ?? undefined,
 
-    // Canonical Rotten Score (0–100)
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: score.toFixed(2),
-      ratingCount,
-      reviewCount: evidenceCount,
-      bestRating: 100,
-      worstRating: 0,
-    },
-
-    // Category breakdown (canonical + flavored)
-    additionalProperty: breakdown.map((c) => ({
-      "@type": "PropertyValue",
-      name: c.category_name,
-      categoryFlavor: getCategoryFlavor(c.category_id),
-      value: {
-        ratingCount: c.rating_count,
-        avgRatingScore: c.avg_rating_score,
-        evidenceCount: c.evidence_count,
-        severityScore: c.severity_score,
-        finalScore: c.final_score,
-        misconductLowCount: c.misconduct_low_count ?? 0,
-        misconductMediumCount: c.misconduct_medium_count ?? 0,
-        misconductHighCount: c.misconduct_high_count ?? 0,
-        remediationLowCount: c.remediation_low_count ?? 0,
-        remediationMediumCount: c.remediation_medium_count ?? 0,
-        remediationHighCount: c.remediation_high_count ?? 0,
+    // Rotten Score index represented as neutral PropertyValue entries
+    additionalProperty: [
+      {
+        "@type": "PropertyValue",
+        name: "Rotten Score",
+        value: score,
+        minValue: 0,
+        maxValue: 100,
+        unitText: "points",
       },
-    })),
+      {
+        "@type": "PropertyValue",
+        name: "Rotten Status",
+        value: macroTier,
+      },
+      {
+        "@type": "PropertyValue",
+        name: "Approved Evidence Records",
+        value: evidenceCount,
+      },
+      // Category breakdown (canonical + flavored)
+      ...breakdown.map((c) => ({
+        "@type": "PropertyValue",
+        name: c.category_name,
+        categoryFlavor: getCategoryFlavor(c.category_id),
+        value: {
+          ratingCount: c.rating_count,
+          avgRatingScore: c.avg_rating_score,
+          evidenceCount: c.evidence_count,
+          severityScore: c.severity_score,
+          finalScore: c.final_score,
+          misconductLowCount: c.misconduct_low_count ?? 0,
+          misconductMediumCount: c.misconduct_medium_count ?? 0,
+          misconductHighCount: c.misconduct_high_count ?? 0,
+          remediationLowCount: c.remediation_low_count ?? 0,
+          remediationMediumCount: c.remediation_medium_count ?? 0,
+          remediationHighCount: c.remediation_high_count ?? 0,
+        },
+      })),
+    ],
 
     // Ownership signals
     ownership:
