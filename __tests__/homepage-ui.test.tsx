@@ -96,11 +96,20 @@ function createMockSupabase(nowIsoDate: string, weekAgoIsoDate: string) {
 
     if (table === "company_rotten_score_snapshots") {
       let rows = snapshots;
-      const snapshotDates = state["in:snapshot_date"] as string[] | undefined;
+      // Query 1: exact date match via eq
+      const eqSnapshotDate = state["eq:snapshot_date"] as string | undefined;
+      // Query 2: baseline query uses lte cutoff date
+      const lteSnapshotDate = state["lte:snapshot_date"] as string | undefined;
       const companyIds = state["in:company_id"] as number[] | undefined;
 
-      if (snapshotDates) rows = rows.filter((row) => snapshotDates.includes(row.snapshot_date));
+      if (eqSnapshotDate) rows = rows.filter((row) => row.snapshot_date === eqSnapshotDate);
+      if (lteSnapshotDate) rows = rows.filter((row) => row.snapshot_date <= lteSnapshotDate);
       if (companyIds) rows = rows.filter((row) => companyIds.includes(row.company_id));
+
+      // Respect descending sort for baseline query
+      if (state["order:snapshot_date"] === "desc") {
+        rows = [...rows].sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
+      }
       return rows;
     }
 
@@ -131,7 +140,10 @@ function createMockSupabase(nowIsoDate: string, weekAgoIsoDate: string) {
 
     const query = {
       select: () => query,
-      order: () => query,
+      order: (column: string, opts?: { ascending?: boolean }) => {
+        if (opts?.ascending === false) state[`order:${column}`] = "desc";
+        return query;
+      },
       limit: (count: number) => {
         state.limit = count;
         return query;
@@ -142,6 +154,10 @@ function createMockSupabase(nowIsoDate: string, weekAgoIsoDate: string) {
       },
       eq: (column: string, value: string) => {
         state[`eq:${column}`] = value;
+        return query;
+      },
+      lte: (column: string, value: string) => {
+        state[`lte:${column}`] = value;
         return query;
       },
       then: <TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
@@ -172,7 +188,10 @@ function createMinimalMockSupabase(
 
     const query = {
       select: () => query,
-      order: () => query,
+      order: (column: string, opts?: { ascending?: boolean }) => {
+        if (opts?.ascending === false) state[`order:${column}`] = "desc";
+        return query;
+      },
       limit: (count: number) => {
         state.limit = count;
         return query;
@@ -185,6 +204,10 @@ function createMinimalMockSupabase(
         state[`eq:${column}`] = value;
         return query;
       },
+      lte: (column: string, value: string) => {
+        state[`lte:${column}`] = value;
+        return query;
+      },
       then: <TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
         onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
         onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
@@ -192,10 +215,15 @@ function createMinimalMockSupabase(
         let rows: unknown[] = [];
         if (table === "company_rotten_score_snapshots") {
           rows = snapshots;
-          const snapshotDates = state["in:snapshot_date"] as string[] | undefined;
+          const eqSnapshotDate = state["eq:snapshot_date"] as string | undefined;
+          const lteSnapshotDate = state["lte:snapshot_date"] as string | undefined;
           const companyIds = state["in:company_id"] as number[] | undefined;
-          if (snapshotDates) rows = (rows as SnapshotRow[]).filter((r) => snapshotDates.includes(r.snapshot_date));
+          if (eqSnapshotDate) rows = (rows as SnapshotRow[]).filter((r) => r.snapshot_date === eqSnapshotDate);
+          if (lteSnapshotDate) rows = (rows as SnapshotRow[]).filter((r) => r.snapshot_date <= lteSnapshotDate);
           if (companyIds) rows = (rows as SnapshotRow[]).filter((r) => companyIds.includes(r.company_id));
+          if (state["order:snapshot_date"] === "desc") {
+            rows = [...(rows as SnapshotRow[])].sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
+          }
         } else if (table === "companies") {
           const ids = state["in:id"] as number[] | undefined;
           rows = ids ? companies.filter((c) => ids.includes(c.id)) : companies;
@@ -401,5 +429,51 @@ describe("getBiggestMovers – mover selection rules", () => {
     expect(bigPos).toBeGreaterThan(-1);
     expect(smallPos).toBeGreaterThan(-1);
     expect(bigPos).toBeLessThan(smallPos);
+  });
+
+  it("uses older snapshot as baseline when the exact 7-day cutoff snapshot is missing", async () => {
+    // Company has a snapshot from 14 days ago but nothing on the exact WEEK_AGO date.
+    // The 14-days-ago snapshot should be used as the baseline, not 0.
+    const FOURTEEN_DAYS_AGO = "2026-08-04";
+    supabaseServerMock.mockResolvedValue(
+      createMinimalMockSupabase(
+        [
+          { company_id: 30, snapshot_date: FOURTEEN_DAYS_AGO, rotten_score: 25 },
+          { company_id: 30, snapshot_date: NOW, rotten_score: 35 },
+          // No snapshot on WEEK_AGO (2026-08-11)
+        ],
+        [{ id: 30, name: "Gap Co", slug: "gap-co" }],
+      ),
+    );
+
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    expect(html).toContain("Gap Co");
+    // delta = 35 - 25 = 10, not 35 - 0 = 35
+    expect(html).toContain("↑ +10.0");
+    expect(html).not.toContain("↑ +35.0");
+  });
+
+  it("uses 0 as baseline for a genuinely new company with no snapshot before the cutoff", async () => {
+    // Company only has a snapshot inside the 7-day window; nothing on or before WEEK_AGO.
+    const WITHIN_WINDOW = "2026-08-15"; // 3 days ago, after WEEK_AGO
+    supabaseServerMock.mockResolvedValue(
+      createMinimalMockSupabase(
+        [
+          { company_id: 31, snapshot_date: WITHIN_WINDOW, rotten_score: 55 },
+          { company_id: 31, snapshot_date: NOW, rotten_score: 55 },
+        ],
+        [{ id: 31, name: "Truly New Co", slug: "truly-new-co" }],
+      ),
+    );
+
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    // No snapshot before WEEK_AGO → prev = 0, delta = 55 - 0 = 55
+    // (the WITHIN_WINDOW row is not ≤ WEEK_AGO so it won't appear in the baseline query)
+    expect(html).toContain("Truly New Co");
+    expect(html).toContain("↑ +55.0");
   });
 });
