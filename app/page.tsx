@@ -85,18 +85,24 @@ async function getBiggestMovers(
     const todayUtc = new Date().toISOString().slice(0, 10);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    // Query 1: today's scores — one row per company for the current date.
-    const { data: todaySnapshots, error: todayError } = await supabase
+    // Query 1: latest available snapshot per company on or before today.
+    // Daily snapshots are not guaranteed, so we use lte + desc ordering and pick
+    // the first occurrence per company (= the most recent score available).
+    const { data: currentSnapshots, error: currentError } = await supabase
       .from("company_rotten_score_snapshots")
       .select("company_id, rotten_score")
-      .eq("snapshot_date", todayUtc);
+      .lte("snapshot_date", todayUtc)
+      .order("snapshot_date", { ascending: false });
 
-    if (todayError || !todaySnapshots || todaySnapshots.length === 0) return empty;
+    if (currentError || !currentSnapshots || currentSnapshots.length === 0) return empty;
 
-    const todayMap: Record<number, number> = {};
-    for (const row of todaySnapshots) todayMap[row.company_id] = Number(row.rotten_score);
+    // Pick the most recent score per company.
+    const currentMap: Record<number, number> = {};
+    for (const row of currentSnapshots) {
+      if (currentMap[row.company_id] == null) currentMap[row.company_id] = Number(row.rotten_score);
+    }
 
-    const companyIdsWithToday = Object.keys(todayMap).map(Number);
+    const companyIdsWithCurrent = Object.keys(currentMap).map(Number);
 
     // Query 2: most recent snapshot on or before the 7-day cutoff.
     // Daily snapshots are not guaranteed, so we use lte + desc ordering and pick
@@ -104,7 +110,7 @@ async function getBiggestMovers(
     const { data: baselineSnapshots } = await supabase
       .from("company_rotten_score_snapshots")
       .select("company_id, rotten_score")
-      .in("company_id", companyIdsWithToday)
+      .in("company_id", companyIdsWithCurrent)
       .lte("snapshot_date", sevenDaysAgo)
       .order("snapshot_date", { ascending: false });
 
@@ -115,13 +121,13 @@ async function getBiggestMovers(
     }
 
     const movers: Array<{ companyId: number; currentScore: number; delta: number }> = [];
-    for (const idStr of Object.keys(todayMap)) {
+    for (const idStr of Object.keys(currentMap)) {
       const id = Number(idStr);
       // Use 0 as previous score only for genuinely new companies (no snapshot before the cutoff)
       const prev = prevMap[id] ?? 0;
-      const delta = todayMap[id] - prev;
+      const delta = currentMap[id] - prev;
       if (delta !== 0) {
-        movers.push({ companyId: id, currentScore: todayMap[id], delta });
+        movers.push({ companyId: id, currentScore: currentMap[id], delta });
       }
     }
 

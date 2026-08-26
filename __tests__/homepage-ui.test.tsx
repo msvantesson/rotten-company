@@ -96,17 +96,14 @@ function createMockSupabase(nowIsoDate: string, weekAgoIsoDate: string) {
 
     if (table === "company_rotten_score_snapshots") {
       let rows = snapshots;
-      // Query 1: exact date match via eq
-      const eqSnapshotDate = state["eq:snapshot_date"] as string | undefined;
-      // Query 2: baseline query uses lte cutoff date
+      // Both current-score query and baseline query use lte on snapshot_date.
       const lteSnapshotDate = state["lte:snapshot_date"] as string | undefined;
       const companyIds = state["in:company_id"] as number[] | undefined;
 
-      if (eqSnapshotDate) rows = rows.filter((row) => row.snapshot_date === eqSnapshotDate);
       if (lteSnapshotDate) rows = rows.filter((row) => row.snapshot_date <= lteSnapshotDate);
       if (companyIds) rows = rows.filter((row) => companyIds.includes(row.company_id));
 
-      // Respect descending sort for baseline query
+      // Respect descending sort for both queries.
       if (state["order:snapshot_date"] === "desc") {
         rows = [...rows].sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
       }
@@ -215,10 +212,8 @@ function createMinimalMockSupabase(
         let rows: unknown[] = [];
         if (table === "company_rotten_score_snapshots") {
           rows = snapshots;
-          const eqSnapshotDate = state["eq:snapshot_date"] as string | undefined;
           const lteSnapshotDate = state["lte:snapshot_date"] as string | undefined;
           const companyIds = state["in:company_id"] as number[] | undefined;
-          if (eqSnapshotDate) rows = (rows as SnapshotRow[]).filter((r) => r.snapshot_date === eqSnapshotDate);
           if (lteSnapshotDate) rows = (rows as SnapshotRow[]).filter((r) => r.snapshot_date <= lteSnapshotDate);
           if (companyIds) rows = (rows as SnapshotRow[]).filter((r) => companyIds.includes(r.company_id));
           if (state["order:snapshot_date"] === "desc") {
@@ -475,5 +470,47 @@ describe("getBiggestMovers – mover selection rules", () => {
     // (the WITHIN_WINDOW row is not ≤ WEEK_AGO so it won't appear in the baseline query)
     expect(html).toContain("Truly New Co");
     expect(html).toContain("↑ +55.0");
+  });
+
+  it("uses a snapshot from 3 days ago as the current score when no snapshot exists today", async () => {
+    // Company's most recent snapshot is 3 days ago (not today).
+    // It should still appear as a mover using that snapshot as the current score.
+    const THREE_DAYS_AGO = "2026-08-15";
+    supabaseServerMock.mockResolvedValue(
+      createMinimalMockSupabase(
+        [
+          { company_id: 40, snapshot_date: WEEK_AGO, rotten_score: 30 },
+          { company_id: 40, snapshot_date: THREE_DAYS_AGO, rotten_score: 50 },
+          // No snapshot on NOW (2026-08-18)
+        ],
+        [{ id: 40, name: "Stale Co", slug: "stale-co" }],
+      ),
+    );
+
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    // current score = 50 (3-days-ago snapshot), baseline = 30 (WEEK_AGO), delta = +20
+    expect(html).toContain("Stale Co");
+    expect(html).toContain("↑ +20.0");
+  });
+
+  it("uses today's snapshot as the current score when one exists", async () => {
+    supabaseServerMock.mockResolvedValue(
+      createMinimalMockSupabase(
+        [
+          { company_id: 41, snapshot_date: WEEK_AGO, rotten_score: 10 },
+          { company_id: 41, snapshot_date: NOW, rotten_score: 45 },
+        ],
+        [{ id: 41, name: "Today Co", slug: "today-co" }],
+      ),
+    );
+
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    // current score = 45 (today), baseline = 10 (WEEK_AGO), delta = +35
+    expect(html).toContain("Today Co");
+    expect(html).toContain("↑ +35.0");
   });
 });
