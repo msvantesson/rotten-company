@@ -102,16 +102,19 @@ async function getBiggestMovers(
     const movers: Array<{ companyId: number; currentScore: number; delta: number }> = [];
     for (const idStr of Object.keys(todayMap)) {
       const id = Number(idStr);
-      if (prevMap[id] != null) {
-        movers.push({ companyId: id, currentScore: todayMap[id], delta: todayMap[id] - prevMap[id] });
+      // Use 0 as previous score for companies first scored within the 7-day window
+      const prev = prevMap[id] ?? 0;
+      const delta = todayMap[id] - prev;
+      if (delta !== 0) {
+        movers.push({ companyId: id, currentScore: todayMap[id], delta });
       }
     }
 
     if (movers.length === 0) return empty;
 
-    // Fetch top candidates by absolute delta — need enough to fill 5 increases + 5 decreases
+    // Fetch top candidates by absolute delta — need enough to fill up to 7 total
+    const MAX_MOVERS_TOTAL = 7;
     const MAX_MOVER_CANDIDATES = 20;
-    const MAX_MOVERS_PER_DIRECTION = 5;
     movers.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
     const top = movers.slice(0, MAX_MOVER_CANDIDATES);
     const companyIds = top.map((m) => m.companyId);
@@ -128,8 +131,10 @@ async function getBiggestMovers(
 
     const increases: MoverItem[] = [];
     const decreases: MoverItem[] = [];
+    let totalSelected = 0;
 
-    for (const m of movers) {
+    for (const m of top) {
+      if (totalSelected >= MAX_MOVERS_TOTAL) break;
       const c = companyById[m.companyId];
       if (!c) continue;
       const item: MoverItem = {
@@ -139,14 +144,9 @@ async function getBiggestMovers(
         currentScore: m.currentScore,
         delta: m.delta,
       };
-      if (m.delta > 0 && increases.length < MAX_MOVERS_PER_DIRECTION) increases.push(item);
-      else if (m.delta < 0 && decreases.length < MAX_MOVERS_PER_DIRECTION) decreases.push(item);
-      if (
-        increases.length >= MAX_MOVERS_PER_DIRECTION &&
-        decreases.length >= MAX_MOVERS_PER_DIRECTION
-      ) {
-        break;
-      }
+      if (m.delta > 0) increases.push(item);
+      else decreases.push(item);
+      totalSelected++;
     }
 
     return { increases, decreases };

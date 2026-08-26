@@ -161,6 +161,64 @@ function createMockSupabase(nowIsoDate: string, weekAgoIsoDate: string) {
   };
 }
 
+// Minimal mock factory for targeted mover tests.
+// Takes snapshots and companies directly; wires up a no-op for unrelated tables.
+function createMinimalMockSupabase(
+  snapshots: SnapshotRow[],
+  companies: { id: number; name: string; slug: string }[],
+) {
+  const from = (table: string) => {
+    const state: TableState = {};
+
+    const query = {
+      select: () => query,
+      order: () => query,
+      limit: (count: number) => {
+        state.limit = count;
+        return query;
+      },
+      in: (column: string, values: number[] | string[]) => {
+        state[`in:${column}`] = values;
+        return query;
+      },
+      eq: (column: string, value: string) => {
+        state[`eq:${column}`] = value;
+        return query;
+      },
+      then: <TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
+        onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
+        onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+      ) => {
+        let rows: unknown[] = [];
+        if (table === "company_rotten_score_snapshots") {
+          rows = snapshots;
+          const snapshotDates = state["in:snapshot_date"] as string[] | undefined;
+          const companyIds = state["in:company_id"] as number[] | undefined;
+          if (snapshotDates) rows = (rows as SnapshotRow[]).filter((r) => snapshotDates.includes(r.snapshot_date));
+          if (companyIds) rows = (rows as SnapshotRow[]).filter((r) => companyIds.includes(r.company_id));
+        } else if (table === "companies") {
+          const ids = state["in:id"] as number[] | undefined;
+          rows = ids ? companies.filter((c) => ids.includes(c.id)) : companies;
+        } else if (table === "global_rotten_index") {
+          rows = [];
+        } else if (table === "moderation_events") {
+          rows = [];
+        } else if (table === "evidence") {
+          rows = [];
+        }
+        return Promise.resolve({ data: rows, error: null }).then(onfulfilled, onrejected);
+      },
+    };
+
+    return query;
+  };
+
+  return {
+    auth: { getUser: vi.fn(async () => ({ data: { user: null } })) },
+    from,
+  };
+}
+
 describe("Homepage UI updates", () => {
   beforeAll(() => {
     vi.useFakeTimers();
@@ -174,7 +232,8 @@ describe("Homepage UI updates", () => {
     supabaseServerMock.mockResolvedValue(createMockSupabase(nowIsoDate, weekAgoIsoDate));
   });
 
-  it("shows 5 movers per direction with aligned movers columns and status", async () => {
+  // With max-7-total logic: interleaving ±10, ±9, ±8, ±7 fills 4 increases + 3 decreases = 7.
+  it("shows movers section with correct columns and top-7 results", async () => {
     const { default: HomePage } = await import("../app/page");
     const html = renderToStaticMarkup(await HomePage());
 
@@ -187,14 +246,15 @@ describe("Homepage UI updates", () => {
     expect(html).toMatch(/↑ Worsening[\s\S]*Worsen 1[\s\S]*↑ \+10.0[\s\S]*40.0[\s\S]*Tier 40.0/);
     expect(html).toMatch(/↓ Improving[\s\S]*Improve 1[\s\S]*↓ -10.0[\s\S]*60.0[\s\S]*Tier 60.0/);
 
+    // Top 7 by absolute change: +10,-10,+9,-9,+8,-8,+7 → Worsen1-4 and Improve1-3
     expect(html).toContain("Worsen 1");
-    expect(html).toContain("Worsen 5");
-    expect(html).not.toContain("Worsen 6");
+    expect(html).toContain("Worsen 4");
+    expect(html).not.toContain("Worsen 5");
     expect(html).toContain('href="/company/nestl"');
 
     expect(html).toContain("Improve 1");
-    expect(html).toContain("Improve 5");
-    expect(html).not.toContain("Improve 6");
+    expect(html).toContain("Improve 3");
+    expect(html).not.toContain("Improve 4");
 
     expect(html).toContain("↑ +10.0");
     expect(html).toContain("↓ -10.0");
@@ -202,5 +262,144 @@ describe("Homepage UI updates", () => {
     expect(html).not.toContain("↑ +2.0 this week");
     expect(html).not.toContain("↑ +10.0 this week");
     expect(html).not.toContain("↓ -10.0 this week");
+  });
+});
+
+describe("getBiggestMovers – mover selection rules", () => {
+  beforeAll(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-18T05:52:32.163Z"));
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const NOW = "2026-08-18";
+  const WEEK_AGO = "2026-08-11";
+
+  it("includes existing company with a score increase", async () => {
+    supabaseServerMock.mockResolvedValue(
+      createMinimalMockSupabase(
+        [
+          { company_id: 1, snapshot_date: WEEK_AGO, rotten_score: 20 },
+          { company_id: 1, snapshot_date: NOW, rotten_score: 35 },
+        ],
+        [{ id: 1, name: "Rising Co", slug: "rising-co" }],
+      ),
+    );
+
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    expect(html).toContain("Rising Co");
+    expect(html).toContain("↑ +15.0");
+  });
+
+  it("includes newly scored company without a 7-day-ago snapshot (treats prev as 0)", async () => {
+    supabaseServerMock.mockResolvedValue(
+      createMinimalMockSupabase(
+        // Only a today snapshot — no WEEK_AGO entry
+        [{ company_id: 2, snapshot_date: NOW, rotten_score: 42 }],
+        [{ id: 2, name: "Brand New Co", slug: "brand-new-co" }],
+      ),
+    );
+
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    expect(html).toContain("Brand New Co");
+    // delta = 42 - 0 = 42
+    expect(html).toContain("↑ +42.0");
+  });
+
+  it("includes a company with a score decrease", async () => {
+    supabaseServerMock.mockResolvedValue(
+      createMinimalMockSupabase(
+        [
+          { company_id: 3, snapshot_date: WEEK_AGO, rotten_score: 80 },
+          { company_id: 3, snapshot_date: NOW, rotten_score: 55 },
+        ],
+        [{ id: 3, name: "Falling Co", slug: "falling-co" }],
+      ),
+    );
+
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    expect(html).toContain("Falling Co");
+    expect(html).toContain("↓ -25.0");
+  });
+
+  it("excludes companies where the calculated change is exactly 0", async () => {
+    supabaseServerMock.mockResolvedValue(
+      createMinimalMockSupabase(
+        [
+          { company_id: 4, snapshot_date: WEEK_AGO, rotten_score: 50 },
+          { company_id: 4, snapshot_date: NOW, rotten_score: 50 },
+        ],
+        [{ id: 4, name: "Stable Co", slug: "stable-co" }],
+      ),
+    );
+
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    expect(html).not.toContain("Stable Co");
+    expect(html).not.toContain("Biggest movers this week");
+  });
+
+  it("returns at most 7 companies total", async () => {
+    // 8 companies all with non-zero deltas
+    const snapshots: SnapshotRow[] = Array.from({ length: 8 }, (_, i) => ({
+      company_id: i + 10,
+      snapshot_date: NOW,
+      rotten_score: (i + 1) * 5,
+    }));
+    const companies = Array.from({ length: 8 }, (_, i) => ({
+      id: i + 10,
+      name: `Co ${i + 1}`,
+      slug: `co-${i + 1}`,
+    }));
+
+    supabaseServerMock.mockResolvedValue(createMinimalMockSupabase(snapshots, companies));
+
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    // Count occurrences of company names in the movers section
+    const matchCount = (html.match(/Co \d/g) ?? []).length;
+    expect(matchCount).toBeLessThanOrEqual(7);
+    // At least one mover is shown
+    expect(html).toContain("Biggest movers this week");
+  });
+
+  it("orders movers by absolute score change descending", async () => {
+    supabaseServerMock.mockResolvedValue(
+      createMinimalMockSupabase(
+        [
+          // Company A: small change
+          { company_id: 20, snapshot_date: WEEK_AGO, rotten_score: 50 },
+          { company_id: 20, snapshot_date: NOW, rotten_score: 53 },
+          // Company B: large change
+          { company_id: 21, snapshot_date: WEEK_AGO, rotten_score: 10 },
+          { company_id: 21, snapshot_date: NOW, rotten_score: 40 },
+        ],
+        [
+          { id: 20, name: "Small Mover", slug: "small-mover" },
+          { id: 21, name: "Big Mover", slug: "big-mover" },
+        ],
+      ),
+    );
+
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    // Big Mover (delta=30) should appear before Small Mover (delta=3)
+    const bigPos = html.indexOf("Big Mover");
+    const smallPos = html.indexOf("Small Mover");
+    expect(bigPos).toBeGreaterThan(-1);
+    expect(smallPos).toBeGreaterThan(-1);
+    expect(bigPos).toBeLessThan(smallPos);
   });
 });
