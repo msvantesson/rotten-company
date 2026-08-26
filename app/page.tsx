@@ -85,33 +85,57 @@ async function getBiggestMovers(
     const todayUtc = new Date().toISOString().slice(0, 10);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    const { data: snapshots, error: snapshotsError } = await supabase
+    // Query 1: latest available snapshot per company on or before today.
+    // Daily snapshots are not guaranteed, so we use lte + desc ordering and pick
+    // the first occurrence per company (= the most recent score available).
+    const { data: currentSnapshots, error: currentError } = await supabase
       .from("company_rotten_score_snapshots")
-      .select("company_id, snapshot_date, rotten_score")
-      .in("snapshot_date", [todayUtc, sevenDaysAgo]);
+      .select("company_id, rotten_score")
+      .lte("snapshot_date", todayUtc)
+      .order("snapshot_date", { ascending: false });
 
-    if (snapshotsError || !snapshots || snapshots.length === 0) return empty;
+    if (currentError || !currentSnapshots || currentSnapshots.length === 0) return empty;
 
-    const todayMap: Record<number, number> = {};
+    // Pick the most recent score per company.
+    const currentMap: Record<number, number> = {};
+    for (const row of currentSnapshots) {
+      if (currentMap[row.company_id] == null) currentMap[row.company_id] = Number(row.rotten_score);
+    }
+
+    const companyIdsWithCurrent = Object.keys(currentMap).map(Number);
+
+    // Query 2: most recent snapshot on or before the 7-day cutoff.
+    // Daily snapshots are not guaranteed, so we use lte + desc ordering and pick
+    // the first occurrence per company (= the latest available baseline ≤ cutoff).
+    const { data: baselineSnapshots } = await supabase
+      .from("company_rotten_score_snapshots")
+      .select("company_id, rotten_score")
+      .in("company_id", companyIdsWithCurrent)
+      .lte("snapshot_date", sevenDaysAgo)
+      .order("snapshot_date", { ascending: false });
+
+    // Build prevMap: latest snapshot per company on or before the cutoff.
     const prevMap: Record<number, number> = {};
-    for (const row of snapshots) {
-      if (row.snapshot_date === todayUtc) todayMap[row.company_id] = Number(row.rotten_score);
-      else if (row.snapshot_date === sevenDaysAgo) prevMap[row.company_id] = Number(row.rotten_score);
+    for (const row of baselineSnapshots ?? []) {
+      if (prevMap[row.company_id] == null) prevMap[row.company_id] = Number(row.rotten_score);
     }
 
     const movers: Array<{ companyId: number; currentScore: number; delta: number }> = [];
-    for (const idStr of Object.keys(todayMap)) {
+    for (const idStr of Object.keys(currentMap)) {
       const id = Number(idStr);
-      if (prevMap[id] != null) {
-        movers.push({ companyId: id, currentScore: todayMap[id], delta: todayMap[id] - prevMap[id] });
+      // Use 0 as previous score only for genuinely new companies (no snapshot before the cutoff)
+      const prev = prevMap[id] ?? 0;
+      const delta = currentMap[id] - prev;
+      if (delta !== 0) {
+        movers.push({ companyId: id, currentScore: currentMap[id], delta });
       }
     }
 
     if (movers.length === 0) return empty;
 
-    // Fetch top candidates by absolute delta — need enough to fill 5 increases + 5 decreases
+    // Fetch top candidates by absolute delta — need enough to fill up to 7 total
+    const MAX_MOVERS_TOTAL = 7;
     const MAX_MOVER_CANDIDATES = 20;
-    const MAX_MOVERS_PER_DIRECTION = 5;
     movers.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
     const top = movers.slice(0, MAX_MOVER_CANDIDATES);
     const companyIds = top.map((m) => m.companyId);
@@ -128,8 +152,10 @@ async function getBiggestMovers(
 
     const increases: MoverItem[] = [];
     const decreases: MoverItem[] = [];
+    let totalSelected = 0;
 
-    for (const m of movers) {
+    for (const m of top) {
+      if (totalSelected >= MAX_MOVERS_TOTAL) break;
       const c = companyById[m.companyId];
       if (!c) continue;
       const item: MoverItem = {
@@ -139,14 +165,9 @@ async function getBiggestMovers(
         currentScore: m.currentScore,
         delta: m.delta,
       };
-      if (m.delta > 0 && increases.length < MAX_MOVERS_PER_DIRECTION) increases.push(item);
-      else if (m.delta < 0 && decreases.length < MAX_MOVERS_PER_DIRECTION) decreases.push(item);
-      if (
-        increases.length >= MAX_MOVERS_PER_DIRECTION &&
-        decreases.length >= MAX_MOVERS_PER_DIRECTION
-      ) {
-        break;
-      }
+      if (m.delta > 0) increases.push(item);
+      else decreases.push(item);
+      totalSelected++;
     }
 
     return { increases, decreases };
