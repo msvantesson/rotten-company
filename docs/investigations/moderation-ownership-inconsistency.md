@@ -43,7 +43,9 @@ The same filter is applied to `evidence`, `company_requests`, and
 
 ---
 
-## What has been verified (by code inspection only)
+## What has been verified
+
+**By static code inspection:**
 
 - `app/moderation/page.tsx` applies the self-exclusion filter consistently
   across all three content types (evidence, company\_requests,
@@ -51,8 +53,23 @@ The same filter is applied to `evidence`, `company_requests`, and
 - `app/moderation/leader-tenure-requests/actions.ts`
   (`assignNextLeaderTenureRequest`) uses the identical `(user_id IS NULL OR
   user_id != userId)` filter when selecting the next item to assign.
-- The TypeScript-side count queries and the TypeScript-side assignment action
-  are therefore consistent with each other.
+- `approveEvidence` and `rejectEvidence` in `app/moderation/actions.ts` reject
+  with an error when the authenticated moderator UUID matches the evidence
+  `user_id`.
+- The TypeScript-side count queries and the TypeScript-side assignment/approval
+  actions are therefore consistent with each other.
+
+**By automated tests** (`__tests__/moderation-self-review.test.ts`):
+
+- `approveEvidence` returns `{ ok: false }` when moderator == submitter, and
+  `{ ok: true }` when they are different or when `user_id` is null.
+- `rejectEvidence` behaves identically.
+- `assignNextLeaderTenureRequest` passes `user_id.neq.<moderatorId>` and
+  `user_id.is.null` to its `.or()` filter on every invocation; removing or
+  changing that string causes the test to fail.
+- When only own items are pending (the query returns nothing due to the filter),
+  the action redirects to `/moderation` without claiming anything.
+- Items with `user_id = null` are returned by the filter and are claimable.
 
 ---
 
