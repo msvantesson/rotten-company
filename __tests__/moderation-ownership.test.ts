@@ -1,6 +1,53 @@
 /**
  * Moderation ownership eligibility tests
  *
+ * Background
+ * ----------
+ * During production verification an inconsistency was observed:
+ *   svante01@gmail.com : 23 total, 23 "Available excluding yours"
+ *   svante01@yahoo.com : 23 total,  0 "Available excluding yours"
+ *
+ * STATUS OF THE INVESTIGATION
+ * ---------------------------
+ * PROVEN (by static code inspection):
+ *   - app/moderation/page.tsx applies a consistent self-exclusion filter to all
+ *     three content types (evidence, company_requests, leader_tenure_requests):
+ *       status = 'pending'
+ *       AND assigned_moderator_id IS NULL
+ *       AND (user_id IS NULL OR user_id != moderatorId)
+ *   - app/moderation/leader-tenure-requests/actions.ts uses the identical filter
+ *     when selecting the next item to assign.
+ *   - The "Available excluding yours" display is therefore correct by the rules
+ *     encoded in the TypeScript layer.
+ *
+ * INFERRED (not yet verified against production):
+ *   - The observed 0 / 23 split could be correct if the Yahoo account genuinely
+ *     submitted all 23 pending items. It could also indicate incorrect historical
+ *     ownership attribution.
+ *   - The live public.claim_next_moderation_item SQL RPC may or may not apply
+ *     the same self-exclusion filter. Its original CREATE FUNCTION definition is
+ *     absent from this repository's migration history; only an
+ *     ALTER FUNCTION ... SET search_path migration exists. The actual body has
+ *     not been retrieved from the production database.
+ *
+ * UNVERIFIED:
+ *   - The Yahoo account's authenticated UUID has not been obtained.
+ *   - The user_id values of the 23 production pending records have not been
+ *     queried; we cannot confirm whether they all match that UUID.
+ *   - Whether the live RPC excludes self-owned records cannot be stated without
+ *     retrieving \pg_proc or running \df+ claim_next_moderation_item against the
+ *     production database.
+ *
+ * WHAT THESE TESTS COVER
+ * ----------------------
+ * These tests verify the TypeScript-side eligibility predicate only. They do
+ * NOT test the SQL RPC (which requires a live Postgres connection). A full
+ * verification requires:
+ *   1. Querying the production DB for the Yahoo UUID and the 23 record user_ids.
+ *   2. Retrieving the live RPC body (SELECT prosrc FROM pg_proc WHERE ...).
+ *   3. Running the RPC in a test DB seeded with the schema to confirm atomic
+ *      assignment, self-exclusion, and leader_tenure_requests handling.
+ *
  * Covers:
  *  - The shared eligibility predicate: pending + unassigned + not-owned-by-moderator
  *  - Mixed ownership scenarios (some items owned by user A, some by user B, some null)
@@ -8,12 +55,6 @@
  *  - Null/imported owner edge cases (null user_id items are claimable by anyone)
  *  - Consistency between the count display logic and the assignment selection logic
  *    (both must apply the same predicate)
- *
- * The test strategy is to extract the pure eligibility predicate used by the
- * page.tsx count queries and the assignNextLeaderTenureRequest action, then
- * exercise it with a representative dataset, verifying that:
- *   count(available-for-user-A) + count(available-for-user-B) ≥ total_non_null
- *   and that self-owned items are always excluded.
  */
 
 import { describe, it, expect } from "vitest";
@@ -32,13 +73,14 @@ interface ModerationItem {
 // ---------------------------------------------------------------------------
 // Pure eligibility predicate
 //
-// This mirrors the Supabase query filter used in THREE places:
+// This mirrors the Supabase query filter used in TWO verified TypeScript sites:
 //   1. app/moderation/page.tsx — pendingCount ("Available excluding yours")
 //   2. app/moderation/leader-tenure-requests/actions.ts — assignNextLeaderTenureRequest
-//   3. supabase/migrations/…fix_claim_next_moderation_item… — SQL RPC
 //
-// Having a single extractable predicate makes it easy to unit-test and to
-// verify that all three sites remain in sync.
+// NOTE: Whether the SQL RPC public.claim_next_moderation_item applies this
+// same predicate has NOT been verified. The RPC's CREATE FUNCTION definition
+// is absent from this repository. Verifying it requires retrieving the live
+// function body from the production Postgres instance.
 // ---------------------------------------------------------------------------
 
 /**
