@@ -1,6 +1,7 @@
 # Investigation: potential moderation ownership/counting inconsistency
 
-**Status:** open — production data not yet inspected  
+**Status:** partially verified — Yahoo account UUID and one record confirmed;
+full 23-record ownership scan and live RPC body still needed  
 **No functional change is included in this document or in this PR.**
 
 ---
@@ -39,7 +40,60 @@ The same filter is applied to `evidence`, `company_requests`, and
   exclude items that should be claimable by Yahoo — silently preventing that
   account from moderating.
 
-**Neither interpretation can be confirmed without inspecting production data.**
+---
+
+## Production data inspected so far
+
+### Yahoo account UUID (confirmed)
+
+Running the following query against production:
+
+```sql
+WITH all_submissions AS (
+  SELECT 'evidence'              AS submission_type, id::text AS submission_id,
+         user_id, status::text, created_at FROM public.evidence
+  UNION ALL
+  SELECT 'company_request',      id::text, user_id, status::text, created_at
+         FROM public.company_requests
+  UNION ALL
+  SELECT 'leader_tenure_request', id::text, user_id, status::text, created_at
+         FROM public.leader_tenure_requests
+)
+SELECT s.*, u.email AS creator_email,
+       CASE
+         WHEN lower(u.email) = 'svante01@yahoo.com' THEN 'YES — Yahoo account created it'
+         WHEN u.email IS NULL                        THEN 'No creator email found'
+         ELSE                                             'NO — created by another account'
+       END AS result
+FROM all_submissions s
+LEFT JOIN auth.users u ON u.id = s.user_id
+ORDER BY s.created_at DESC
+LIMIT 1;
+```
+
+Result (single row, most-recent submission only):
+
+```json
+{
+  "submission_type": "evidence",
+  "submission_id": "1351",
+  "status": "pending",
+  "created_at": "2026-08-27 07:34:24.750901+00",
+  "creator_user_id": "64f825ed-5420-499e-9f1d-e238b26d8611",
+  "creator_email": "svante01@yahoo.com",
+  "result": "YES — Yahoo account created it"
+}
+```
+
+**What this proves:**
+- Yahoo account UUID: `64f825ed-5420-499e-9f1d-e238b26d8611`
+- The most recent pending evidence record (`id = 1351`) was created by that
+  account.
+
+**What this does NOT prove:**
+- Whether all remaining 22 pending records also have
+  `user_id = 64f825ed-5420-499e-9f1d-e238b26d8611`. The query used `LIMIT 1`
+  and returns only the single most-recent row.
 
 ---
 
@@ -71,41 +125,45 @@ The same filter is applied to `evidence`, `company_requests`, and
   the action redirects to `/moderation` without claiming anything.
 - Items with `user_id = null` are returned by the filter and are claimable.
 
+**By production query (partial):**
+
+- Yahoo account UUID confirmed: `64f825ed-5420-499e-9f1d-e238b26d8611`
+- The most-recent pending record (`evidence id 1351`) is owned by that account.
+
 ---
 
 ## What has NOT been verified
 
-1. **Yahoo account UUID** — the authenticated UUID for `svante01@yahoo.com` has
-   not been retrieved from `auth.users`.
-
-2. **Ownership of the 23 records** — the `user_id` values of the 23 pending
-   records, and which table(s) they live in, have not been queried.  
-   Required query (run as service role):
+1. **Full ownership scan of all 23 pending records** — only the single most
+   recent row was returned (`LIMIT 1`). Run without the limit to confirm all 23:
    ```sql
-   SELECT 'evidence'         AS source, id, user_id, created_at FROM evidence         WHERE status = 'pending' AND assigned_moderator_id IS NULL
+   SELECT 'evidence'              AS source, id, user_id, status, created_at
+     FROM evidence         WHERE status = 'pending' AND assigned_moderator_id IS NULL
    UNION ALL
-   SELECT 'company_requests' AS source, id, user_id, created_at FROM company_requests WHERE status = 'pending' AND assigned_moderator_id IS NULL
+   SELECT 'company_requests',     id, user_id, status, created_at
+     FROM company_requests WHERE status = 'pending' AND assigned_moderator_id IS NULL
    UNION ALL
-   SELECT 'leader_tenure_requests' AS source, id, user_id, created_at FROM leader_tenure_requests WHERE status = 'pending' AND assigned_moderator_id IS NULL
+   SELECT 'leader_tenure_requests', id, user_id, status, created_at
+     FROM leader_tenure_requests WHERE status = 'pending' AND assigned_moderator_id IS NULL
    ORDER BY source, created_at;
    ```
+   Expected result if attribution is correct: all 23 rows have
+   `user_id = '64f825ed-5420-499e-9f1d-e238b26d8611'`.
 
-3. **Live `claim_next_moderation_item` definition** — the `CREATE FUNCTION`
+2. **Live `claim_next_moderation_item` definition** — the `CREATE FUNCTION`
    body is absent from this repository's migration history. Only an
    `ALTER FUNCTION ... SET search_path` migration exists
-   (`supabase/migrations/20260311000000_fix_function_search_path_mutable.sql`).  
+   (`supabase/migrations/20260311000000_fix_function_search_path_mutable.sql`).
    Required retrieval (connect to production Postgres):
    ```sql
-   SELECT prosrc
-   FROM   pg_proc
-   WHERE  proname = 'claim_next_moderation_item';
+   SELECT prosrc FROM pg_proc WHERE proname = 'claim_next_moderation_item';
    ```
    Or via `psql`:
    ```
    \df+ claim_next_moderation_item
    ```
 
-4. **RPC self-exclusion behaviour** — it is unknown whether the live RPC
+3. **RPC self-exclusion behaviour** — it is unknown whether the live RPC
    applies `user_id != p_moderator_id`. If it does not, a moderator who owns
    all pending items would see 0 in the count display (correct) but the RPC
    could still assign one of their own items to them (a self-moderation
@@ -115,25 +173,21 @@ The same filter is applied to `evidence`, `company_requests`, and
 
 ## Required follow-up steps (before any fix PR)
 
-1. Obtain the Yahoo account's auth UUID from `auth.users` where
-   `email = 'svante01@yahoo.com'`.
+1. Re-run the ownership query above **without** `LIMIT 1` and confirm that
+   all 23 pending records have `user_id = '64f825ed-5420-499e-9f1d-e238b26d8611'`.
+   - If all 23 match → ownership is correct; the 0/23 display is accurate.
+   - If some do not match → attribution is incorrect; a backfill migration is
+     needed.
 
-2. Run the query above to list all 23 pending records and their `user_id`
-   values. Compare each to the Yahoo UUID.
-   - If all 23 match → ownership is correct; the display is accurate.
-   - If some or all do not match → attribution is incorrect; a backfill
-     migration is needed before or alongside any fix.
-
-3. Retrieve the live `claim_next_moderation_item` function body and compare
+2. Retrieve the live `claim_next_moderation_item` function body and compare
    its eligibility predicate to the TypeScript count query.
-   - If the RPC applies `user_id != p_moderator_id` → the TypeScript and SQL
-     layers are consistent; no fix needed unless attribution is wrong.
-   - If the RPC does NOT apply this filter → a focused SQL migration is needed
-     to add it, and a database-level test (using a seeded schema) must be
-     added to validate: atomic assignment, self-exclusion, null-owner
-     claimability, and correct handling of all three content types.
+   - If the RPC applies `user_id != p_moderator_id` → TypeScript and SQL layers
+     are consistent; no fix needed unless attribution is wrong.
+   - If the RPC does NOT apply this filter → a focused SQL migration is needed,
+     plus a database-level test (seeded schema) validating atomic assignment,
+     self-exclusion, null-owner claimability, and all three content types.
 
-4. Open a separate fix PR only if step 2 or step 3 identifies a genuine bug.
+3. Open a separate fix PR only if step 1 or step 2 identifies a genuine bug.
 
 ---
 
@@ -149,4 +203,5 @@ by any future fix:
   viewing moderator.
 
 Whether the SQL RPC enforces the same constraint independently remains
-unverified (see point 4 above).
+unverified (see point 3 above).
+
