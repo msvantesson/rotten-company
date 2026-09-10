@@ -1,9 +1,14 @@
 // app/signup/page.tsx
 
+import { cookies } from "next/headers";
 import { signupWithPassword } from "./actions";
+import SignupErrorMessage from "./SignupErrorMessage";
 import FormSubmitButton from "@/components/FormSubmitButton";
 
-export default function SignupPage() {
+export default async function SignupPage() {
+  const cookieStore = await cookies();
+  const signupError = cookieStore.get("signup_error")?.value ?? null;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted px-4">
       <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 bg-surface border border-border rounded-xl shadow-sm p-8">
@@ -25,6 +30,8 @@ export default function SignupPage() {
         {/* Right: Form */}
         <div>
           <h2 className="text-xl font-semibold mb-6">Create your account</h2>
+
+          {signupError && <SignupErrorMessage message={signupError} />}
 
           <form action={signupWithPassword} className="flex flex-col gap-4">
             <input

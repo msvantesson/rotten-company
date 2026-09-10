@@ -29,15 +29,16 @@ export default async function SignupConfirmPage({
 
         <p className="text-foreground">
           Please open the email and click <strong>Confirm your mail</strong> to
-          activate your account.
+          activate your account. After confirmation, we&apos;ll bring you back to
+          Rotten Company automatically.
         </p>
 
         <div className="pt-2 flex flex-col gap-2">
           <Link
-            href="/login"
+            href="/"
             className="inline-flex justify-center bg-black text-white px-4 py-2 rounded font-medium hover:bg-gray-800 transition"
           >
-            Go to login
+            Back to homepage
           </Link>
 
           <Link

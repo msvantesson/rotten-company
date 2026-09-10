@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export async function signupWithPassword(formData: FormData) {
@@ -13,6 +13,26 @@ export async function signupWithPassword(formData: FormData) {
   }
 
   const store = await cookies();
+  const headerStore = await headers();
+  const forwardedHost = headerStore.get("x-forwarded-host");
+  const host = forwardedHost ?? headerStore.get("host");
+  const proto = headerStore.get("x-forwarded-proto") ?? "https";
+  const localHost =
+    host && /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host) ? host : null;
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (localHost ? `${proto === "https" ? "http" : proto}://${localHost}` : null);
+
+  if (!origin) {
+    store.set("signup_error", "Signup is temporarily unavailable. Please try again later.", {
+      path: "/signup",
+      maxAge: 10,
+    });
+    redirect("/signup");
+  }
+
+  const emailRedirectTo = new URL("/auth/callback", origin);
+  emailRedirectTo.searchParams.set("next", "/");
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,6 +55,9 @@ export async function signupWithPassword(formData: FormData) {
   const { error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: emailRedirectTo.toString(),
+    },
   });
 
   if (error) {
