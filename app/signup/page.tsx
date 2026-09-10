@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { signupWithPassword } from "./actions";
+import SignupErrorMessage from "./SignupErrorMessage";
 import FormSubmitButton from "@/components/FormSubmitButton";
 
 export default async function SignupPage() {
@@ -30,19 +31,7 @@ export default async function SignupPage() {
         <div>
           <h2 className="text-xl font-semibold mb-6">Create your account</h2>
 
-          {signupError && (
-            <>
-              <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-800 mb-4">
-                {signupError}
-              </div>
-              <script
-                dangerouslySetInnerHTML={{
-                  __html:
-                    "document.cookie = 'signup_error=; Max-Age=0; path=/signup; SameSite=Lax';",
-                }}
-              />
-            </>
-          )}
+          {signupError && <SignupErrorMessage message={signupError} />}
 
           <form action={signupWithPassword} className="flex flex-col gap-4">
             <input
