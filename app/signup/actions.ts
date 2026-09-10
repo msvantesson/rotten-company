@@ -14,13 +14,22 @@ export async function signupWithPassword(formData: FormData) {
 
   const store = await cookies();
   const headerStore = await headers();
-  const requestOrigin = headerStore.get("origin");
+  const forwardedHost = headerStore.get("x-forwarded-host");
+  const host = forwardedHost ?? headerStore.get("host");
+  const proto = headerStore.get("x-forwarded-proto") ?? "https";
+  const localHost =
+    host && /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host) ? host : null;
   const origin =
     process.env.NEXT_PUBLIC_SITE_URL ??
-    (requestOrigin &&
-    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(requestOrigin)
-      ? requestOrigin
-      : "http://localhost:3000");
+    (localHost ? `${proto === "https" ? "http" : proto}://${localHost}` : null);
+
+  if (!origin) {
+    store.set("signup_error", "Signup is temporarily unavailable. Please try again later.", {
+      path: "/signup",
+      maxAge: 10,
+    });
+    redirect("/signup");
+  }
 
   const emailRedirectTo = new URL("/auth/callback", origin);
   emailRedirectTo.searchParams.set("next", "/");
