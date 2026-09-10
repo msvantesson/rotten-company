@@ -14,14 +14,13 @@ export async function signupWithPassword(formData: FormData) {
 
   const store = await cookies();
   const headerStore = await headers();
-  const forwardedHost = headerStore.get("x-forwarded-host");
-  const host = forwardedHost ?? headerStore.get("host");
-  const proto = headerStore.get("x-forwarded-proto") ?? "https";
+  const requestOrigin = headerStore.get("origin");
   const origin =
-    headerStore.get("origin") ??
-    (host
-      ? `${proto}://${host}`
-      : process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (requestOrigin &&
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(requestOrigin)
+      ? requestOrigin
+      : "http://localhost:3000");
 
   const emailRedirectTo = new URL("/auth/callback", origin);
   emailRedirectTo.searchParams.set("next", "/");
