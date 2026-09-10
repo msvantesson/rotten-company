@@ -5,6 +5,7 @@ import { useEffect } from "react";
 export default function SignupErrorMessage({ message }: { message: string }) {
   useEffect(() => {
     document.cookie = "signup_error=; Max-Age=0; path=/signup; SameSite=Lax";
+    document.cookie = "signup_error=; Max-Age=0; path=/; SameSite=Lax";
   }, []);
 
   return (
