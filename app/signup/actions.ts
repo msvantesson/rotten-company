@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export async function signupWithPassword(formData: FormData) {
@@ -13,6 +13,18 @@ export async function signupWithPassword(formData: FormData) {
   }
 
   const store = await cookies();
+  const headerStore = await headers();
+  const forwardedHost = headerStore.get("x-forwarded-host");
+  const host = forwardedHost ?? headerStore.get("host");
+  const proto = headerStore.get("x-forwarded-proto") ?? "https";
+  const origin =
+    headerStore.get("origin") ??
+    (host
+      ? `${proto}://${host}`
+      : process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
+
+  const emailRedirectTo = new URL("/auth/callback", origin);
+  emailRedirectTo.searchParams.set("next", "/");
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,6 +47,9 @@ export async function signupWithPassword(formData: FormData) {
   const { error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: emailRedirectTo.toString(),
+    },
   });
 
   if (error) {
