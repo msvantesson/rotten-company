@@ -76,6 +76,8 @@ export default async function CompanyPage({ params }: { params: Params }) {
     permanentRedirect(`/company/${slugResolution.canonicalSlug}`);
   }
 
+  const slug = slugResolution.canonicalSlug;
+
   // 1) Core company fetch — include country, website, description so they can be displayed
   const { data: company, error: companyError } = await supabase
     .from("companies")
@@ -86,10 +88,15 @@ export default async function CompanyPage({ params }: { params: Params }) {
     .maybeSingle();
 
   if (companyError) {
-    console.error("Error loading company:", slugResolution.companyId, companyError);
+    console.error("[company-page] company_lookup_failed", {
+      slug,
+      code: companyError.code,
+    });
+    throw companyError;
   }
 
   if (!company) {
+    console.warn("[company-page] company_not_found", { slug });
     notFound();
   }
 
