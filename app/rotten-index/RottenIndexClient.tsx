@@ -30,6 +30,7 @@ export default function RottenIndexClient({
   const [companies, setCompanies] = useState<Company[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadErrorMessage = "Unable to load the Rotten Index. Please try again.";
 
   async function fetchList(selected: string) {
     setLoading(true);
@@ -41,17 +42,26 @@ export default function RottenIndexClient({
       if (!res.ok) {
         console.warn("[RottenIndexClient] list_fetch_failed", { status: res.status });
         setCompanies([]);
-        setError("Failed to load Rotten Index.");
+        setError(loadErrorMessage);
+        return;
+      }
+
+      const responseText = await res.text();
+
+      if (!responseText.trim()) {
+        console.warn("[RottenIndexClient] list_response_empty");
+        setCompanies([]);
+        setError(loadErrorMessage);
         return;
       }
 
       let body: unknown;
       try {
-        body = await res.json();
+        body = JSON.parse(responseText);
       } catch {
         console.warn("[RottenIndexClient] list_response_parse_failed");
         setCompanies([]);
-        setError("Failed to load Rotten Index.");
+        setError(loadErrorMessage);
         return;
       }
 
@@ -64,7 +74,7 @@ export default function RottenIndexClient({
     } catch {
       console.error("[RottenIndexClient] list_fetch_error");
       setCompanies([]);
-      setError("Failed to load Rotten Index.");
+      setError(loadErrorMessage);
     } finally {
       setLoading(false);
     }
@@ -114,7 +124,7 @@ export default function RottenIndexClient({
 
       {!loading && companies && companies.length > 0 && (
         <ol className="divide-y divide-border border border-border rounded-lg">
-          {companies.map((c, i) => (
+          {companies.map((c) => (
             <li key={c.id} className="flex items-center justify-between px-4 py-3">
               <div>
                 <Link href={`/company/${c.slug}`} className="text-lg font-semibold hover:underline">
