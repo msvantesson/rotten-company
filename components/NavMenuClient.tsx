@@ -44,18 +44,18 @@ export default function NavMenuClient({
   useEffect(() => {
     if (!email || !isLoggedIn) return;
 
-    void fetchGateStatus().then(setGate);
+    let cancelled = false;
+
+    void fetchGateStatus().then((nextGate) => {
+      if (!cancelled) {
+        setGate(nextGate);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [email, pathname, isLoggedIn]);
-
-  useEffect(() => {
-    if (email && isLoggedIn) return;
-
-    const timeoutId = window.setTimeout(() => {
-      setGate(null);
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [email, isLoggedIn]);
 
   useEffect(() => {
     if (!open) return;
