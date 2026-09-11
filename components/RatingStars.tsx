@@ -54,8 +54,7 @@ export default function RatingStars({
       }
 
       if (!res.ok) {
-        const isUnauthenticated =
-          res.status === 401 || data?.error === "Failed to load user";
+        const isUnauthenticated = res.status === 401;
         const fallbackMessage =
           res.status >= 500 ? "Something went wrong" : "Unable to save rating";
         setMessage(
