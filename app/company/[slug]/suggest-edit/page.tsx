@@ -23,13 +23,21 @@ export default async function SuggestEditPage({
   }
 
   // Load company by slug
-  const { data: company, error } = await supabase
+  const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("name, slug, website, industry, description, country, size_employees_range, hq_region, hq_city")
     .eq("slug", slug)
-    .single();
+    .maybeSingle();
 
-  if (error || !company) {
+  if (companyError) {
+    console.error("[company-suggest-edit] company_lookup_failed", {
+      slug,
+      code: companyError.code,
+    });
+    throw companyError;
+  }
+
+  if (!company) {
     notFound();
   }
 
