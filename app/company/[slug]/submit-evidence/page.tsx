@@ -27,9 +27,17 @@ export default async function SubmitEvidencePage({
     .from("companies")
     .select("id, name, slug")
     .eq("slug", slug)
-    .single();
+    .maybeSingle();
 
-  if (error || !company) {
+  if (error) {
+    console.error("[submit-evidence] company_lookup_failed", {
+      slug,
+      code: error.code,
+    });
+    throw error;
+  }
+
+  if (!company) {
     notFound();
   }
 
