@@ -3,26 +3,20 @@
 import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
-const LOCAL_HOSTNAME_RE = /^(localhost|127\.0\.0\.1)$/i;
-
 function buildRedirectTo() {
   const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
 
-  if (configuredOrigin) {
-    const redirectTo = new URL("/auth/callback", configuredOrigin);
+  if (typeof window !== "undefined") {
+    const redirectTo = new URL("/auth/callback", window.location.origin);
     redirectTo.searchParams.set("next", "/");
     return redirectTo.toString();
   }
 
-  if (typeof window === "undefined") {
+  if (!configuredOrigin) {
     return null;
   }
 
-  if (!LOCAL_HOSTNAME_RE.test(window.location.hostname)) {
-    return null;
-  }
-
-  const redirectTo = new URL("/auth/callback", window.location.origin);
+  const redirectTo = new URL("/auth/callback", configuredOrigin);
   redirectTo.searchParams.set("next", "/");
   return redirectTo.toString();
 }
