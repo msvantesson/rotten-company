@@ -21,6 +21,10 @@ type CompanySlugRedirectRow = {
   new_slug: string;
 };
 
+type SupabaseErrorLike = {
+  code?: string;
+};
+
 export type CompanySlugResolution =
   | { kind: "canonical"; companyId: number; canonicalSlug: string }
   | { kind: "redirect"; companyId: number; canonicalSlug: string }
@@ -61,6 +65,19 @@ function isCompanySlugRedirectRow(value: unknown): value is CompanySlugRedirectR
   );
 }
 
+function getSupabaseErrorCode(error: unknown): string | undefined {
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof (error as SupabaseErrorLike).code === "string"
+  ) {
+    return (error as SupabaseErrorLike).code;
+  }
+
+  return undefined;
+}
+
 export async function resolveCompanySlug(
   supabase: SupabaseLikeClient,
   requestedSlug: string,
@@ -70,11 +87,19 @@ export async function resolveCompanySlug(
     return { kind: "not_found" };
   }
 
-  const { data: canonicalCompany } = await supabase
+  const { data: canonicalCompany, error: canonicalLookupError } = await supabase
     .from("companies")
     .select("id, slug")
     .eq("slug", normalizedRequestedSlug)
     .maybeSingle();
+
+  if (canonicalLookupError) {
+    console.error("[company-slug] canonical_lookup_failed", {
+      slug: normalizedRequestedSlug,
+      code: getSupabaseErrorCode(canonicalLookupError),
+    });
+    throw canonicalLookupError;
+  }
 
   if (isMinimalCompanyRow(canonicalCompany)) {
     return {
@@ -84,11 +109,19 @@ export async function resolveCompanySlug(
     };
   }
 
-  const { data: redirectRow } = await supabase
+  const { data: redirectRow, error: redirectLookupError } = await supabase
     .from("company_slug_redirects")
     .select("company_id, old_slug, new_slug")
     .eq("old_slug", normalizedRequestedSlug)
     .maybeSingle();
+
+  if (redirectLookupError) {
+    console.error("[company-slug] redirect_lookup_failed", {
+      slug: normalizedRequestedSlug,
+      code: getSupabaseErrorCode(redirectLookupError),
+    });
+    throw redirectLookupError;
+  }
 
   if (!isCompanySlugRedirectRow(redirectRow)) {
     return { kind: "not_found" };
@@ -100,11 +133,20 @@ export async function resolveCompanySlug(
     return { kind: "not_found" };
   }
 
-  const { data: redirectedCompany } = await supabase
+  const { data: redirectedCompany, error: redirectedCompanyLookupError } = await supabase
     .from("companies")
     .select("id, slug")
     .eq("id", redirectRow.company_id)
     .maybeSingle();
+
+  if (redirectedCompanyLookupError) {
+    console.error("[company-slug] redirected_company_lookup_failed", {
+      slug: normalizedRequestedSlug,
+      companyId: redirectRow.company_id,
+      code: getSupabaseErrorCode(redirectedCompanyLookupError),
+    });
+    throw redirectedCompanyLookupError;
+  }
 
   if (!isMinimalCompanyRow(redirectedCompany)) {
     return { kind: "not_found" };
