@@ -23,21 +23,24 @@ export default async function SubmitEvidencePage({
   }
 
   // Load company by slug
-  const { data: company, error } = await supabase
+  const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id, name, slug")
     .eq("slug", slug)
     .maybeSingle();
 
-  if (error) {
-    console.error("[submit-evidence] company_lookup_failed", {
+  if (companyError) {
+    console.error("[company-submit-evidence] company_lookup_failed", {
       slug,
-      code: error.code,
+      code: companyError.code,
     });
-    throw error;
+    throw companyError;
   }
 
   if (!company) {
+    console.warn("[company-submit-evidence] company_not_found", {
+      slug,
+    });
     notFound();
   }
 
