@@ -4,21 +4,24 @@ import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 function buildRedirectTo() {
-  const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
+  try {
+    if (typeof window !== "undefined") {
+      const redirectTo = new URL("/auth/callback", window.location.origin);
+      redirectTo.searchParams.set("next", "/");
+      return redirectTo.toString();
+    }
 
-  if (typeof window !== "undefined") {
-    const redirectTo = new URL("/auth/callback", window.location.origin);
+    const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
+    if (!configuredOrigin) {
+      return null;
+    }
+
+    const redirectTo = new URL("/auth/callback", configuredOrigin);
     redirectTo.searchParams.set("next", "/");
     return redirectTo.toString();
-  }
-
-  if (!configuredOrigin) {
+  } catch {
     return null;
   }
-
-  const redirectTo = new URL("/auth/callback", configuredOrigin);
-  redirectTo.searchParams.set("next", "/");
-  return redirectTo.toString();
 }
 
 export default function GoogleAuthButton() {
@@ -53,9 +56,9 @@ export default function GoogleAuthButton() {
       setErrorMessage("Google sign-in could not be started. Please try again.");
     } catch {
       setErrorMessage("Google sign-in could not be started. Please try again.");
+    } finally {
+      setIsPending(false);
     }
-
-    setIsPending(false);
   };
 
   return (
