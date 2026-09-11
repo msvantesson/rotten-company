@@ -88,6 +88,12 @@ export default function RootLayout({
             <Link href="/disclaimer" className="hover:text-foreground hover:underline">
               Disclaimer
             </Link>
+            <Link href="/privacy" className="hover:text-foreground hover:underline">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-foreground hover:underline">
+              Terms
+            </Link>
             <Link
               href="/moderation-guidelines"
               className="hover:text-foreground hover:underline"
