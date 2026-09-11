@@ -4,24 +4,29 @@ import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 function buildRedirectTo() {
-  try {
-    if (typeof window !== "undefined") {
-      const redirectTo = new URL("/auth/callback", window.location.origin);
-      redirectTo.searchParams.set("next", "/");
-      return redirectTo.toString();
-    }
-
-    const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
-    if (!configuredOrigin) {
-      return null;
-    }
-
-    const redirectTo = new URL("/auth/callback", configuredOrigin);
-    redirectTo.searchParams.set("next", "/");
-    return redirectTo.toString();
-  } catch {
+  if (typeof window === "undefined") {
     return null;
   }
+
+  const browserOrigin = window.location.origin;
+  const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
+
+  let origin = browserOrigin;
+
+  if (configuredOrigin) {
+    try {
+      const normalizedConfiguredOrigin = new URL(configuredOrigin).origin;
+      if (normalizedConfiguredOrigin === browserOrigin) {
+        origin = normalizedConfiguredOrigin;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  const redirectTo = new URL("/auth/callback", origin);
+  redirectTo.searchParams.set("next", "/");
+  return redirectTo.toString();
 }
 
 export default function GoogleAuthButton() {
@@ -56,9 +61,9 @@ export default function GoogleAuthButton() {
       setErrorMessage("Google sign-in could not be started. Please try again.");
     } catch {
       setErrorMessage("Google sign-in could not be started. Please try again.");
-    } finally {
-      setIsPending(false);
     }
+
+    setIsPending(false);
   };
 
   return (
