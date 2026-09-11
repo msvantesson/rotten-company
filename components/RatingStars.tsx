@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 type RatingStarsProps = {
   companySlug: string;
@@ -17,14 +17,24 @@ export default function RatingStars({
   const [selected, setSelected] = useState<number | null>(initialScore);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   async function submitRating(score: number) {
+    if (submittingRef.current) {
+      return;
+    }
+
+    submittingRef.current = true;
     setLoading(true);
     setMessage(null);
 
     try {
       const res = await fetch("/api/submit-rating", {
         method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           companySlug,
           categorySlug,
@@ -32,25 +42,37 @@ export default function RatingStars({
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: { error?: string } | null = null;
+
+      if (text) {
+        try {
+          data = JSON.parse(text) as { error?: string };
+        } catch {
+          data = null;
+        }
+      }
 
       if (!res.ok) {
         const isUnauthenticated =
-          res.status === 401 || data.error === "Failed to load user";
+          res.status === 401 || data?.error === "Failed to load user";
+        const fallbackMessage =
+          res.status >= 500 ? "Something went wrong" : "Unable to save rating";
         setMessage(
           isUnauthenticated
             ? "Please register or log in to rate companies."
-            : data.error || "Something went wrong"
+            : data?.error || fallbackMessage
         );
       } else {
         setSelected(score);
         setMessage("Rating saved");
       }
-    } catch (err) {
+    } catch {
       setMessage("Network error");
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (

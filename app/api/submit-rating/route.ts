@@ -3,7 +3,6 @@ import { supabaseServer } from "@/lib/supabase-server";
 
 export async function POST(req: Request) {
   try {
-    // Use the SAME SSR client as your pages — stable in Vercel
     const supabase = await supabaseServer();
 
     const body = await req.json();
@@ -24,10 +23,8 @@ export async function POST(req: Request) {
     } = await supabase.auth.getUser();
 
     if (userError) {
-      return NextResponse.json(
-        { error: "Failed to load user", details: userError.message },
-        { status: 500 }
-      );
+      console.error("[submit-rating:user-load]");
+      return NextResponse.json({ error: "Failed to load user" }, { status: 500 });
     }
 
     if (!user) {
@@ -37,16 +34,6 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("Rating request:", {
-      companySlug,
-      categorySlug,
-      score: parsedScore,
-      userId: user.id,
-      email: user.email,
-      metadata: user.user_metadata,
-    });
-
-    // Ensure user exists in "users" table
     const { error: upsertError } = await supabase.from("users").upsert(
       {
         id: user.id,
@@ -59,14 +46,10 @@ export async function POST(req: Request) {
     );
 
     if (upsertError) {
-      console.error("User upsert failed:", upsertError);
-      return NextResponse.json(
-        { error: "User upsert failed", details: upsertError },
-        { status: 500 }
-      );
+      console.error("[submit-rating:user-upsert]");
+      return NextResponse.json({ error: "User upsert failed" }, { status: 500 });
     }
 
-    // Fetch company
     const { data: company, error: companyError } = await supabase
       .from("companies")
       .select("id")
@@ -74,13 +57,9 @@ export async function POST(req: Request) {
       .single();
 
     if (!company || companyError) {
-      return NextResponse.json(
-        { error: "Company not found", details: companyError?.message },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Company not found" }, { status: 404 });
     }
 
-    // Fetch category
     const { data: category, error: categoryError } = await supabase
       .from("categories")
       .select("id")
@@ -88,14 +67,9 @@ export async function POST(req: Request) {
       .single();
 
     if (!category || categoryError) {
-      return NextResponse.json(
-        { error: "Category not found", details: categoryError?.message },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Category not found" }, { status: 404 });
     }
 
-    // Insert or update rating — explicitly target the unique constraint so
-    // re-submitting the same (user, company, category) updates the existing row.
     const { data: ratingRow, error: ratingError } = await supabase
       .from("ratings")
       .upsert(
@@ -111,27 +85,28 @@ export async function POST(req: Request) {
       .single();
 
     if (ratingError) {
-      // Duplicate-key violation — return 409 instead of 500 for a normal update conflict.
-      if ((ratingError as any).code === "23505") {
+      const ratingErrorCode =
+        typeof ratingError === "object" &&
+        ratingError !== null &&
+        "code" in ratingError &&
+        typeof ratingError.code === "string"
+          ? ratingError.code
+          : null;
+
+      if (ratingErrorCode === "23505") {
         return NextResponse.json(
           { error: "Rating already exists for this category (conflict)." },
           { status: 409 }
         );
       }
 
-      console.error("Rating upsert failed:", ratingError);
-      return NextResponse.json(
-        { error: "Failed to submit rating", details: ratingError },
-        { status: 500 }
-      );
+      console.error("[submit-rating:rating-upsert]");
+      return NextResponse.json({ error: "Failed to submit rating" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, rating: ratingRow });
-  } catch (err: any) {
-    console.error("Unhandled rating error:", err);
-    return NextResponse.json(
-      { error: "Unexpected server error", details: err?.message },
-      { status: 500 }
-    );
+  } catch {
+    console.error("[submit-rating:unhandled]");
+    return NextResponse.json({ error: "Unexpected server error" }, { status: 500 });
   }
 }
