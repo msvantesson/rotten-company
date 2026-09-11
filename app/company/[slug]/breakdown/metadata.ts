@@ -32,13 +32,24 @@ export async function generateBreakdownMetadata(
     permanentRedirect(`/company/${slugResolution.canonicalSlug}/breakdown`);
   }
 
-  const { data: company } = await supabase
+  const slug = slugResolution.canonicalSlug;
+
+  const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("id, name, slug")
     .eq("id", slugResolution.companyId)
     .maybeSingle();
 
+  if (companyError) {
+    console.error("[company-breakdown-metadata] company_lookup_failed", {
+      slug,
+      code: companyError.code,
+    });
+    throw companyError;
+  }
+
   if (!company) {
+    console.warn("[company-breakdown-metadata] company_not_found", { slug });
     notFound();
   }
 
