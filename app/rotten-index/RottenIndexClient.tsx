@@ -29,14 +29,45 @@ export default function RottenIndexClient({
 
   const [companies, setCompanies] = useState<Company[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   async function fetchList(selected: string) {
     setLoading(true);
-    const q = selected ? `?country=${encodeURIComponent(selected)}` : "";
-    const res = await fetch(`/api/rotten-index${q}`, { cache: "no-store" });
-    const body = await res.json();
-    setCompanies(body.companies || []);
-    setLoading(false);
+    setError(null);
+    try {
+      const q = selected ? `?country=${encodeURIComponent(selected)}` : "";
+      const res = await fetch(`/api/rotten-index${q}`, { cache: "no-store" });
+
+      if (!res.ok) {
+        console.warn("[RottenIndexClient] list_fetch_failed", { status: res.status });
+        setCompanies([]);
+        setError("Failed to load Rotten Index.");
+        return;
+      }
+
+      let body: unknown;
+      try {
+        body = await res.json();
+      } catch {
+        console.warn("[RottenIndexClient] list_response_parse_failed");
+        setCompanies([]);
+        setError("Failed to load Rotten Index.");
+        return;
+      }
+
+      const rows =
+        body && typeof body === "object" && "companies" in body && Array.isArray((body as { companies?: unknown }).companies)
+          ? ((body as { companies: Company[] }).companies ?? [])
+          : [];
+
+      setCompanies(rows);
+    } catch {
+      console.error("[RottenIndexClient] list_fetch_error");
+      setCompanies([]);
+      setError("Failed to load Rotten Index.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -75,7 +106,9 @@ export default function RottenIndexClient({
 
       {loading && <p className="text-muted-foreground">Loading…</p>}
 
-      {!loading && companies && companies.length === 0 && (
+      {!loading && error && <p className="text-muted-foreground">{error}</p>}
+
+      {!loading && !error && companies && companies.length === 0 && (
         <p className="text-muted-foreground">No companies found.</p>
       )}
 
