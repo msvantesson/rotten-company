@@ -42,15 +42,21 @@ export default function NavMenuClient({
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!email || !isLoggedIn) return;
-
     let cancelled = false;
 
-    void fetchGateStatus().then((nextGate) => {
+    async function syncGate() {
+      if (!email || !isLoggedIn) {
+        setGate(null);
+        return;
+      }
+
+      const nextGate = await fetchGateStatus();
       if (!cancelled) {
         setGate(nextGate);
       }
-    });
+    }
+
+    void syncGate();
 
     return () => {
       cancelled = true;
