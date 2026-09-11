@@ -85,21 +85,6 @@ export async function POST(req: Request) {
       .single();
 
     if (ratingError) {
-      const ratingErrorCode =
-        typeof ratingError === "object" &&
-        ratingError !== null &&
-        "code" in ratingError &&
-        typeof ratingError.code === "string"
-          ? ratingError.code
-          : null;
-
-      if (ratingErrorCode === "23505") {
-        return NextResponse.json(
-          { error: "Rating already exists for this category (conflict)." },
-          { status: 409 }
-        );
-      }
-
       console.error("[submit-rating:rating-upsert]");
       return NextResponse.json({ error: "Failed to submit rating" }, { status: 500 });
     }
