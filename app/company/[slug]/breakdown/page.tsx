@@ -11,6 +11,9 @@ import CompanyTabs from "@/components/CompanyTabs";
 import { generateBreakdownMetadata } from "./metadata";
 import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 
+type BreakdownData = Parameters<typeof CategoryBreakdown>[0]["breakdown"];
+type EvidenceData = Parameters<typeof CategoryBreakdown>[0]["evidence"];
+
 // Re-export generateMetadata so Next.js picks it up from this route file.
 export async function generateMetadata({
   params,
@@ -44,16 +47,20 @@ export default async function BreakdownPage({
     .maybeSingle();
 
   if (companyError) {
-    console.error("❌ Error loading company in breakdown page:", slug, companyError);
+    console.error("[company-breakdown] company_lookup_failed", {
+      slug,
+      code: companyError.code,
+    });
+    throw companyError;
   }
 
   if (!company) {
-    console.warn("⚠️ No company found for slug in breakdown page:", slug);
+    console.warn("[company-breakdown] company_not_found", { slug });
     return notFound();
   }
 
   // 2) Load breakdown
-  let breakdown: any[] = [];
+  let breakdown: BreakdownData = [];
   try {
     const { data, error } = await supabase
       .from("company_category_full_breakdown")
@@ -73,7 +80,7 @@ export default async function BreakdownPage({
   }
 
   // 3) Load evidence
-  let evidence: any[] = [];
+  let evidence: EvidenceData = [];
   try {
     evidence = (await getEvidenceWithManagers(company.id)) ?? [];
   } catch (e) {
