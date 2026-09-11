@@ -1,22 +1,40 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
 
+function isIntegerScore(score: unknown): score is number {
+  return typeof score === "number" && Number.isInteger(score) && score >= 1 && score <= 5;
+}
+
+function validationError(message: string) {
+  return NextResponse.json({ error: message }, { status: 400 });
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = await supabaseServer();
 
-    const body = await req.json();
-    const { companySlug, categorySlug, score } = body;
-    const parsedScore = Number(score);
-
-    if (!companySlug || !categorySlug || isNaN(parsedScore)) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return validationError("Invalid JSON body");
     }
 
-    // Load authenticated user (this now works in Vercel)
+    const payload = body as Record<string, unknown> | null;
+    const companySlug = payload?.companySlug;
+    const categorySlug = payload?.categorySlug;
+    const score = payload?.score;
+
+    if (typeof companySlug !== "string" || companySlug.trim() === "") {
+      return validationError("companySlug is required");
+    }
+    if (typeof categorySlug !== "string" || categorySlug.trim() === "") {
+      return validationError("categorySlug is required");
+    }
+    if (!isIntegerScore(score)) {
+      return validationError("score must be an integer from 1 to 5");
+    }
+
     const {
       data: { user },
       error: userError,
@@ -28,10 +46,7 @@ export async function POST(req: Request) {
     }
 
     if (!user) {
-      return NextResponse.json(
-        { error: "Not authenticated" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
     const { error: upsertError } = await supabase.from("users").upsert(
@@ -77,7 +92,7 @@ export async function POST(req: Request) {
           user_id: user.id,
           company_id: company.id,
           category: category.id,
-          score: parsedScore,
+          score,
         },
         { onConflict: "user_id,company_id,category" }
       )
@@ -100,14 +115,8 @@ export async function POST(req: Request) {
           ? ratingError.constraint
           : null;
 
-      if (
-        ratingErrorCode === "23505" &&
-        ratingErrorConstraint === "ratings_user_id_company_id_category_key"
-      ) {
-        return NextResponse.json(
-          { error: "Rating already exists for this category." },
-          { status: 409 }
-        );
+      if (ratingErrorCode === "23505" && ratingErrorConstraint === "ratings_user_id_company_id_category_key") {
+        return NextResponse.json({ error: "Rating already exists for this category." }, { status: 409 });
       }
 
       console.error("[submit-rating:rating-upsert]");
