@@ -77,6 +77,7 @@ export default function NavMenuClient({
         return;
       }
 
+      setGate(null);
       setOpen(false);
       router.replace("/");
       router.refresh();
