@@ -42,10 +42,7 @@ export default function NavMenuClient({
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!email || !isLoggedIn) {
-      setGate(null);
-      return;
-    }
+    if (!email || !isLoggedIn) return;
 
     void fetchGateStatus().then(setGate);
   }, [email, pathname, isLoggedIn]);
