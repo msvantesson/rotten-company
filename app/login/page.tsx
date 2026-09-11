@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { loginWithPassword } from "./actions";
 import FormSubmitButton from "@/components/FormSubmitButton";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
 
 export default async function LoginPage() {
   const cookieStore = await cookies();
@@ -11,6 +12,14 @@ export default async function LoginPage() {
     <div className="min-h-[calc(100vh-72px)] flex items-center justify-center bg-muted px-4">
       <div className="w-full max-w-md bg-surface border border-border rounded-xl shadow-sm p-8">
         <h1 className="text-2xl font-bold mb-6">Sign in</h1>
+
+        <GoogleAuthButton />
+
+        <div className="my-6 flex items-center gap-3 text-sm text-muted-foreground">
+          <div className="h-px flex-1 bg-border" />
+          <span>or</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
 
         <form action={loginWithPassword} className="flex flex-col gap-4">
           <input
