@@ -45,16 +45,23 @@ export default function GoogleAuthButton() {
     setIsPending(true);
     setErrorMessage(null);
 
-    const supabase = supabaseBrowser();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
+    try {
+      const supabase = supabaseBrowser();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
 
-    if (error) {
+      if (!error) {
+        return;
+      }
+
       setErrorMessage("Google sign-in could not be started. Please try again.");
-      setIsPending(false);
+    } catch {
+      setErrorMessage("Google sign-in could not be started. Please try again.");
     }
+
+    setIsPending(false);
   };
 
   return (
@@ -68,7 +75,11 @@ export default function GoogleAuthButton() {
         Continue with Google
       </button>
 
-      {errorMessage && <p className="text-sm text-red-800">{errorMessage}</p>}
+      {errorMessage && (
+        <p role="alert" className="text-sm text-red-800">
+          {errorMessage}
+        </p>
+      )}
     </div>
   );
 }
