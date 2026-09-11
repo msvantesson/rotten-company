@@ -102,7 +102,7 @@ export async function POST(req: Request) {
 
       if (
         ratingErrorCode === "23505" &&
-        ratingErrorConstraint !== "ratings_user_id_company_id_category_key"
+        ratingErrorConstraint === "ratings_user_id_company_id_category_key"
       ) {
         return NextResponse.json(
           { error: "Rating already exists for this category." },
