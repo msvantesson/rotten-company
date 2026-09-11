@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { signupWithPassword } from "./actions";
 import SignupErrorMessage from "./SignupErrorMessage";
 import FormSubmitButton from "@/components/FormSubmitButton";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
 
 export default async function SignupPage() {
   const cookieStore = await cookies();
@@ -32,6 +33,14 @@ export default async function SignupPage() {
           <h2 className="text-xl font-semibold mb-6">Create your account</h2>
 
           {signupError && <SignupErrorMessage message={signupError} />}
+
+          <GoogleAuthButton />
+
+          <div className="my-6 flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="h-px flex-1 bg-border" />
+            <span>or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
 
           <form action={signupWithPassword} className="flex flex-col gap-4">
             <input
