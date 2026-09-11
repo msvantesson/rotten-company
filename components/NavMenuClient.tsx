@@ -48,6 +48,16 @@ export default function NavMenuClient({
   }, [email, pathname, isLoggedIn]);
 
   useEffect(() => {
+    if (email && isLoggedIn) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setGate(null);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [email, isLoggedIn]);
+
+  useEffect(() => {
     if (!open) return;
 
     function handleClickOutside(e: MouseEvent) {
