@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { logout } from "@/app/logout/actions";
+import { usePathname, useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type ModerationGateStatus = {
   pendingEvidence: number;
@@ -33,18 +33,34 @@ export default function NavMenuClient({
   isLoggedIn: boolean;
   moderationHref: string;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [gate, setGate] = useState<ModerationGateStatus | null>(null);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!email || !isLoggedIn) {
-      setGate(null);
-      return;
+    let cancelled = false;
+
+    async function syncGate() {
+      if (!email || !isLoggedIn) {
+        setGate(null);
+        return;
+      }
+
+      const nextGate = await fetchGateStatus();
+      if (!cancelled) {
+        setGate(nextGate);
+      }
     }
 
-    void fetchGateStatus().then(setGate);
+    void syncGate();
+
+    return () => {
+      cancelled = true;
+    };
   }, [email, pathname, isLoggedIn]);
 
   useEffect(() => {
@@ -60,6 +76,32 @@ export default function NavMenuClient({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
+
+  async function handleLogout() {
+    if (loggingOut) return;
+
+    setLogoutError(null);
+    setLoggingOut(true);
+
+    try {
+      const supabase = supabaseBrowser();
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        setLogoutError("Logout failed. Please try again.");
+        setLoggingOut(false);
+        return;
+      }
+
+      setGate(null);
+      setOpen(false);
+      router.replace("/");
+      router.refresh();
+    } catch {
+      setLogoutError("Logout failed. Please try again.");
+      setLoggingOut(false);
+    }
+  }
 
   if (!email) {
     return (
@@ -171,14 +213,22 @@ export default function NavMenuClient({
             </>
           )}
 
-          <form action={logout} onSubmit={() => setOpen(false)}>
+          {logoutError && (
+            <div className="px-3 py-3 sm:py-2 border-t border-border text-sm text-red-600">
+              {logoutError}
+            </div>
+          )}
+
+          <div>
             <button
-              type="submit"
-              className="w-full text-left block px-3 py-3 sm:py-2 text-red-600 hover:bg-muted"
+              type="button"
+              onClick={() => void handleLogout()}
+              disabled={loggingOut}
+              className="w-full text-left block px-3 py-3 sm:py-2 text-red-600 hover:bg-muted disabled:opacity-50"
             >
-              Log out
+              {loggingOut ? "Logging out…" : "Log out"}
             </button>
-          </form>
+          </div>
         </div>
       )}
     </div>
