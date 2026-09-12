@@ -156,7 +156,6 @@ export default function RottenIndexClient({
 
       if (!res.ok) {
         console.warn("[RottenIndexClient] list_fetch_failed", { status: res.status });
-        setRows([]);
         setError(loadErrorMessage);
         return;
       }
@@ -165,7 +164,6 @@ export default function RottenIndexClient({
       setRows(nextRows);
     } catch {
       console.error("[RottenIndexClient] list_fetch_error");
-      setRows([]);
       setError(loadErrorMessage);
     } finally {
       setLoading(false);
