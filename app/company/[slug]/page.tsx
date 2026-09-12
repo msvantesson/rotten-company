@@ -7,7 +7,6 @@ export const dynamicParams = true;
 export { generateMetadata } from "./metadata";
 
 import { supabaseServer } from "@/lib/supabase-server";
-import { resolveCompanySlug } from "@/lib/company-slug";
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
 import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
@@ -24,6 +23,10 @@ import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
 import { EMPLOYEE_RANGES } from "@/lib/constants/employee-ranges";
 import { buildSsrAnswer } from "@/lib/company-seo";
 import { calculateCompanyModifiedAt, latestValidIsoDate } from "@/lib/company-modified-at";
+import {
+  getCompanyDetailErrorCode,
+  getCompanyDetailRouteData,
+} from "./detail-data";
 
 // --- Toggle debug UI in non-production or when explicit env flag is set ---
 // Set SHOW_DEBUG=1 (or SHOW_DEBUG === '1') to enable in production if needed.
@@ -62,11 +65,8 @@ export default async function CompanyPage({ params }: { params: Params }) {
     ? decodeURIComponent(resolvedParams.slug)
     : "";
 
-  const supabase = await supabaseServer();
-  const slugResolution = await resolveCompanySlug(
-    supabase as unknown as Parameters<typeof resolveCompanySlug>[0],
-    rawSlug,
-  );
+  const detailData = await getCompanyDetailRouteData(rawSlug);
+  const { slugResolution } = detailData;
 
   if (slugResolution.kind === "not_found") {
     notFound();
@@ -77,20 +77,14 @@ export default async function CompanyPage({ params }: { params: Params }) {
   }
 
   const slug = slugResolution.canonicalSlug;
+  const supabase = await supabaseServer();
 
-  // 1) Core company fetch — include country, website, description so they can be displayed
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select(
-      "id, name, slug, industry, size_employees_range, country, hq_region, hq_city, website, description, updated_at",
-    )
-    .eq("id", slugResolution.companyId)
-    .maybeSingle();
+  const { company, companyError } = detailData;
 
   if (companyError) {
     console.error("[company-page] company_lookup_failed", {
       slug,
-      code: companyError.code,
+      code: getCompanyDetailErrorCode(companyError),
     });
     throw companyError;
   }
@@ -133,59 +127,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
   });
 
   // Category breakdown (still loaded for JSON-LD / debug panel if needed)
-  let breakdownWithFlavor: CompanyBreakdownRow[] = [];
-  try {
-    const { data: mergedBreakdown, error: breakdownError } = await supabase
-      .from("company_category_full_breakdown")
-      .select(
-        "category_id, category_name, rating_count, avg_rating_score, evidence_count, severity_score, final_score, misconduct_low_count, misconduct_medium_count, misconduct_high_count, remediation_low_count, remediation_medium_count, remediation_high_count",
-      )
-      .eq("company_id", company.id);
-
-    if (breakdownError) {
-      console.error(
-        "Error loading company_category_full_breakdown for company:",
-        company.id,
-        breakdownError,
-      );
-    }
-
-    breakdownWithFlavor = (mergedBreakdown ?? []) as CompanyBreakdownRow[];
-  } catch (e) {
-    console.error(
-      "Unexpected error building breakdown for company:",
-      company.id,
-      e,
-    );
-    breakdownWithFlavor = [];
-  }
+  const breakdownWithFlavor = detailData.breakdown as CompanyBreakdownRow[];
 
   // Live Rotten Score
-  let liveRottenScore: number | null = null;
-  try {
-    const { data: scoreRow, error: scoreError } = await supabase
-      .from("company_rotten_score_v2")
-      .select("rotten_score")
-      .eq("company_id", company.id)
-      .maybeSingle();
-
-    if (scoreError) {
-      console.error(
-        "Error loading company_rotten_score_v2 for company:",
-        company.id,
-        scoreError,
-      );
-    }
-
-    liveRottenScore = scoreRow?.rotten_score ?? null;
-  } catch (e) {
-    console.error(
-      "Unexpected error loading Rotten Score for company:",
-      company.id,
-      e,
-    );
-    liveRottenScore = null;
-  }
+  const liveRottenScore = detailData.rottenScore;
 
   // Flavor (canonical)
   const flavor = getRottenFlavor(liveRottenScore ?? 0);
@@ -194,10 +139,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
   );
 
   // Total approved evidence count (used by SSR answer)
-  const totalEvidenceCount = breakdownWithFlavor.reduce(
-    (sum, row) => sum + (typeof row.evidence_count === "number" ? row.evidence_count : 0),
-    0,
-  );
+  const totalEvidenceCount = detailData.evidenceCount ?? 0;
 
   const scoreDebugBreakdown: ScoreDebugBreakdownRow[] = jsonLdBreakdown.map((row) => ({
     ...row,
@@ -347,6 +289,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
       jsonLd = buildCompanyJsonLd({
         company: {
           ...company,
+          industry: company.industry ?? undefined,
           updated_at: companyModifiedAt ?? company.updated_at,
         },
         rottenScore: liveRottenScore,

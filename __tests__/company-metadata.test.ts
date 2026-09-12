@@ -7,6 +7,7 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 
 vi.mock("@/lib/company-slug", async () => await import("../lib/company-slug"));
+vi.mock("@/lib/company-modified-at", async () => await import("../lib/company-modified-at"));
 
 const notFoundMock = vi.fn(() => {
   throw new Error("NOT_FOUND");

@@ -1,11 +1,13 @@
 import { Metadata } from "next";
-import { resolveCompanySlug } from "@/lib/company-slug";
-import { supabaseServer } from "@/lib/supabase-server";
 import { isTestCompany } from "@/lib/test-company";
 import { canonicalUrl, SITE_ORIGIN } from "@/lib/seo";
 import {
   buildOverviewTitle,
 } from "@/lib/company-seo";
+import {
+  getCompanyDetailErrorMessage,
+  getCompanyDetailRouteData,
+} from "./detail-data";
 
 type Params = Promise<{ slug: string }> | { slug: string };
 
@@ -94,13 +96,13 @@ export async function generateMetadata(
   const slug = resolvedParams?.slug
     ? decodeURIComponent(resolvedParams.slug)
     : "";
-  const supabase = await supabaseServer();
-  let slugResolution: Awaited<ReturnType<typeof resolveCompanySlug>>;
+
+  let detailData: Awaited<ReturnType<typeof getCompanyDetailRouteData>>;
   try {
-    slugResolution = await resolveCompanySlug(
-      supabase as unknown as Parameters<typeof resolveCompanySlug>[0],
-      slug,
-    );
+    detailData = await getCompanyDetailRouteData(slug);
+    if (detailData.slugResolution.kind !== "canonical") {
+      return buildFallbackMetadata();
+    }
   } catch (error) {
     console.error("Company metadata slug resolution failed", {
       slug,
@@ -109,77 +111,19 @@ export async function generateMetadata(
     return buildFallbackMetadata();
   }
 
-  if (slugResolution.kind !== "canonical") {
-    return buildFallbackMetadata();
-  }
-
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("id, name, slug, industry")
-    .eq("id", slugResolution.companyId)
-    .maybeSingle();
+  const { company, companyError } = detailData;
 
   if (companyError || !company) {
     console.error("Company metadata lookup failed", {
       slug,
-      error: companyError?.message ?? null,
+      error: getCompanyDetailErrorMessage(companyError),
     });
 
     return buildFallbackMetadata();
   }
 
-  let rottenScore: number | null = null;
-  try {
-    const { data: scoreRow, error: scoreError } = await supabase
-      .from("company_rotten_score_v2")
-      .select("rotten_score")
-      .eq("company_id", company.id)
-      .maybeSingle();
-
-    if (scoreError) {
-      console.error("Company metadata score lookup failed", {
-        slug,
-        error: scoreError.message ?? null,
-      });
-    } else if (
-      scoreRow &&
-      typeof scoreRow.rotten_score === "number" &&
-      Number.isFinite(scoreRow.rotten_score)
-    ) {
-      rottenScore = scoreRow.rotten_score;
-    }
-  } catch (error) {
-    console.error("Company metadata score lookup failed", {
-      slug,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-
-  let evidenceCount: number | null = null;
-  try {
-    const { data: breakdownRows, error: breakdownError } = await supabase
-      .from("company_category_full_breakdown")
-      .select("evidence_count")
-      .eq("company_id", company.id);
-
-    if (breakdownError) {
-      console.error("Company metadata evidence lookup failed", {
-        slug,
-        error: breakdownError.message ?? null,
-      });
-    } else {
-      evidenceCount = (breakdownRows ?? []).reduce(
-        (sum: number, row: { evidence_count?: number | null }) =>
-          sum + (row.evidence_count ?? 0),
-        0,
-      );
-    }
-  } catch (error) {
-    console.error("Company metadata evidence lookup failed", {
-      slug,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
+  const rottenScore = detailData.rottenScore;
+  const evidenceCount = detailData.evidenceCount;
 
   const rawTitle = rottenScore !== null
     ? buildOverviewTitle(company.name, rottenScore)
