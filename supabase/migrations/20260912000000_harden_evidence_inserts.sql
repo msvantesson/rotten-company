@@ -1,4 +1,4 @@
--- Harden public.evidence insert ownership and moderation/scoring defaults.
+-- Harden public.evidence authenticated insert ownership and moderation/scoring defaults.
 
 DO $$
 DECLARE
@@ -11,14 +11,11 @@ BEGIN
       AND tablename = 'evidence'
       AND cmd = 'INSERT'
       AND 'authenticated' = ANY (roles)
-      AND coalesce(with_check, '') = 'true'
   LOOP
     EXECUTE format('DROP POLICY %I ON public.evidence', policy_record.policyname);
   END LOOP;
 END
 $$;
-
-DROP POLICY IF EXISTS "authenticated users can insert own pending evidence" ON public.evidence;
 
 CREATE POLICY "authenticated users can insert own pending evidence"
   ON public.evidence
@@ -33,5 +30,4 @@ CREATE POLICY "authenticated users can insert own pending evidence"
     AND recency_weight IS NULL
     AND file_weight IS NULL
     AND total_weight IS NULL
-    AND created_at IS NOT NULL
   );
