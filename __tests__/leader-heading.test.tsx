@@ -183,9 +183,13 @@ describe("leader page routing and metadata", () => {
     });
     expect(notFoundMock).not.toHaveBeenCalled();
 
-    const metadata = await generateMetadata({
-      params: Promise.resolve({ slug: "broken-leader" }),
+    await expect(
+      generateMetadata({
+        params: Promise.resolve({ slug: "broken-leader" }),
+      }),
+    ).rejects.toMatchObject({
+      code: "57014",
+      message: "db unavailable",
     });
-    expect(metadata.title).toBe("Leader Not Found");
   });
 });

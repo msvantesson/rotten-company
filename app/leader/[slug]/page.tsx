@@ -27,12 +27,7 @@ export async function generateMetadata({
   const resolved = (await params) as { slug?: string };
   const rawSlug = resolved?.slug ? decodeURIComponent(resolved.slug) : "";
 
-  let data;
-  try {
-    data = await getLeaderRouteData(rawSlug);
-  } catch {
-    return buildLeaderNotFoundMetadata();
-  }
+  const data = await getLeaderRouteData(rawSlug);
 
   if (!data) {
     return buildLeaderNotFoundMetadata();
