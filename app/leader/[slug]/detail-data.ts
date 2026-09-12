@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { computeLeaderScoreFromEvidence } from "@/lib/computeLeaderScoreFromEvidence";
 import type { CategoryId } from "@/lib/rotten-score";
+import { severityLabelToNumber, type SeverityLabel } from "@/lib/severity-mapping";
 import { supabaseServer } from "@/lib/supabase-server";
 
 type LeaderRow = {
@@ -22,6 +23,19 @@ type TenureRow = {
   ended_at: string | null;
 };
 
+type TenureCompanyRow = {
+  name: string | null;
+  slug: string | null;
+  size_employees_range: string | null;
+};
+
+type TenureSelectRow = {
+  company_id: number;
+  started_at: string;
+  ended_at: string | null;
+  companies: TenureCompanyRow | TenureCompanyRow[] | null;
+};
+
 type InequalityRow = {
   pay_ratio?: number | null;
 } | null;
@@ -31,14 +45,18 @@ type EvidenceRow = {
   title: string;
   summary: string | null;
   category: string;
-  severity: number;
+  severity: SeverityLabel;
   severity_suggested: number | null;
   created_at: string;
   evidence_type?: string | null;
   company_id?: number | null;
 };
 
-type CategoryRow = Record<string, unknown>;
+type CategoryRow = {
+  category: string;
+  evidenceCount: number;
+  categoryScore: number;
+};
 
 export type LeaderRouteData = {
   leader: {
@@ -122,15 +140,23 @@ export const getLeaderRouteData = cache(
       console.error("Leader tenures error:", tenuresError);
     }
 
-    const tenures: TenureRow[] = (tenuresRaw ?? []).map((tenure: any) => ({
-      company_id: tenure.company_id,
-      company_name: tenure.companies?.name ?? null,
-      company_slug: tenure.companies?.slug ?? null,
-      company_size_employees_range:
-        tenure.companies?.size_employees_range ?? null,
-      started_at: tenure.started_at,
-      ended_at: tenure.ended_at,
-    }));
+    const tenures: TenureRow[] = ((tenuresRaw ?? []) as TenureSelectRow[]).map(
+      (tenure) => {
+        const company = Array.isArray(tenure.companies)
+          ? tenure.companies[0] ?? null
+          : tenure.companies;
+
+        return {
+          company_id: tenure.company_id,
+          company_name: company?.name ?? null,
+          company_slug: company?.slug ?? null,
+          company_size_employees_range:
+            company?.size_employees_range ?? null,
+          started_at: tenure.started_at,
+          ended_at: tenure.ended_at,
+        };
+      },
+    );
 
     const activeTenure =
       tenures.find((tenure) => !tenure.ended_at) ??
@@ -182,7 +208,8 @@ export const getLeaderRouteData = cache(
     const computedScore = computeLeaderScoreFromEvidence({
       evidence: evidence.map((item) => ({
         category: item.category as CategoryId,
-        severity: item.severity_suggested ?? item.severity ?? 0,
+        severity:
+          item.severity_suggested ?? severityLabelToNumber(item.severity) ?? 0,
       })),
       companyContext: {
         ownershipType: "public_company",
