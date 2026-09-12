@@ -93,7 +93,7 @@ vi.mock("@/lib/company-seo", () => ({
 
 type QueryState = {
   eqs: Array<[string, unknown]>;
-  orderBy: { column: string; ascending: boolean } | null;
+  orderBys: Array<{ column: string; ascending: boolean }>;
   limit: number | null;
 };
 
@@ -119,16 +119,24 @@ function createCompanyPageSupabase(data: {
       state.eqs.every(([column, value]) => row[column] === value),
     );
 
-    const orderedRows = state.orderBy
+    const orderedRows = state.orderBys.length > 0
       ? [...filteredRows].sort((a, b) => {
-          const left = a[state.orderBy!.column];
-          const right = b[state.orderBy!.column];
-          if (left === right) return 0;
-          if (left == null) return 1;
-          if (right == null) return -1;
-          return state.orderBy!.ascending
-            ? String(left).localeCompare(String(right))
-            : String(right).localeCompare(String(left));
+          for (const orderBy of state.orderBys) {
+            const left = a[orderBy.column];
+            const right = b[orderBy.column];
+            if (left === right) continue;
+            if (left == null) return 1;
+            if (right == null) return -1;
+            let comparison = 0;
+            if (orderBy.column === "created_at") {
+              comparison = Date.parse(String(left)) - Date.parse(String(right));
+            } else if (typeof left === "number" && typeof right === "number") {
+              comparison = left - right;
+            }
+            return orderBy.ascending ? comparison : -comparison;
+          }
+
+          return 0;
         })
       : filteredRows;
 
@@ -138,7 +146,7 @@ function createCompanyPageSupabase(data: {
   };
 
   const from = (table: string) => {
-    const state: QueryState = { eqs: [], orderBy: null, limit: null };
+    const state: QueryState = { eqs: [], orderBys: [], limit: null };
 
     const query = {
       select: () => query,
@@ -147,7 +155,7 @@ function createCompanyPageSupabase(data: {
         return query;
       },
       order: (column: string, options?: { ascending?: boolean }) => {
-        state.orderBy = { column, ascending: options?.ascending ?? true };
+        state.orderBys.push({ column, ascending: options?.ascending ?? true });
         return query;
       },
       limit: (count: number) => {
