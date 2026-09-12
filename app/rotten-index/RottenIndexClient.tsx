@@ -125,11 +125,18 @@ export default function RottenIndexClient({
   const safeCountry = (country || "all-countries").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
   const fileName = `rotten-index_${type}_${safeCountry}_top${limit}.csv`;
 
-  async function fetchList(nextType: IndexType, nextCountry: string, nextLimit: number, nextQuery: string, nextSort: SortField) {
+  async function fetchList(
+    nextType: IndexType,
+    nextCountry: string,
+    nextLimit: number,
+    nextQuery: string,
+    nextSort: SortField,
+    nextDir: "asc" | "desc",
+  ) {
     setLoading(true);
     setError(null);
     try {
-      const search = buildSearch(nextType, nextCountry, nextLimit, nextQuery, nextSort, dir);
+      const search = buildSearch(nextType, nextCountry, nextLimit, nextQuery, nextSort, nextDir);
       const res = await fetch(`/api/rotten-index?${search}`, { cache: "no-store" });
 
       if (!res.ok) {
@@ -154,7 +161,7 @@ export default function RottenIndexClient({
     event.preventDefault();
     const search = buildSearch(type, country, limit, query, sort, dir);
     window.history.replaceState({}, "", search ? `/rotten-index?${search}` : "/rotten-index");
-    await fetchList(type, country, limit, query, sort);
+    await fetchList(type, country, limit, query, sort, dir);
   }
 
   const companyRows = type === "company" ? rows.filter((row) => row.rotten_score != null) : [];
@@ -255,7 +262,9 @@ export default function RottenIndexClient({
 
       {loading && <p className="text-muted-foreground">Loading…</p>}
       {!loading && error && <p className="text-muted-foreground">{error}</p>}
-      {!loading && !error && rows.length === 0 && <p className="text-muted-foreground">No companies found.</p>}
+      {!loading && !error && rows.length === 0 && (
+        <p className="text-muted-foreground">{type === "leader" ? "No leaders found." : "No companies found."}</p>
+      )}
 
       {!loading && !error && rows.length > 0 && (
         <>
