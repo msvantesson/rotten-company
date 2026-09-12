@@ -124,6 +124,8 @@ export default function RottenIndexClient({
 
   const safeCountry = (country || "all-countries").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
   const fileName = `rotten-index_${type}_${safeCountry}_top${limit}.csv`;
+  const companyRows = rows.filter((row) => row.rotten_score != null);
+  const displayRows = type === "company" ? companyRows : rows;
 
   async function fetchList(
     nextType: IndexType,
@@ -164,8 +166,6 @@ export default function RottenIndexClient({
     await fetchList(type, country, limit, query, sort, dir);
   }
 
-  const companyRows = type === "company" ? rows.filter((row) => row.rotten_score != null) : [];
-
   return (
     <>
       {type === "company" && <FindCompanyInline />}
@@ -177,7 +177,15 @@ export default function RottenIndexClient({
             <select
               name="type"
               value={type}
-              onChange={(event) => setType(event.target.value === "leader" ? "leader" : "company")}
+              onChange={(event) => {
+                const nextType = event.target.value === "leader" ? "leader" : "company";
+                setType(nextType);
+                if (nextType === "leader") {
+                  setQuery("");
+                  setSort("rotten_score");
+                  setDir(DEFAULT_SORT_DIRS.rotten_score);
+                }
+              }}
               className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="company">Companies</option>
@@ -262,11 +270,11 @@ export default function RottenIndexClient({
 
       {loading && <p className="text-muted-foreground">Loading…</p>}
       {!loading && error && <p className="text-muted-foreground">{error}</p>}
-      {!loading && !error && rows.length === 0 && (
+      {!loading && !error && displayRows.length === 0 && (
         <p className="text-muted-foreground">{type === "leader" ? "No leaders found." : "No companies found."}</p>
       )}
 
-      {!loading && !error && rows.length > 0 && (
+      {!loading && !error && displayRows.length > 0 && (
         <>
           {type === "company" && (
             <div className="md:hidden">
@@ -300,7 +308,7 @@ export default function RottenIndexClient({
                 )}
               </thead>
               <tbody>
-                {rows.map((row, index) =>
+                {displayRows.map((row, index) =>
                   type === "leader" ? (
                     <tr key={`leader-${row.id}`} className="border-b border-border hover:bg-muted last:border-0 transition-colors">
                       <td className="py-3 pr-2 pl-4 text-muted-foreground">{index + 1}</td>
