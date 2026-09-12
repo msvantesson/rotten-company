@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 
 const getRottenIndexDataMock = vi.fn();
+const rottenIndexClientMock = vi.fn();
 
 vi.mock("@/lib/getRottenIndexData", () => ({
   getRottenIndexData: getRottenIndexDataMock,
@@ -29,25 +30,33 @@ vi.mock("@/components/JsonLdDebugPanel", () => ({
   default: () => null,
 }));
 
-vi.mock("../app/rotten-index/ExportCsvButton", () => ({
-  default: () => null,
-}));
-
-vi.mock("../app/rotten-index/CompanyCardList", () => ({
-  default: () => null,
-}));
-
-vi.mock("../app/rotten-index/FindCompanyInline", () => ({
-  default: () => null,
+vi.mock("../app/rotten-index/RottenIndexClient", () => ({
+  default: (props: unknown) => {
+    rottenIndexClientMock(props);
+    return <div data-testid="rotten-index-client" />;
+  },
 }));
 
 describe("RottenIndexPage query flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getRottenIndexDataMock.mockResolvedValue({ rows: [], countries: ["Belgium"] });
+    getRottenIndexDataMock.mockResolvedValue({
+      rows: [
+        {
+          id: 1,
+          name: "Banco Test",
+          slug: "banco-test",
+          country: "Belgium",
+          rotten_score: "42.5",
+          industry: "Finance",
+          approved_evidence_count: 7,
+        },
+      ],
+      countries: ["Belgium"],
+    });
   });
 
-  it("passes type/country/limit/q/sort/dir from searchParams into getRottenIndexData", async () => {
+  it("passes type/country/limit/q/sort/dir from searchParams into getRottenIndexData and into the client", async () => {
     const { default: RottenIndexPage } = await import("../app/rotten-index/page");
 
     const html = renderToStaticMarkup(
@@ -73,5 +82,28 @@ describe("RottenIndexPage query flow", () => {
       sort: "name",
       dir: "asc",
     });
+    expect(rottenIndexClientMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialType: "company",
+        initialCountry: "Belgium",
+        initialLimit: 10,
+        initialQuery: "bank",
+        initialSort: "name",
+        initialDir: "asc",
+        initialOptions: ["Belgium"],
+        initialRows: [
+          expect.objectContaining({
+            id: 1,
+            name: "Banco Test",
+            slug: "banco-test",
+            country: "Belgium",
+            rotten_score: 42.5,
+            industry: "Finance",
+            approved_evidence_count: 7,
+          }),
+        ],
+      }),
+      undefined,
+    );
   });
 });
