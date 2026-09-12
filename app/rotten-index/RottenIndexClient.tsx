@@ -161,7 +161,7 @@ export default function RottenIndexClient({
       }
 
       const nextRows = await parseRows(res);
-      setRows(nextRows);
+      setRows(nextRows.slice(0, nextLimit));
     } catch {
       console.error("[RottenIndexClient] list_fetch_error");
       setError(loadErrorMessage);
