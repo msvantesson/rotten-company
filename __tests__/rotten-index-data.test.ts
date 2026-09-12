@@ -43,6 +43,18 @@ type IndexRow = {
   approved_evidence_count: number;
 };
 
+type LeaderRow = { id: number; name: string; slug: string; country: string | null };
+type LeaderTenureCompanyRow = { id: number; name: string; slug: string };
+type LeaderTenureRow = {
+  id: number;
+  leader_id: number;
+  started_at: string;
+  ended_at: string | null;
+  companies: LeaderTenureCompanyRow | null;
+};
+type CompanyScoreRow = { company_id: number; rotten_score: number | null };
+type CompanyCountryByIdRow = { id: number; country: string | null };
+
 type Operation =
   | { type: "not"; column: string; operator: string; value: unknown }
   | { type: "range"; from: number; to: number }
@@ -155,6 +167,125 @@ function createSupabaseMock(companies: CompanyRow[], globalIndexRows: IndexRow[]
 
           if (table === "companies" && !usedRange) {
             rows = rows.slice(0, 1000);
+          }
+
+          return Promise.resolve({ data: rows, error: null }).then(onfulfilled, onrejected);
+        },
+      };
+
+      return query;
+    },
+  };
+}
+
+function createLeaderSupabaseMock({
+  leaders,
+  tenures,
+  companyScores,
+  companyCountriesById,
+  allCompanyCountries,
+}: {
+  leaders: LeaderRow[];
+  tenures: LeaderTenureRow[];
+  companyScores: CompanyScoreRow[];
+  companyCountriesById: CompanyCountryByIdRow[];
+  allCompanyCountries: CompanyRow[];
+}) {
+  const stats: {
+    leadersSelect: string | null;
+    tenureQueryLeaderIds: number[];
+  } = {
+    leadersSelect: null,
+    tenureQueryLeaderIds: [],
+  };
+
+  return {
+    stats,
+    from(table: string) {
+      const operations: Operation[] = [];
+      let selectedColumns: string | null = null;
+      let inFilter: { column: string; values: number[] } | null = null;
+
+      const query = {
+        select: (columns?: string) => {
+          selectedColumns = columns ?? null;
+          if (table === "leaders") stats.leadersSelect = selectedColumns;
+          return query;
+        },
+        not: (column: string, operator: string, value: unknown) => {
+          operations.push({ type: "not", column, operator, value });
+          return query;
+        },
+        range: (from: number, to: number) => {
+          operations.push({ type: "range", from, to });
+          return query;
+        },
+        in: (column: string, values: number[]) => {
+          inFilter = { column, values };
+          if (table === "leader_tenures" && column === "leader_id") {
+            stats.tenureQueryLeaderIds = values;
+          }
+          return query;
+        },
+        order: (column: string, opts: { ascending: boolean }) => {
+          operations.push({ type: "order", column, ascending: opts.ascending });
+          return query;
+        },
+        limit: (count: number) => {
+          operations.push({ type: "limit", count });
+          return query;
+        },
+        then: <TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
+          onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
+          onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+        ) => {
+          let rows: Record<string, unknown>[] = [];
+
+          if (table === "leaders") {
+            const leaderIdsWithTenures = new Set(tenures.map((t) => t.leader_id));
+            const requireTenure = selectedColumns?.includes("leader_tenures!inner") ?? false;
+            rows = leaders
+              .filter((leader) => !requireTenure || leaderIdsWithTenures.has(leader.id))
+              .map((leader) => ({ ...leader }));
+          } else if (table === "leader_tenures") {
+            rows = tenures.map((tenure) => ({ ...tenure, companies: tenure.companies ? { ...tenure.companies } : null }));
+          } else if (table === "company_rotten_score_v2") {
+            rows = companyScores.map((row) => ({ ...row }));
+          } else if (table === "companies") {
+            const selectingIdCountry = selectedColumns?.includes("id") ?? false;
+            rows = selectingIdCountry
+              ? companyCountriesById.map((row) => ({ ...row }))
+              : allCompanyCountries.map((row) => ({ ...row }));
+          }
+
+          for (const op of operations) {
+            if (op.type === "not" && op.column === "country" && op.operator === "is" && op.value === null) {
+              rows = rows.filter((row) => row.country !== null);
+            }
+            if (op.type === "range") {
+              rows = rows.slice(op.from, op.to + 1);
+            }
+            if (op.type === "order") {
+              rows = [...rows].sort((a, b) => {
+                const av = a[op.column];
+                const bv = b[op.column];
+                if (av === bv) return 0;
+                if (av == null) return 1;
+                if (bv == null) return -1;
+                if (av < bv) return op.ascending ? -1 : 1;
+                return op.ascending ? 1 : -1;
+              });
+            }
+            if (op.type === "limit") {
+              rows = rows.slice(0, op.count);
+            }
+          }
+
+          const activeInFilter = inFilter;
+          if (activeInFilter) {
+            rows = rows.filter((row) =>
+              activeInFilter.values.includes(Number(row[activeInFilter.column])),
+            );
           }
 
           return Promise.resolve({ data: rows, error: null }).then(onfulfilled, onrejected);
@@ -350,5 +481,108 @@ describe("getRottenIndexData company filters + country source", () => {
     expect(options).toEqual({ revalidate: 3600 });
     expect(countryQueryCountAfterFirstCall).toBeGreaterThan(0);
     expect(supabase.stats.companyCountryPageQueryCount).toBe(countryQueryCountAfterFirstCall);
+  });
+});
+
+describe("getRottenIndexData leader mode", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    createClientMock.mockReset();
+    unstableCacheMock.mockClear();
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.test";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
+  });
+
+  it("excludes leaders without tenures at initial query stage and preserves ranking/country/null-score behavior", async () => {
+    const supabase = createLeaderSupabaseMock({
+      leaders: [
+        { id: 1, name: "Leader One", slug: "leader-one", country: "Portugal" },
+        { id: 2, name: "Leader Two", slug: "leader-two", country: "Norway" },
+        { id: 3, name: "Leader Three", slug: "leader-three", country: "Spain" },
+        { id: 4, name: "No Tenure Leader", slug: "no-tenure-leader", country: "Sweden" },
+      ],
+      tenures: [
+        {
+          id: 11,
+          leader_id: 1,
+          started_at: "2020-01-01",
+          ended_at: null,
+          companies: { id: 101, name: "Alpha Corp", slug: "alpha-corp" },
+        },
+        {
+          id: 12,
+          leader_id: 1,
+          started_at: "2018-01-01",
+          ended_at: "2019-12-31",
+          companies: { id: 103, name: "Legacy Corp", slug: "legacy-corp" },
+        },
+        {
+          id: 21,
+          leader_id: 2,
+          started_at: "2021-01-01",
+          ended_at: null,
+          companies: { id: 102, name: "Beta Corp", slug: "beta-corp" },
+        },
+        {
+          id: 31,
+          leader_id: 3,
+          started_at: "2019-01-01",
+          ended_at: null,
+          companies: { id: 104, name: "Gamma Corp", slug: "gamma-corp" },
+        },
+      ],
+      companyScores: [
+        { company_id: 101, rotten_score: 88 },
+        { company_id: 102, rotten_score: 95 },
+        { company_id: 103, rotten_score: 70 },
+      ],
+      companyCountriesById: [
+        { id: 101, country: "Sweden" },
+        { id: 102, country: "Norway" },
+        { id: 103, country: "Portugal" },
+        { id: 104, country: null },
+      ],
+      allCompanyCountries: [{ country: "Norway" }, { country: "Portugal" }, { country: "Sweden" }],
+    });
+    createClientMock.mockReturnValue(supabase);
+
+    const { getRottenIndexData } = await import("../lib/getRottenIndexData");
+
+    const allResult = await getRottenIndexData({ type: "leader", limit: 10 });
+    expect("error" in allResult).toBe(false);
+    if ("error" in allResult) return;
+
+    expect(supabase.stats.leadersSelect).toContain("leader_tenures!inner");
+    expect(supabase.stats.tenureQueryLeaderIds).toEqual([1, 2, 3]);
+    expect(allResult.rows.map((row) => row.id)).toEqual([2, 1, 3]);
+    expect(allResult.rows.map((row) => row.rotten_score)).toEqual([95, 88, null]);
+    expect(allResult.rows[0]).toMatchObject({
+      id: 2,
+      company_id: 102,
+      company_name: "Beta Corp",
+      company_slug: "beta-corp",
+      country: "Norway",
+    });
+    expect(allResult.rows[1]).toMatchObject({
+      id: 1,
+      tenure_id: 11,
+      company_id: 101,
+      company_name: "Alpha Corp",
+      company_slug: "alpha-corp",
+      country: "Sweden",
+    });
+    expect(allResult.rows[2]).toMatchObject({
+      id: 3,
+      company_id: 104,
+      country: "Spain",
+      rotten_score: null,
+    });
+    expect(allResult.rows.some((row) => row.id === 4)).toBe(false);
+
+    const filteredResult = await getRottenIndexData({ type: "leader", country: "Sweden", limit: 10 });
+    expect("error" in filteredResult).toBe(false);
+    if ("error" in filteredResult) return;
+    expect(filteredResult.rows.map((row) => row.id)).toEqual([1]);
+    expect(filteredResult.rows[0]?.country).toBe("Sweden");
   });
 });
