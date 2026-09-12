@@ -3,13 +3,21 @@ export const dynamicParams = true;
 export const fetchCache = "force-no-store";
 
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import LeaderScorePanel from "./LeaderScorePanel";
-import { getLeaderData } from "@/lib/getLeaderData";
 import { buildLeaderJsonLd } from "@/lib/jsonld-leader";
 import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
 import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
+import { getLeaderRouteData } from "./detail-data";
 
 type Params = Promise<{ slug: string }> | { slug: string };
+
+function buildLeaderNotFoundMetadata(): Metadata {
+  return {
+    title: "Leader Not Found",
+    robots: { index: false, follow: false },
+  };
+}
 
 export async function generateMetadata({
   params,
@@ -19,13 +27,10 @@ export async function generateMetadata({
   const resolved = (await params) as { slug?: string };
   const rawSlug = resolved?.slug ? decodeURIComponent(resolved.slug) : "";
 
-  const data = await getLeaderData(rawSlug);
+  const data = await getLeaderRouteData(rawSlug);
 
   if (!data) {
-    return {
-      title: "Leader Not Found",
-      robots: { index: false, follow: false },
-    };
+    return buildLeaderNotFoundMetadata();
   }
 
   const { leader, score } = data;
@@ -55,15 +60,10 @@ export default async function LeaderPage({ params }: { params: Params }) {
   const resolved = (await params) as { slug?: string };
   const rawSlug = resolved?.slug ? decodeURIComponent(resolved.slug) : "";
 
-  const data = await getLeaderData(rawSlug);
+  const data = await getLeaderRouteData(rawSlug);
 
   if (!data) {
-    return (
-      <div className="p-10">
-        <h1 className="text-2xl font-bold">Leader not found</h1>
-        <p className="text-gray-600">Slug: {rawSlug}</p>
-      </div>
-    );
+    notFound();
   }
 
   const { leader, score, categories, inequality, evidence, tenures } = data;
