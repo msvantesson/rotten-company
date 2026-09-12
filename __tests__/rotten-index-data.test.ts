@@ -344,7 +344,7 @@ describe("getRottenIndexData company filters + country source", () => {
     expect("error" in second).toBe(false);
     expect(unstableCacheMock).toHaveBeenCalledWith(
       expect.any(Function),
-      ["rotten-index-company-country-options"],
+      ["rotten-index-company-country-options", "https://example.test"],
       { revalidate: 3600 },
     );
     expect(supabase.stats.companyCountryPageQueryCount).toBe(2);

@@ -88,6 +88,10 @@ const VALID_SORT_FIELDS: Record<string, "asc" | "desc"> = {
 };
 
 const COUNTRY_OPTIONS_REVALIDATE_SECONDS = 3600;
+const COUNTRY_OPTIONS_CACHE_KEY = [
+  "rotten-index-company-country-options",
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+];
 
 export type GetRottenIndexParams = {
   type?: "company" | "leader";
@@ -133,7 +137,7 @@ async function fetchAllCompanyCountries(
 
 const getCachedCompanyCountries = unstable_cache(
   async () => fetchAllCompanyCountries(getSupabase()),
-  ["rotten-index-company-country-options"],
+  COUNTRY_OPTIONS_CACHE_KEY,
   { revalidate: COUNTRY_OPTIONS_REVALIDATE_SECONDS },
 );
 
