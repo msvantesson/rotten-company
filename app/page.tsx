@@ -251,24 +251,32 @@ async function getRecentlyVerified(): Promise<RecentlyVerifiedItem[]> {
 export default async function HomePage() {
   const supabase = await supabaseServer();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const submitEvidenceHref = user
-    ? "/submit-evidence"
-    : "/login?reason=submit-evidence&message=You'll need an account to submit evidence.";
-
-  const { data: scoreRows } = await supabase
+  const userPromise = supabase.auth.getUser();
+  const topCompaniesPromise = supabase
     .from("global_rotten_index")
     .select("id, name, slug, industry, country, rotten_score, approved_evidence_count")
     .order("rotten_score", { ascending: false })
     .limit(10);
+  const biggestMoversPromise = getBiggestMovers(supabase);
+  const recentlyVerifiedPromise = getRecentlyVerified();
 
-  const [biggestMovers, recentlyVerified] = await Promise.all([
-    getBiggestMovers(supabase),
-    getRecentlyVerified(),
+  const [
+    {
+      data: { user },
+    },
+    { data: scoreRows },
+    biggestMovers,
+    recentlyVerified,
+  ] = await Promise.all([
+    userPromise,
+    topCompaniesPromise,
+    biggestMoversPromise,
+    recentlyVerifiedPromise,
   ]);
+
+  const submitEvidenceHref = user
+    ? "/submit-evidence"
+    : "/login?reason=submit-evidence&message=You'll need an account to submit evidence.";
 
   type CompanyRow = {
     id: number;
