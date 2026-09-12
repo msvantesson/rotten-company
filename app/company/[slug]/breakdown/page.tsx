@@ -70,7 +70,11 @@ export default async function BreakdownPage({
     return notFound();
   }
 
-  const breakdown = detailData.breakdown as BreakdownData;
+  const breakdown: BreakdownData = detailData.breakdown.map((row) => ({
+    ...row,
+    rating_count: row.rating_count ?? 0,
+    evidence_count: row.evidence_count ?? 0,
+  }));
 
   // 3) Load evidence
   let evidence: EvidenceData = [];
