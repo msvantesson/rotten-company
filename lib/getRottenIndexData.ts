@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 import { computeEscalationScore } from "./leader-escalation";
 
 function getSupabase() {
@@ -34,6 +35,8 @@ const VALID_SORT_FIELDS: Record<string, "asc" | "desc"> = {
   name: "asc",
   industry: "asc",
 };
+
+const COUNTRY_OPTIONS_REVALIDATE_SECONDS = 3600;
 
 export type GetRottenIndexParams = {
   type?: "company" | "leader";
@@ -76,6 +79,12 @@ async function fetchAllCompanyCountries(
 
   return Array.from(countries).sort((a, b) => a.localeCompare(b));
 }
+
+const getCachedCompanyCountries = unstable_cache(
+  async () => fetchAllCompanyCountries(getSupabase()),
+  ["rotten-index-company-country-options"],
+  { revalidate: COUNTRY_OPTIONS_REVALIDATE_SECONDS },
+);
 
 export async function getRottenIndexData(
   params: GetRottenIndexParams,
@@ -133,7 +142,7 @@ export async function getRottenIndexData(
         approved_evidence_count: Number(r.approved_evidence_count) || 0,
       }));
 
-      const countries = await fetchAllCompanyCountries(supabase);
+      const countries = await getCachedCompanyCountries();
       return { rows, countries };
     } else {
       const leadersQuery = supabase
@@ -151,7 +160,7 @@ export async function getRottenIndexData(
       const leaders = leadersData ?? [];
 
       if (leaders.length === 0) {
-        const countries = await fetchAllCompanyCountries(supabase);
+        const countries = await getCachedCompanyCountries();
         return { rows: [], countries };
       }
 
@@ -260,7 +269,7 @@ export async function getRottenIndexData(
         })
         .slice(0, limit);
 
-      const countries = await fetchAllCompanyCountries(supabase);
+      const countries = await getCachedCompanyCountries();
       return { rows, countries };
     }
   } catch (err) {

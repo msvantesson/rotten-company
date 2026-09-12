@@ -1,9 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createClientMock = vi.fn();
+const unstableCacheMock = vi.fn(
+  <TArgs extends unknown[], TResult>(fn: (...args: TArgs) => Promise<TResult>) => {
+    let hasValue = false;
+    let cachedValue: TResult;
+
+    return async (...args: TArgs) => {
+      if (!hasValue) {
+        cachedValue = await fn(...args);
+        hasValue = true;
+      }
+
+      return cachedValue;
+    };
+  },
+);
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: createClientMock,
+}));
+
+vi.mock("next/cache", () => ({
+  unstable_cache: unstableCacheMock,
 }));
 
 type CompanyRow = { country: string | null };
@@ -26,8 +45,17 @@ type Operation =
   | { type: "limit"; count: number };
 
 function createSupabaseMock(companies: CompanyRow[], globalIndexRows: IndexRow[]) {
+  const stats = {
+    companiesQueryCount: 0,
+  };
+
   return {
+    stats,
     from(table: string) {
+      if (table === "companies") {
+        stats.companiesQueryCount += 1;
+      }
+
       const operations: Operation[] = [];
 
       const query = {
@@ -203,13 +231,14 @@ describe("getRottenIndexData company filters + country source", () => {
   beforeEach(() => {
     vi.resetModules();
     createClientMock.mockReset();
-    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.test";
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
+   unstableCacheMock.mockClear();
+   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.test";
+   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
   });
 
-  it(">1000 companies still yields full country dropdown from all company rows", async () => {
-    const { companies, globalRows } = buildFixtures();
-    createClientMock.mockReturnValue(createSupabaseMock(companies, globalRows));
+  it(">1000 companies still yields the exact sorted country dropdown with blanks/nulls filtered", async () => {
+   const { companies, globalRows } = buildFixtures();
+   createClientMock.mockReturnValue(createSupabaseMock(companies, globalRows));
 
     const { getRottenIndexData } = await import("../lib/getRottenIndexData");
     const result = await getRottenIndexData({ type: "company", limit: 10 });
@@ -226,6 +255,7 @@ describe("getRottenIndexData company filters + country source", () => {
       "Portugal",
       "Spain",
     ]);
+    expect(result.countries).not.toContain("");
   });
 
   it.each(["Belgium", "Italy", "Spain", "Portugal"])(
@@ -292,5 +322,20 @@ describe("getRottenIndexData company filters + country source", () => {
     const names = result.rows.map((r) => r.name);
     expect(result.rows.every((row) => row.country === "Italy")).toBe(true);
     expect(names).toEqual(["Banco Italia A", "Banco Italia B", "Banco Italia C", "Banco Italia D", "Banco Italia E"]);
+  });
+
+  it("reuses the cached country list across repeated calls without re-querying companies", async () => {
+    const { companies, globalRows } = buildFixtures();
+    const supabase = createSupabaseMock(companies, globalRows);
+    createClientMock.mockReturnValue(supabase);
+
+    const { getRottenIndexData } = await import("../lib/getRottenIndexData");
+
+    const first = await getRottenIndexData({ type: "company", limit: 3 });
+    const second = await getRottenIndexData({ type: "company", country: "Italy", limit: 3 });
+
+    expect("error" in first).toBe(false);
+    expect("error" in second).toBe(false);
+    expect(supabase.stats.companiesQueryCount).toBe(1);
   });
 });
