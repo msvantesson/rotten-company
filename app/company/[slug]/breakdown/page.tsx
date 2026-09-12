@@ -3,13 +3,16 @@
 export const revalidate = 300;
 
 import { type Metadata } from "next";
-import { notFound } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase-server";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getEvidenceWithManagers } from "@/lib/getEvidenceWithManagers";
 import { CategoryBreakdown } from "@/components/CategoryBreakdown";
 import CompanyTabs from "@/components/CompanyTabs";
 import { generateBreakdownMetadata } from "./metadata";
 import { canonicalUrl, buildBreadcrumbJsonLd } from "@/lib/seo";
+import {
+  getCompanyDetailErrorCode,
+  getCompanyDetailRouteData,
+} from "../detail-data";
 
 type BreakdownData = Parameters<typeof CategoryBreakdown>[0]["breakdown"];
 type EvidenceData = Parameters<typeof CategoryBreakdown>[0]["evidence"];
@@ -30,26 +33,32 @@ export default async function BreakdownPage({
   params: Promise<{ slug?: string }> | { slug?: string };
 }) {
   const resolvedParams = await Promise.resolve(params);
-  const slug = resolvedParams?.slug;
+  const rawSlug = resolvedParams?.slug ?? "";
 
-  if (!slug) {
+  if (!rawSlug) {
     console.warn("⚠️ Missing slug in breakdown page");
     return notFound();
   }
 
-  const supabase = await supabaseServer();
+  const detailData = await getCompanyDetailRouteData(rawSlug);
+  const { slugResolution } = detailData;
 
-  // 1) Load company
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("id, name, slug, industry")
-    .eq("slug", slug)
-    .maybeSingle();
+  if (slugResolution.kind === "not_found") {
+    console.warn("[company-breakdown] company_not_found", { slug: rawSlug });
+    return notFound();
+  }
+
+  if (slugResolution.kind === "redirect") {
+    permanentRedirect(`/company/${slugResolution.canonicalSlug}/breakdown`);
+  }
+
+  const slug = slugResolution.canonicalSlug;
+  const { company, companyError } = detailData;
 
   if (companyError) {
     console.error("[company-breakdown] company_lookup_failed", {
       slug,
-      code: companyError.code,
+      code: getCompanyDetailErrorCode(companyError),
     });
     throw companyError;
   }
@@ -59,25 +68,11 @@ export default async function BreakdownPage({
     return notFound();
   }
 
-  // 2) Load breakdown
-  let breakdown: BreakdownData = [];
-  try {
-    const { data, error } = await supabase
-      .from("company_category_full_breakdown")
-      .select(
-        "category_id, category_name, rating_count, avg_rating_score, evidence_count, severity_score, final_score, misconduct_low_count, misconduct_medium_count, misconduct_high_count, remediation_low_count, remediation_medium_count, remediation_high_count",
-      )
-      .eq("company_id", company.id);
-
-    if (error) {
-      console.error("❌ Error loading breakdown for company:", company.id, error);
-    }
-
-    breakdown = data ?? [];
-  } catch (e) {
-    console.error("❌ Unexpected error loading breakdown:", company.id, e);
-    breakdown = [];
-  }
+  const breakdown: BreakdownData = detailData.breakdown.map((row) => ({
+    ...row,
+    rating_count: row.rating_count ?? 0,
+    evidence_count: row.evidence_count ?? 0,
+  }));
 
   // 3) Load evidence
   let evidence: EvidenceData = [];

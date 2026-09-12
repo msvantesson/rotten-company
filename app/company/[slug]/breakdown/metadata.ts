@@ -1,13 +1,15 @@
 import { type Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase-server";
-import { resolveCompanySlug } from "@/lib/company-slug";
 import { isTestCompany } from "@/lib/test-company";
 import { canonicalUrl, SITE_ORIGIN } from "@/lib/seo";
 import {
   buildBreakdownTitle,
   buildBreakdownDescription,
 } from "@/lib/company-seo";
+import {
+  getCompanyDetailErrorCode,
+  getCompanyDetailRouteData,
+} from "../detail-data";
 
 type Params = { slug?: string };
 
@@ -18,11 +20,8 @@ export async function generateBreakdownMetadata(
     ? decodeURIComponent(params.slug)
     : "";
 
-  const supabase = await supabaseServer();
-  const slugResolution = await resolveCompanySlug(
-    supabase as unknown as Parameters<typeof resolveCompanySlug>[0],
-    rawSlug,
-  );
+  const detailData = await getCompanyDetailRouteData(rawSlug);
+  const { slugResolution } = detailData;
 
   if (slugResolution.kind === "not_found") {
     notFound();
@@ -33,17 +32,12 @@ export async function generateBreakdownMetadata(
   }
 
   const slug = slugResolution.canonicalSlug;
-
-  const { data: company, error: companyError } = await supabase
-    .from("companies")
-    .select("id, name, slug")
-    .eq("id", slugResolution.companyId)
-    .maybeSingle();
+  const { company, companyError } = detailData;
 
   if (companyError) {
     console.error("[company-breakdown-metadata] company_lookup_failed", {
       slug,
-      code: companyError.code,
+      code: getCompanyDetailErrorCode(companyError),
     });
     throw companyError;
   }
@@ -53,13 +47,7 @@ export async function generateBreakdownMetadata(
     notFound();
   }
 
-  const { data: scoreRow } = await supabase
-    .from("company_rotten_score_v2")
-    .select("rotten_score")
-    .eq("company_id", company.id)
-    .maybeSingle();
-
-  const rottenScore = scoreRow?.rotten_score ?? null;
+  const rottenScore = detailData.rottenScore;
 
   const titleString = buildBreakdownTitle(company.name);
   const title = { absolute: titleString };
