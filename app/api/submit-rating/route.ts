@@ -5,8 +5,11 @@ function isIntegerScore(score: unknown): score is number {
   return typeof score === "number" && Number.isInteger(score) && score >= 1 && score <= 5;
 }
 
-function validationError(message: string) {
-  return NextResponse.json({ error: message }, { status: 400 });
+function validationError(field: string, message: string) {
+  return NextResponse.json(
+    { error: "invalid_request", field, message },
+    { status: 400 }
+  );
 }
 
 export async function POST(req: Request) {
@@ -17,7 +20,7 @@ export async function POST(req: Request) {
     try {
       body = await req.json();
     } catch {
-      return validationError("Invalid JSON body");
+      return validationError("body", "Invalid JSON body");
     }
 
     const payload = body as Record<string, unknown> | null;
@@ -26,13 +29,13 @@ export async function POST(req: Request) {
     const score = payload?.score;
 
     if (typeof companySlug !== "string" || companySlug.trim() === "") {
-      return validationError("companySlug is required");
+      return validationError("companySlug", "companySlug is required");
     }
     if (typeof categorySlug !== "string" || categorySlug.trim() === "") {
-      return validationError("categorySlug is required");
+      return validationError("categorySlug", "categorySlug is required");
     }
     if (!isIntegerScore(score)) {
-      return validationError("score must be an integer from 1 to 5");
+      return validationError("score", "score must be an integer from 1 to 5");
     }
 
     const {
