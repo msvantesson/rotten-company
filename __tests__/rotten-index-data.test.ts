@@ -46,16 +46,12 @@ type Operation =
 
 function createSupabaseMock(companies: CompanyRow[], globalIndexRows: IndexRow[]) {
   const stats = {
-    companiesQueryCount: 0,
+    companyCountryPageQueryCount: 0,
   };
 
   return {
     stats,
     from(table: string) {
-      if (table === "companies") {
-        stats.companiesQueryCount += 1;
-      }
-
       const operations: Operation[] = [];
 
       const query = {
@@ -104,6 +100,9 @@ function createSupabaseMock(companies: CompanyRow[], globalIndexRows: IndexRow[]
 
             if (op.type === "range") {
               usedRange = true;
+              if (table === "companies") {
+                stats.companyCountryPageQueryCount += 1;
+              }
               rows = rows.slice(op.from, op.to + 1);
             }
 
@@ -336,6 +335,6 @@ describe("getRottenIndexData company filters + country source", () => {
 
     expect("error" in first).toBe(false);
     expect("error" in second).toBe(false);
-    expect(supabase.stats.companiesQueryCount).toBe(2);
+    expect(supabase.stats.companyCountryPageQueryCount).toBe(2);
   });
 });
