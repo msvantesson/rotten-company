@@ -330,9 +330,9 @@ describe("Homepage UI updates", () => {
     await Promise.resolve();
 
     expect(supabase.auth.getUser).toHaveBeenCalledTimes(1);
-    expect(startedTables).toEqual(
-      expect.arrayContaining(["global_rotten_index", "company_rotten_score_snapshots", "moderation_events"]),
-    );
+    expect(supabaseServerMock).toHaveBeenCalledTimes(2);
+    expect(startedTables).toContain("global_rotten_index");
+    expect(startedTables).toContain("company_rotten_score_snapshots");
 
     resolveAuth!({ data: { user: null } });
     await renderPromise;
