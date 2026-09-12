@@ -194,6 +194,14 @@ describe("timeline display compatibility", () => {
     expect(payload.resolution_status).toBe(previous.resolution_status);
     expect(payload.resolution_date).toBe(previous.resolution_date);
     expect(payload.resolution_date_precision).toBe(previous.resolution_date_precision);
+    expect(payload.status).toBe("pending");
+    expect(payload).not.toHaveProperty("assigned_moderator_id");
+    expect(payload).not.toHaveProperty("assigned_at");
+    expect(payload).not.toHaveProperty("severity");
+    expect(payload).not.toHaveProperty("recency_weight");
+    expect(payload).not.toHaveProperty("file_weight");
+    expect(payload).not.toHaveProperty("total_weight");
+    expect(payload).not.toHaveProperty("created_at");
   });
 
   it("handles historical evidence with null timeline fields", () => {
