@@ -2,18 +2,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 
-const getLeaderDataMock = vi.fn();
 const supabaseServerMock = vi.fn();
 const notFoundMock = vi.fn(() => {
   throw new Error("NOT_FOUND");
 });
 
-vi.mock("@/lib/getLeaderData", () => ({
-  getLeaderData: getLeaderDataMock,
-}));
-
 vi.mock("@/lib/supabase-server", () => ({
   supabaseServer: supabaseServerMock,
+}));
+
+vi.mock("@/lib/computeLeaderScoreFromEvidence", () => ({
+  computeLeaderScoreFromEvidence: vi.fn(() => ({
+    finalScore: 42,
+    baseCategoryScore: 40,
+  })),
 }));
 
 vi.mock("@/lib/jsonld-leader", () => ({
@@ -22,7 +24,10 @@ vi.mock("@/lib/jsonld-leader", () => ({
 
 vi.mock("@/lib/seo", () => ({
   canonicalUrl: (path: string) => `https://example.test${path}`,
-  buildBreadcrumbJsonLd: (items: unknown[]) => ({ "@type": "BreadcrumbList", itemListElement: items }),
+  buildBreadcrumbJsonLd: (items: unknown[]) => ({
+    "@type": "BreadcrumbList",
+    itemListElement: items,
+  }),
 }));
 
 vi.mock("@/components/JsonLdDebugPanel", () => ({
@@ -45,34 +50,139 @@ vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
 }));
 
-const mockLeaderData = (name: string, slug: string) => ({
-  leader: { id: 1, name, slug, role: "CEO", company_name: "Acme Corp" },
-  tenures: [],
-  score: {
-    final_score: 42,
-    raw_score: 40,
-    direct_evidence_score: 40,
-    inequality_score: 0,
-    company_rotten_score: 0,
-  },
-  categories: [],
-  inequality: null,
-  evidence: [],
-});
+type QueryState = {
+  eqs: Array<[string, unknown]>;
+  orderBys: Array<{ column: string; ascending: boolean }>;
+};
 
-function makeLeaderLookupSupabase(result: { data: unknown; error: unknown }) {
+type LeaderTables = {
+  leaders: Array<Record<string, unknown>>;
+  leader_tenures?: Array<Record<string, unknown>>;
+  leader_inequality?: Array<Record<string, unknown>>;
+  evidence?: Array<Record<string, unknown>>;
+  leader_category_breakdown?: Array<Record<string, unknown>>;
+};
+
+function makeLeaderSupabase({
+  tables,
+  leaderLookupError,
+}: {
+  tables: LeaderTables;
+  leaderLookupError?: { code?: string; message: string };
+}) {
+  const dataByTable: Record<string, Array<Record<string, unknown>>> = {
+    leaders: tables.leaders,
+    leader_tenures: tables.leader_tenures ?? [],
+    leader_inequality: tables.leader_inequality ?? [],
+    evidence: tables.evidence ?? [],
+    leader_category_breakdown: tables.leader_category_breakdown ?? [],
+  };
+
+  const findRows = (table: string, state: QueryState) => {
+    const filtered = (dataByTable[table] ?? []).filter((row) =>
+      state.eqs.every(([column, value]) => row[column] === value),
+    );
+
+    if (state.orderBys.length === 0) {
+      return filtered;
+    }
+
+    return [...filtered].sort((left, right) => {
+      for (const orderBy of state.orderBys) {
+        const leftValue = left[orderBy.column];
+        const rightValue = right[orderBy.column];
+
+        if (leftValue === rightValue) {
+          continue;
+        }
+
+        if (leftValue == null) {
+          return 1;
+        }
+
+        if (rightValue == null) {
+          return -1;
+        }
+
+        const comparison =
+          orderBy.column.endsWith("_at")
+            ? Date.parse(String(leftValue)) - Date.parse(String(rightValue))
+            : Number(leftValue) - Number(rightValue);
+
+        return orderBy.ascending ? comparison : -comparison;
+      }
+
+      return 0;
+    });
+  };
+
   return {
-    from: () => {
+    from: (table: string) => {
+      const state: QueryState = { eqs: [], orderBys: [] };
       const query = {
         select: () => query,
-        eq: () => query,
-        maybeSingle: async () => result,
+        eq: (column: string, value: unknown) => {
+          state.eqs.push([column, value]);
+          return query;
+        },
+        order: (column: string, options?: { ascending?: boolean }) => {
+          state.orderBys.push({ column, ascending: options?.ascending ?? true });
+          return query;
+        },
+        maybeSingle: async () => {
+          if (table === "leaders" && leaderLookupError) {
+            return { data: null, error: leaderLookupError };
+          }
+
+          const rows = findRows(table, state);
+          return { data: rows[0] ?? null, error: null };
+        },
+        then: <TResult1 = unknown, TResult2 = never>(
+          onfulfilled?:
+            | ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>)
+            | null,
+          onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+        ) =>
+          Promise.resolve({ data: findRows(table, state), error: null }).then(
+            onfulfilled,
+            onrejected,
+          ),
       };
 
       return query;
     },
   };
 }
+
+const BASE_TABLES: LeaderTables = {
+  leaders: [
+    {
+      id: 1,
+      name: "Jane Doe",
+      role: "CEO",
+      slug: "jane-doe",
+      rotten_score: null,
+      country: "US",
+      linkedin_url: null,
+    },
+  ],
+  leader_tenures: [
+    {
+      leader_id: 1,
+      company_id: 101,
+      started_at: "2020-01-01T00:00:00.000Z",
+      ended_at: null,
+      companies: {
+        name: "Acme Corp",
+        slug: "acme-corp",
+        size_employees_range: "10,001-50,000",
+      },
+    },
+  ],
+  leader_inequality: [{ leader_id: 1, pay_ratio: 0 }],
+  evidence: [],
+  leader_category_breakdown: [],
+};
 
 describe("leader page routing and metadata", () => {
   beforeEach(() => {
@@ -81,7 +191,9 @@ describe("leader page routing and metadata", () => {
   });
 
   it("renders exactly one h1 with the live leader name", async () => {
-    getLeaderDataMock.mockResolvedValue(mockLeaderData("Jane Doe", "jane-doe"));
+    supabaseServerMock.mockResolvedValue(
+      makeLeaderSupabase({ tables: BASE_TABLES }),
+    );
 
     const { default: LeaderPage } = await import("../app/leader/[slug]/page");
     const html = renderToStaticMarkup(
@@ -95,8 +207,19 @@ describe("leader page routing and metadata", () => {
   });
 
   it("returns equivalent metadata for a valid leader", async () => {
-    getLeaderDataMock.mockResolvedValue(
-      mockLeaderData("Mark Zuckerberg", "mark-zuckerberg"),
+    supabaseServerMock.mockResolvedValue(
+      makeLeaderSupabase({
+        tables: {
+          ...BASE_TABLES,
+          leaders: [
+            {
+              ...BASE_TABLES.leaders[0],
+              name: "Mark Zuckerberg",
+              slug: "mark-zuckerberg",
+            },
+          ],
+        },
+      }),
     );
 
     const { generateMetadata } = await import("../app/leader/[slug]/page");
@@ -117,18 +240,31 @@ describe("leader page routing and metadata", () => {
   });
 
   it("keeps canonical URLs based on the stored leader slug", async () => {
-    getLeaderDataMock.mockResolvedValue(
-      mockLeaderData("Test Leader", "canonical-leader-slug"),
+    supabaseServerMock.mockResolvedValue(
+      makeLeaderSupabase({
+        tables: {
+          ...BASE_TABLES,
+          leaders: [
+            {
+              ...BASE_TABLES.leaders[0],
+              slug: "canonical-leader-slug",
+              name: "Test Leader",
+            },
+          ],
+        },
+      }),
     );
 
     const { default: LeaderPage, generateMetadata } = await import(
       "../app/leader/[slug]/page"
     );
     const metadata = await generateMetadata({
-      params: Promise.resolve({ slug: "incoming-slug" }),
+      params: Promise.resolve({ slug: "canonical-leader-slug" }),
     });
     const html = renderToStaticMarkup(
-      await LeaderPage({ params: Promise.resolve({ slug: "incoming-slug" }) }),
+      await LeaderPage({
+        params: Promise.resolve({ slug: "canonical-leader-slug" }),
+      }),
     );
 
     expect(
@@ -138,9 +274,15 @@ describe("leader page routing and metadata", () => {
   });
 
   it("calls notFound() for a missing leader", async () => {
-    getLeaderDataMock.mockResolvedValue(null);
     supabaseServerMock.mockResolvedValue(
-      makeLeaderLookupSupabase({ data: null, error: null }),
+      makeLeaderSupabase({
+        tables: {
+          ...BASE_TABLES,
+          leaders: [],
+          leader_tenures: [],
+          leader_inequality: [],
+        },
+      }),
     );
 
     const { default: LeaderPage, generateMetadata } = await import(
@@ -163,11 +305,10 @@ describe("leader page routing and metadata", () => {
   });
 
   it("throws database failures instead of converting them into notFound()", async () => {
-    getLeaderDataMock.mockResolvedValue(null);
     supabaseServerMock.mockResolvedValue(
-      makeLeaderLookupSupabase({
-        data: null,
-        error: { code: "57014", message: "db unavailable" },
+      makeLeaderSupabase({
+        tables: BASE_TABLES,
+        leaderLookupError: { code: "57014", message: "db unavailable" },
       }),
     );
 
