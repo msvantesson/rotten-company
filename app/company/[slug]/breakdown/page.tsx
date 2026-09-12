@@ -33,9 +33,7 @@ export default async function BreakdownPage({
   params: Promise<{ slug?: string }> | { slug?: string };
 }) {
   const resolvedParams = await Promise.resolve(params);
-  const rawSlug = resolvedParams?.slug
-    ? decodeURIComponent(resolvedParams.slug)
-    : "";
+  const rawSlug = resolvedParams?.slug ?? "";
 
   if (!rawSlug) {
     console.warn("⚠️ Missing slug in breakdown page");
