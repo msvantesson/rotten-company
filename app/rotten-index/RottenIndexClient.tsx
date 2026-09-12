@@ -89,7 +89,20 @@ async function parseRows(response: Response): Promise<IndexedRow[]> {
     return [];
   }
 
-  return (body as { rows: IndexedRow[] }).rows ?? [];
+  return ((body as { rows: IndexedRow[] }).rows ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    country: row.country ?? null,
+    rotten_score: row.rotten_score != null ? Number(row.rotten_score) : null,
+    industry: row.industry ?? null,
+    approved_evidence_count: Number(row.approved_evidence_count) || 0,
+    tenure_id: row.tenure_id ?? null,
+    company_name: row.company_name ?? null,
+    company_slug: row.company_slug ?? null,
+    started_at: row.started_at ?? null,
+    ended_at: row.ended_at ?? null,
+  }));
 }
 
 export default function RottenIndexClient({
