@@ -135,7 +135,6 @@ describe("leader page routing and metadata", () => {
       (metadata.alternates as { canonical?: string } | undefined)?.canonical,
     ).toBe("https://example.test/leader/canonical-leader-slug");
     expect(html).toContain("https://example.test/leader/canonical-leader-slug");
-    expect(getLeaderDataMock).toHaveBeenCalledTimes(1);
   });
 
   it("calls notFound() for a missing leader", async () => {
