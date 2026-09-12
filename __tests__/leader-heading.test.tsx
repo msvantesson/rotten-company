@@ -1,9 +1,19 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 
+const getLeaderDataMock = vi.fn();
+const supabaseServerMock = vi.fn();
+const notFoundMock = vi.fn(() => {
+  throw new Error("NOT_FOUND");
+});
+
 vi.mock("@/lib/getLeaderData", () => ({
-  getLeaderData: vi.fn(),
+  getLeaderData: getLeaderDataMock,
+}));
+
+vi.mock("@/lib/supabase-server", () => ({
+  supabaseServer: supabaseServerMock,
 }));
 
 vi.mock("@/lib/jsonld-leader", () => ({
@@ -12,7 +22,7 @@ vi.mock("@/lib/jsonld-leader", () => ({
 
 vi.mock("@/lib/seo", () => ({
   canonicalUrl: (path: string) => `https://example.test${path}`,
-  buildBreadcrumbJsonLd: () => ({ "@type": "BreadcrumbList" }),
+  buildBreadcrumbJsonLd: (items: unknown[]) => ({ "@type": "BreadcrumbList", itemListElement: items }),
 }));
 
 vi.mock("@/components/JsonLdDebugPanel", () => ({
@@ -31,24 +41,47 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-import { getLeaderData } from "@/lib/getLeaderData";
+vi.mock("next/navigation", () => ({
+  notFound: notFoundMock,
+}));
 
 const mockLeaderData = (name: string, slug: string) => ({
   leader: { id: 1, name, slug, role: "CEO", company_name: "Acme Corp" },
   tenures: [],
-  score: { final_score: 42, raw_score: 40, direct_evidence_score: 40, inequality_score: 0, company_rotten_score: 0 },
+  score: {
+    final_score: 42,
+    raw_score: 40,
+    direct_evidence_score: 40,
+    inequality_score: 0,
+    company_rotten_score: 0,
+  },
   categories: [],
   inequality: null,
   evidence: [],
 });
 
-describe("leader page heading hierarchy", () => {
+function makeLeaderLookupSupabase(result: { data: unknown; error: unknown }) {
+  return {
+    from: () => {
+      const query = {
+        select: () => query,
+        eq: () => query,
+        maybeSingle: async () => result,
+      };
+
+      return query;
+    },
+  };
+}
+
+describe("leader page routing and metadata", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
   });
 
-  it("renders exactly one h1 with the leader name", async () => {
-    vi.mocked(getLeaderData).mockResolvedValue(mockLeaderData("Jane Doe", "jane-doe"));
+  it("renders exactly one h1 with the live leader name", async () => {
+    getLeaderDataMock.mockResolvedValue(mockLeaderData("Jane Doe", "jane-doe"));
 
     const { default: LeaderPage } = await import("../app/leader/[slug]/page");
     const html = renderToStaticMarkup(
@@ -58,45 +91,102 @@ describe("leader page heading hierarchy", () => {
     const h1Matches = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)];
     expect(h1Matches).toHaveLength(1);
     expect(h1Matches[0][1]).toContain("Jane Doe");
+    expect(notFoundMock).not.toHaveBeenCalled();
   });
 
-  it("h1 uses the live leader name from the database", async () => {
-    vi.mocked(getLeaderData).mockResolvedValue(mockLeaderData("Mark Zuckerberg", "mark-zuckerberg"));
-
-    const { default: LeaderPage } = await import("../app/leader/[slug]/page");
-    const html = renderToStaticMarkup(
-      await LeaderPage({ params: Promise.resolve({ slug: "mark-zuckerberg" }) }),
+  it("returns equivalent metadata for a valid leader", async () => {
+    getLeaderDataMock.mockResolvedValue(
+      mockLeaderData("Mark Zuckerberg", "mark-zuckerberg"),
     );
 
-    const h1Matches = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)];
-    expect(h1Matches).toHaveLength(1);
-    expect(h1Matches[0][1]).toContain("Mark Zuckerberg");
+    const { generateMetadata } = await import("../app/leader/[slug]/page");
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ slug: "mark-zuckerberg" }),
+    });
+
+    expect(metadata.title).toBe("Mark Zuckerberg — Leadership Accountability");
+    expect(metadata.description).toBe(
+      "Rotten Score 42.0 for Mark Zuckerberg, CEO at Acme Corp. Explore evidence, tenure timeline, and accountability metrics.",
+    );
+    expect(
+      (metadata.alternates as { canonical?: string } | undefined)?.canonical,
+    ).toBe("https://example.test/leader/mark-zuckerberg");
+    expect(
+      (metadata.openGraph as { url?: string } | undefined)?.url,
+    ).toBe("https://example.test/leader/mark-zuckerberg");
   });
 
-  it("h1 is present in the server-rendered HTML (not client-only)", async () => {
-    vi.mocked(getLeaderData).mockResolvedValue(mockLeaderData("Test Leader", "test-leader"));
-
-    const { default: LeaderPage } = await import("../app/leader/[slug]/page");
-    // renderToStaticMarkup simulates SSR — if h1 appears here it is server-rendered
-    const html = renderToStaticMarkup(
-      await LeaderPage({ params: Promise.resolve({ slug: "test-leader" }) }),
+  it("keeps canonical URLs based on the stored leader slug", async () => {
+    getLeaderDataMock.mockResolvedValue(
+      mockLeaderData("Test Leader", "canonical-leader-slug"),
     );
 
-    expect(html).toContain("<h1");
-    expect(html).toContain("Test Leader");
+    const { default: LeaderPage, generateMetadata } = await import(
+      "../app/leader/[slug]/page"
+    );
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ slug: "incoming-slug" }),
+    });
+    const html = renderToStaticMarkup(
+      await LeaderPage({ params: Promise.resolve({ slug: "incoming-slug" }) }),
+    );
+
+    expect(
+      (metadata.alternates as { canonical?: string } | undefined)?.canonical,
+    ).toBe("https://example.test/leader/canonical-leader-slug");
+    expect(html).toContain("https://example.test/leader/canonical-leader-slug");
+    expect(getLeaderDataMock).toHaveBeenCalledTimes(1);
   });
 
-  it("renders 404 content for a missing leader", async () => {
-    vi.mocked(getLeaderData).mockResolvedValue(null);
-
-    const { default: LeaderPage } = await import("../app/leader/[slug]/page");
-    const html = renderToStaticMarkup(
-      await LeaderPage({ params: Promise.resolve({ slug: "ghost-leader" }) }),
+  it("calls notFound() for a missing leader", async () => {
+    getLeaderDataMock.mockResolvedValue(null);
+    supabaseServerMock.mockResolvedValue(
+      makeLeaderLookupSupabase({ data: null, error: null }),
     );
 
-    // 404 path renders an h1 with "Leader not found"
-    const h1Matches = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)];
-    expect(h1Matches.length).toBeGreaterThanOrEqual(1);
-    expect(html).toContain("Leader not found");
+    const { default: LeaderPage, generateMetadata } = await import(
+      "../app/leader/[slug]/page"
+    );
+
+    await expect(
+      LeaderPage({ params: Promise.resolve({ slug: "ghost-leader" }) }),
+    ).rejects.toThrow("NOT_FOUND");
+    expect(notFoundMock).toHaveBeenCalled();
+
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ slug: "ghost-leader" }),
+    });
+    expect(metadata.title).toBe("Leader Not Found");
+    expect((metadata as { robots?: unknown }).robots).toEqual({
+      index: false,
+      follow: false,
+    });
+  });
+
+  it("throws database failures instead of converting them into notFound()", async () => {
+    getLeaderDataMock.mockResolvedValue(null);
+    supabaseServerMock.mockResolvedValue(
+      makeLeaderLookupSupabase({
+        data: null,
+        error: { code: "57014", message: "db unavailable" },
+      }),
+    );
+
+    const { default: LeaderPage, generateMetadata } = await import(
+      "../app/leader/[slug]/page"
+    );
+
+    await expect(
+      LeaderPage({ params: Promise.resolve({ slug: "broken-leader" }) }),
+    ).rejects.toMatchObject({
+      code: "57014",
+      message: "db unavailable",
+    });
+    expect(notFoundMock).not.toHaveBeenCalled();
+
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ slug: "broken-leader" }),
+    });
+    expect(metadata.title).toBe("Leader Not Found");
   });
 });
