@@ -29,6 +29,57 @@ export type RottenIndexRow = {
   escalation_score?: number | null;
 };
 
+type CompanyCountryRow = {
+  country: string | null;
+};
+
+type GlobalRottenIndexCompanyRow = {
+  id: number;
+  name: string;
+  slug: string;
+  country: string | null;
+  rotten_score: number | null;
+  industry: string | null;
+  approved_evidence_count: number | null;
+};
+
+type LeaderRow = {
+  id: number;
+  name: string;
+  slug: string;
+  country: string | null;
+};
+
+type LeaderTenureCompany = {
+  id: number | null;
+  name: string | null;
+  slug: string | null;
+};
+
+type LeaderTenureRow = {
+  id: number;
+  leader_id: number;
+  started_at: string | null;
+  ended_at: string | null;
+  companies: LeaderTenureCompany | LeaderTenureCompany[] | null;
+};
+
+type CompanyScoreRow = {
+  company_id: number;
+  rotten_score: number | null;
+};
+
+type CompanyCountryByIdRow = {
+  id: number;
+  country: string | null;
+};
+
+function getTenureCompany(
+  company: LeaderTenureCompany | LeaderTenureCompany[] | null,
+): LeaderTenureCompany | null {
+  return Array.isArray(company) ? (company[0] ?? null) : company;
+}
+
 const VALID_SORT_FIELDS: Record<string, "asc" | "desc"> = {
   rotten_score: "desc",
   approved_evidence_count: "desc",
@@ -53,7 +104,7 @@ export type GetRottenIndexParams = {
  * pagination.  This is the authoritative source for the country dropdown.
  */
 async function fetchAllCompanyCountries(
-  supabase: SupabaseClient<any>,
+  supabase: SupabaseClient,
 ): Promise<string[]> {
   const countries = new Set<string>();
   const pageSize = 1000;
@@ -68,7 +119,7 @@ async function fetchAllCompanyCountries(
 
     if (error) throw error;
 
-    for (const row of data ?? []) {
+    for (const row of (data ?? []) as CompanyCountryRow[]) {
       const country = row.country?.trim();
       if (country) countries.add(country);
     }
@@ -132,7 +183,7 @@ export async function getRottenIndexData(
         return { error: error.message };
       }
 
-      const rows: RottenIndexRow[] = (data ?? []).map((r: any) => ({
+      const rows: RottenIndexRow[] = ((data ?? []) as GlobalRottenIndexCompanyRow[]).map((r) => ({
         id: r.id,
         name: r.name,
         slug: r.slug,
@@ -157,14 +208,14 @@ export async function getRottenIndexData(
         return { error: leadersError.message };
       }
 
-      const leaders = leadersData ?? [];
+      const leaders = (leadersData ?? []) as LeaderRow[];
 
       if (leaders.length === 0) {
         const countries = await getCachedCompanyCountries();
         return { rows: [], countries };
       }
 
-      const leaderIds = leaders.map((l: any) => l.id);
+      const leaderIds = leaders.map((l) => l.id);
 
       const { data: tenuresData } = await supabase
         .from("leader_tenures")
@@ -172,9 +223,9 @@ export async function getRottenIndexData(
         .in("leader_id", leaderIds)
         .order("started_at", { ascending: true });
 
-      const allTenures: any[] = tenuresData ?? [];
+      const allTenures = (tenuresData ?? []) as LeaderTenureRow[];
 
-      const tenuresByLeader = new Map<number, any[]>();
+      const tenuresByLeader = new Map<number, LeaderTenureRow[]>();
       for (const tenure of allTenures) {
         const list = tenuresByLeader.get(tenure.leader_id) ?? [];
         list.push(tenure);
@@ -183,7 +234,7 @@ export async function getRottenIndexData(
 
       const companyIds = new Set<number>();
       for (const tenure of allTenures) {
-        const company = tenure.companies as any;
+        const company = getTenureCompany(tenure.companies);
         if (company?.id != null) companyIds.add(company.id);
       }
 
@@ -193,7 +244,7 @@ export async function getRottenIndexData(
           .from("company_rotten_score_v2")
           .select("company_id, rotten_score")
           .in("company_id", Array.from(companyIds));
-        for (const row of scoreRows ?? []) {
+        for (const row of (scoreRows ?? []) as CompanyScoreRow[]) {
           const s = Number(row.rotten_score);
           if (isFinite(s)) companyScoreMap.set(row.company_id, s);
         }
@@ -205,12 +256,12 @@ export async function getRottenIndexData(
           .from("companies")
           .select("id, country")
           .in("id", Array.from(companyIds));
-        for (const row of countryRows ?? []) {
+        for (const row of (countryRows ?? []) as CompanyCountryByIdRow[]) {
           if (row.country) companyCountryMap.set(row.id, row.country);
         }
       }
 
-      const primaryTenureMap = new Map<number, any>();
+      const primaryTenureMap = new Map<number, LeaderTenureRow>();
       for (const tenures of tenuresByLeader.values()) {
         let primary = tenures[0];
         for (const t of tenures) {
@@ -219,8 +270,8 @@ export async function getRottenIndexData(
           if (tActive && !pActive) {
             primary = t;
           } else if (tActive === pActive) {
-            const tTime = new Date(t.started_at).getTime();
-            const pTime = new Date(primary.started_at).getTime();
+            const tTime = t.started_at ? new Date(t.started_at).getTime() : 0;
+            const pTime = primary.started_at ? new Date(primary.started_at).getTime() : 0;
             if (tTime > pTime) primary = t;
           }
         }
@@ -228,16 +279,16 @@ export async function getRottenIndexData(
       }
 
       const rows: RottenIndexRow[] = leaders
-        .map((l: any) => {
+        .map((l) => {
           const tenure = primaryTenureMap.get(l.id);
-          const company = tenure?.companies as any;
+          const company = getTenureCompany(tenure?.companies ?? null);
           const companyId: number | null = company?.id ?? null;
           const rotten_score: number | null =
             companyId != null ? (companyScoreMap.get(companyId) ?? null) : null;
 
           const leaderTenures = tenuresByLeader.get(l.id) ?? [];
-          const orderedScores = leaderTenures.map((t: any) => {
-            const cId: number | null = (t.companies as any)?.id ?? null;
+          const orderedScores = leaderTenures.map((t) => {
+            const cId: number | null = getTenureCompany(t.companies)?.id ?? null;
             return cId != null ? (companyScoreMap.get(cId) ?? null) : null;
           });
           const escalation_score = computeEscalationScore(orderedScores);
