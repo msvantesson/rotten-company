@@ -82,7 +82,8 @@ describe("RottenIndexPage query flow", () => {
       sort: "name",
       dir: "asc",
     });
-    expect(rottenIndexClientMock).toHaveBeenCalledWith(
+    expect(rottenIndexClientMock).toHaveBeenCalledTimes(1);
+    expect(rottenIndexClientMock.mock.calls[0][0]).toEqual(
       expect.objectContaining({
         initialType: "company",
         initialCountry: "Belgium",
@@ -103,7 +104,6 @@ describe("RottenIndexPage query flow", () => {
           }),
         ],
       }),
-      undefined,
     );
   });
 });

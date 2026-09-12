@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { isValidElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 
 let hookState: unknown[] = [];
@@ -107,7 +108,7 @@ function collectElements(node: ReactNode): ReactElement[] {
     return node.flatMap(collectElements);
   }
 
-  if (!("props" in node)) {
+  if (!isValidElement(node)) {
     return [];
   }
 
@@ -115,11 +116,17 @@ function collectElements(node: ReactNode): ReactElement[] {
   return [element, ...collectElements(element.props.children)];
 }
 
+type ElementWithProps = ReactElement<Record<string, unknown>>;
+
 function findElement(
   tree: ReactElement,
-  predicate: (element: ReactElement<{ [key: string]: unknown }>) => boolean,
+  predicate: (element: ElementWithProps) => boolean,
 ) {
-  return collectElements(tree).find((element) => predicate(element as ReactElement<{ [key: string]: unknown }>));
+  return collectElements(tree).find((element) => predicate(element as ElementWithProps)) as ElementWithProps | undefined;
+}
+
+function getElementProp<T>(element: ElementWithProps | undefined, key: string) {
+  return element?.props[key] as T | undefined;
 }
 
 describe("RottenIndexClient", () => {
@@ -213,14 +220,20 @@ describe("RottenIndexClient", () => {
     expect(countrySelect).toBeDefined();
     expect(limitSelect).toBeDefined();
 
-    countrySelect?.props.onChange?.({ target: { value: "Belgium" } });
-    limitSelect?.props.onChange?.({ target: { value: "25" } });
+    getElementProp<(event: { target: { value: string } }) => void>(countrySelect, "onChange")?.({
+      target: { value: "Belgium" },
+    });
+    getElementProp<(event: { target: { value: string } }) => void>(limitSelect, "onChange")?.({
+      target: { value: "25" },
+    });
 
     tree = rerender(RottenIndexClient, props);
     const form = findElement(tree, (element) => element.type === "form");
     expect(form).toBeDefined();
 
-    await form?.props.onSubmit?.({ preventDefault: vi.fn() });
+    await getElementProp<(event: { preventDefault: () => void }) => Promise<void>>(form, "onSubmit")?.({
+      preventDefault: vi.fn(),
+    });
     tree = rerender(RottenIndexClient, props);
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -269,7 +282,9 @@ describe("RottenIndexClient", () => {
     const form = findElement(tree, (element) => element.type === "form");
     expect(form).toBeDefined();
 
-    const submitPromise = form?.props.onSubmit?.({ preventDefault: vi.fn() });
+    const submitPromise = getElementProp<(event: { preventDefault: () => void }) => Promise<void>>(form, "onSubmit")?.({
+      preventDefault: vi.fn(),
+    });
     tree = rerender(RottenIndexClient, props);
     expect(renderToStaticMarkup(tree)).toContain("Loading…");
 
