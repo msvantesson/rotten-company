@@ -148,7 +148,7 @@ export async function getRottenIndexData(
     } else {
       const leadersQuery = supabase
         .from("leaders")
-        .select("id, name, slug, country")
+        .select("id, name, slug, country, leader_tenures!inner(id)")
         .limit(1000);
 
       const { data: leadersData, error: leadersError } = await leadersQuery;
