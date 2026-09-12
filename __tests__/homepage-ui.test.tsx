@@ -329,7 +329,6 @@ describe("Homepage UI updates", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(supabase.auth.getUser).toHaveBeenCalledTimes(1);
-    expect(supabase.auth.getUser).toHaveBeenCalledTimes(1);
     expect(startedTables).toContain("global_rotten_index");
     expect(startedTables).toContain("company_rotten_score_snapshots");
 
