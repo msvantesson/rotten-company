@@ -2,7 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createClientMock = vi.fn();
 const unstableCacheMock = vi.fn(
-  <TArgs extends unknown[], TResult>(fn: (...args: TArgs) => Promise<TResult>) => {
+  <TArgs extends unknown[], TResult>(
+    fn: (...args: TArgs) => Promise<TResult>,
+    keyParts?: string[],
+    options?: { revalidate?: number | false },
+  ) => {
+    void keyParts;
+    void options;
+
     let hasValue = false;
     let cachedValue: TResult;
 
@@ -335,6 +342,11 @@ describe("getRottenIndexData company filters + country source", () => {
 
     expect("error" in first).toBe(false);
     expect("error" in second).toBe(false);
+    expect(unstableCacheMock).toHaveBeenCalledWith(
+      expect.any(Function),
+      ["rotten-index-company-country-options"],
+      { revalidate: 3600 },
+    );
     expect(supabase.stats.companyCountryPageQueryCount).toBe(2);
   });
 });
