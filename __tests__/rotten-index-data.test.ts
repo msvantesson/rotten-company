@@ -342,9 +342,16 @@ describe("getRottenIndexData company filters + country source", () => {
 
     expect("error" in first).toBe(false);
     expect("error" in second).toBe(false);
+    const [, keyParts, options] = unstableCacheMock.mock.calls[0] ?? [];
+    expect(keyParts).toEqual(
+      expect.arrayContaining(["rotten-index-company-country-options", "https://example.test"]),
+    );
+    expect(keyParts).toHaveLength(3);
+    expect(keyParts?.[2]).toMatch(/^[a-f0-9]{64}$/);
+    expect(options).toEqual({ revalidate: 3600 });
     expect(unstableCacheMock).toHaveBeenCalledWith(
       expect.any(Function),
-      ["rotten-index-company-country-options", "https://example.test"],
+      keyParts,
       { revalidate: 3600 },
     );
     expect(supabase.stats.companyCountryPageQueryCount).toBe(2);

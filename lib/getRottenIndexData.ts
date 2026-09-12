@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
@@ -91,6 +92,9 @@ const COUNTRY_OPTIONS_REVALIDATE_SECONDS = 3600;
 const COUNTRY_OPTIONS_CACHE_KEY = [
   "rotten-index-company-country-options",
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+  createHash("sha256")
+    .update(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "")
+    .digest("hex"),
 ];
 
 export type GetRottenIndexParams = {
