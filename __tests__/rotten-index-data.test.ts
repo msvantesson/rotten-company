@@ -338,6 +338,7 @@ describe("getRottenIndexData company filters + country source", () => {
     const { getRottenIndexData } = await import("../lib/getRottenIndexData");
 
     const first = await getRottenIndexData({ type: "company", limit: 3 });
+    const countryQueryCountAfterFirstCall = supabase.stats.companyCountryPageQueryCount;
     const second = await getRottenIndexData({ type: "company", country: "Italy", limit: 3 });
 
     expect("error" in first).toBe(false);
@@ -354,6 +355,7 @@ describe("getRottenIndexData company filters + country source", () => {
       keyParts,
       { revalidate: 3600 },
     );
-    expect(supabase.stats.companyCountryPageQueryCount).toBe(2);
+    expect(countryQueryCountAfterFirstCall).toBeGreaterThan(0);
+    expect(supabase.stats.companyCountryPageQueryCount).toBe(countryQueryCountAfterFirstCall);
   });
 });
