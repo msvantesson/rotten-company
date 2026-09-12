@@ -324,7 +324,7 @@ describe("getRottenIndexData company filters + country source", () => {
     expect(names).toEqual(["Banco Italia A", "Banco Italia B", "Banco Italia C", "Banco Italia D", "Banco Italia E"]);
   });
 
-  it("reuses the cached country list across repeated calls without re-querying companies", async () => {
+  it("reuses the cached country list across repeated calls without re-querying company-country pages", async () => {
     const { companies, globalRows } = buildFixtures();
     const supabase = createSupabaseMock(companies, globalRows);
     createClientMock.mockReturnValue(supabase);
@@ -336,6 +336,6 @@ describe("getRottenIndexData company filters + country source", () => {
 
     expect("error" in first).toBe(false);
     expect("error" in second).toBe(false);
-    expect(supabase.stats.companiesQueryCount).toBe(1);
+    expect(supabase.stats.companiesQueryCount).toBe(2);
   });
 });
