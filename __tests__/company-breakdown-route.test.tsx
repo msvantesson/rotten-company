@@ -48,11 +48,18 @@ vi.mock("@/components/CategoryBreakdown", () => ({
     <div data-testid="category-breakdown">
       <p>{company.name}</p>
       <p>evidence:{evidence.length}</p>
-      <ul>
-        {breakdown.map((item) => (
-          <li key={item.category_name}>{item.category_name}</li>
-        ))}
-      </ul>
+      {breakdown.length === 0 ? (
+        <p>No category data available yet.</p>
+      ) : (
+        <ul>
+          {breakdown.map((item) => (
+            <li key={item.category_name}>
+              {item.category_name} ratings:{String((item as { rating_count?: number }).rating_count)} evidence:
+              {String((item as { evidence_count?: number }).evidence_count)}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   ),
 }));
@@ -298,6 +305,69 @@ describe("company breakdown route", () => {
       BreakdownPage({ params: Promise.resolve({ slug: "boeing" }) }),
     ).rejects.toMatchObject(dbError);
     expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps breakdown failures fail-open with an empty state", async () => {
+    const { client } = createBreakdownSupabase(
+      {
+        companies: [{ id: 1, name: "Boeing", slug: "boeing", industry: "Aerospace" }],
+        company_rotten_score_v2: [{ company_id: 1, rotten_score: 39 }],
+      },
+      [
+        {
+          table: "company_category_full_breakdown",
+          eqs: [["company_id", 1]],
+          mode: "many",
+          result: { data: null, error: { message: "breakdown unavailable" } },
+        },
+      ],
+    );
+    supabaseServerMock.mockResolvedValue(client);
+
+    const { default: BreakdownPage } = await import(
+      "../app/company/[slug]/breakdown/page"
+    );
+    const html = renderToStaticMarkup(
+      await BreakdownPage({ params: Promise.resolve({ slug: "boeing" }) }),
+    );
+
+    expect(html).toContain("Boeing Rotten Score Breakdown");
+    expect(html).toContain("No category data available yet.");
+  });
+
+  it("normalizes nullable breakdown counts before rendering", async () => {
+    const { client } = createBreakdownSupabase({
+      companies: [{ id: 1, name: "Boeing", slug: "boeing", industry: "Aerospace" }],
+      company_category_full_breakdown: [
+        {
+          company_id: 1,
+          category_id: 1,
+          category_name: "Corporate Misconduct",
+          rating_count: null,
+          avg_rating_score: 3,
+          evidence_count: null,
+          severity_score: 11,
+          final_score: 39,
+          misconduct_low_count: 1,
+          misconduct_medium_count: 1,
+          misconduct_high_count: 0,
+          remediation_low_count: 0,
+          remediation_medium_count: 0,
+          remediation_high_count: 0,
+        },
+      ],
+      company_rotten_score_v2: [{ company_id: 1, rotten_score: 39 }],
+    });
+    supabaseServerMock.mockResolvedValue(client);
+
+    const { default: BreakdownPage } = await import(
+      "../app/company/[slug]/breakdown/page"
+    );
+    const html = renderToStaticMarkup(
+      await BreakdownPage({ params: Promise.resolve({ slug: "boeing" }) }),
+    );
+
+    expect(html).toContain("Corporate Misconduct ratings:0 evidence:0");
   });
 
   it("keeps legacy slug redirects on the breakdown route", async () => {
