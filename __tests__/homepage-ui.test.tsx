@@ -286,6 +286,57 @@ describe("Homepage UI updates", () => {
     expect(html).not.toContain("↑ +10.0 this week");
     expect(html).not.toContain("↓ -10.0 this week");
   });
+
+  it("starts independent public queries without waiting for auth", async () => {
+    let resolveAuth: (value: { data: { user: null } }) => void;
+    const authPromise = new Promise<{ data: { user: null } }>((resolve) => {
+      resolveAuth = resolve;
+    });
+    const startedTables: string[] = [];
+
+    const createTrackedQuery = (table: string) => {
+      const query = {
+        select: () => query,
+        order: () => query,
+        limit: () => query,
+        in: () => query,
+        eq: () => query,
+        lte: () => query,
+        then: <TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
+          onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
+          onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+        ) => {
+          startedTables.push(table);
+          return Promise.resolve({ data: [], error: null }).then(onfulfilled, onrejected);
+        },
+      };
+
+      return query;
+    };
+
+    const supabase = {
+      auth: {
+        getUser: vi.fn(() => authPromise),
+      },
+      from: (table: string) => createTrackedQuery(table),
+    };
+
+    supabaseServerMock.mockResolvedValue(supabase);
+
+    const { default: HomePage } = await import("../app/page");
+    const renderPromise = HomePage();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(supabase.auth.getUser).toHaveBeenCalledTimes(1);
+    expect(startedTables).toEqual(
+      expect.arrayContaining(["global_rotten_index", "company_rotten_score_snapshots", "moderation_events"]),
+    );
+
+    resolveAuth!({ data: { user: null } });
+    await renderPromise;
+  });
 });
 
 describe("getBiggestMovers – mover selection rules", () => {
