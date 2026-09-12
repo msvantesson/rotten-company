@@ -100,6 +100,7 @@ function createCompanyPageSupabase(data: {
   company_slug_redirects?: Array<Record<string, unknown>>;
   evidence?: Array<Record<string, unknown>>;
   failEvidenceLookup?: boolean;
+  failCompanyLookup?: { code?: string; message: string };
 }) {
   const tables: Record<string, Array<Record<string, unknown>>> = {
     companies: data.companies,
@@ -128,6 +129,14 @@ function createCompanyPageSupabase(data: {
       },
       order: () => query,
       maybeSingle: async () => {
+        if (
+          table === "companies" &&
+          data.failCompanyLookup &&
+          state.eqs.some(([column]) => column === "id")
+        ) {
+          return { data: null, error: data.failCompanyLookup };
+        }
+
         const rows = findRows(table, state);
         return { data: rows[0] ?? null, error: null };
       },
@@ -157,6 +166,7 @@ function createCompanyPageSupabase(data: {
 describe("company page slug routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
   });
 
   it("renders the canonical stored slug with HTTP 200 behavior", async () => {
@@ -223,6 +233,25 @@ describe("company page slug routing", () => {
     await expect(
       CompanyPage({ params: Promise.resolve({ slug: "missing-company" }) }),
     ).rejects.toThrow("NOT_FOUND");
+  });
+
+  it("throws database failures instead of converting them into notFound()", async () => {
+    supabaseServerMock.mockResolvedValue(
+      createCompanyPageSupabase({
+        companies: [{ id: 1, name: "Boeing", slug: "boeing" }],
+        failCompanyLookup: { code: "57014", message: "db unavailable" },
+      }),
+    );
+
+    const { default: CompanyPage } = await import("../app/company/[slug]/page");
+
+    await expect(
+      CompanyPage({ params: Promise.resolve({ slug: "boeing" }) }),
+    ).rejects.toMatchObject({
+      code: "57014",
+      message: "db unavailable",
+    });
+    expect(notFoundMock).not.toHaveBeenCalled();
   });
 
   it("falls back safely when approved evidence timestamp lookup fails", async () => {
