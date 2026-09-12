@@ -1,9 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createClientMock = vi.fn();
+const unstableCacheMock = vi.fn(
+  <TArgs extends unknown[], TResult>(
+    fn: (...args: TArgs) => Promise<TResult>,
+    keyParts?: string[],
+    options?: { revalidate?: number | false },
+  ) => {
+    void keyParts;
+    void options;
+
+    let hasValue = false;
+    let cachedValue: TResult;
+
+    return async (...args: TArgs) => {
+      if (!hasValue) {
+        cachedValue = await fn(...args);
+        hasValue = true;
+      }
+
+      return cachedValue;
+    };
+  },
+);
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: createClientMock,
+}));
+
+vi.mock("next/cache", () => ({
+  unstable_cache: unstableCacheMock,
 }));
 
 type CompanyRow = { country: string | null };
@@ -26,7 +52,12 @@ type Operation =
   | { type: "limit"; count: number };
 
 function createSupabaseMock(companies: CompanyRow[], globalIndexRows: IndexRow[]) {
+  const stats = {
+    companyCountryPageQueryCount: 0,
+  };
+
   return {
+    stats,
     from(table: string) {
       const operations: Operation[] = [];
 
@@ -76,6 +107,9 @@ function createSupabaseMock(companies: CompanyRow[], globalIndexRows: IndexRow[]
 
             if (op.type === "range") {
               usedRange = true;
+              if (table === "companies") {
+                stats.companyCountryPageQueryCount += 1;
+              }
               rows = rows.slice(op.from, op.to + 1);
             }
 
@@ -203,6 +237,7 @@ describe("getRottenIndexData company filters + country source", () => {
   beforeEach(() => {
     vi.resetModules();
     createClientMock.mockReset();
+    unstableCacheMock.mockClear();
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.test";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
   });
@@ -292,5 +327,28 @@ describe("getRottenIndexData company filters + country source", () => {
     const names = result.rows.map((r) => r.name);
     expect(result.rows.every((row) => row.country === "Italy")).toBe(true);
     expect(names).toEqual(["Banco Italia A", "Banco Italia B", "Banco Italia C", "Banco Italia D", "Banco Italia E"]);
+  });
+
+  it("caches company country options with a public cache key only", async () => {
+    const { companies, globalRows } = buildFixtures();
+    const supabase = createSupabaseMock(companies, globalRows);
+    createClientMock.mockReturnValue(supabase);
+
+    const { getRottenIndexData } = await import("../lib/getRottenIndexData");
+
+    const first = await getRottenIndexData({ type: "company", limit: 3 });
+    const countryQueryCountAfterFirstCall = supabase.stats.companyCountryPageQueryCount;
+    const second = await getRottenIndexData({ type: "company", country: "Italy", limit: 3 });
+
+    expect("error" in first).toBe(false);
+    expect("error" in second).toBe(false);
+    const [, keyParts, options] = unstableCacheMock.mock.calls[0] ?? [];
+    expect(keyParts).toEqual([
+      "rotten-index-company-country-options",
+      "https://example.test",
+    ]);
+    expect(options).toEqual({ revalidate: 3600 });
+    expect(countryQueryCountAfterFirstCall).toBeGreaterThan(0);
+    expect(supabase.stats.companyCountryPageQueryCount).toBe(countryQueryCountAfterFirstCall);
   });
 });
