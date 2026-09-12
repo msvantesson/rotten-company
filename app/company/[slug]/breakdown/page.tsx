@@ -75,18 +75,13 @@ export default async function BreakdownPage({
       return [];
     });
 
-  const breakdownPromise: Promise<BreakdownData> = Promise.resolve(
-    detailData.breakdown.map((row) => ({
-      ...row,
-      rating_count: row.rating_count ?? 0,
-      evidence_count: row.evidence_count ?? 0,
-    })),
-  );
+  const breakdown: BreakdownData = detailData.breakdown.map((row) => ({
+    ...row,
+    rating_count: row.rating_count ?? 0,
+    evidence_count: row.evidence_count ?? 0,
+  }));
 
-  const [evidence, breakdown] = await Promise.all([
-    evidencePromise,
-    breakdownPromise,
-  ]);
+  const evidence = await evidencePromise;
 
   // 4) Render
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([

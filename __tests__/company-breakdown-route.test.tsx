@@ -437,20 +437,29 @@ describe("company breakdown route", () => {
       remediation_high_count: 0,
     };
 
-    const { client } = createBreakdownSupabase({
-      companies: [{ id: 1, name: "Boeing", slug: "boeing", industry: "Aerospace" }],
-      company_category_full_breakdown: [breakdownRow],
-      company_rotten_score_v2: [{ company_id: 1, rotten_score: 39 }],
-    });
-    supabaseServerMock.mockResolvedValue(client);
+    vi.doMock("../app/company/[slug]/detail-data", () => ({
+      getCompanyDetailErrorCode: () => null,
+      getCompanyDetailRouteData: vi.fn(async () => ({
+        slugResolution: { kind: "canonical", canonicalSlug: "boeing", companyId: 1 },
+        company: { id: 1, name: "Boeing", slug: "boeing", industry: "Aerospace" },
+        companyError: null,
+        breakdown: [breakdownRow],
+        evidenceCount: 0,
+        rottenScore: 39,
+      })),
+    }));
 
-    const { default: BreakdownPage } = await import(
-      "../app/company/[slug]/breakdown/page"
-    );
-    await BreakdownPage({ params: Promise.resolve({ slug: "boeing" }) });
+    try {
+      const { default: BreakdownPage } = await import(
+        "../app/company/[slug]/breakdown/page"
+      );
+      await BreakdownPage({ params: Promise.resolve({ slug: "boeing" }) });
 
-    expect(events).toContain("normalize-rating_count");
-    expect(events[0]).toBe("evidence-start");
+      expect(events).toContain("normalize-rating_count");
+      expect(events[0]).toBe("evidence-start");
+    } finally {
+      vi.doUnmock("../app/company/[slug]/detail-data");
+    }
   });
 
   it("keeps legacy slug redirects on the breakdown route", async () => {
