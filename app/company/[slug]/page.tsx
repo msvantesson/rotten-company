@@ -100,7 +100,9 @@ export default async function CompanyPage({ params }: { params: Params }) {
       .from("evidence")
       .select("created_at")
       .eq("company_id", company.id)
-      .eq("status", "approved");
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .limit(1);
 
     if (approvedEvidenceError) {
       console.error(
@@ -109,9 +111,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
         approvedEvidenceError,
       );
     } else {
-      approvedEvidenceUpdatedAt = latestValidIsoDate(
-        ...(approvedEvidenceRows ?? []).map((row: { created_at?: string | null }) => row.created_at ?? null),
-      );
+      approvedEvidenceUpdatedAt = latestValidIsoDate(approvedEvidenceRows?.[0]?.created_at ?? null);
     }
   } catch (e) {
     console.error(
