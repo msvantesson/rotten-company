@@ -68,20 +68,20 @@ export default async function BreakdownPage({
     return notFound();
   }
 
+  const evidencePromise: Promise<EvidenceData> = getEvidenceWithManagers(company.id)
+    .then((rows) => rows ?? [])
+    .catch((e) => {
+      console.error("❌ Error loading evidence for company:", company.id, e);
+      return [];
+    });
+
   const breakdown: BreakdownData = detailData.breakdown.map((row) => ({
     ...row,
     rating_count: row.rating_count ?? 0,
     evidence_count: row.evidence_count ?? 0,
   }));
 
-  // 3) Load evidence
-  let evidence: EvidenceData = [];
-  try {
-    evidence = (await getEvidenceWithManagers(company.id)) ?? [];
-  } catch (e) {
-    console.error("❌ Error loading evidence for company:", company.id, e);
-    evidence = [];
-  }
+  const evidence = await evidencePromise;
 
   // 4) Render
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
