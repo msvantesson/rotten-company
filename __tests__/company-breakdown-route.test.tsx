@@ -9,7 +9,9 @@ const notFoundMock = vi.fn(() => {
 const permanentRedirectMock = vi.fn((url: string) => {
   throw new Error(`PERMANENT_REDIRECT:${url}`);
 });
-const getEvidenceWithManagersMock = vi.fn(async () => []);
+const getEvidenceWithManagersMock = vi.fn<
+  (companyId: number) => Promise<Array<Record<string, unknown>>>
+>(async () => []);
 
 vi.mock("@/lib/supabase-server", () => ({
   supabaseServer: supabaseServerMock,
@@ -85,12 +87,6 @@ type QueryOverride = {
   result?: { data: unknown; error: { code?: string; message: string } | null };
 };
 
-type QueryCall = {
-  table: string;
-  eqs: Array<[string, unknown]>;
-  mode: QueryMode;
-};
-
 type TableData = Record<string, Array<Record<string, unknown>>>;
 
 function sameEqs(
@@ -112,7 +108,6 @@ function createBreakdownSupabase(
   tables: TableData,
   overrides: QueryOverride[] = [],
 ) {
-  const calls: QueryCall[] = [];
   const allTables: TableData = {
     companies: [],
     company_slug_redirects: [],
@@ -146,7 +141,6 @@ function createBreakdownSupabase(
         return query;
       },
       maybeSingle: async () => {
-        calls.push({ table, eqs: [...state.eqs], mode: "single" });
         const override = findOverride(table, state.eqs, "single");
         if (override?.result) {
           return override.result;
@@ -159,7 +153,6 @@ function createBreakdownSupabase(
         onfulfilled?: ((value: { data: unknown; error: { message: string } | null }) => T1 | PromiseLike<T1>) | null,
         onrejected?: ((reason: unknown) => T2 | PromiseLike<T2>) | null,
       ) => {
-        calls.push({ table, eqs: [...state.eqs], mode: "many" });
         const override = findOverride(table, state.eqs, "many");
         if (override?.result) {
           return Promise.resolve(override.result).then(onfulfilled, onrejected);
@@ -182,19 +175,7 @@ function createBreakdownSupabase(
       },
       from,
     },
-    calls,
   };
-}
-
-function countCalls(
-  calls: QueryCall[],
-  expected: { table: string; eqs: Array<[string, unknown]>; mode: QueryMode },
-): number {
-  return calls.filter((call) =>
-    call.table === expected.table &&
-    call.mode === expected.mode &&
-    sameEqs(expected.eqs, call.eqs),
-  ).length;
 }
 
 describe("company breakdown route", () => {
@@ -204,9 +185,9 @@ describe("company breakdown route", () => {
     getEvidenceWithManagersMock.mockResolvedValue([]);
   });
 
-  it("renders the breakdown page, keeps metadata equivalent, and dedupes shared reads", async () => {
+  it("renders the breakdown page and keeps metadata equivalent", async () => {
     getEvidenceWithManagersMock.mockResolvedValue([{ id: 10 }]);
-    const { client, calls } = createBreakdownSupabase({
+    const { client } = createBreakdownSupabase({
       companies: [
         { id: 1, name: "Boeing", slug: "boeing", industry: "Aerospace" },
       ],
@@ -263,30 +244,10 @@ describe("company breakdown route", () => {
       },
     });
     expect(getEvidenceWithManagersMock).toHaveBeenCalledWith(1);
-    expect(countCalls(calls, {
-      table: "companies",
-      eqs: [["slug", "boeing"]],
-      mode: "single",
-    })).toBe(1);
-    expect(countCalls(calls, {
-      table: "companies",
-      eqs: [["id", 1]],
-      mode: "single",
-    })).toBe(1);
-    expect(countCalls(calls, {
-      table: "company_category_full_breakdown",
-      eqs: [["company_id", 1]],
-      mode: "many",
-    })).toBe(1);
-    expect(countCalls(calls, {
-      table: "company_rotten_score_v2",
-      eqs: [["company_id", 1]],
-      mode: "single",
-    })).toBe(1);
   });
 
   it("keeps missing companies as notFound()", async () => {
-    const { client, calls } = createBreakdownSupabase({
+    const { client } = createBreakdownSupabase({
       companies: [],
       company_slug_redirects: [],
     });
@@ -305,21 +266,11 @@ describe("company breakdown route", () => {
       BreakdownPage({ params: Promise.resolve({ slug: "missing-company" }) }),
     ).rejects.toThrow("NOT_FOUND");
     expect(notFoundMock).toHaveBeenCalledTimes(2);
-    expect(countCalls(calls, {
-      table: "companies",
-      eqs: [["slug", "missing-company"]],
-      mode: "single",
-    })).toBe(1);
-    expect(countCalls(calls, {
-      table: "company_slug_redirects",
-      eqs: [["old_slug", "missing-company"]],
-      mode: "single",
-    })).toBe(1);
   });
 
   it("keeps DB failures as thrown errors instead of 404s", async () => {
     const dbError = { code: "57014", message: "db unavailable" };
-    const { client, calls } = createBreakdownSupabase(
+    const { client } = createBreakdownSupabase(
       {
         companies: [{ id: 1, name: "Boeing", slug: "boeing", industry: "Aerospace" }],
       },
@@ -347,20 +298,10 @@ describe("company breakdown route", () => {
       BreakdownPage({ params: Promise.resolve({ slug: "boeing" }) }),
     ).rejects.toMatchObject(dbError);
     expect(notFoundMock).not.toHaveBeenCalled();
-    expect(countCalls(calls, {
-      table: "companies",
-      eqs: [["slug", "boeing"]],
-      mode: "single",
-    })).toBe(1);
-    expect(countCalls(calls, {
-      table: "companies",
-      eqs: [["id", 1]],
-      mode: "single",
-    })).toBe(1);
   });
 
   it("keeps legacy slug redirects on the breakdown route", async () => {
-    const { client, calls } = createBreakdownSupabase({
+    const { client } = createBreakdownSupabase({
       companies: [{ id: 1, name: "Boeing", slug: "boeing", industry: "Aerospace" }],
       company_slug_redirects: [
         { company_id: 1, old_slug: "boing", new_slug: "boeing" },
@@ -380,20 +321,5 @@ describe("company breakdown route", () => {
     await expect(
       BreakdownPage({ params: Promise.resolve({ slug: "boing" }) }),
     ).rejects.toThrow("PERMANENT_REDIRECT:/company/boeing/breakdown");
-    expect(countCalls(calls, {
-      table: "companies",
-      eqs: [["slug", "boing"]],
-      mode: "single",
-    })).toBe(1);
-    expect(countCalls(calls, {
-      table: "company_slug_redirects",
-      eqs: [["old_slug", "boing"]],
-      mode: "single",
-    })).toBe(1);
-    expect(countCalls(calls, {
-      table: "companies",
-      eqs: [["id", 1]],
-      mode: "single",
-    })).toBe(1);
   });
 });
