@@ -93,6 +93,8 @@ vi.mock("@/lib/company-seo", () => ({
 
 type QueryState = {
   eqs: Array<[string, unknown]>;
+  orderBys: Array<{ column: string; ascending: boolean }>;
+  limit: number | null;
 };
 
 function createCompanyPageSupabase(data: {
@@ -113,13 +115,38 @@ function createCompanyPageSupabase(data: {
   };
 
   const findRows = (table: string, state: QueryState) => {
-    return (tables[table] ?? []).filter((row) =>
+    const filteredRows = (tables[table] ?? []).filter((row) =>
       state.eqs.every(([column, value]) => row[column] === value),
     );
+
+    const orderedRows = state.orderBys.length > 0
+      ? [...filteredRows].sort((a, b) => {
+          for (const orderBy of state.orderBys) {
+            const left = a[orderBy.column];
+            const right = b[orderBy.column];
+            if (left === right) continue;
+            if (left == null) return 1;
+            if (right == null) return -1;
+            let comparison = 0;
+            if (orderBy.column === "created_at") {
+              comparison = Date.parse(String(left)) - Date.parse(String(right));
+            } else if (typeof left === "number" && typeof right === "number") {
+              comparison = left - right;
+            }
+            return orderBy.ascending ? comparison : -comparison;
+          }
+
+          return 0;
+        })
+      : filteredRows;
+
+    return typeof state.limit === "number"
+      ? orderedRows.slice(0, state.limit)
+      : orderedRows;
   };
 
   const from = (table: string) => {
-    const state: QueryState = { eqs: [] };
+    const state: QueryState = { eqs: [], orderBys: [], limit: null };
 
     const query = {
       select: () => query,
@@ -127,7 +154,14 @@ function createCompanyPageSupabase(data: {
         state.eqs.push([column, value]);
         return query;
       },
-      order: () => query,
+      order: (column: string, options?: { ascending?: boolean }) => {
+        state.orderBys.push({ column, ascending: options?.ascending ?? true });
+        return query;
+      },
+      limit: (count: number) => {
+        state.limit = count;
+        return query;
+      },
       maybeSingle: async () => {
         if (
           table === "companies" &&
@@ -252,6 +286,82 @@ describe("company page slug routing", () => {
       message: "db unavailable",
     });
     expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the newest approved evidence timestamp for company modified date", async () => {
+    supabaseServerMock.mockResolvedValue(
+      createCompanyPageSupabase({
+        companies: [
+          {
+            id: 1,
+            name: "Boeing",
+            slug: "boeing",
+            industry: "Aerospace",
+            size_employees_range: null,
+            country: "US",
+            hq_region: null,
+            hq_city: null,
+            website: null,
+            description: "Planes",
+            updated_at: "2026-08-20T12:34:56.000Z",
+          },
+        ],
+        evidence: [
+          { company_id: 1, status: "approved", created_at: "2026-01-10T00:00:00.000Z" },
+          { company_id: 1, status: "approved", created_at: "2026-09-01T00:00:00.000Z" },
+          { company_id: 1, status: "pending", created_at: "2026-12-01T00:00:00.000Z" },
+          { company_id: 2, status: "approved", created_at: "2026-12-31T00:00:00.000Z" },
+        ],
+      }),
+    );
+
+    const { default: CompanyPage } = await import("../app/company/[slug]/page");
+    renderToStaticMarkup(await CompanyPage({ params: Promise.resolve({ slug: "boeing" }) }));
+
+    expect(buildCompanyJsonLdMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        company: expect.objectContaining({
+          updated_at: "2026-09-01T00:00:00.000Z",
+        }),
+      }),
+    );
+  });
+
+  it("keeps company updated_at when there is no approved evidence", async () => {
+    supabaseServerMock.mockResolvedValue(
+      createCompanyPageSupabase({
+        companies: [
+          {
+            id: 1,
+            name: "Boeing",
+            slug: "boeing",
+            industry: "Aerospace",
+            size_employees_range: null,
+            country: "US",
+            hq_region: null,
+            hq_city: null,
+            website: null,
+            description: "Planes",
+            updated_at: "2026-08-20T12:34:56.000Z",
+          },
+        ],
+        evidence: [
+          { company_id: 1, status: "pending", created_at: "2026-09-01T00:00:00.000Z" },
+          { company_id: 2, status: "approved", created_at: "2026-09-02T00:00:00.000Z" },
+        ],
+      }),
+    );
+
+    const { default: CompanyPage } = await import("../app/company/[slug]/page");
+    renderToStaticMarkup(await CompanyPage({ params: Promise.resolve({ slug: "boeing" }) }));
+
+    expect(buildCompanyJsonLdMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        company: expect.objectContaining({
+          updated_at: "2026-08-20T12:34:56.000Z",
+        }),
+      }),
+    );
   });
 
   it("falls back safely when approved evidence timestamp lookup fails", async () => {
