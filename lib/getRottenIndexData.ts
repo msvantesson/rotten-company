@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 import { computeEscalationScore } from "./leader-escalation";
 
 function getSupabase() {
@@ -77,6 +78,15 @@ async function fetchAllCompanyCountries(
   return Array.from(countries).sort((a, b) => a.localeCompare(b));
 }
 
+const getCachedCompanyCountries = unstable_cache(
+  async () => fetchAllCompanyCountries(getSupabase()),
+  [
+    "rotten-index-company-country-options",
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+  ],
+  { revalidate: 3600 },
+);
+
 export async function getRottenIndexData(
   params: GetRottenIndexParams,
 ): Promise<{ rows: RottenIndexRow[]; countries: string[] } | { error: string }> {
@@ -133,7 +143,7 @@ export async function getRottenIndexData(
         approved_evidence_count: Number(r.approved_evidence_count) || 0,
       }));
 
-      const countries = await fetchAllCompanyCountries(supabase);
+      const countries = await getCachedCompanyCountries();
       return { rows, countries };
     } else {
       const leadersQuery = supabase
@@ -151,7 +161,7 @@ export async function getRottenIndexData(
       const leaders = leadersData ?? [];
 
       if (leaders.length === 0) {
-        const countries = await fetchAllCompanyCountries(supabase);
+        const countries = await getCachedCompanyCountries();
         return { rows: [], countries };
       }
 
@@ -260,7 +270,7 @@ export async function getRottenIndexData(
         })
         .slice(0, limit);
 
-      const countries = await fetchAllCompanyCountries(supabase);
+      const countries = await getCachedCompanyCountries();
       return { rows, countries };
     }
   } catch (err) {
