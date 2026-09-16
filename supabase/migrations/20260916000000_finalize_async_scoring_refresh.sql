@@ -34,10 +34,21 @@ $$;
 
 DO $$
 DECLARE
-  refresh_if_dirty_fn text := 'public.refresh_scoring_if_dirty()';
+  refresh_if_dirty_fn text;
   granted_role text;
 BEGIN
-  IF to_regprocedure(refresh_if_dirty_fn) IS NOT NULL THEN
+  FOR refresh_if_dirty_fn IN
+    SELECT format(
+      '%I.%I(%s)',
+      n.nspname,
+      p.proname,
+      pg_get_function_identity_arguments(p.oid)
+    )
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'refresh_scoring_if_dirty'
+  LOOP
     EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC', refresh_if_dirty_fn);
     EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM anon', refresh_if_dirty_fn);
     EXECUTE format(
@@ -61,6 +72,6 @@ BEGIN
     END LOOP;
 
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', refresh_if_dirty_fn);
-  END IF;
+  END LOOP;
 END
 $$;
