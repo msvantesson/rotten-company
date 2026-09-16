@@ -60,8 +60,17 @@ BEGIN
 END
 $$;
 
-DROP TRIGGER IF EXISTS trg_refresh_scoring_on_ratings ON public.ratings;
-DROP TRIGGER IF EXISTS trg_refresh_scoring_on_evidence ON public.evidence;
+DO $$
+BEGIN
+  IF to_regclass('public.ratings') IS NOT NULL THEN
+    DROP TRIGGER IF EXISTS trg_refresh_scoring_on_ratings ON public.ratings;
+  END IF;
+
+  IF to_regclass('public.evidence') IS NOT NULL THEN
+    DROP TRIGGER IF EXISTS trg_refresh_scoring_on_evidence ON public.evidence;
+  END IF;
+END
+$$;
 
 DO $$
 BEGIN
