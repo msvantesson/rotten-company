@@ -148,9 +148,9 @@ SELECT public.refresh_scoring_if_dirty()
 
 4. Verify scores updated by checking `score_recalculation_logs` or the materialized views.
 
-## Rollback plan
+## Incident pause plan (does not restore synchronous refresh)
 
-If the async refresh causes issues:
+If the async refresh causes issues and you need a short-lived mitigation:
 
 1. **Last-resort pause for dirty-change detection** in Supabase SQL editor:
    ```sql

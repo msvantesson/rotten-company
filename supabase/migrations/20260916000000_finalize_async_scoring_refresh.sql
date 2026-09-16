@@ -34,12 +34,16 @@ $$;
 
 DO $$
 DECLARE
+  refresh_if_dirty_fn text := 'public.refresh_scoring_if_dirty()';
   granted_role text;
 BEGIN
-  IF to_regprocedure('public.refresh_scoring_if_dirty()') IS NOT NULL THEN
-    REVOKE EXECUTE ON FUNCTION public.refresh_scoring_if_dirty() FROM PUBLIC;
-    REVOKE EXECUTE ON FUNCTION public.refresh_scoring_if_dirty() FROM anon;
-    REVOKE EXECUTE ON FUNCTION public.refresh_scoring_if_dirty() FROM authenticated;
+  IF to_regprocedure(refresh_if_dirty_fn) IS NOT NULL THEN
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC', refresh_if_dirty_fn);
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM anon', refresh_if_dirty_fn);
+    EXECUTE format(
+      'REVOKE EXECUTE ON FUNCTION %s FROM authenticated',
+      refresh_if_dirty_fn
+    );
 
     FOR granted_role IN
       SELECT DISTINCT grantee
@@ -50,12 +54,13 @@ BEGIN
         AND grantee NOT IN ('postgres', 'service_role')
     LOOP
       EXECUTE format(
-        'REVOKE EXECUTE ON FUNCTION public.refresh_scoring_if_dirty() FROM %I',
+        'REVOKE EXECUTE ON FUNCTION %s FROM %I',
+        refresh_if_dirty_fn,
         granted_role
       );
     END LOOP;
 
-    GRANT EXECUTE ON FUNCTION public.refresh_scoring_if_dirty() TO service_role;
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', refresh_if_dirty_fn);
   END IF;
 END
 $$;
