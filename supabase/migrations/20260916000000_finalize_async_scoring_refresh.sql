@@ -11,6 +11,55 @@ BEGIN
 END
 $$;
 
+DO $$
+DECLARE
+  mark_scoring_dirty_oid oid;
+  mark_scoring_dirty_fn text;
+  granted_role text;
+BEGIN
+  FOR mark_scoring_dirty_oid, mark_scoring_dirty_fn IN
+    SELECT
+      p.oid,
+      format(
+        '%I.%I(%s)',
+        n.nspname,
+        p.proname,
+        pg_get_function_identity_arguments(p.oid)
+      )
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'mark_scoring_dirty'
+  LOOP
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC', mark_scoring_dirty_fn);
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM anon', mark_scoring_dirty_fn);
+    EXECUTE format(
+      'REVOKE EXECUTE ON FUNCTION %s FROM authenticated',
+      mark_scoring_dirty_fn
+    );
+
+    FOR granted_role IN
+      SELECT DISTINCT r.rolname
+      FROM pg_proc p
+      JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) acl ON true
+      JOIN pg_roles r ON r.oid = acl.grantee
+      WHERE p.oid = mark_scoring_dirty_oid
+        AND acl.privilege_type = 'EXECUTE'
+        AND r.rolname NOT IN ('postgres', 'authenticated', 'service_role')
+    LOOP
+      EXECUTE format(
+        'REVOKE EXECUTE ON FUNCTION %s FROM %I',
+        mark_scoring_dirty_fn,
+        granted_role
+      );
+    END LOOP;
+
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', mark_scoring_dirty_fn);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', mark_scoring_dirty_fn);
+  END LOOP;
+END
+$$;
+
 DROP TRIGGER IF EXISTS trg_refresh_scoring_on_ratings ON public.ratings;
 DROP TRIGGER IF EXISTS trg_refresh_scoring_on_evidence ON public.evidence;
 
