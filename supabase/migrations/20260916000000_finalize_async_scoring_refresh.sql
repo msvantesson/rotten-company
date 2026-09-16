@@ -66,17 +66,21 @@ DROP TRIGGER IF EXISTS trg_refresh_scoring_on_evidence ON public.evidence;
 DO $$
 BEGIN
   IF to_regprocedure('public.mark_scoring_dirty()') IS NOT NULL THEN
-    DROP TRIGGER IF EXISTS trg_mark_scoring_dirty_on_evidence ON public.evidence;
-    CREATE TRIGGER trg_mark_scoring_dirty_on_evidence
-      AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.evidence
-      FOR EACH STATEMENT
-      EXECUTE FUNCTION public.mark_scoring_dirty();
+    IF to_regclass('public.evidence') IS NOT NULL THEN
+      DROP TRIGGER IF EXISTS trg_mark_scoring_dirty_on_evidence ON public.evidence;
+      CREATE TRIGGER trg_mark_scoring_dirty_on_evidence
+        AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.evidence
+        FOR EACH STATEMENT
+        EXECUTE FUNCTION public.mark_scoring_dirty();
+    END IF;
 
-    DROP TRIGGER IF EXISTS trg_mark_scoring_dirty_on_ratings ON public.ratings;
-    CREATE TRIGGER trg_mark_scoring_dirty_on_ratings
-      AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.ratings
-      FOR EACH STATEMENT
-      EXECUTE FUNCTION public.mark_scoring_dirty();
+    IF to_regclass('public.ratings') IS NOT NULL THEN
+      DROP TRIGGER IF EXISTS trg_mark_scoring_dirty_on_ratings ON public.ratings;
+      CREATE TRIGGER trg_mark_scoring_dirty_on_ratings
+        AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.ratings
+        FOR EACH STATEMENT
+        EXECUTE FUNCTION public.mark_scoring_dirty();
+    END IF;
   END IF;
 END
 $$;
