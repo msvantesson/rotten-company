@@ -152,12 +152,12 @@ SELECT public.refresh_scoring_if_dirty()
 
 If the async refresh causes issues:
 
-1. **Last-resort write freeze (stops change detection)** in Supabase SQL editor:
+1. **Last-resort pause for dirty-change detection** in Supabase SQL editor:
    ```sql
    ALTER TABLE public.evidence DISABLE TRIGGER trg_mark_scoring_dirty_on_evidence;
    ALTER TABLE public.ratings DISABLE TRIGGER trg_mark_scoring_dirty_on_ratings;
    ```
-   This disables dirty marking for new writes, so only use it briefly while investigating incidents.
+   This does **not** block writes; it only stops new evidence/ratings writes from setting `scoring_refresh_state.dirty=true`, so use it briefly while investigating incidents.
 
 2. **Disable the GitHub Actions workflow** by removing or commenting out the `schedule` block in `.github/workflows/refresh_scoring_if_dirty.yml`.
 
