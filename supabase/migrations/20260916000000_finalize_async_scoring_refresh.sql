@@ -34,16 +34,19 @@ $$;
 
 DO $$
 DECLARE
+  refresh_if_dirty_oid oid;
   refresh_if_dirty_fn text;
   granted_role text;
 BEGIN
-  FOR refresh_if_dirty_fn IN
-    SELECT format(
-      '%I.%I(%s)',
-      n.nspname,
-      p.proname,
-      pg_get_function_identity_arguments(p.oid)
-    )
+  FOR refresh_if_dirty_oid, refresh_if_dirty_fn IN
+    SELECT
+      p.oid,
+      format(
+        '%I.%I(%s)',
+        n.nspname,
+        p.proname,
+        pg_get_function_identity_arguments(p.oid)
+      )
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public'
@@ -57,12 +60,13 @@ BEGIN
     );
 
     FOR granted_role IN
-      SELECT DISTINCT grantee
-      FROM information_schema.role_routine_grants
-      WHERE specific_schema = 'public'
-        AND routine_name = 'refresh_scoring_if_dirty'
-        AND privilege_type = 'EXECUTE'
-        AND grantee NOT IN ('postgres', 'service_role')
+      SELECT DISTINCT r.rolname
+      FROM pg_proc p
+      JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) acl ON true
+      JOIN pg_roles r ON r.oid = acl.grantee
+      WHERE p.oid = refresh_if_dirty_oid
+        AND acl.privilege_type = 'EXECUTE'
+        AND r.rolname NOT IN ('postgres', 'service_role')
     LOOP
       EXECUTE format(
         'REVOKE EXECUTE ON FUNCTION %s FROM %I',
