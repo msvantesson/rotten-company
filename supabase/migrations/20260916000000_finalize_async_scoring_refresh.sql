@@ -51,11 +51,28 @@ END
 $$;
 
 DO $$
+DECLARE
+  granted_role text;
 BEGIN
   IF to_regprocedure('public.refresh_scoring_if_dirty()') IS NOT NULL THEN
     REVOKE EXECUTE ON FUNCTION public.refresh_scoring_if_dirty() FROM PUBLIC;
     REVOKE EXECUTE ON FUNCTION public.refresh_scoring_if_dirty() FROM anon;
     REVOKE EXECUTE ON FUNCTION public.refresh_scoring_if_dirty() FROM authenticated;
+
+    FOR granted_role IN
+      SELECT DISTINCT grantee
+      FROM information_schema.role_routine_grants
+      WHERE specific_schema = 'public'
+        AND routine_name = 'refresh_scoring_if_dirty'
+        AND privilege_type = 'EXECUTE'
+        AND grantee NOT IN ('postgres', 'service_role')
+    LOOP
+      EXECUTE format(
+        'REVOKE EXECUTE ON FUNCTION public.refresh_scoring_if_dirty() FROM %I',
+        granted_role
+      );
+    END LOOP;
+
     GRANT EXECUTE ON FUNCTION public.refresh_scoring_if_dirty() TO service_role;
   END IF;
 END
