@@ -20,6 +20,24 @@ BEGIN
      AND NOT EXISTS (
        SELECT 1
        FROM pg_trigger
+       WHERE tgname = 'trg_mark_scoring_dirty_on_evidence'
+         AND tgrelid = 'public.evidence'::regclass
+         AND NOT tgisinternal
+     ) THEN
+    CREATE TRIGGER trg_mark_scoring_dirty_on_evidence
+      AFTER INSERT OR DELETE OR UPDATE OR TRUNCATE ON public.evidence
+      FOR EACH STATEMENT
+      EXECUTE FUNCTION public.mark_scoring_dirty();
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF to_regprocedure('public.mark_scoring_dirty()') IS NOT NULL
+     AND NOT EXISTS (
+       SELECT 1
+       FROM pg_trigger
        WHERE tgname = 'trg_mark_scoring_dirty_on_ratings'
          AND tgrelid = 'public.ratings'::regclass
          AND NOT tgisinternal
