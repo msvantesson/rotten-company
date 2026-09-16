@@ -122,7 +122,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Rating already exists for this category." }, { status: 409 });
       }
 
-      console.error("[submit-rating:rating-upsert]");
+      console.error("[submit-rating:rating-upsert]", {
+        code: ratingError.code,
+        message: ratingError.message,
+        details: ratingError.details,
+        hint: ratingError.hint,
+      });
       return NextResponse.json({ error: "Failed to submit rating" }, { status: 500 });
     }
 

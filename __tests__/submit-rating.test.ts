@@ -153,4 +153,37 @@ describe("POST /api/submit-rating", () => {
     const response = await POST(makeRequest({ companySlug: "acme", categorySlug: "harms", score: 3 }));
     expect(response.status).toBe(401);
   });
+
+  it("logs only safe Supabase fields for rating upsert failures", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const ratingError = {
+      code: "23503",
+      message: "insert or update on table ratings violates foreign key constraint",
+      details: "Key (category)=(7) is not present in table categories.",
+      hint: "Ensure the referenced category exists.",
+      constraint: "ratings_category_fkey",
+    };
+
+    upsertMock.mockImplementationOnce(() => Promise.resolve({ error: null })).mockImplementationOnce(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: null,
+          error: ratingError,
+        }),
+      })),
+    }));
+
+    const response = await POST(makeRequest({ companySlug: "acme", categorySlug: "harms", score: 3 }));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "Failed to submit rating" });
+    expect(consoleErrorSpy).toHaveBeenCalledWith("[submit-rating:rating-upsert]", {
+      code: ratingError.code,
+      message: ratingError.message,
+      details: ratingError.details,
+      hint: ratingError.hint,
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
 });
