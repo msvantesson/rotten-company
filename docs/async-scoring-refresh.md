@@ -12,7 +12,7 @@ Vercel's Hobby plan does not support cron schedules more frequent than once per 
 
 ## How the dirty-flag works
 
-1. **Trigger on evidence change:** The DB trigger `trg_mark_scoring_dirty_on_evidence` fires after any `INSERT`, `UPDATE`, `DELETE`, or `TRUNCATE` on the `public.evidence` table and calls `public.mark_scoring_dirty()`, setting `public.scoring_refresh_state.dirty = true`.
+1. **Trigger on evidence or rating change:** The DB triggers `trg_mark_scoring_dirty_on_evidence` (on `public.evidence`) and `trg_mark_scoring_dirty_on_ratings` (on `public.ratings`) fire after any `INSERT`, `UPDATE`, `DELETE`, or `TRUNCATE` and call `public.mark_scoring_dirty()`, setting `public.scoring_refresh_state.dirty = true`.
 
 2. **Periodic refresh:** Every 5 minutes the GitHub Actions workflow calls `GET /api/cron/refresh-scoring`. The endpoint validates the `X-Cron-Secret` header and then invokes the Supabase Edge Function `refresh_scoring_if_dirty`.
 
@@ -25,7 +25,9 @@ Vercel's Hobby plan does not support cron schedules more frequent than once per 
 | Object | Type | Purpose |
 |---|---|---|
 | `trg_mark_scoring_dirty_on_evidence` | Trigger (ENABLED) | Sets `dirty=true` on evidence changes |
-| `trg_refresh_scoring_on_evidence` | Trigger (DISABLED) | Legacy sync refresh — kept disabled |
+| `trg_mark_scoring_dirty_on_ratings` | Trigger (ENABLED) | Sets `dirty=true` on ratings changes |
+| `trg_refresh_scoring_on_evidence` | Trigger (REMOVED) | Legacy sync refresh trigger removed |
+| `trg_refresh_scoring_on_ratings` | Trigger (REMOVED) | Legacy sync refresh trigger removed |
 | `public.scoring_refresh_state` | Table | Single-row dirty flag |
 | `public.mark_scoring_dirty()` | Function | Sets `dirty=true` |
 | `public.refresh_scoring_if_dirty()` | Function | Refreshes matviews if dirty |
@@ -98,10 +100,10 @@ Deno.serve(async (req) => {
 ## Architecture diagram
 
 ```
-Evidence change in DB
+Evidence/rating change in DB
         │
         ▼
-trg_mark_scoring_dirty_on_evidence
+trg_mark_scoring_dirty_on_evidence / trg_mark_scoring_dirty_on_ratings
         │
         ▼
 scoring_refresh_state.dirty = true
@@ -146,15 +148,16 @@ SELECT public.refresh_scoring_if_dirty()
 
 4. Verify scores updated by checking `score_recalculation_logs` or the materialized views.
 
-## Rollback plan
+## Incident pause plan (does not restore synchronous refresh)
 
-If the async refresh causes issues:
+If the async refresh causes issues and you need a short-lived mitigation:
 
-1. **Re-enable the sync trigger** in Supabase SQL editor:
+1. **Last-resort pause for dirty-change detection** in Supabase SQL editor:
    ```sql
-   ALTER TABLE public.evidence ENABLE TRIGGER trg_refresh_scoring_on_evidence;
    ALTER TABLE public.evidence DISABLE TRIGGER trg_mark_scoring_dirty_on_evidence;
+   ALTER TABLE public.ratings DISABLE TRIGGER trg_mark_scoring_dirty_on_ratings;
    ```
+   This does **not** block writes; it only stops new evidence/ratings writes from setting `scoring_refresh_state.dirty=true`, so use it briefly while investigating incidents.
 
 2. **Disable the GitHub Actions workflow** by removing or commenting out the `schedule` block in `.github/workflows/refresh_scoring_if_dirty.yml`.
 
