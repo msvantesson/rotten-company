@@ -52,6 +52,20 @@ vi.mock("../app/rotten-index/CompanyCardList", () => ({
   default: ({ rows }: { rows: Array<{ name: string }> }) => <div>{rows.map((row) => row.name).join(", ")}</div>,
 }));
 
+vi.mock("../app/rotten-index/CompanyDesktopTable", () => ({
+  default: ({ rows, tableId }: { rows: Array<{ name: string }>; tableId: string }) => (
+    <table id={tableId}>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.name}>
+            <td>{row.name}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ),
+}));
+
 vi.mock("../app/rotten-index/FindCompanyInline", () => ({
   default: () => <div>Find company</div>,
 }));

@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import MacroTierBadge from "@/components/MacroTierBadge";
 import ExportCsvButton from "./ExportCsvButton";
 import CompanyCardList from "./CompanyCardList";
 import FindCompanyInline from "./FindCompanyInline";
+import CompanyDesktopTable from "./CompanyDesktopTable";
 
 type IndexType = "company" | "leader";
 type SortField = "rotten_score" | "approved_evidence_count" | "name" | "industry";
@@ -293,10 +293,12 @@ export default function RottenIndexClient({
             </div>
           )}
 
-          <div className={`overflow-x-auto rounded-lg border border-border${type === "company" ? " hidden md:block" : ""}`}>
-            <table id="rotten-index-table" className="w-full border-collapse text-sm">
-              <thead className="bg-muted border-b border-border">
-                {type === "leader" ? (
+          {type === "company" ? (
+            <CompanyDesktopTable rows={companyRows} sort={sort} dir={dir} tableId="rotten-index-table" />
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table id="rotten-index-table" className="w-full border-collapse text-sm">
+                <thead className="bg-muted border-b border-border">
                   <tr className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     <th className="py-3 pr-2 pl-4 w-12 text-left">#</th>
                     <th className="py-3 pr-4 text-left">CEO Name</th>
@@ -306,21 +308,9 @@ export default function RottenIndexClient({
                     <th className="py-3 pr-4 text-left">Ended</th>
                     <th className="py-3 pr-4 text-right">Rotten Score</th>
                   </tr>
-                ) : (
-                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <th className="py-3 pr-2 pl-4 w-12 text-left">#</th>
-                    <th className="py-3 pr-4 text-left">Name</th>
-                    <th className="py-3 pr-4 text-left">Country</th>
-                    <th className="py-3 pr-4 text-left">Industry</th>
-                    <th className="py-3 pr-4 text-right">Evidence</th>
-                    <th className="py-3 pr-4 text-right">Rotten Score</th>
-                    <th className="px-4 py-3 text-center min-w-[240px]">Status</th>
-                  </tr>
-                )}
-              </thead>
-              <tbody>
-                {displayRows.map((row, index) =>
-                  type === "leader" ? (
+                </thead>
+                <tbody>
+                  {displayRows.map((row, index) => (
                     <tr key={`leader-${row.id}`} className="border-b border-border hover:bg-muted last:border-0 transition-colors">
                       <td className="py-3 pr-2 pl-4 text-muted-foreground">{index + 1}</td>
                       <td className="py-3 pr-4 font-medium"><Link href={`/leader/${row.slug}`} className="text-accent hover:underline">{row.name}</Link></td>
@@ -330,21 +320,11 @@ export default function RottenIndexClient({
                       <td className="py-3 pr-4 text-muted-foreground">{row.ended_at ? formatDate(row.ended_at) : row.started_at ? <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Current</span> : "—"}</td>
                       <td className="py-3 pr-4 text-right font-mono tabular-nums">{row.rotten_score != null ? row.rotten_score.toFixed(2) : "—"}</td>
                     </tr>
-                  ) : (
-                    <tr key={`company-${row.id}`} className="border-b border-border hover:bg-muted last:border-0 transition-colors">
-                      <td className="py-3 pr-2 pl-4 text-muted-foreground">{index + 1}</td>
-                      <td className="py-3 pr-4 font-medium"><Link href={`/${type}/${row.slug}`} className="text-accent hover:underline">{row.name}</Link></td>
-                      <td className="py-3 pr-4 text-muted-foreground">{row.country ?? "—"}</td>
-                      <td className="py-3 pr-4 text-muted-foreground">{row.industry ?? "—"}</td>
-                      <td className="py-3 pr-4 text-right font-mono tabular-nums text-muted-foreground">{row.approved_evidence_count ?? 0}</td>
-                      <td className="py-3 pr-4 text-right font-mono tabular-nums">{row.rotten_score != null ? row.rotten_score.toFixed(2) : "—"}</td>
-                      <td className="px-4 py-3 text-center align-middle min-w-[240px]">{row.rotten_score != null ? <MacroTierBadge score={row.rotten_score} /> : <span className="text-muted-foreground">—</span>}</td>
-                    </tr>
-                  ),
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </>
