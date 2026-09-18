@@ -146,7 +146,7 @@ export default function CompanyDesktopTable({
   });
 
   return (
-    <div className="hidden rounded-lg border border-border bg-surface md:block">
+    <div className="hidden overflow-x-auto rounded-lg border border-border bg-surface md:block">
       <Table id={tableId}>
         <caption className="sr-only">Rotten Index company table</caption>
         <TableHeader className="bg-muted/60">
@@ -158,12 +158,16 @@ export default function CompanyDesktopTable({
                     key={header.id}
                     className={header.column.columnDef.meta?.headClassName}
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                    {header.isPlaceholder ? null : (
+                      <span className="inline-flex items-center gap-1">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.id === sort ? (
+                          <span aria-hidden="true" className="text-[10px] leading-none text-muted-foreground">
+                            {dir === "asc" ? "▲" : "▼"}
+                          </span>
+                        ) : null}
+                      </span>
+                    )}
                   </TableHead>
                 );
               })}

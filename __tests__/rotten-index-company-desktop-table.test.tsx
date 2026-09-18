@@ -53,5 +53,32 @@ describe("CompanyDesktopTable", () => {
     expect(html).toContain("Tier 42.5");
     expect(html).toContain("No Score LLC");
     expect(html).toContain("Rotten Score");
+    expect(html).toContain("▼");
+  });
+
+  it("updates the visible sort indicator for alternate sort field and direction", async () => {
+    const { default: CompanyDesktopTable } = await import("../app/rotten-index/CompanyDesktopTable");
+
+    const html = renderToStaticMarkup(
+      <CompanyDesktopTable
+        tableId="rotten-index-table"
+        sort="name"
+        dir="asc"
+        rows={[
+          {
+            id: 1,
+            name: "Acme Corp",
+            slug: "acme-corp",
+            country: "Belgium",
+            industry: "Finance",
+            approved_evidence_count: 7,
+            rotten_score: 42.5,
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain("Name");
+    expect(html).toContain("▲");
   });
 });
