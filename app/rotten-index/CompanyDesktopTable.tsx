@@ -54,12 +54,12 @@ const columns: ColumnDef<CompanyRow>[] = [
     cell: ({ row }) => (
       <Link
         href={`/company/${row.original.slug}`}
-        className="font-semibold text-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="text-[0.95rem] font-semibold text-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {row.original.name}
       </Link>
     ),
-    meta: { headClassName: "min-w-[15rem]", cellClassName: "font-medium" },
+    meta: { headClassName: "min-w-[16rem]", cellClassName: "font-medium" },
   },
   {
     id: "country",
@@ -80,13 +80,13 @@ const columns: ColumnDef<CompanyRow>[] = [
     accessorKey: "approved_evidence_count",
     header: "Evidence",
     cell: ({ row }) => (
-      <span className="font-mono tabular-nums text-muted-foreground">
+      <span className="text-sm font-mono tabular-nums text-muted-foreground">
         {row.original.approved_evidence_count ?? 0}
       </span>
     ),
     meta: {
-      headClassName: "text-right",
-      cellClassName: "text-right",
+      headClassName: "w-[7.5rem] pl-3 pr-5 text-right",
+      cellClassName: "pl-3 pr-5 text-right",
     },
   },
   {
@@ -94,13 +94,13 @@ const columns: ColumnDef<CompanyRow>[] = [
     accessorKey: "rotten_score",
     header: "Rotten Score",
     cell: ({ row }) => (
-      <span className="inline-flex min-w-[4.75rem] justify-end rounded-md bg-muted px-2.5 py-1 font-mono text-sm font-semibold tabular-nums text-foreground">
+      <span className="inline-flex min-w-[4.75rem] justify-end rounded-md bg-muted px-2.5 py-1 font-mono text-[0.95rem] font-bold tabular-nums text-foreground">
         {row.original.rotten_score != null ? row.original.rotten_score.toFixed(2) : "—"}
       </span>
     ),
     meta: {
-      headClassName: "text-right",
-      cellClassName: "text-right",
+      headClassName: "w-[9rem] pl-3 pr-5 text-right",
+      cellClassName: "pl-3 pr-5 text-right",
     },
   },
   {
@@ -113,7 +113,7 @@ const columns: ColumnDef<CompanyRow>[] = [
         <span className="text-muted-foreground">—</span>
       ),
     meta: {
-      headClassName: "text-center min-w-[240px]",
+      headClassName: "min-w-[11rem] text-center",
       cellClassName: "text-center",
     },
   },
