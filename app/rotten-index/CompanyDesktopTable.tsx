@@ -46,7 +46,7 @@ declare module "@tanstack/react-table" {
 // Zone" and "Rotten Enough to Notice".
 function RottenIndexStatusBadge({ score }: { score: number }) {
   return (
-    <span className="inline-flex max-w-full whitespace-nowrap">
+    <span className="inline-flex shrink-0 whitespace-nowrap">
       <MacroTierBadge score={score} />
     </span>
   );
@@ -127,8 +127,8 @@ const columns: ColumnDef<CompanyRow>[] = [
         <span className="text-muted-foreground">—</span>
       ),
     meta: {
-      headClassName: "w-[14rem] whitespace-nowrap text-center",
-      cellClassName: "whitespace-nowrap text-center",
+      headClassName: "min-w-[14.5rem] px-3 whitespace-nowrap text-center",
+      cellClassName: "px-3 whitespace-nowrap text-center",
     },
   },
 ];

@@ -54,6 +54,9 @@ describe("CompanyDesktopTable", () => {
     expect(html).toContain("No Score LLC");
     expect(html).toContain("Rotten Score");
     expect(html).toContain("▼");
+    expect(html).toContain("min-w-[14.5rem]");
+    expect(html).toContain("px-3 whitespace-nowrap text-center");
+    expect(html).toContain("inline-flex shrink-0 whitespace-nowrap");
   });
 
   it("updates the visible sort indicator for alternate sort field and direction", async () => {
