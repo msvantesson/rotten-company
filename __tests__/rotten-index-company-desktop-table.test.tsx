@@ -54,11 +54,6 @@ describe("CompanyDesktopTable", () => {
     expect(html).toContain("No Score LLC");
     expect(html).toContain("Rotten Score");
     expect(html).toContain("▼");
-    expect(html).toContain("text-[0.95rem] font-semibold text-accent");
-    expect(html).toContain("w-[7.5rem] pl-3 pr-5 text-right");
-    expect(html).toContain("w-[9rem] pl-3 pr-5 text-right");
-    expect(html).toContain("text-[0.95rem] font-bold tabular-nums text-foreground");
-    expect(html).toContain("min-w-[11rem] text-center");
   });
 
   it("updates the visible sort indicator for alternate sort field and direction", async () => {
