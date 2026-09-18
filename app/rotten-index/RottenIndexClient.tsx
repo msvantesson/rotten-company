@@ -270,7 +270,7 @@ export default function RottenIndexClient({
             </>
           )}
 
-          <div className="ml-auto flex w-full items-center justify-end gap-2 sm:w-auto">
+          <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
             <ExportCsvButton
               tableId="rotten-index-table"
               filename={fileName}
