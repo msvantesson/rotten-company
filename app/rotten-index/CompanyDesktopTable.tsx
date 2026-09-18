@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -19,6 +20,12 @@ import {
 } from "../../components/ui/table";
 
 type SortField = "rotten_score" | "approved_evidence_count" | "name" | "industry";
+const SORTABLE_COLUMN_IDS = new Set<SortField>([
+  "rotten_score",
+  "approved_evidence_count",
+  "name",
+  "industry",
+]);
 
 type CompanyRow = {
   id: number;
@@ -129,13 +136,18 @@ export default function CompanyDesktopTable({
   dir: "asc" | "desc";
   tableId: string;
 }) {
+  const sortingState = useMemo(
+    () => [{ id: sort, desc: dir === "desc" }],
+    [sort, dir],
+  );
+
   const table = useReactTable({
     data: rows,
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
     state: {
-      sorting: [{ id: sort, desc: dir === "desc" }],
+      sorting: sortingState,
     },
   });
   const currentSort = table.getState().sorting[0];
@@ -148,12 +160,17 @@ export default function CompanyDesktopTable({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="hover:bg-transparent">
               {headerGroup.headers.map((header) => {
+                const isSortable = SORTABLE_COLUMN_IDS.has(
+                  header.column.id as SortField,
+                );
                 const isSorted = currentSort?.id === header.column.id;
-                const ariaSort = isSorted
-                  ? currentSort.desc
-                    ? "descending"
-                    : "ascending"
-                  : "none";
+                const ariaSort = isSortable
+                  ? isSorted
+                    ? currentSort.desc
+                      ? "descending"
+                      : "ascending"
+                    : "none"
+                  : undefined;
                 return (
                   <TableHead
                     key={header.id}
