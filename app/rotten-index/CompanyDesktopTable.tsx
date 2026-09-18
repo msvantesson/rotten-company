@@ -20,12 +20,6 @@ import {
 } from "../../components/ui/table";
 
 type SortField = "rotten_score" | "approved_evidence_count" | "name" | "industry";
-const SORTABLE_COLUMN_IDS = new Set<SortField>([
-  "rotten_score",
-  "approved_evidence_count",
-  "name",
-  "industry",
-]);
 
 type CompanyRow = {
   id: number;
@@ -150,7 +144,6 @@ export default function CompanyDesktopTable({
       sorting: sortingState,
     },
   });
-  const currentSort = table.getState().sorting[0];
 
   return (
     <div className="hidden rounded-lg border border-border bg-surface md:block">
@@ -160,21 +153,9 @@ export default function CompanyDesktopTable({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="hover:bg-transparent">
               {headerGroup.headers.map((header) => {
-                const isSortable = SORTABLE_COLUMN_IDS.has(
-                  header.column.id as SortField,
-                );
-                const isSorted = currentSort?.id === header.column.id;
-                const ariaSort = isSortable
-                  ? isSorted
-                    ? currentSort.desc
-                      ? "descending"
-                      : "ascending"
-                    : "none"
-                  : undefined;
                 return (
                   <TableHead
                     key={header.id}
-                    aria-sort={ariaSort}
                     className={header.column.columnDef.meta?.headClassName}
                   >
                     {header.isPlaceholder

@@ -52,6 +52,6 @@ describe("CompanyDesktopTable", () => {
     expect(html).toContain("42.50");
     expect(html).toContain("Tier 42.5");
     expect(html).toContain("No Score LLC");
-    expect(html).toContain("aria-sort=\"descending\">Rotten Score");
+    expect(html).toContain("Rotten Score");
   });
 });
