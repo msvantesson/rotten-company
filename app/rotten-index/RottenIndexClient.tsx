@@ -181,10 +181,10 @@ export default function RottenIndexClient({
     <>
       {type === "company" && <FindCompanyInline />}
 
-      <form method="get" onSubmit={handleSubmit} className="rounded-lg border border-border bg-surface-2 p-4 space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          <div className="flex flex-col">
-            <label className="text-xs font-semibold text-muted-foreground mb-1">Entity</label>
+      <form method="get" onSubmit={handleSubmit} className="rounded-lg border border-border bg-surface-2 p-3 sm:p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex min-w-36 flex-1 flex-col gap-1 sm:flex-none sm:w-40">
+            <label className="text-xs font-semibold text-muted-foreground">Entity</label>
             <select
               name="type"
               value={type}
@@ -204,8 +204,8 @@ export default function RottenIndexClient({
             </select>
           </div>
 
-          <div className="flex flex-col">
-            <label className="text-xs font-semibold text-muted-foreground mb-1">Country</label>
+          <div className="flex min-w-36 flex-1 flex-col gap-1 sm:flex-none sm:w-40">
+            <label className="text-xs font-semibold text-muted-foreground">Country</label>
             <select
               name="country"
               value={country}
@@ -221,8 +221,8 @@ export default function RottenIndexClient({
             </select>
           </div>
 
-          <div className="flex flex-col">
-            <label className="text-xs font-semibold text-muted-foreground mb-1">Results</label>
+          <div className="flex min-w-32 flex-1 flex-col gap-1 sm:flex-none sm:w-32">
+            <label className="text-xs font-semibold text-muted-foreground">Results</label>
             <select
               name="limit"
               value={String(limit)}
@@ -237,8 +237,8 @@ export default function RottenIndexClient({
 
           {type === "company" && (
             <>
-              <div className="flex flex-col col-span-2 sm:col-span-1">
-                <label className="text-xs font-semibold text-muted-foreground mb-1">Search</label>
+              <div className="flex min-w-52 flex-[2] flex-col gap-1">
+                <label className="text-xs font-semibold text-muted-foreground">Search</label>
                 <input
                   type="search"
                   name="q"
@@ -249,8 +249,8 @@ export default function RottenIndexClient({
                 />
               </div>
 
-              <div className="flex flex-col">
-                <label className="text-xs font-semibold text-muted-foreground mb-1">Sort by</label>
+              <div className="flex min-w-36 flex-1 flex-col gap-1 sm:flex-none sm:w-40">
+                <label className="text-xs font-semibold text-muted-foreground">Sort by</label>
                 <select
                   name="sort"
                   value={sort}
@@ -269,13 +269,17 @@ export default function RottenIndexClient({
               </div>
             </>
           )}
-        </div>
 
-        <div className="flex items-center justify-end gap-3 pt-1 border-t border-border">
-          <ExportCsvButton tableId="rotten-index-table" filename={fileName} />
-          <button type="submit" className="inline-flex items-center justify-center rounded-md bg-foreground px-5 py-2 text-sm font-semibold text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+          <div className="ml-auto flex w-full items-center justify-end gap-2 sm:w-auto">
+            <ExportCsvButton
+              tableId="rotten-index-table"
+              filename={fileName}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-semibold text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <button type="submit" className="inline-flex h-10 items-center justify-center rounded-md bg-foreground px-4 text-sm font-semibold text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
             Apply
-          </button>
+            </button>
+          </div>
         </div>
       </form>
 
