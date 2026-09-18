@@ -6,6 +6,7 @@ import {
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
+  type RowData,
 } from "@tanstack/react-table";
 import MacroTierBadge from "@/components/MacroTierBadge";
 import {
@@ -28,6 +29,13 @@ type CompanyRow = {
   industry?: string | null;
   approved_evidence_count?: number;
 };
+
+declare module "@tanstack/react-table" {
+  interface ColumnMeta<TData extends RowData, TValue> {
+    headClassName?: string;
+    cellClassName?: string;
+  }
+}
 
 const columns: ColumnDef<CompanyRow>[] = [
   {
@@ -84,14 +92,11 @@ const columns: ColumnDef<CompanyRow>[] = [
     id: "rotten_score",
     accessorKey: "rotten_score",
     header: "Rotten Score",
-    cell: ({ row }) =>
-      row.original.rotten_score != null ? (
-        <span className="inline-flex min-w-[4.75rem] justify-end rounded-md bg-muted px-2.5 py-1 font-mono text-sm font-semibold tabular-nums text-foreground">
-          {row.original.rotten_score.toFixed(2)}
-        </span>
-      ) : (
-        "—"
-      ),
+    cell: ({ row }) => (
+      <span className="inline-flex min-w-[4.75rem] justify-end rounded-md bg-muted px-2.5 py-1 font-mono text-sm font-semibold tabular-nums text-foreground">
+        {row.original.rotten_score != null ? row.original.rotten_score.toFixed(2) : "—"}
+      </span>
+    ),
     meta: {
       headClassName: "text-right",
       cellClassName: "text-right",
@@ -124,23 +129,16 @@ export default function CompanyDesktopTable({
   dir: "asc" | "desc";
   tableId: string;
 }) {
-  const sortingColumnIdMap: Record<SortField, string> = {
-    rotten_score: "rotten_score",
-    approved_evidence_count: "approved_evidence_count",
-    name: "name",
-    industry: "industry",
-  };
-  const sortingColumnId = sortingColumnIdMap[sort];
-
   const table = useReactTable({
     data: rows,
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
     state: {
-      sorting: [{ id: sortingColumnId, desc: dir === "desc" }],
+      sorting: [{ id: sort, desc: dir === "desc" }],
     },
   });
+  const currentSort = table.getState().sorting[0];
 
   return (
     <div className="hidden rounded-lg border border-border bg-surface md:block">
@@ -150,21 +148,17 @@ export default function CompanyDesktopTable({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="hover:bg-transparent">
               {headerGroup.headers.map((header) => {
-                const isSorted = sort === header.column.id;
+                const isSorted = currentSort?.id === header.column.id;
                 const ariaSort = isSorted
-                  ? dir === "asc"
-                    ? "ascending"
-                    : "descending"
+                  ? currentSort.desc
+                    ? "descending"
+                    : "ascending"
                   : "none";
-                const meta = header.column.columnDef.meta as
-                  | { headClassName?: string }
-                  | undefined;
-
                 return (
                   <TableHead
                     key={header.id}
                     aria-sort={ariaSort}
-                    className={meta?.headClassName}
+                    className={header.column.columnDef.meta?.headClassName}
                   >
                     {header.isPlaceholder
                       ? null
@@ -181,16 +175,11 @@ export default function CompanyDesktopTable({
         <TableBody>
           {table.getRowModel().rows.map((row) => (
             <TableRow key={row.id}>
-              {row.getVisibleCells().map((cell) => {
-                const meta = cell.column.columnDef.meta as
-                  | { cellClassName?: string }
-                  | undefined;
-                return (
-                  <TableCell key={cell.id} className={meta?.cellClassName}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                );
-              })}
+              {row.getVisibleCells().map((cell) => (
+                <TableCell key={cell.id} className={cell.column.columnDef.meta?.cellClassName}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
             </TableRow>
           ))}
         </TableBody>
