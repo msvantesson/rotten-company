@@ -38,6 +38,20 @@ declare module "@tanstack/react-table" {
   }
 }
 
+// Local, presentation-only wrapper around MacroTierBadge for the Rotten
+// Index desktop table. This keeps the badge itself (colors, labels,
+// meaning) untouched while guaranteeing the label never wraps onto a
+// second line inside this specific table, which previously caused
+// inconsistent row heights for longer labels like "Corporate Disaster
+// Zone" and "Rotten Enough to Notice".
+function RottenIndexStatusBadge({ score }: { score: number }) {
+  return (
+    <span className="inline-flex max-w-full whitespace-nowrap">
+      <MacroTierBadge score={score} />
+    </span>
+  );
+}
+
 const columns: ColumnDef<CompanyRow>[] = [
   {
     id: "rank",
@@ -108,13 +122,13 @@ const columns: ColumnDef<CompanyRow>[] = [
     header: "Status",
     cell: ({ row }) =>
       row.original.rotten_score != null ? (
-        <MacroTierBadge score={row.original.rotten_score} />
+        <RottenIndexStatusBadge score={row.original.rotten_score} />
       ) : (
         <span className="text-muted-foreground">—</span>
       ),
     meta: {
-      headClassName: "min-w-[11rem] text-center",
-      cellClassName: "text-center",
+      headClassName: "w-[14rem] whitespace-nowrap text-center",
+      cellClassName: "whitespace-nowrap text-center",
     },
   },
 ];
