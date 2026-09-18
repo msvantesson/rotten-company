@@ -39,6 +39,7 @@ const columns: ColumnDef<CompanyRow>[] = [
     meta: { headClassName: "w-12 pl-5 pr-3", cellClassName: "pl-5 pr-3" },
   },
   {
+    id: "name",
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => (
@@ -52,18 +53,21 @@ const columns: ColumnDef<CompanyRow>[] = [
     meta: { headClassName: "min-w-[15rem]", cellClassName: "font-medium" },
   },
   {
+    id: "country",
     accessorKey: "country",
     header: "Country",
     cell: ({ row }) => row.original.country ?? "—",
     meta: { headClassName: "min-w-[9rem]", cellClassName: "text-muted-foreground" },
   },
   {
+    id: "industry",
     accessorKey: "industry",
     header: "Industry",
     cell: ({ row }) => row.original.industry ?? "—",
     meta: { headClassName: "min-w-[10rem]", cellClassName: "text-muted-foreground" },
   },
   {
+    id: "approved_evidence_count",
     accessorKey: "approved_evidence_count",
     header: "Evidence",
     cell: ({ row }) => (
@@ -77,6 +81,7 @@ const columns: ColumnDef<CompanyRow>[] = [
     },
   },
   {
+    id: "rotten_score",
     accessorKey: "rotten_score",
     header: "Rotten Score",
     cell: ({ row }) =>
@@ -119,19 +124,28 @@ export default function CompanyDesktopTable({
   dir: "asc" | "desc";
   tableId: string;
 }) {
+  const sortingColumnIdMap: Record<SortField, string> = {
+    rotten_score: "rotten_score",
+    approved_evidence_count: "approved_evidence_count",
+    name: "name",
+    industry: "industry",
+  };
+  const sortingColumnId = sortingColumnIdMap[sort];
+
   const table = useReactTable({
     data: rows,
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
     state: {
-      sorting: [{ id: sort, desc: dir === "desc" }],
+      sorting: [{ id: sortingColumnId, desc: dir === "desc" }],
     },
   });
 
   return (
     <div className="hidden rounded-lg border border-border bg-surface md:block">
       <Table id={tableId}>
+        <caption className="sr-only">Rotten Index company table</caption>
         <TableHeader className="bg-muted/60">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="hover:bg-transparent">
