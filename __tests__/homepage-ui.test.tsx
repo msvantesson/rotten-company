@@ -287,6 +287,20 @@ describe("Homepage UI updates", () => {
     expect(html).not.toContain("↓ -10.0 this week");
   });
 
+  it("renders the Top 10 table with shared table primitives and preserved score formatting", async () => {
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    expect(html).toContain("The Rotten Index");
+    expect(html).toContain("Top 10 companies by documented harm");
+    expect(html).toContain('href="/company/nestl"');
+    expect(html).toContain("Nestlé");
+    expect(html).toContain("90.0");
+    expect(html).toContain("Tier 90.0");
+    expect(html).toContain("rounded-md bg-muted px-2.5 py-1 font-mono");
+    expect(html).toContain("w-full caption-bottom text-sm min-w-[480px]");
+  });
+
   it("starts independent public queries without waiting for auth", async () => {
     let resolveAuth: (value: { data: { user: null } }) => void;
     const authPromise = new Promise<{ data: { user: null } }>((resolve) => {

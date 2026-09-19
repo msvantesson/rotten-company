@@ -7,6 +7,7 @@ import Link from "next/link";
 import MacroTierBadge from "@/components/MacroTierBadge";
 import FindCompanySection from "@/components/FindCompanySection";
 import { homepageMetadata } from "@/lib/homepage-seo";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 
 export const metadata = homepageMetadata;
 
@@ -370,50 +371,59 @@ export default async function HomePage() {
 
         <p className="text-sm text-muted-foreground">Top 10 companies by documented harm.</p>
 
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[480px] border-collapse text-sm">
-            <thead className="bg-muted border-b border-border">
-              <tr className="text-left text-muted-foreground">
-                <th className="py-2 pr-4 pl-3 w-10 text-left whitespace-nowrap">#</th>
-                <th className="py-2 pr-4 text-left whitespace-nowrap">Company</th>
-                <th className="py-2 pr-4 hidden sm:table-cell text-left whitespace-nowrap">Industry</th>
-                <th className="py-2 pr-4 hidden sm:table-cell text-left whitespace-nowrap">Country</th>
-                <th className="py-2 pr-4 hidden sm:table-cell text-right whitespace-nowrap">Evidence</th>
-                <th className="py-2 pr-3 text-right whitespace-nowrap">Rotten Score</th>
-                <th className="px-4 py-2 hidden sm:table-cell text-center whitespace-nowrap min-w-[240px]">Status</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-lg border border-border bg-surface">
+          <Table className="min-w-[480px]">
+            <caption className="sr-only">Top 10 companies by documented harm</caption>
+            <TableHeader className="bg-muted/60">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12 pl-5 pr-3 whitespace-nowrap">#</TableHead>
+                <TableHead className="min-w-[14rem] whitespace-nowrap">Company</TableHead>
+                <TableHead className="hidden whitespace-nowrap sm:table-cell">Industry</TableHead>
+                <TableHead className="hidden whitespace-nowrap sm:table-cell">Country</TableHead>
+                <TableHead className="hidden whitespace-nowrap pl-3 pr-5 text-right sm:table-cell">
+                  Evidence
+                </TableHead>
+                <TableHead className="whitespace-nowrap pl-3 pr-5 text-right">Rotten Score</TableHead>
+                <TableHead className="hidden min-w-[14.5rem] whitespace-nowrap px-3 text-center sm:table-cell">
+                  Status
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {topCompanies.map((company, index) => {
                 return (
-                  <tr
-                    key={company.id}
-                    className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
-                  >
-                    <td className="py-2 pr-4 pl-3 text-muted-foreground">{index + 1}</td>
-                    <td className="py-2 pr-4 font-medium text-accent">
-                      <Link href={`/company/${company.slug}`} className="hover:underline">
+                  <TableRow key={company.id}>
+                    <TableCell className="pl-5 pr-3 text-muted-foreground tabular-nums">{index + 1}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/company/${company.slug}`}
+                        className="text-[0.95rem] font-semibold text-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
                         {company.name}
                       </Link>
-                    </td>
-                    <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">
-                      {company.industry ?? "—"}
-                    </td>
-                    <td className="py-2 pr-4 text-muted-foreground hidden sm:table-cell">
-                      {company.country ?? "—"}
-                    </td>
-                    <td className="py-2 pr-4 text-right text-muted-foreground hidden sm:table-cell">
-                      {company.approved_evidence_count}
-                    </td>
-                    <td className="py-2 pr-3 text-right font-mono tabular-nums">{company.rotten_score.toFixed(1)}</td>
-                    <td className="px-4 py-2 hidden sm:table-cell text-center align-middle min-w-[240px]">
-                      <MacroTierBadge score={company.rotten_score} />
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="hidden text-muted-foreground sm:table-cell">{company.industry ?? "—"}</TableCell>
+                    <TableCell className="hidden text-muted-foreground sm:table-cell">{company.country ?? "—"}</TableCell>
+                    <TableCell className="hidden pl-3 pr-5 text-right sm:table-cell">
+                      <span className="text-sm font-mono tabular-nums text-muted-foreground">
+                        {company.approved_evidence_count}
+                      </span>
+                    </TableCell>
+                    <TableCell className="pl-3 pr-5 text-right">
+                      <span className="inline-flex min-w-[4.75rem] justify-end rounded-md bg-muted px-2.5 py-1 font-mono text-[0.95rem] font-bold tabular-nums text-foreground">
+                        {company.rotten_score.toFixed(1)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden min-w-[14.5rem] px-3 text-center sm:table-cell">
+                      <span className="inline-flex shrink-0 whitespace-nowrap">
+                        <MacroTierBadge score={company.rotten_score} />
+                      </span>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </section>
 
