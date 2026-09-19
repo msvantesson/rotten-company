@@ -164,7 +164,7 @@ export default function CompanySearch(props: Props) {
             ref={inputRef}
             type="text"
             autoComplete="off"
-            placeholder={isNavigate ? "Search companies by name…" : "Type to search approved companies..."}
+            placeholder={isNavigate ? "Search for a company profile…" : "Type to search approved companies..."}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}

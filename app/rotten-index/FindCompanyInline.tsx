@@ -6,8 +6,9 @@ export default function FindCompanyInline() {
   return (
     <div className="rounded-lg border border-border bg-surface-2 p-4 space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-        Find a Company
+        GO TO A COMPANY
       </p>
+      <p className="text-xs text-muted-foreground">Jump directly to a company page</p>
       <CompanySearch mode="navigate" />
     </div>
   );
