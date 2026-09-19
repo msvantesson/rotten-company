@@ -361,7 +361,7 @@ export default async function HomePage() {
       <FindCompanySection />
 
       {/* TOP 10 */}
-      <section className="mt-24 space-y-4">
+      <section className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-2xl font-semibold">The Rotten Index</h2>
           <Link href="/rotten-index" className="text-sm text-accent hover:underline">
