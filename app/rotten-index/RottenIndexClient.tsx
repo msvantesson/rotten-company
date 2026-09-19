@@ -238,13 +238,13 @@ export default function RottenIndexClient({
           {type === "company" && (
             <>
               <div className="flex min-w-52 flex-[2] flex-col gap-1">
-                <label className="text-xs font-semibold text-muted-foreground">Search</label>
+                <label className="text-xs font-semibold text-muted-foreground">Filter ranking</label>
                 <input
                   type="search"
                   name="q"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Name, industry, country…"
+                  placeholder="Name, industry or country…"
                   className="h-10 border border-border rounded-md px-3 py-2 text-sm bg-surface text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
