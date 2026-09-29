@@ -37,6 +37,10 @@ vi.mock("@/components/RottenScoreMeter", () => ({
   default: () => <div>Rotten score meter</div>,
 }));
 
+vi.mock("@/components/RottenScoreExplanation", async () => ({
+  default: (await import("../components/RottenScoreExplanation")).default,
+}));
+
 vi.mock("@/components/ScoreDebugPanel", () => ({
   ScoreDebugPanel: () => <div>Score debug</div>,
 }));
@@ -229,6 +233,10 @@ describe("company page slug routing", () => {
     );
 
     expect(html).toContain("Nestlé");
+    expect(html).toContain("Rotten score meter");
+    expect(html).toContain("No approved evidence of harm is currently recorded. This does not prove that no harm occurred.");
+    expect(html).toContain('href="/rotten-score"');
+    expect(html).toContain('href="/company/nestle/breakdown"');
     expect(permanentRedirectMock).not.toHaveBeenCalled();
     expect(notFoundMock).not.toHaveBeenCalled();
   });

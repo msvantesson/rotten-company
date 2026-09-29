@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import MacroTierBadge from "@/components/MacroTierBadge";
 import FindCompanySection from "@/components/FindCompanySection";
+import RottenScoreExplanation from "@/components/RottenScoreExplanation";
 import { homepageMetadata } from "@/lib/homepage-seo";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 
@@ -401,6 +402,7 @@ export default async function HomePage() {
         </div>
 
         <p className="text-sm text-muted-foreground">Top 10 companies by documented harm.</p>
+        <RottenScoreExplanation variant="compact" />
 
         <div className="rounded-lg border border-border bg-surface">
           <Table className="min-w-[480px]">
