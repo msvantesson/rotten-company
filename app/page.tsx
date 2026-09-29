@@ -28,6 +28,13 @@ function showDelta(delta: number | null | undefined): delta is number {
   return delta != null && Math.abs(delta) >= 0.05;
 }
 
+// Returns the ISO date (YYYY-MM-DD, UTC) for `days` days before now. `days = 0`
+// returns today's UTC date. Shared by the homepage's snapshot-based queries so
+// the date-window math stays in one place.
+function daysAgoIsoDate(days: number): string {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 // Returns a map of company_id → weekly delta (today − 7 days ago).
 // Only includes entries where both snapshots exist.
 async function getWeeklyDeltaMap(
@@ -36,8 +43,8 @@ async function getWeeklyDeltaMap(
 ): Promise<Record<number, number>> {
   if (companyIds.length === 0) return {};
   try {
-    const todayUtc = new Date().toISOString().slice(0, 10);
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const todayUtc = daysAgoIsoDate(0);
+    const sevenDaysAgo = daysAgoIsoDate(7);
 
     const { data, error } = await supabase
       .from("company_rotten_score_snapshots")
@@ -78,13 +85,38 @@ type MoverItem = {
   delta: number;
 };
 
+// Movement window used for the 7-day delta calculation (must not change without
+// updating the "biggest movers" definition).
+const MOVEMENT_WINDOW_DAYS = 7;
+// Transfer-size guard for the "current score" query below (see comment there).
+// Independent of MOVEMENT_WINDOW_DAYS — only bounds how far back we scan for a
+// company's latest snapshot, not the movement calculation itself.
+const SNAPSHOT_LOOKBACK_DAYS = 30;
+
 async function getBiggestMovers(
   supabase: SupabaseClient,
 ): Promise<{ increases: MoverItem[]; decreases: MoverItem[] }> {
   const empty = { increases: [], decreases: [] };
   try {
-    const todayUtc = new Date().toISOString().slice(0, 10);
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const todayUtc = daysAgoIsoDate(0);
+    const sevenDaysAgo = daysAgoIsoDate(MOVEMENT_WINDOW_DAYS);
+    // Lookback bound for the "current score" query below. Snapshots are captured
+    // daily (see .github/workflows/capture-score-snapshots.yml), so anything with
+    // a snapshot in the last SNAPSHOT_LOOKBACK_DAYS days is picked up. This is
+    // only a transfer-size guard against scanning the entire history table — it
+    // never changes which snapshot is "latest" for an actively-scored company,
+    // and does not touch the 7-day movement definition. A company that hasn't
+    // had a snapshot in that window (e.g. removed from scoring, or with a
+    // capture gap far longer than the daily cadence) is simply excluded from
+    // the movers list, same as if it had no recent movement — this mirrors the
+    // pre-existing behavior of silently omitting companies with a zero delta,
+    // so it introduces no new class of "silent" exclusion. The window is
+    // generous relative to the daily capture cadence (30x) to avoid dropping
+    // active companies over ordinary short capture gaps; the daily capture
+    // workflow already has its own failure alerting (see
+    // .github/workflows/capture-score-snapshots.yml), so this list is not the
+    // right place to surface capture-health issues.
+    const lookbackCutoff = daysAgoIsoDate(SNAPSHOT_LOOKBACK_DAYS);
 
     // Query 1: latest available snapshot per company on or before today.
     // Daily snapshots are not guaranteed, so we use lte + desc ordering and pick
@@ -92,6 +124,7 @@ async function getBiggestMovers(
     const { data: currentSnapshots, error: currentError } = await supabase
       .from("company_rotten_score_snapshots")
       .select("company_id, rotten_score")
+      .gte("snapshot_date", lookbackCutoff)
       .lte("snapshot_date", todayUtc)
       .order("snapshot_date", { ascending: false });
 
@@ -187,10 +220,8 @@ type RecentlyVerifiedItem = {
   companyId: number;
 };
 
-async function getRecentlyVerified(): Promise<RecentlyVerifiedItem[]> {
+async function getRecentlyVerified(supabase: SupabaseClient): Promise<RecentlyVerifiedItem[]> {
   try {
-    const supabase = await supabaseServer();
-
     const { data: events, error: eventsError } = await supabase
       .from("moderation_events")
       .select("id, evidence_id, created_at")
@@ -259,7 +290,7 @@ export default async function HomePage() {
     .order("rotten_score", { ascending: false })
     .limit(10);
   const biggestMoversPromise = getBiggestMovers(supabase);
-  const recentlyVerifiedPromise = getRecentlyVerified();
+  const recentlyVerifiedPromise = getRecentlyVerified(supabase);
 
   const [
     {
@@ -397,6 +428,7 @@ export default async function HomePage() {
                     <TableCell className="font-medium">
                       <Link
                         href={`/company/${company.slug}`}
+                        prefetch={false}
                         className="text-[0.95rem] font-semibold text-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {company.name}
@@ -454,7 +486,7 @@ export default async function HomePage() {
                         className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
                       >
                         <td className="py-2 pr-4 pl-3 font-medium text-accent whitespace-nowrap">
-                          <Link href={`/company/${m.companySlug}`} className="hover:underline">
+                          <Link href={`/company/${m.companySlug}`} prefetch={false} className="hover:underline">
                             {m.companyName}
                           </Link>
                         </td>
@@ -494,7 +526,7 @@ export default async function HomePage() {
                         className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
                       >
                         <td className="py-2 pr-4 pl-3 font-medium text-accent whitespace-nowrap">
-                          <Link href={`/company/${m.companySlug}`} className="hover:underline">
+                          <Link href={`/company/${m.companySlug}`} prefetch={false} className="hover:underline">
                             {m.companyName}
                           </Link>
                         </td>
@@ -540,7 +572,7 @@ export default async function HomePage() {
                       className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
                     >
                       <td className="py-2 pr-4 pl-3 font-medium text-accent whitespace-nowrap">
-                        <Link href={`/company/${item.companySlug}`} className="hover:underline">
+                        <Link href={`/company/${item.companySlug}`} prefetch={false} className="hover:underline">
                           {item.companyName}
                         </Link>
                         {showDelta(delta) && (
