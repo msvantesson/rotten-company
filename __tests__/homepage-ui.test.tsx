@@ -42,6 +42,10 @@ vi.mock("@/components/FindCompanySection", () => ({
   default: () => <section>Find company</section>,
 }));
 
+vi.mock("@/components/RottenScoreExplanation", async () => ({
+  default: (await import("../components/RottenScoreExplanation")).default,
+}));
+
 type SnapshotRow = {
   company_id: number;
   snapshot_date: string;
@@ -318,6 +322,9 @@ describe("Homepage UI updates", () => {
 
     expect(html).toContain("The Rotten Index");
     expect(html).toContain("Top 10 companies by documented harm");
+    expect(html).toContain("Scores run from 0 to 100.");
+    expect(html).toContain("Calculated from approved evidence, weighted by severity.");
+    expect(html).toContain('href="/rotten-score"');
     expect(html).toContain('href="/company/nestl"');
     expect(html).toContain("Nestlé");
     expect(html).toContain("90.0");

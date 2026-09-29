@@ -9,6 +9,7 @@ export { generateMetadata } from "./metadata";
 import { supabaseServer } from "@/lib/supabase-server";
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
+import RottenScoreExplanation from "@/components/RottenScoreExplanation";
 import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
 import { JsonLdDebugPanel } from "@/components/JsonLdDebugPanel";
@@ -438,6 +439,14 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
               <div className="mt-3">
                 <RottenScoreMeter score={liveRottenScore ?? 0} />
+              </div>
+
+              <div className="mt-3">
+                <RottenScoreExplanation
+                  variant="company"
+                  evidenceCount={totalEvidenceCount}
+                  score={liveRottenScore ?? 0}
+                />
               </div>
 
               {/* ✅ Bridge CTA: overview → breakdown */}
