@@ -78,22 +78,34 @@ type MoverItem = {
   delta: number;
 };
 
+// Movement window used for the 7-day delta calculation (must not change without
+// updating the "biggest movers" definition).
+const MOVEMENT_WINDOW_DAYS = 7;
+// Transfer-size guard for the "current score" query below (see comment there).
+// Independent of MOVEMENT_WINDOW_DAYS — only bounds how far back we scan for a
+// company's latest snapshot, not the movement calculation itself.
+const SNAPSHOT_LOOKBACK_DAYS = 30;
+
 async function getBiggestMovers(
   supabase: SupabaseClient,
 ): Promise<{ increases: MoverItem[]; decreases: MoverItem[] }> {
   const empty = { increases: [], decreases: [] };
   try {
     const todayUtc = new Date().toISOString().slice(0, 10);
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const sevenDaysAgo = new Date(Date.now() - MOVEMENT_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
     // Lookback bound for the "current score" query below. Snapshots are captured
     // daily (see .github/workflows/capture-score-snapshots.yml), so anything with
-    // a snapshot in the last 30 days is picked up. This is only a transfer-size
-    // guard against scanning the entire history table — it never changes which
-    // snapshot is "latest" for an actively-scored company, and does not touch the
-    // 7-day movement definition. A company that hasn't had a snapshot in 30+ days
-    // (e.g. removed from scoring) is simply excluded from the movers list, same as
-    // if it had no recent movement.
-    const lookbackCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // a snapshot in the last SNAPSHOT_LOOKBACK_DAYS days is picked up. This is
+    // only a transfer-size guard against scanning the entire history table — it
+    // never changes which snapshot is "latest" for an actively-scored company,
+    // and does not touch the 7-day movement definition. A company that hasn't
+    // had a snapshot in that window (e.g. removed from scoring) is simply
+    // excluded from the movers list, same as if it had no recent movement.
+    const lookbackCutoff = new Date(Date.now() - SNAPSHOT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
 
     // Query 1: latest available snapshot per company on or before today.
     // Daily snapshots are not guaranteed, so we use lte + desc ordering and pick
