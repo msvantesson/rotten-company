@@ -25,7 +25,7 @@ export default function RottenScoreMeter({ score }: RottenScoreMeterProps) {
             {flavor.roundedScore}
           </span>
 
-          <span className="text-sm uppercase tracking-wide text-neutral-600">
+          <span className="text-sm uppercase tracking-wide text-muted-foreground">
             / 100 Rotten Score
           </span>
         </div>
@@ -38,7 +38,7 @@ export default function RottenScoreMeter({ score }: RottenScoreMeterProps) {
         </div>
       </div>
 
-      <div className="w-full h-3 rounded-full bg-neutral-200 overflow-hidden shadow-inner">
+      <div className="w-full h-3 rounded-full bg-muted overflow-hidden shadow-inner">
         <div
           className="h-full rounded-full transition-[width] duration-700 ease-out"
           style={{
@@ -48,7 +48,7 @@ export default function RottenScoreMeter({ score }: RottenScoreMeterProps) {
         />
       </div>
 
-      <p className="text-sm text-neutral-700 italic">
+      <p className="text-sm text-foreground italic">
         {flavor.microFlavor}
       </p>
     </div>
