@@ -72,7 +72,7 @@ export function CategoryBreakdown({
 }) {
   if (!breakdown || breakdown.length === 0) {
     return (
-      <div className="text-neutral-500 text-sm">
+      <div className="text-muted-foreground text-sm">
         No category data available yet.
       </div>
     );
@@ -84,7 +84,7 @@ export function CategoryBreakdown({
       {showHeader && (
         <div>
           <h2 className="text-3xl font-bold">{company.name}</h2>
-          <p className="text-neutral-600 text-sm">
+          <p className="text-muted-foreground text-sm">
             Category breakdown and supporting evidence
           </p>
         </div>
@@ -120,16 +120,16 @@ export function CategoryBreakdown({
               </div>
 
               {/* Category status/flavor */}
-              <p className="text-xs italic text-neutral-600">{categoryStatus}</p>
+              <p className="text-xs italic text-muted-foreground">{categoryStatus}</p>
               {!hasEvidenceContribution && ratingsCount > 0 && (
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs text-muted-foreground">
                   Community ratings exist, but no approved evidence has been
                   submitted. Community ratings do not affect the Rotten Score.
                 </p>
               )}
 
               {/* Mini score bar */}
-              <div className="w-full h-2 bg-neutral-200 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full transition-all duration-500"
                   style={{
@@ -140,7 +140,7 @@ export function CategoryBreakdown({
               </div>
 
               {/* Stats row */}
-              <div className="flex flex-wrap gap-3 justify-between text-sm text-neutral-600">
+              <div className="flex flex-wrap gap-3 justify-between text-sm text-muted-foreground">
                 <span>
                   Avg Rating:{" "}
                   {isFiniteNumber(item.avg_rating_score)
@@ -161,7 +161,7 @@ export function CategoryBreakdown({
 
                 <span>Evidence Count: {item.evidence_count ?? 0}</span>
 
-                <span className="font-medium text-neutral-700">
+                <span className="font-medium text-foreground">
                   Contribution: {finalScore !== null ? finalScore.toFixed(1) : "—"}{" "}
                   pts
                 </span>
@@ -174,22 +174,22 @@ export function CategoryBreakdown({
                 (item.remediation_low_count ?? 0) > 0 ||
                 (item.remediation_medium_count ?? 0) > 0 ||
                 (item.remediation_high_count ?? 0) > 0) && (
-                <div className="text-xs text-neutral-500 space-y-0.5 pl-1 border-l-2 border-neutral-200">
+                <div className="text-xs text-muted-foreground space-y-0.5 pl-1 border-l-2 border-border">
                   <div>
-                    <span className="font-medium text-red-700">Misconduct</span>
+                    <span className="font-medium text-red-700 dark:text-red-400">Misconduct</span>
                     {": "}
                     low&nbsp;{item.misconduct_low_count ?? 0} · medium&nbsp;
                     {item.misconduct_medium_count ?? 0} · high&nbsp;
                     {item.misconduct_high_count ?? 0}
                   </div>
                   <div>
-                    <span className="font-medium text-green-700">Remediation</span>
+                    <span className="font-medium text-green-700 dark:text-green-400">Remediation</span>
                     {": "}
                     low&nbsp;{item.remediation_low_count ?? 0} · medium&nbsp;
                     {item.remediation_medium_count ?? 0} · high&nbsp;
                     {item.remediation_high_count ?? 0}
                     <span
-                      className="ml-1 text-neutral-400"
+                      className="ml-1 text-muted-foreground"
                       title="Only up to 25% of the misconduct count (minimum 1 if there is any misconduct) counts toward remediation credit."
                     >
                       ⓘ cap: 25%
@@ -210,13 +210,13 @@ export function CategoryBreakdown({
                       <div className="font-medium">{ev.title}</div>
 
                       {ev.summary && (
-                        <div className="text-sm text-neutral-600">
+                        <div className="text-sm text-muted-foreground">
                           {ev.summary}
                         </div>
                       )}
 
                       {ev.manager && (
-                        <div className="text-xs text-neutral-500 mt-1">
+                        <div className="text-xs text-muted-foreground mt-1">
                           Manager: {ev.manager.name} ({ev.manager.report_count}{" "}
                           reports)
                         </div>

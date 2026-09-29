@@ -266,6 +266,8 @@ describe("Homepage UI updates", () => {
     expect(html).toContain("7-day change");
     expect(html).toContain("Rotten Score");
     expect(html).toContain("Status");
+    expect(html).toContain("text-red-700 dark:text-red-400");
+    expect(html).toContain("text-green-700 dark:text-green-400");
     expect(html).toMatch(/↑ Worsening[\s\S]*Worsen 1[\s\S]*↑ \+10.0[\s\S]*40.0[\s\S]*Tier 40.0/);
     expect(html).toMatch(/↓ Improving[\s\S]*Improve 1[\s\S]*↓ -10.0[\s\S]*60.0[\s\S]*Tier 60.0/);
 

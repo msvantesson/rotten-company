@@ -351,7 +351,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
         </header>
 
         {/* Server-rendered SEO answer — present in initial HTML, uses live DB values */}
-        <p className="mt-2 text-sm text-gray-700" data-testid="ssr-answer">
+        <p className="mt-2 text-sm text-foreground" data-testid="ssr-answer">
           {buildSsrAnswer(company.name, liveRottenScore, totalEvidenceCount)}
         </p>
 
@@ -363,10 +363,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
             >
               {flavor.macroTier}
             </span>
-            <p className="text-sm italic text-gray-600">{flavor.microFlavor}</p>
+            <p className="text-sm italic text-muted-foreground">{flavor.microFlavor}</p>
           </div>
 
-          <div className="text-sm text-gray-700 space-y-1">
+          <div className="text-sm text-foreground space-y-1">
             <p>
               <strong>Industry:</strong> {company.industry ?? "Unknown"}
             </p>
@@ -390,7 +390,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
                   href={company.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-700 hover:underline"
+                  className="text-accent hover:underline"
                 >
                   {company.website}
                 </a>
@@ -399,14 +399,14 @@ export default async function CompanyPage({ params }: { params: Params }) {
               )}
             </p>
             {company.description && (
-              <p className="mt-2 text-sm text-gray-700">{company.description}</p>
+              <p className="mt-2 text-sm text-foreground">{company.description}</p>
             )}
           </div>
 
           <CeoSection companyId={company.id} userId={user?.id ?? null} />
 
           {/* Suggest an edit CTA */}
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             <Link
               href={`/company/${company.slug}/suggest-edit`}
               className="hover:underline"
@@ -420,10 +420,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
             <div className="rounded-xl border border-border bg-surface shadow-sm p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-neutral-600">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
                     Rotten Score
                   </div>
-                  <div className="text-sm text-neutral-600">
+                  <div className="text-sm text-muted-foreground">
                     Evidence-backed signal (0–100)
                   </div>
                 </div>
@@ -442,10 +442,10 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
               {/* ✅ Bridge CTA: overview → breakdown */}
               <div className="mt-3 flex items-center justify-between gap-4">
-                <div className="text-xs text-neutral-500 space-y-1">
+                <div className="text-xs text-muted-foreground space-y-1">
                   {mainDriver && (
                     <p>
-                      <span className="font-medium text-neutral-700">Main driver:</span>{" "}
+                      <span className="font-medium text-foreground">Main driver:</span>{" "}
                       {mainDriver.category_name} ({mainDriver.final_score.toFixed(1)} pts)
                     </p>
                   )}
@@ -454,7 +454,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
                 <Link
                   href={`/company/${company.slug}/breakdown`}
-                  className="text-sm font-medium text-blue-700 hover:underline whitespace-nowrap"
+                  className="text-sm font-medium text-accent hover:underline whitespace-nowrap"
                 >
                   See full breakdown →
                 </Link>
@@ -467,13 +467,13 @@ export default async function CompanyPage({ params }: { params: Params }) {
           <h2 className="text-xl font-semibold">Assess documented harm</h2>
 
           <div className="mt-2 rounded-lg border border-border bg-surface p-3">
-            <div className="text-sm font-medium text-neutral-900">
+            <div className="text-sm font-medium text-foreground">
               Category impact
             </div>
-            <div className="mt-1 text-sm text-neutral-600">
+            <div className="mt-1 text-sm text-muted-foreground">
               Each category reflects documented patterns of misconduct.
             </div>
-            <div className="mt-1 text-sm text-neutral-600">
+            <div className="mt-1 text-sm text-muted-foreground">
               1 = low harm · 5 = severe harm
             </div>
           </div>
@@ -493,7 +493,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
                         <span className="shrink-0">
                           {getCategoryIcon(cat.id)}{" "}
                         </span>
-                        <span className="ml-1 font-medium text-neutral-900 truncate">
+                        <span className="ml-1 font-medium text-foreground truncate">
                           {cat.name}
                         </span>
                         <CategoryInfoPopover
@@ -503,7 +503,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
                         />
                       </div>
 
-                      <div className="mt-0.5 text-xs text-neutral-500">
+                      <div className="mt-0.5 text-xs text-muted-foreground">
                         Evidence: {evidenceCount} record
                         {evidenceCount === 1 ? "" : "s"}
                       </div>
@@ -519,7 +519,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
               })}
             </div>
           ) : (
-            <p className="mt-4 text-sm text-gray-600">
+            <p className="mt-4 text-sm text-muted-foreground">
               No categories configured yet.
             </p>
           )}

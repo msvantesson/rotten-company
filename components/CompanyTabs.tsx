@@ -61,8 +61,8 @@ export default function CompanyTabs({ slug }: Props) {
                 className={cx(
                   "inline-block pb-2",
                   active
-                    ? "border-b-2 border-black font-medium text-black"
-                    : "text-neutral-600 hover:text-black",
+                    ? "border-b-2 border-foreground font-medium text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {t.label}

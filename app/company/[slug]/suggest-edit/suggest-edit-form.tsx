@@ -107,7 +107,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1">
           Name
-          <span className="ml-1 text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+          <span className="ml-1 text-xs text-muted-foreground font-normal">(leave blank to keep current)</span>
         </label>
         <input
           value={name}
@@ -120,7 +120,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1">
           Website
-          <span className="ml-1 text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+          <span className="ml-1 text-xs text-muted-foreground font-normal">(leave blank to keep current)</span>
         </label>
         <input
           type="url"
@@ -134,12 +134,12 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1">
           Industry
-          <span className="ml-1 text-xs text-gray-400 font-normal">(optional; leave blank to keep current)</span>
+          <span className="ml-1 text-xs text-muted-foreground font-normal">(optional; leave blank to keep current)</span>
         </label>
         <select
           value={industry}
           onChange={(e) => setIndustry(e.target.value)}
-          className="w-full rounded-md border px-3 py-2 text-sm bg-white"
+          className="w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-foreground"
         >
           <option value="">Select industry (or keep current)</option>
           {INDUSTRIES.map((ind) => (
@@ -153,7 +153,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1">
           Description
-          <span className="ml-1 text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+          <span className="ml-1 text-xs text-muted-foreground font-normal">(leave blank to keep current)</span>
         </label>
         <textarea
           value={description}
@@ -166,7 +166,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1">
           Country (Headquarters)
-          <span className="ml-1 text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+          <span className="ml-1 text-xs text-muted-foreground font-normal">(leave blank to keep current)</span>
         </label>
         <input
           value={country}
@@ -179,7 +179,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1">
           State / Province / Region (optional)
-          <span className="ml-1 text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+          <span className="ml-1 text-xs text-muted-foreground font-normal">(leave blank to keep current)</span>
         </label>
         <input
           value={hqRegion}
@@ -192,7 +192,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1">
           City (optional)
-          <span className="ml-1 text-xs text-gray-400 font-normal">(leave blank to keep current)</span>
+          <span className="ml-1 text-xs text-muted-foreground font-normal">(leave blank to keep current)</span>
         </label>
         <input
           value={hqCity}
@@ -205,12 +205,12 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
       <div>
         <label className="block text-sm font-medium mb-1">
           Number of Employees
-          <span className="ml-1 text-xs text-gray-400 font-normal">(optional; leave blank to keep current)</span>
+          <span className="ml-1 text-xs text-muted-foreground font-normal">(optional; leave blank to keep current)</span>
         </label>
         <select
           value={sizeEmployees}
           onChange={(e) => setSizeEmployees(e.target.value)}
-          className="w-full rounded-md border px-3 py-2 text-sm bg-white"
+          className="w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-foreground"
         >
           <option value="">Select range</option>
           {EMPLOYEE_RANGES.map((r) => (
@@ -223,7 +223,7 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
 
       <div>
         <label className="block text-sm font-medium mb-1">
-          Why are you suggesting this edit? <span className="text-red-500">*</span>
+          Why are you suggesting this edit? <span className="text-red-700 dark:text-red-400">*</span>
         </label>
         <textarea
           value={why}
@@ -234,12 +234,12 @@ export default function SuggestEditForm({ companySlug, currentValues }: Props) {
         />
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-700 dark:text-red-400">{error}</p>}
 
       <button
         type="submit"
         disabled={submitting}
-        className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
+        className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
       >
         {submitting ? "Submitting…" : "Submit suggestion"}
       </button>

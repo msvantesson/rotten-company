@@ -133,7 +133,7 @@ function FilePreview({ item }: { item: EvidenceItem }) {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm text-blue-700 hover:underline"
+        className="text-sm text-accent hover:underline"
       >
         Open attachment →
       </a>
