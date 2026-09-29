@@ -108,9 +108,14 @@ async function getBiggestMovers(
     // and does not touch the 7-day movement definition. A company that hasn't
     // had a snapshot in that window (e.g. removed from scoring, or with a
     // capture gap far longer than the daily cadence) is simply excluded from
-    // the movers list, same as if it had no recent movement. The window is
-    // generous relative to the daily capture cadence to avoid dropping active
-    // companies over ordinary short gaps.
+    // the movers list, same as if it had no recent movement — this mirrors the
+    // pre-existing behavior of silently omitting companies with a zero delta,
+    // so it introduces no new class of "silent" exclusion. The window is
+    // generous relative to the daily capture cadence (30x) to avoid dropping
+    // active companies over ordinary short capture gaps; the daily capture
+    // workflow already has its own failure alerting (see
+    // .github/workflows/capture-score-snapshots.yml), so this list is not the
+    // right place to surface capture-health issues.
     const lookbackCutoff = daysAgoIsoDate(SNAPSHOT_LOOKBACK_DAYS);
 
     // Query 1: latest available snapshot per company on or before today.
