@@ -28,6 +28,13 @@ function showDelta(delta: number | null | undefined): delta is number {
   return delta != null && Math.abs(delta) >= 0.05;
 }
 
+// Returns the ISO date (YYYY-MM-DD, UTC) for `days` days before now. `days = 0`
+// returns today's UTC date. Shared by the homepage's snapshot-based queries so
+// the date-window math stays in one place.
+function daysAgoIsoDate(days: number): string {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 // Returns a map of company_id → weekly delta (today − 7 days ago).
 // Only includes entries where both snapshots exist.
 async function getWeeklyDeltaMap(
@@ -36,8 +43,8 @@ async function getWeeklyDeltaMap(
 ): Promise<Record<number, number>> {
   if (companyIds.length === 0) return {};
   try {
-    const todayUtc = new Date().toISOString().slice(0, 10);
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const todayUtc = daysAgoIsoDate(0);
+    const sevenDaysAgo = daysAgoIsoDate(7);
 
     const { data, error } = await supabase
       .from("company_rotten_score_snapshots")
@@ -91,21 +98,20 @@ async function getBiggestMovers(
 ): Promise<{ increases: MoverItem[]; decreases: MoverItem[] }> {
   const empty = { increases: [], decreases: [] };
   try {
-    const todayUtc = new Date().toISOString().slice(0, 10);
-    const sevenDaysAgo = new Date(Date.now() - MOVEMENT_WINDOW_DAYS * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10);
+    const todayUtc = daysAgoIsoDate(0);
+    const sevenDaysAgo = daysAgoIsoDate(MOVEMENT_WINDOW_DAYS);
     // Lookback bound for the "current score" query below. Snapshots are captured
     // daily (see .github/workflows/capture-score-snapshots.yml), so anything with
     // a snapshot in the last SNAPSHOT_LOOKBACK_DAYS days is picked up. This is
     // only a transfer-size guard against scanning the entire history table — it
     // never changes which snapshot is "latest" for an actively-scored company,
     // and does not touch the 7-day movement definition. A company that hasn't
-    // had a snapshot in that window (e.g. removed from scoring) is simply
-    // excluded from the movers list, same as if it had no recent movement.
-    const lookbackCutoff = new Date(Date.now() - SNAPSHOT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10);
+    // had a snapshot in that window (e.g. removed from scoring, or with a
+    // capture gap far longer than the daily cadence) is simply excluded from
+    // the movers list, same as if it had no recent movement. The window is
+    // generous relative to the daily capture cadence to avoid dropping active
+    // companies over ordinary short gaps.
+    const lookbackCutoff = daysAgoIsoDate(SNAPSHOT_LOOKBACK_DAYS);
 
     // Query 1: latest available snapshot per company on or before today.
     // Daily snapshots are not guaranteed, so we use lte + desc ordering and pick
