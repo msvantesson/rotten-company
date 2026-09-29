@@ -85,6 +85,15 @@ async function getBiggestMovers(
   try {
     const todayUtc = new Date().toISOString().slice(0, 10);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // Lookback bound for the "current score" query below. Snapshots are captured
+    // daily (see .github/workflows/capture-score-snapshots.yml), so anything with
+    // a snapshot in the last 30 days is picked up. This is only a transfer-size
+    // guard against scanning the entire history table — it never changes which
+    // snapshot is "latest" for an actively-scored company, and does not touch the
+    // 7-day movement definition. A company that hasn't had a snapshot in 30+ days
+    // (e.g. removed from scoring) is simply excluded from the movers list, same as
+    // if it had no recent movement.
+    const lookbackCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
     // Query 1: latest available snapshot per company on or before today.
     // Daily snapshots are not guaranteed, so we use lte + desc ordering and pick
@@ -92,6 +101,7 @@ async function getBiggestMovers(
     const { data: currentSnapshots, error: currentError } = await supabase
       .from("company_rotten_score_snapshots")
       .select("company_id, rotten_score")
+      .gte("snapshot_date", lookbackCutoff)
       .lte("snapshot_date", todayUtc)
       .order("snapshot_date", { ascending: false });
 
@@ -187,10 +197,8 @@ type RecentlyVerifiedItem = {
   companyId: number;
 };
 
-async function getRecentlyVerified(): Promise<RecentlyVerifiedItem[]> {
+async function getRecentlyVerified(supabase: SupabaseClient): Promise<RecentlyVerifiedItem[]> {
   try {
-    const supabase = await supabaseServer();
-
     const { data: events, error: eventsError } = await supabase
       .from("moderation_events")
       .select("id, evidence_id, created_at")
@@ -259,7 +267,7 @@ export default async function HomePage() {
     .order("rotten_score", { ascending: false })
     .limit(10);
   const biggestMoversPromise = getBiggestMovers(supabase);
-  const recentlyVerifiedPromise = getRecentlyVerified();
+  const recentlyVerifiedPromise = getRecentlyVerified(supabase);
 
   const [
     {
@@ -397,6 +405,7 @@ export default async function HomePage() {
                     <TableCell className="font-medium">
                       <Link
                         href={`/company/${company.slug}`}
+                        prefetch={false}
                         className="text-[0.95rem] font-semibold text-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {company.name}
@@ -454,7 +463,7 @@ export default async function HomePage() {
                         className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
                       >
                         <td className="py-2 pr-4 pl-3 font-medium text-accent whitespace-nowrap">
-                          <Link href={`/company/${m.companySlug}`} className="hover:underline">
+                          <Link href={`/company/${m.companySlug}`} prefetch={false} className="hover:underline">
                             {m.companyName}
                           </Link>
                         </td>
@@ -494,7 +503,7 @@ export default async function HomePage() {
                         className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
                       >
                         <td className="py-2 pr-4 pl-3 font-medium text-accent whitespace-nowrap">
-                          <Link href={`/company/${m.companySlug}`} className="hover:underline">
+                          <Link href={`/company/${m.companySlug}`} prefetch={false} className="hover:underline">
                             {m.companyName}
                           </Link>
                         </td>
@@ -540,7 +549,7 @@ export default async function HomePage() {
                       className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-muted"
                     >
                       <td className="py-2 pr-4 pl-3 font-medium text-accent whitespace-nowrap">
-                        <Link href={`/company/${item.companySlug}`} className="hover:underline">
+                        <Link href={`/company/${item.companySlug}`} prefetch={false} className="hover:underline">
                           {item.companyName}
                         </Link>
                         {showDelta(delta) && (

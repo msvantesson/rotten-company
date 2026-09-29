@@ -17,8 +17,18 @@ vi.mock("@/lib/homepage-seo", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...rest }: { href: string; children: ReactNode; [key: string]: unknown }) => (
-    <a href={href} {...rest}>
+  default: ({
+    href,
+    children,
+    prefetch,
+    ...rest
+  }: {
+    href: string;
+    children: ReactNode;
+    prefetch?: boolean;
+    [key: string]: unknown;
+  }) => (
+    <a href={href} data-prefetch={String(prefetch)} {...rest}>
       {children}
     </a>
   ),
@@ -97,10 +107,13 @@ function createMockSupabase(nowIsoDate: string, weekAgoIsoDate: string) {
     if (table === "company_rotten_score_snapshots") {
       let rows = snapshots;
       // Both current-score query and baseline query use lte on snapshot_date.
+      // The current-score query additionally bounds with gte (lookback window).
       const lteSnapshotDate = state["lte:snapshot_date"] as string | undefined;
+      const gteSnapshotDate = state["gte:snapshot_date"] as string | undefined;
       const companyIds = state["in:company_id"] as number[] | undefined;
 
       if (lteSnapshotDate) rows = rows.filter((row) => row.snapshot_date <= lteSnapshotDate);
+      if (gteSnapshotDate) rows = rows.filter((row) => row.snapshot_date >= gteSnapshotDate);
       if (companyIds) rows = rows.filter((row) => companyIds.includes(row.company_id));
 
       // Respect descending sort for both queries.
@@ -157,6 +170,10 @@ function createMockSupabase(nowIsoDate: string, weekAgoIsoDate: string) {
         state[`lte:${column}`] = value;
         return query;
       },
+      gte: (column: string, value: string) => {
+        state[`gte:${column}`] = value;
+        return query;
+      },
       then: <TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
         onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
         onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
@@ -205,6 +222,10 @@ function createMinimalMockSupabase(
         state[`lte:${column}`] = value;
         return query;
       },
+      gte: (column: string, value: string) => {
+        state[`gte:${column}`] = value;
+        return query;
+      },
       then: <TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
         onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
         onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
@@ -213,8 +234,10 @@ function createMinimalMockSupabase(
         if (table === "company_rotten_score_snapshots") {
           rows = snapshots;
           const lteSnapshotDate = state["lte:snapshot_date"] as string | undefined;
+          const gteSnapshotDate = state["gte:snapshot_date"] as string | undefined;
           const companyIds = state["in:company_id"] as number[] | undefined;
           if (lteSnapshotDate) rows = (rows as SnapshotRow[]).filter((r) => r.snapshot_date <= lteSnapshotDate);
+          if (gteSnapshotDate) rows = (rows as SnapshotRow[]).filter((r) => r.snapshot_date >= gteSnapshotDate);
           if (companyIds) rows = (rows as SnapshotRow[]).filter((r) => companyIds.includes(r.company_id));
           if (state["order:snapshot_date"] === "desc") {
             rows = [...(rows as SnapshotRow[])].sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
@@ -303,6 +326,31 @@ describe("Homepage UI updates", () => {
     expect(html).toContain("w-full caption-bottom text-sm min-w-[480px]");
   });
 
+  it("creates the server Supabase client exactly once per request (no duplicate client in getRecentlyVerified)", async () => {
+    const { default: HomePage } = await import("../app/page");
+    await HomePage();
+
+    expect(supabaseServerMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables automatic prefetching on repeated company links but keeps primary navigation prefetch untouched", async () => {
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    // Every /company/<slug> link (Rotten Index, biggest movers, recent activity)
+    // must opt out of Next.js's automatic route-prefetch behaviour.
+    const companyLinkPattern = /<a href="\/company\/[^"]+" data-prefetch="([^"]*)"/g;
+    const companyLinkPrefetchValues = [...html.matchAll(companyLinkPattern)].map((m) => m[1]);
+    expect(companyLinkPrefetchValues.length).toBeGreaterThan(0);
+    for (const value of companyLinkPrefetchValues) {
+      expect(value).toBe("false");
+    }
+
+    // Main navigation / submit-evidence links are untouched (no explicit prefetch override).
+    expect(html).toMatch(/<a href="\/rotten-index" data-prefetch="undefined"/);
+    expect(html).toMatch(/<a href="\/login\?reason=submit-evidence[^"]*" data-prefetch="undefined"/);
+  });
+
   it("starts independent public queries without waiting for auth", async () => {
     let resolveAuth: (value: { data: { user: null } }) => void;
     const authPromise = new Promise<{ data: { user: null } }>((resolve) => {
@@ -318,6 +366,7 @@ describe("Homepage UI updates", () => {
         in: () => query,
         eq: () => query,
         lte: () => query,
+        gte: () => query,
         then: <TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
           onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
           onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
