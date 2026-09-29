@@ -24,10 +24,10 @@ describe("RottenScoreExplanation", () => {
 
   it("renders the approved evidence count with singular and plural wording", () => {
     const singular = renderToStaticMarkup(
-      <RottenScoreExplanation variant="company" evidenceCount={1} score={20} />,
+      <RottenScoreExplanation variant="company" companyName="Acme" evidenceCount={1} score={20} />,
     );
     const plural = renderToStaticMarkup(
-      <RottenScoreExplanation variant="company" evidenceCount={2} score={20} />,
+      <RottenScoreExplanation variant="company" companyName="Acme" evidenceCount={2} score={20} />,
     );
 
     expect(singular).toContain("Based on 1 approved evidence record.");
@@ -37,11 +37,11 @@ describe("RottenScoreExplanation", () => {
 
   it("clarifies that a zero score is not proof that no harm occurred", () => {
     const html = renderToStaticMarkup(
-      <RottenScoreExplanation variant="company" evidenceCount={0} score={0} />,
+      <RottenScoreExplanation variant="company" companyName="Acme" evidenceCount={0} score={0} />,
     );
 
     expect(html).toContain(
-      "No approved evidence of harm is currently recorded. This does not prove that no harm occurred.",
+      "No approved evidence records are currently available for Acme. This does not establish that no misconduct occurred.",
     );
     expect(html).toContain('href="/rotten-score"');
   });

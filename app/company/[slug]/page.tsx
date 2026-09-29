@@ -444,6 +444,7 @@ export default async function CompanyPage({ params }: { params: Params }) {
               <div className="mt-3">
                 <RottenScoreExplanation
                   variant="company"
+                  companyName={company.name}
                   evidenceCount={totalEvidenceCount}
                   score={liveRottenScore ?? 0}
                 />

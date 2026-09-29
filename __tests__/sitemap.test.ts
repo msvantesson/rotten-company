@@ -24,7 +24,10 @@ type CompanyRow = {
 };
 
 type EvidenceRow = {
+  id: number;
   company_id: number | null;
+  entity_type?: string | null;
+  entity_id?: number | null;
   status: string | null;
   created_at: string | null;
 };
@@ -37,8 +40,8 @@ function createSitemapSupabase(params: {
   categories?: Array<{ slug: string | null }>;
 }) {
   const companyRanges: Array<{ from: number; to: number }> = [];
+  const evidenceRanges: Array<{ from: number; to: number }> = [];
   const companyOrders: Array<{ column: string; ascending: boolean | undefined }> = [];
-  const evidenceInFilters: number[][] = [];
 
   const leaders = params.leaders ?? [];
   const categories = params.categories ?? [];
@@ -65,15 +68,14 @@ function createSitemapSupabase(params: {
       },
       in: (column: string, values: unknown[]) => {
         state.inFilters = [...(state.inFilters ?? []), [column, values]];
-        if (table === "evidence" && column === "company_id") {
-          evidenceInFilters.push(values.map((value) => Number(value)));
-        }
         return query;
       },
       range: (from: number, to: number) => {
+        state.range = { from, to };
         if (table === "companies") {
-          state.range = { from, to };
           companyRanges.push({ from, to });
+        } else if (table === "evidence") {
+          evidenceRanges.push({ from, to });
         }
         return query;
       },
@@ -101,6 +103,8 @@ function createSitemapSupabase(params: {
             .filter((row) =>
               (state.inFilters ?? []).every(([column, values]) => values.includes((row as Record<string, unknown>)[column])),
             );
+          const range = state.range ?? { from: 0, to: evidence.length - 1 };
+          data = data.slice(range.from, range.to + 1);
         } else if (table === "leaders") {
           data = leaders;
         } else if (table === "categories") {
@@ -117,8 +121,8 @@ function createSitemapSupabase(params: {
   return {
     from,
     companyRanges,
+    evidenceRanges,
     companyOrders,
-    evidenceInFilters,
   };
 }
 
@@ -152,10 +156,13 @@ describe("sitemap", () => {
     const mockSupabase = createSitemapSupabase({
       companies: orderedCompanies,
       evidence: [
-        { company_id: 1201, status: "approved", created_at: "2026-08-21T12:34:56.000Z" },
-        { company_id: 1201, status: "approved", created_at: "2026-08-20T12:34:56.000Z" },
-        { company_id: 1202, status: "approved", created_at: "2026-08-19T10:00:00.000Z" },
-        { company_id: 1202, status: "pending", created_at: "2026-08-22T10:00:00.000Z" },
+        { id: 101, company_id: 1201, status: "approved", created_at: "2026-08-21T12:34:56.000Z" },
+        { id: 102, company_id: 1201, status: "approved", created_at: "2026-08-20T12:34:56.000Z" },
+        { id: 103, company_id: 1202, status: "approved", created_at: "2026-08-19T10:00:00.000Z" },
+        { id: 104, company_id: 1202, status: "pending", created_at: "2026-08-22T10:00:00.000Z" },
+        { id: 105, company_id: 1202, status: "rejected", created_at: "2026-08-23T10:00:00.000Z" },
+        { id: 106, company_id: null, entity_type: "company", entity_id: 1201, status: "approved", created_at: "2026-08-24T10:00:00.000Z" },
+        { id: 107, company_id: null, entity_type: "company", entity_id: 1201, status: "private", created_at: "2026-08-25T10:00:00.000Z" },
       ],
       leaders: [
         { slug: "leader-one" },
@@ -182,7 +189,7 @@ describe("sitemap", () => {
       { column: "id", ascending: true },
       { column: "id", ascending: true },
     ]);
-    expect(mockSupabase.evidenceInFilters.map((batch) => batch.length)).toEqual([500, 500, 203]);
+    expect(mockSupabase.evidenceRanges).toEqual([{ from: 0, to: 499 }]);
 
     const urls = entries.map((entry) => entry.url);
     const companyUrls = urls.filter((url) => url.includes("/company/"));
@@ -210,7 +217,7 @@ describe("sitemap", () => {
     if (!(companyWithDate?.lastModified instanceof Date)) {
       throw new Error("Expected company lastModified to be a Date");
     }
-    expect(companyWithDate.lastModified.toISOString()).toBe("2026-08-21T12:34:56.000Z");
+    expect(companyWithDate.lastModified.toISOString()).toBe("2026-08-24T10:00:00.000Z");
 
     const companyWithoutValidDate = entries.find((entry) => entry.url === "https://example.test/company/trimmed-company");
     expect(companyWithoutValidDate?.lastModified).toBeUndefined();
@@ -220,6 +227,15 @@ describe("sitemap", () => {
     expect(urls).not.toContain("https://example.test/company/");
     expect(urls).not.toContain("https://example.test/leader/");
     expect(urls).not.toContain("https://example.test/category/");
+
+    const evidenceUrls = urls.filter((url) => url.includes("/evidence/"));
+    expect(evidenceUrls).toEqual([
+      "https://example.test/evidence/101",
+      "https://example.test/evidence/102",
+      "https://example.test/evidence/103",
+      "https://example.test/evidence/106",
+    ]);
+    expect(urls.some((url) => url.includes("/moderation/"))).toBe(false);
   });
 
   it("falls back to company.updated_at when approved evidence timestamp lookup fails", async () => {
