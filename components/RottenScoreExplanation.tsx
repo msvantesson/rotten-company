@@ -2,7 +2,12 @@ import Link from "next/link";
 
 type RottenScoreExplanationProps =
   | { variant: "compact" }
-  | { variant: "company"; evidenceCount: number; score: number | null };
+  | {
+      variant: "company";
+      companyName: string;
+      evidenceCount: number;
+      score: number | null;
+    };
 
 export default function RottenScoreExplanation(props: RottenScoreExplanationProps) {
   const methodologyLink = (
@@ -30,9 +35,10 @@ export default function RottenScoreExplanation(props: RottenScoreExplanationProp
       <p>
         Based on {props.evidenceCount} approved evidence {evidenceWord}. A higher score means more documented harm.
       </p>
-      {props.score === 0 && (
+      {props.evidenceCount === 0 && (
         <p>
-          No approved evidence of harm is currently recorded. This does not prove that no harm occurred.
+          No approved evidence records are currently available for {props.companyName}.
+          This does not establish that no misconduct occurred.
         </p>
       )}
       <p>{methodologyLink}</p>

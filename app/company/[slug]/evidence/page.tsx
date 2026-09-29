@@ -36,7 +36,7 @@ export default async function EvidencePage({
     return notFound();
   }
 
-  let evidence: any[] = [];
+  let evidence: Parameters<typeof EvidenceList>[0]["evidence"] = [];
   try {
     evidence = (await getEvidenceWithManagers(company.id)) ?? [];
   } catch (e) {
@@ -55,7 +55,7 @@ export default async function EvidencePage({
         <h2 className="text-lg font-semibold">Approved Evidence</h2>
 
         <div className="mt-6">
-          <EvidenceList evidence={evidence} />
+          <EvidenceList evidence={evidence} companyName={company.name} />
         </div>
       </section>
     </div>

@@ -25,6 +25,10 @@ vi.mock("next/link", () => ({
   default: () => null,
 }));
 
+vi.mock("@/components/RottenScoreExplanation", () => ({
+  default: () => null,
+}));
+
 vi.mock("@/components/RatingStars", () => ({
   default: () => null,
 }));

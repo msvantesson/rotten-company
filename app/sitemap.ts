@@ -18,7 +18,10 @@ type CompanySitemapRow = {
 };
 
 type ApprovedEvidenceTimestampRow = {
+  id: number;
   company_id: number | null;
+  entity_type: string | null;
+  entity_id: number | null;
   created_at: string | null;
 };
 
@@ -55,39 +58,27 @@ async function fetchCompaniesForSitemap(supabase: ReturnType<typeof supabaseServ
   return companies;
 }
 
-async function fetchLatestApprovedEvidenceTimestamps(
+async function fetchApprovedEvidenceRows(
   supabase: ReturnType<typeof supabaseService>,
-  companyIds: number[],
 ) {
-  const latestByCompanyId = new Map<number, string>();
+  const evidenceRows: ApprovedEvidenceTimestampRow[] = [];
 
-  for (let offset = 0; offset < companyIds.length; offset += COMPANY_SITEMAP_PAGE_SIZE) {
-    const idBatch = companyIds.slice(offset, offset + COMPANY_SITEMAP_PAGE_SIZE);
-    if (idBatch.length === 0) continue;
-
+  for (let offset = 0; ; offset += COMPANY_SITEMAP_PAGE_SIZE) {
     const { data, error } = await supabase
       .from("evidence")
-      .select("company_id, created_at")
-      .in("company_id", idBatch)
-      .eq("status", "approved");
+      .select("id, company_id, entity_type, entity_id, created_at")
+      .eq("status", "approved")
+      .order("id", { ascending: true })
+      .range(offset, offset + COMPANY_SITEMAP_PAGE_SIZE - 1);
 
     if (error) throw error;
+    if (!data?.length) break;
 
-    for (const row of (data ?? []) as ApprovedEvidenceTimestampRow[]) {
-      if (typeof row.company_id !== "number") continue;
-
-      const latest = latestValidIsoDate(
-        latestByCompanyId.get(row.company_id) ?? null,
-        row.created_at,
-      );
-
-      if (latest) {
-        latestByCompanyId.set(row.company_id, latest);
-      }
-    }
+    evidenceRows.push(...(data as ApprovedEvidenceTimestampRow[]));
+    if (data.length < COMPANY_SITEMAP_PAGE_SIZE) break;
   }
 
-  return latestByCompanyId;
+  return evidenceRows;
 }
 
 // Static institutional pages — always present regardless of DB availability.
@@ -127,16 +118,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Exclude test companies identified by "(test)" in the name.
   try {
     const companies = await fetchCompaniesForSitemap(supabase);
-    const companyIds = companies.map((company) => company.id);
+    const companyById = new Map(companies.map((company) => [company.id, company]));
 
-    let approvedEvidenceUpdatedAtByCompanyId = new Map<number, string>();
+    let approvedEvidenceRows: ApprovedEvidenceTimestampRow[] = [];
     try {
-      approvedEvidenceUpdatedAtByCompanyId = await fetchLatestApprovedEvidenceTimestamps(
-        supabase,
-        companyIds,
-      );
+      approvedEvidenceRows = await fetchApprovedEvidenceRows(supabase);
     } catch {
-      approvedEvidenceUpdatedAtByCompanyId = new Map<number, string>();
+      approvedEvidenceRows = [];
+    }
+
+    const approvedEvidenceUpdatedAtByCompanyId = new Map<number, string>();
+    for (const row of approvedEvidenceRows) {
+      const companyId =
+        typeof row.company_id === "number"
+          ? row.company_id
+          : row.entity_type === "company" && typeof row.entity_id === "number"
+            ? row.entity_id
+            : null;
+      if (companyId === null) continue;
+
+      const latest = latestValidIsoDate(
+        approvedEvidenceUpdatedAtByCompanyId.get(companyId) ?? null,
+        row.created_at,
+      );
+      if (latest) approvedEvidenceUpdatedAtByCompanyId.set(companyId, latest);
     }
 
     for (const company of companies) {
@@ -152,6 +157,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${SITE_ORIGIN}/company/${slug}`,
         changeFrequency: "weekly",
         priority: 0.8,
+        ...(lastModified ? { lastModified } : {}),
+      });
+    }
+
+    for (const evidence of approvedEvidenceRows) {
+      if (!Number.isSafeInteger(evidence.id) || evidence.id <= 0) continue;
+      const companyId =
+        typeof evidence.company_id === "number"
+          ? evidence.company_id
+          : evidence.entity_type === "company" && typeof evidence.entity_id === "number"
+            ? evidence.entity_id
+            : null;
+      const company = companyId === null ? null : companyById.get(companyId);
+      const slug = normalizeSlug(company?.slug);
+      if (
+        !company ||
+        !slug ||
+        EXCLUDED_COMPANY_SLUGS.has(slug) ||
+        isTestCompany(company.name)
+      ) {
+        continue;
+      }
+
+      const lastModified = parseLastModified(evidence.created_at);
+      entries.push({
+        url: `${SITE_ORIGIN}/evidence/${evidence.id}`,
+        changeFrequency: "monthly",
+        priority: 0.6,
         ...(lastModified ? { lastModified } : {}),
       });
     }

@@ -234,7 +234,9 @@ describe("company page slug routing", () => {
 
     expect(html).toContain("Nestlé");
     expect(html).toContain("Rotten score meter");
-    expect(html).toContain("No approved evidence of harm is currently recorded. This does not prove that no harm occurred.");
+    expect(html).toContain(
+      "No approved evidence records are currently available for Nestlé. This does not establish that no misconduct occurred.",
+    );
     expect(html).toContain('href="/rotten-score"');
     expect(html).toContain('href="/company/nestle/breakdown"');
     expect(permanentRedirectMock).not.toHaveBeenCalled();

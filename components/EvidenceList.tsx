@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { formatEvidenceTimeline } from "@/lib/evidence-timeline";
 
 type ManagerInfo = {
@@ -40,6 +41,7 @@ type EvidenceItem = {
 
 type Props = {
   evidence: EvidenceItem[];
+  companyName: string;
 };
 
 const SEGMENTS = 5;
@@ -141,7 +143,7 @@ function FilePreview({ item }: { item: EvidenceItem }) {
   );
 }
 
-export default function EvidenceList({ evidence }: Props) {
+export default function EvidenceList({ evidence, companyName }: Props) {
   const grouped = evidence?.length
     ? evidence.reduce((acc, item) => {
         const catId = item.category_id ?? 0;
@@ -170,7 +172,12 @@ export default function EvidenceList({ evidence }: Props) {
   });
 
   if (!evidence || evidence.length === 0) {
-    return <p>No approved evidence found.</p>;
+    return (
+      <p>
+        No approved evidence records are currently available for {companyName}.
+        This does not establish that no misconduct occurred.
+      </p>
+    );
   }
 
   function toggleCategory(catId: string) {
@@ -292,7 +299,12 @@ export default function EvidenceList({ evidence }: Props) {
                         )}
 
                         <h3 className="font-semibold text-lg text-foreground">
-                          {item.title}
+                          <Link
+                            href={`/evidence/${item.id}`}
+                            className="hover:underline"
+                          >
+                            {item.title}
+                          </Link>
                         </h3>
 
                         <SummaryBlock summary={item.summary} />
