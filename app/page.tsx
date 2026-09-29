@@ -458,7 +458,7 @@ export default async function HomePage() {
                             {m.companyName}
                           </Link>
                         </td>
-                        <td className="py-2 pr-4 text-right whitespace-nowrap font-mono tabular-nums text-red-500 font-medium">
+                        <td className="py-2 pr-4 text-right whitespace-nowrap font-mono tabular-nums text-red-700 dark:text-red-400 font-medium">
                           ↑ {formatDelta(m.delta)}
                         </td>
                         <td className="py-2 pr-4 text-right whitespace-nowrap font-mono tabular-nums text-muted-foreground">
@@ -498,7 +498,7 @@ export default async function HomePage() {
                             {m.companyName}
                           </Link>
                         </td>
-                        <td className="py-2 pr-4 text-right whitespace-nowrap font-mono tabular-nums text-green-600 font-medium">
+                        <td className="py-2 pr-4 text-right whitespace-nowrap font-mono tabular-nums text-green-700 dark:text-green-400 font-medium">
                           ↓ {formatDelta(m.delta)}
                         </td>
                         <td className="py-2 pr-4 text-right whitespace-nowrap font-mono tabular-nums text-muted-foreground">
@@ -544,7 +544,7 @@ export default async function HomePage() {
                           {item.companyName}
                         </Link>
                         {showDelta(delta) && (
-                          <span className={`ml-1.5 text-xs font-medium ${delta >= 0 ? "text-red-500" : "text-green-600"}`}>
+                          <span className={`ml-1.5 text-xs font-medium ${delta >= 0 ? "text-red-700 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
                             ({formatDelta(delta)} this week)
                           </span>
                         )}

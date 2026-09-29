@@ -214,7 +214,7 @@ export default function NavMenuClient({
           )}
 
           {logoutError && (
-            <div className="px-3 py-3 sm:py-2 border-t border-border text-sm text-red-600">
+            <div className="px-3 py-3 sm:py-2 border-t border-border text-sm text-red-700 dark:text-red-400">
               {logoutError}
             </div>
           )}
@@ -224,7 +224,7 @@ export default function NavMenuClient({
               type="button"
               onClick={() => void handleLogout()}
               disabled={loggingOut}
-              className="w-full text-left block px-3 py-3 sm:py-2 text-red-600 hover:bg-muted disabled:opacity-50"
+              className="w-full text-left block px-3 py-3 sm:py-2 text-red-700 dark:text-red-400 hover:bg-muted disabled:opacity-50"
             >
               {loggingOut ? "Logging out…" : "Log out"}
             </button>

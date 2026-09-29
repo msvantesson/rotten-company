@@ -321,7 +321,7 @@ export default function RottenIndexClient({
                       <td className="py-3 pr-4 text-muted-foreground">{row.company_slug ? <Link href={`/company/${row.company_slug}`} className="text-accent hover:underline">{row.company_name ?? "—"}</Link> : (row.company_name ?? "—")}</td>
                       <td className="py-3 pr-4 text-muted-foreground">{row.country ?? "—"}</td>
                       <td className="py-3 pr-4 text-muted-foreground">{formatDate(row.started_at)}</td>
-                      <td className="py-3 pr-4 text-muted-foreground">{row.ended_at ? formatDate(row.ended_at) : row.started_at ? <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Current</span> : "—"}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">{row.ended_at ? formatDate(row.ended_at) : row.started_at ? <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">Current</span> : "—"}</td>
                       <td className="py-3 pr-4 text-right font-mono tabular-nums">{row.rotten_score != null ? row.rotten_score.toFixed(2) : "—"}</td>
                     </tr>
                   ))}

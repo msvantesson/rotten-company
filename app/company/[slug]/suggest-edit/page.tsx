@@ -52,7 +52,7 @@ export default async function SuggestEditPage({
       <div className="mt-6 space-y-4">
         <div>
           <h2 className="text-xl font-semibold">Edit company</h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Suggest corrections or updates to this company&apos;s information. Your suggestion will
             be reviewed by a moderator before any changes are applied.
           </p>
