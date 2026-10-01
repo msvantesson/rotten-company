@@ -37,6 +37,10 @@ vi.mock("@/components/RottenScoreMeter", () => ({
   default: () => null,
 }));
 
+vi.mock("@/components/CompanyShareButton", () => ({
+  default: () => null,
+}));
+
 vi.mock("@/components/ScoreDebugPanel", () => ({
   ScoreDebugPanel: () => null,
 }));
@@ -71,6 +75,7 @@ vi.mock("@/lib/flavor-engine", () => ({
     color: "#000",
     macroTier: "Watchlist",
     microFlavor: "Evidence-backed",
+    roundedScore: 0,
   }),
 }));
 

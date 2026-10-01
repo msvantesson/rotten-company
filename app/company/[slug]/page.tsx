@@ -9,6 +9,7 @@ export { generateMetadata } from "./metadata";
 import { supabaseServer } from "@/lib/supabase-server";
 import RatingStars from "@/components/RatingStars";
 import RottenScoreMeter from "@/components/RottenScoreMeter";
+import CompanyShareButton from "@/components/CompanyShareButton";
 import RottenScoreExplanation from "@/components/RottenScoreExplanation";
 import { ScoreDebugPanel } from "@/components/ScoreDebugPanel";
 import { buildCompanyJsonLd } from "@/lib/jsonld-company";
@@ -447,6 +448,15 @@ export default async function CompanyPage({ params }: { params: Params }) {
                   companyName={company.name}
                   evidenceCount={totalEvidenceCount}
                   score={liveRottenScore ?? 0}
+                />
+              </div>
+
+              <div className="mt-3">
+                <CompanyShareButton
+                  companyName={company.name}
+                  score={flavor.roundedScore}
+                  evidenceCount={totalEvidenceCount}
+                  url={canonicalUrl(`/company/${company.slug}`)}
                 />
               </div>
 
