@@ -10,6 +10,7 @@ const permanentRedirectMock = vi.fn((url: string) => {
   throw new Error(`PERMANENT_REDIRECT:${url}`);
 });
 const buildCompanyJsonLdMock = vi.fn(() => ({ "@type": "Organization" }));
+const companySharePropsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase-server", () => ({
   supabaseServer: supabaseServerMock,
@@ -35,6 +36,22 @@ vi.mock("@/components/RatingStars", () => ({
 
 vi.mock("@/components/RottenScoreMeter", () => ({
   default: () => <div>Rotten score meter</div>,
+}));
+
+vi.mock("@/components/CompanyShareButton", () => ({
+  default: (props: {
+    companyName: string;
+    score: number;
+    evidenceCount: number;
+    url: string;
+  }) => {
+    companySharePropsMock(props);
+    return (
+      <button type="button" aria-label={`Share ${props.companyName} Rotten Score`}>
+        Share
+      </button>
+    );
+  },
 }));
 
 vi.mock("@/components/RottenScoreExplanation", async () => ({
@@ -74,6 +91,7 @@ vi.mock("@/lib/flavor-engine", () => ({
     color: "#000",
     macroTier: "Watchlist",
     microFlavor: "Evidence-backed",
+    roundedScore: 0,
   }),
 }));
 
@@ -149,7 +167,7 @@ function createCompanyPageSupabase(data: {
       : orderedRows;
   };
 
-  const from = (table: string) => {
+  const from = vi.fn((table: string) => {
     const state: QueryState = { eqs: [], orderBys: [], limit: null };
 
     const query = {
@@ -191,7 +209,7 @@ function createCompanyPageSupabase(data: {
     };
 
     return query;
-  };
+  });
 
   return {
     auth: {
@@ -208,24 +226,23 @@ describe("company page slug routing", () => {
   });
 
   it("renders the canonical stored slug with HTTP 200 behavior", async () => {
-    supabaseServerMock.mockResolvedValue(
-      createCompanyPageSupabase({
-        companies: [
-          {
-            id: 1,
-            name: "Nestlé",
-            slug: "nestle",
-            industry: "Food",
-            size_employees_range: null,
-            country: "CH",
-            hq_region: null,
-            hq_city: null,
-            website: null,
-            description: "Chocolate",
-          },
-        ],
-      }),
-    );
+    const supabase = createCompanyPageSupabase({
+      companies: [
+        {
+          id: 1,
+          name: "Nestlé",
+          slug: "nestle",
+          industry: "Food",
+          size_employees_range: null,
+          country: "CH",
+          hq_region: null,
+          hq_city: null,
+          website: null,
+          description: "Chocolate",
+        },
+      ],
+    });
+    supabaseServerMock.mockResolvedValue(supabase);
 
     const { default: CompanyPage } = await import("../app/company/[slug]/page");
     const html = renderToStaticMarkup(
@@ -233,6 +250,7 @@ describe("company page slug routing", () => {
     );
 
     expect(html).toContain("Nestlé");
+    expect(html).toContain('aria-label="Share Nestlé Rotten Score"');
     expect(html).toContain("Rotten score meter");
     expect(html).toContain(
       "No approved evidence records are currently available for Nestlé. This does not establish that no misconduct occurred.",
@@ -241,6 +259,13 @@ describe("company page slug routing", () => {
     expect(html).toContain('href="/company/nestle/breakdown"');
     expect(permanentRedirectMock).not.toHaveBeenCalled();
     expect(notFoundMock).not.toHaveBeenCalled();
+    expect(supabase.from.mock.calls.filter(([table]) => table === "companies")).toHaveLength(2);
+    expect(companySharePropsMock).toHaveBeenCalledWith({
+      companyName: "Nestlé",
+      score: 0,
+      evidenceCount: 0,
+      url: "https://example.test/company/nestle",
+    });
   });
 
   it("permanently redirects legacy slugs on the server without client-side JS", async () => {
