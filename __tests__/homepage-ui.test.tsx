@@ -316,6 +316,17 @@ describe("Homepage UI updates", () => {
     expect(html).not.toContain("↓ -10.0 this week");
   });
 
+  it("keeps only the public links in the Learn more section", async () => {
+    const { default: HomePage } = await import("../app/page");
+    const html = renderToStaticMarkup(await HomePage());
+
+    expect(html).not.toContain("SEO Keyword Guide 2026");
+    expect(html).toContain('href="/leadership"');
+    expect(html).toContain("Leadership Accountability");
+    expect(html).toContain('href="/rotten-score"');
+    expect(html).toContain("How Rotten Score works");
+  });
+
   it("renders the Top 10 table with shared table primitives and preserved score formatting", async () => {
     const { default: HomePage } = await import("../app/page");
     const html = renderToStaticMarkup(await HomePage());
