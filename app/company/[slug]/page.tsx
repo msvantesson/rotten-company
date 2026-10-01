@@ -347,7 +347,16 @@ export default async function CompanyPage({ params }: { params: Params }) {
 
       <div className="max-w-3xl mx-auto py-8 px-4">
         <header>
-          <h1 className="text-3xl font-semibold">{company.name}</h1>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h1 className="text-3xl font-semibold">{company.name}</h1>
+
+            <CompanyShareButton
+              companyName={company.name}
+              score={flavor.roundedScore}
+              evidenceCount={totalEvidenceCount}
+              url={canonicalUrl(`/company/${company.slug}`)}
+            />
+          </div>
 
           <CompanyTabs slug={company.slug} />
         </header>
@@ -448,15 +457,6 @@ export default async function CompanyPage({ params }: { params: Params }) {
                   companyName={company.name}
                   evidenceCount={totalEvidenceCount}
                   score={liveRottenScore ?? 0}
-                />
-              </div>
-
-              <div className="mt-3">
-                <CompanyShareButton
-                  companyName={company.name}
-                  score={flavor.roundedScore}
-                  evidenceCount={totalEvidenceCount}
-                  url={canonicalUrl(`/company/${company.slug}`)}
                 />
               </div>
 

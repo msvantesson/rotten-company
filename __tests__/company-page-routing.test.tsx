@@ -266,6 +266,20 @@ describe("company page slug routing", () => {
       evidenceCount: 0,
       url: "https://example.test/company/nestle",
     });
+
+    // The Share button must be rendered exactly once, inside the profile
+    // header (alongside the company name), and not inside the Rotten
+    // Score hero card.
+    const shareButtonMatches =
+      html.match(/aria-label="Share Nestlé Rotten Score"/g) ?? [];
+    expect(shareButtonMatches).toHaveLength(1);
+
+    const headingIndex = html.indexOf("Nestlé");
+    const shareButtonIndex = html.indexOf('aria-label="Share Nestlé Rotten Score"');
+    const scoreMeterIndex = html.indexOf("Rotten score meter");
+    expect(headingIndex).toBeGreaterThan(-1);
+    expect(shareButtonIndex).toBeGreaterThan(headingIndex);
+    expect(shareButtonIndex).toBeLessThan(scoreMeterIndex);
   });
 
   it("permanently redirects legacy slugs on the server without client-side JS", async () => {
